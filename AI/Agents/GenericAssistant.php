@@ -106,14 +106,14 @@ class GenericAssistant implements AiAgentInterface
      * Each concept is basically a plugin, that generates part of the system prompt. You can use it anywhere in your
      * prompt via placeholder
      * 
-     * @uxon-property system_concepts
+     * @uxon-property concepts
      * @uxon-type \axenox\GenAI\Common\AbstractConcept
      * @uxon-template {"metamodel_bmdb": {"class": "\\exface\\Core\\AI\\Concepts\\MetamodelDbmlConcept"}}
      * 
      * @param \exface\Core\CommonLogic\UxonObject $arrayOfConcepts
      * @return \axenox\GenAI\Interfaces\AiAgentInterface
      */
-    protected function setSystemConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
+    protected function setConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
     {
         foreach ($arrayOfConcepts as $placeholder => $uxon) {
             $this->concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $uxon);
@@ -125,7 +125,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return array
      */
-    protected function getSystemConcepts(AiPromptInterface $promt) : array
+    protected function getConcepts(AiPromptInterface $promt) : array
     {
         return $this->concepts;
     }
@@ -133,14 +133,14 @@ class GenericAssistant implements AiAgentInterface
     /**
      * An introduction to explain the LLM, what the assistant is supposed to do
      * 
-     * @uxon-property system_prompt
+     * @uxon-property instructions
      * @uxon-type string
      * @uxon-template You are a helpful assistant, who will answer questions about the structure of the following database. Here is the DB schema in DBML: \n\n[#metamodel_dbml#] \n\nAnswer using the following locale [#=User('LOCALE')#]
      * 
      * @param string $text
      * @return \axenox\GenAI\Interfaces\AiAgentInterface
      */
-    protected function setSystemPrompt(string $text) : AiAgentInterface
+    protected function setInstructions(string $text) : AiAgentInterface
     {
         $this->systemPrompt = $text;
         return $this;
@@ -158,7 +158,7 @@ class GenericAssistant implements AiAgentInterface
             $renderer->addPlaceholder(new FormulaPlaceholders($this->workbench, null, null, '='));
             $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
             
-            foreach ($this->getSystemConcepts($prompt) as $concept) {
+            foreach ($this->getConcepts($prompt) as $concept) {
                 $renderer->addPlaceholder($concept);
             }
             
