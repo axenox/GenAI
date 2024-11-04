@@ -10,6 +10,7 @@ use exface\Core\DataTypes\DateDataType;
 use exface\Core\DataTypes\DateTimeDataType;
 use exface\Core\DataTypes\IntegerDataType;
 use exface\Core\DataTypes\NumberDataType;
+use exface\Core\DataTypes\RelationCardinalityDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\TimeDataType;
 use exface\Core\Exceptions\InvalidArgumentException;
@@ -19,7 +20,9 @@ use exface\Core\Factories\MetaObjectFactory;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\DataTypes\EnumDataTypeInterface;
+use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
+use exface\Core\Interfaces\Model\MetaRelationInterface;
 
 class MetamodelDbmlConcept extends AbstractConcept
 {
@@ -102,42 +105,24 @@ class MetamodelDbmlConcept extends AbstractConcept
     $array = $this->buildArray();
 
     
-    foreach ($array['Tables'] as $alias => $table) {
-        $dbml .= 'Table ' . $table['Table'] . ' {' . PHP_EOL;
+    foreach ($array['Tables'] as $name => $tblData) {
+        $dbml .= 'Table ' . $tblData['Table'] . ' {' . PHP_EOL;
         
-        foreach ($table['columns'] as $attrProps) {
-            $dbml .= $indent . $attrProps['Data Address'] . ' ' . $attrProps['Data Type'] . ' [';
-            if ($attrProps['Primary Key']) {
-                $dbml .= 'primary key, ';
-            }
-            $dbml .= "note: 'Attribute Name: " . $attrProps['Object Name'] . ", Attribute Alias: " . $attrProps['Object Alias'];
-            if (!empty($attrProps['Description'])) {
-                $dbml .= ', Description: ' . $attrProps['Description'];
-            }
-            $dbml .= "']" . PHP_EOL;
+        foreach ($tblData['Columns'] as $colData) {
+            $dbml .= $indent . implode(' ', $colData) . PHP_EOL;
+            
         }
         $dbml .= '}' . PHP_EOL; 
     }
-    foreach ($array['Enums'] as $alias => $values) 
+    foreach ($array['Enums'] as $name => $enumVals) 
     {
-        foreach ($values['values'] as $key => $value) {
-            
-            $enumValues[] = "$key [note:  '$value']";
+        $dbml .= 'Enum '. $name . '{';
+        foreach ($enumVals as $valData) {
+            $dbml .= $indent . implode(' ', $valData) . PHP_EOL;
         }
-        $dbml .= 'Enum '. $alias . '{' . PHP_EOL .  implode(PHP_EOL , $enumValues) .'}' . PHP_EOL ;
-        $dbml .= '//Description: '. $values['description']. PHP_EOL . PHP_EOL;
+        $dbml .= '}' . PHP_EOL ;
     }
     $dbml .= PHP_EOL;
-    foreach ($array['Relations'] as $alias => $table) {
-        
-
-        foreach ($table['details'] as $details) {
-            $addRelation = 'Ref: ' . $this->buildRelation($details) . PHP_EOL;
-            if(!strpos($dbml, $addRelation)){
-                $dbml .='Ref: ' . $this->buildRelation($details) . PHP_EOL;
-            }
-        }
-    }
     
     return $dbml;
 }
@@ -149,19 +134,18 @@ class MetamodelDbmlConcept extends AbstractConcept
      * ```
      * [
      *   "Tables": [
-     *     "exface.Core.PAGE" => [
-     *       "data_address": "exf_page",
-     *       "columns": [
-     *          "name": "UID",
-     *          "type": "string",
+     *     "exf_page" => [
+     *       "Table": "exf_page",
+     *       "Columns": [
+     *          [
+     *              "name",
+     *              "type",
+     *              "settings": "[pk, noe: ..., ref: ...]"
+     *          ]
      *       ]
      *     ]
      *   ],
-     *   "Enums":[],
-     *   "Relations": [
-     *      
-     * 
-     *  ]
+     *   "Enums":[]
      * ]
      * ```
      * 
@@ -171,93 +155,118 @@ class MetamodelDbmlConcept extends AbstractConcept
     public function buildArray() : array{
     $array = [];
     foreach ($this->getObjects() as $obj) {
-        $array = array_merge_recursive($array, $this->getDBMLArrayForObject($obj));
+        $array = array_merge_recursive($array, $this->buildDbmlArrayForObject($obj));
     }
     return $array;
     }
 
-    protected function getDBMLArrayForObject(MetaObjectInterface $obj) : array
+    protected function buildDbmlArrayForObject(MetaObjectInterface $obj) : array
     {
+        $tableName = $this->buildDbmlTableName($obj);
+        if ($tableName === null) {
+            return [];
+        }
+
         $enums = [];
         $table = [
-            'Table' => $obj->getDataAddress(),
-            'columns' => []
-        ];
-        $relation_table = [
-            'Table' => $obj->getDataAddress(),
-            'details' => []
+            'Table' => $tableName,
+            'Columns' => []
         ];
         foreach ($obj->getAttributes() as $attribute) { 
-            
-            $primary_key = false;
-            $data_address = StringDataType:: stripLineBreaks($attribute->getDataAddress());
-
-
-            if ($data_address === 'oid') {
-                $primary_key = true;
-            }
-
-
-            
-            
-            $table['columns'][] = [
-                'Primary Key' => $primary_key,
-                'Data Address' => $data_address,
-                'Object Name' => $attribute->getName(),
-                'Object Alias' => $attribute->getAlias(),
-                'Data Type' => $this->getDmblDatatype($attribute->getDataType()),
-                'Description' => $attribute->getShortDescription(),
-                
-                
-                
-            ];
-            $datatype = $attribute->getDataType();
-            if ($datatype instanceof EnumDataTypeInterface) {
-                
-                foreach($datatype->getLabels() as $value => $name){
-                    $enums [$attribute->getDataType()->getAliasWithNamespace()][]= 
-                    [
-                        
-                    'value' => $value,
-                    'name' => $name,
-                    
-                    ];
-                
-                
+            $colName = $this->buildDbmlColName($attribute);
+            if ($colName !== null) {
+                $col = [
+                    'name' => $colName,
+                    'type' => $this->buildDbmlColType($attribute->getDataType(), $attribute)
+                ];
+                $settings = $this->buildDbmlColSettings($attribute);
+                if (! empty($settings)) {
+                    $col['settings'] = '[' . implode(', ', $settings) . ']';
                 }
-                
-                
-                
-                $enums [$attribute->getDataType()->getAliasWithNamespace()] = ['values' => $attribute-> getDataType()->getlabels(),'description' => $datatype->getShortDescription(),];
-                //$enums = [$datatype->getLabels()];
-            }
+                $table['Columns'][] = $col;
 
-           if ($attribute->isRelation()) {
-            $relation_table["details"] [] = [
-                
-                "Column" => $attribute->getDataAddress(),
-                "Right Table" => $attribute->getRelation()->getRightObject()->getAliasWithNamespace(),
-                "Left Table" => $attribute->getRelation()->getLeftObject()->getAliasWithNamespace(),
-                "Relation Type" => $attribute->getRelation()->getType()->__toString(),
-                "Right Element" => $attribute->getRelation()->getRightKeyAttribute()->getDataAddress(),
-                "Left Element" => $attribute->getRelation()->getLeftKeyAttribute()->getDataAddress(),
-            ];
+                $datatype = $attribute->getDataType();
+                if ($datatype instanceof EnumDataTypeInterface) {
+                    $enumVals = [];
+                    foreach($datatype->getLabels() as $value => $label){
+                        $enumVals[] = [ 
+                            'name' => $value,
+                            'settings' => '[note: ' . $label . ']'
+                        ];
+                    }
+                    $enums[$this->getKeyOfEnum($datatype, $attribute)] = $enumVals;
+                }
+            } else {
+                // TODO use custom-SQL columns somehow. Maybe create some sort of hints for the AI
+                // to use these prebuild SQL statements? But we would need to resolve the placeholders
+                // then...
+            }
             
-        }
+            // TODO add complex relations (e.g. over compound attributes) here if they cannot be handled
+            // inside the table defs
 
         }
         return [
-            'Tables' => [$obj->getAliasWithNamespace() => $table],
-            'Enums'=> $enums, 
-            'Relations' => [$obj->getAliasWithNamespace() => $relation_table]
+            'Tables' => [$this->getKeyOfTable($obj) => $table],
+            'Enums'=> $enums
         ];
     }
 
-    protected function getDmblDatatype(DataTypeInterface $dataType) : string 
+    protected function getKeyOfTable(MetaObjectInterface $obj) : string
+    {
+        return $obj->getAliasWithNamespace();
+    }
+
+    protected function getKeyOfEnum(DataTypeInterface $datatype, MetaAttributeInterface $attr) : string
+    {
+        return $datatype->getAliasWithNamespace();
+    }
+
+    protected function buildDbmlColName(MetaAttributeInterface $attr) : ?string
+    {
+        return '"' . $attr->getName() . '"';
+    }
+
+    protected function buildDbmlColSettings(MetaAttributeInterface $attr) : array
+    {
+        $arr = [];
+        if ($attr->isUidForObject()) {
+            $arr[] = 'pk';
+        }
+        if ($attr->isLabelForObject()) {
+            $arr[] = 'unique';
+        }
+        if ($attr->isRequired()) {
+            $arr[] = 'not null';
+        }
+
+        /* TODO skip defaults for now as it is unclear, how to evaluate the expressions properly
+        if ($attr->hasDefaultValue()) {
+            $arr[] = 'default: ' . $attr->getDefaultValue()->evaluate();
+        }
+        */
+
+        if ($attr->isRelation()) {
+            $arr[] = 'ref: ' . $this->buildDbmlColRelationship($attr->getRelation());
+        }
+
+        if (null !== $descr = $this->buildDbmlColDescription($attr)) {
+            $arr[] = 'note: ' . StringDataType::stripLineBreaks($descr);
+        }
+
+        return $arr;
+    }
+
+    protected function buildDbmlColDescription(MetaAttributeInterface $attr) : ?string
+    {
+        $descr = $attr->getShortDescription();
+        return $descr === null || trim($descr) === '' ? null : $descr;
+    }
+
+    protected function buildDbmlColType(DataTypeInterface $dataType, MetaAttributeInterface $attribute = null) : string 
     {
 
         switch (true) {
-            
             case $dataType instanceof IntegerDataType:
             case $dataType instanceof TimeDataType:
                 $schema = 'integer';
@@ -272,8 +281,7 @@ class MetamodelDbmlConcept extends AbstractConcept
                 $schema = 'array';
                 break;
             case $dataType instanceof EnumDataTypeInterface:
-                $schema = 'enum';
-                $dataType-> getValues();
+                $schema = $this->getKeyOfEnum($dataType, $attribute);
                 break;
             case $dataType instanceof DateTimeDataType:
                 $schema = 'datetime';
@@ -294,25 +302,22 @@ class MetamodelDbmlConcept extends AbstractConcept
         
     }
 
-   protected function buildRelation(array $table) : String {
-        $relation = "<";
-
-        switch (true) {
-            case $table['Relation Type'] === '11':
-                $relation = '-';
-                break;
-            case $table['Relation Type'] === 'N1':
-                $relation = '<';
-                break;    
-            case $table['Relation Type'] === 'NM':
-                $relation = '<>';
-                break;
-            case $table['Relation Type'] === '1N':
-                $relation = '>';
-                break; 
+    protected function buildDbmlColRelationship(MetaRelationInterface $rel) : string 
+    {
+        switch ($rel->getCardinality()) {
+            case RelationCardinalityDataType::ONE_TO_ONE: $sign = '-'; break;
+            case RelationCardinalityDataType::N_TO_ONE: $sign = '>'; break;
+            case RelationCardinalityDataType::ONE_TO_N: $sign = '<'; break;
+            default:
+                $sign = '>';
         }
-        return $table['Left Table'] . '.' . $table['Left Element'] . ' ' . $relation . ' ' . $table['Right Table'] . '.' . $table['Right Element'] ;
+        return "$sign {$this->buildDbmlTableName($rel->getRightObject())}";
     }
+
+    protected function buildDbmlTableName(MetaObjectInterface $obj) : ?string
+    {
+        return '"' . $obj->getName() . '"';
+    } 
 
     /**
      * 
