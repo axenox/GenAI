@@ -2,26 +2,17 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\AI\Concepts\MetamodelDbmlConcept;
-use axenox\GenAI\Common\AiResponse;
-use axenox\GenAI\Common\DbmlModel;
-use exface\Core\CommonLogic\Selectors\DataConnectionSelector;
-use exface\Core\DataConnectors\TransparentConnector;
 use exface\Core\Exceptions\RuntimeException;
-use exface\Core\Factories\DataConnectionFactory;
-use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
-use axenox\GenAI\Interfaces\AiResponseInterface;
-use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use exface\Core\Interfaces\DataSources\SqlDataConnectorInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
-use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Templates\Placeholders\ArrayPlaceholders;
 
 class SqlFilteringAssistant extends GenericAssistant
 {
-    protected function getSystemConcepts(AiPromptInterface $prompt) : array
+    protected function getConcepts(AiPromptInterface $prompt) : array
     {
-        $concepts = parent::getSystemConcepts($prompt);
+        $concepts = parent::getConcepts($prompt);
         foreach ($concepts as $concept) {
             if ($concept instanceof MetamodelDbmlConcept) {
                 if ($prompt->hasMetaObject()) {
