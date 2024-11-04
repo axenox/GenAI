@@ -1,0 +1,26 @@
+{
+    "name": "axenox/genai",
+    "license": [
+        "GPL-3.0+",
+        "proprietary"
+    ],
+    "require": {
+        "exface/core": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "\\axenox\\AI\\": ""
+        },
+        "exclude-from-classmap": [
+            "/Config/",
+            "/Translations/",
+            "/Model/"
+        ]
+    },
+    "extra": {
+        "app": {
+            "app_uid": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "app_alias": "axenox.GenAI"
+        }
+    }
+}
