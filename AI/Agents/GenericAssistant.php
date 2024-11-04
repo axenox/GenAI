@@ -2,7 +2,7 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
-use exface\Core\CommonLogic\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -204,7 +204,7 @@ class GenericAssistant implements AiAgentInterface
     /**
      * 
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \exface\Core\CommonLogic\DataQueries\OpenAiApiDataQuery $query
+     * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
      * @return \axenox\GenAI\Common\AiResponse
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query) : AiResponse
