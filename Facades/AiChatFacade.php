@@ -7,12 +7,12 @@ use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\JsonBodyParser;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\TaskReader;
 use axenox\GenAI\Factories\AiFactory;
+use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade;
 use GuzzleHttp\Psr7\Response;
 use exface\Core\DataTypes\StringDataType;
-use function GuzzleHttp\Psr7\stream_for;
 
 /**
  * Allows to chat with AI agents defined in the meta model using an OpenAI style API
@@ -67,7 +67,7 @@ class AiChatFacade extends AbstractHttpFacade
                 throw new FacadeRoutingError('Route "' . $pathInFacade . '" not found!');
         }
         
-        return new Response(($responseCode ?? 404), $headers, stream_for($body ?? ''));
+        return new Response(($responseCode ?? 404), $headers, Utils::streamFor($body ?? ''));
     }
 
     /**
