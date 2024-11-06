@@ -1,0 +1,15 @@
+meta {
+  name: Simple chat with a single prompt
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/aichat/model_tutor/completions?object=exface.Core.USER_ROLE
+  body: none
+  auth: inherit
+}
+
+params:query {
+  object: exface.Core.USER_ROLE
+}

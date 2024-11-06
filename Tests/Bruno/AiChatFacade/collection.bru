@@ -1,0 +1,23 @@
+headers {
+  Cookie: {{XDEBUG_HEADER}}
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  To use this collection, the target environment must have a user with the rights to use the AiChatFacade (a SUPERUSER will do too) with a special API key.
+  
+  1. Go to Administration > Users & Security
+  2. Open the user you want to use
+  3. Go to the tab "API Keys"
+  4. Press "+ Add"
+  5. Give the toke a name (like "Bruno API key for AiChatFacade") and the key value `BrunoApiAccessToken`. You can change the token value in the environment of Bruno if you like.
+  
+  Now the requests in this collection should work.
+}
