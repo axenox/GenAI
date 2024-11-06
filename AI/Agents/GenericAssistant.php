@@ -11,6 +11,7 @@ use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
+use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use exface\Core\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
@@ -95,9 +96,23 @@ class GenericAssistant implements AiAgentInterface
             $query->setConversationUid($val);
         }
 
+        $this->saveConversation($prompt, $query);
         $performedQuery = $this->getConnection()->query($query);
         
         return $this->parseDataQueryResponse($prompt, $performedQuery);
+    }
+
+    public function saveConversation(AiPromptInterface $promt, OpenAiApiDataQuery $query) : self
+    {
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+        $ds->addRow([
+            'AI_AGENT' => '0x11ef997726a6346a9977025041000001', // TODO $this->getUid()
+            'META_OBJECT' => $promt->getMetaObject()->getId(),
+            'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+            'TITLE' => 'Test'
+        ]);
+        $ds->dataCreate();
+        return $this;
     }
 
     /**
