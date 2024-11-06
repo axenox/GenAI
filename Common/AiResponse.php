@@ -22,4 +22,13 @@ class AiResponse extends ResultMessage implements AiResponseInterface
     {
         return $this->json ?? [];
     }
+
+    /**
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\Tasks\ResultMessage::getMessage()
+     */
+    public function getMessage() : string 
+    {
+        return $this->getChoices()[0]['message']['content'];
+    }
 }
