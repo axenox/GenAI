@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "AiChatFacade",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
