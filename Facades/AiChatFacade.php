@@ -105,7 +105,8 @@ class AiChatFacade extends AbstractHttpFacade
         // username and password from API clients like PostMan.
         // TODO remove authentication after initial testing phase
         $middleware[] = new AuthenticationMiddleware($this, [
-            [AuthenticationMiddleware::class, 'extractBasicHttpAuthToken']
+            [AuthenticationMiddleware::class, 'extractBasicHttpAuthToken'],
+            [AuthenticationMiddleware::class, 'extractBearerTokenAsApiKey']
         ]);
         
         return $middleware;
