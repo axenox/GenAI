@@ -34,7 +34,11 @@ class AiPrompt extends HttpTask implements AiPromptInterface
                 return $msg['role'] === 'user';
             }
         });
-        return $array;
+        $result = [];
+        foreach ($array as $msg) {
+            $result[] = $msg['text'];
+        }
+        return $result;
     }
 
     public function getSystemMessages() : array

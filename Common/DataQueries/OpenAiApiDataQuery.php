@@ -42,6 +42,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery
 
     private $responseData = null;
 
+    private $costPerMTokens = null;
+
     public function __construct(WorkbenchInterface $workbench)
     {
         $this->workbench = $workbench;
@@ -190,10 +192,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery
      * @param \Psr\Http\Message\ResponseInterface $response
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
      */
-    public function withResponse(ResponseInterface $response) : OpenAiApiDataQuery
+    public function withResponse(ResponseInterface $response, float $costPerMTokens = null) : OpenAiApiDataQuery
     {
         $clone = clone $this;
         $clone->response = $response;
+        $clone->costPerMTokens = $costPerMTokens;
         return $clone;
     }
 
@@ -231,6 +234,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery
         return $this->response;
     }
 
+    public function getCostPerMTokens() : ?float
+    {
+        return $this->costPerMTokens;
+    }
+
     /**
      * 
      * @return array
@@ -262,5 +270,15 @@ class OpenAiApiDataQuery extends AbstractDataQuery
         }
         
         return $debug_widget;
+    }
+
+    public function countTokensInPrompt() : ?int
+    {
+        return $this->getResponseData()['usage']['promt'];
+    }
+
+    public function countTokensInCompletions() : ?int
+    {
+        return $this->getResponseData()['usage']['completions'];
     }
 }
