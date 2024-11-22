@@ -41,6 +41,8 @@ class OpenAiConnector extends AbstractDataConnector
 
     private $dryrun = false;
 
+    private $costPerMTokens = null;
+
     /**
      * 
      * {@inheritDoc}
@@ -68,7 +70,7 @@ class OpenAiConnector extends AbstractDataConnector
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);
             }
         }
-        return $query->withResponse($response);
+        return $query->withResponse($response, $this->getCostPerMTokens());
     }
 
     protected function sendRequest(RequestInterface $request) : ResponseInterface
@@ -181,6 +183,26 @@ class OpenAiConnector extends AbstractDataConnector
     protected function setModel(string $name) : OpenAiConnector
     {
         $this->modelName = $name;
+        return $this;
+    }
+
+    public function getCostPerMTokens() : ?float
+    {
+        return $this->costPerMTokens;
+    }
+
+    /**
+     * Cost per million tokens
+     * 
+     * @uxon-property cost_per_m_tokens
+     * @xuon-type number
+     * 
+     * @param float $number
+     * @return \axenox\GenAI\DataConnectors\OpenAiConnector
+     */
+    protected function setCostPerMTokens(float $number) : OpenAiConnector
+    {
+        $this->costPerMTokens = $number;
         return $this;
     }
 
