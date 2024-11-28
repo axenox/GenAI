@@ -24,6 +24,8 @@ class AIChat extends InputCustom implements iFillEntireContainer
         return <<<HTML
 
         <deep-chat 
+            id='{$this->getId()}'
+            class='exf-aichat'
             connect='{
                 "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/model_tutor/deepchat",
                 "method": "POST",
@@ -133,5 +135,23 @@ HTML;
     {
         // TODO
         return parent::getScriptToAttachOnChange($fnOnChangeJs);
+    }
+
+    public function getScriptToResize() : ?string
+    {
+        return parent::getScriptToResize() . <<<JS
+        
+            setTimeout(function(jqSelf){
+                var jqParent = jqSelf.parent();
+                var iHeightP = jqParent.innerHeight();
+                var iWidthP = jqParent.innerWidth();
+                if (iHeightP > 0) {
+                    jqSelf.height(iHeightP);
+                }
+                if (iWidthP > 0) {
+                    jqSelf.width(iWidthP);
+                }
+            }, 100, $('#{$this->getId()}'));
+JS;
     }
 }
