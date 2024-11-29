@@ -15,7 +15,7 @@ use exface\Core\Interfaces\DataSources\DataQueryInterface;
 interface AiQueryInterface extends DataQueryInterface
 {
     public function getAnswer() : string;
-
+    
     public function isFinished() : bool;
 
     public function getCostPerMTokens() : ?float;
@@ -23,4 +23,8 @@ interface AiQueryInterface extends DataQueryInterface
     public function getTokensInPrompt() : int;
 
     public function getTokensInAnswer() : int;
+    public function getSequenceNumber() : int;
+    public function getUserPrompt() : string;
+    public function getSystemPrompt() : ?string;
+    public function getAgentId() : ?string;
 }

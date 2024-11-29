@@ -12,13 +12,14 @@ use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 
 /**
  * Data query in OpenAI style
  * 
  * Inspired by OpenAI chat completion API: https://platform.openai.com/docs/api-reference/chat/create
  */
-class OpenAiApiDataQuery extends AbstractDataQuery
+class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 {
     const ROLE_SYSTEM = 'system';
     const ROLE_USER = 'user';
@@ -241,24 +242,6 @@ class OpenAiApiDataQuery extends AbstractDataQuery
 
     /**
      * 
-     * @return array
-     */
-    public function getResponseChoices() : array
-    {
-        return $this->responseData['choices'];
-    }
-
-    /**
-     * 
-     * @return array
-     */
-    public function getResponseUsageStats() : array
-    {
-        return $this->responseData['usage'];
-    }
-
-    /**
-     * 
      * {@inheritDoc}
      * @see \exface\Core\CommonLogic\DataQueries\AbstractDataQuery::createDebugWidget()
      */
@@ -272,13 +255,40 @@ class OpenAiApiDataQuery extends AbstractDataQuery
         return $debug_widget;
     }
 
-    public function countTokensInPrompt() : ?int
+    public function getAnswer() : string
     {
-        return $this->getResponseData()['usage']['promt'];
+        return $this->getResponseData()['choices'][0]['message']['content'];
     }
 
-    public function countTokensInCompletions() : ?int
+    public function isFinished() : bool
     {
-        return $this->getResponseData()['usage']['completions'];
+        return $this->getResponseData()['choices']['finish_reason'] === 'stop';
+    }
+
+    public function getTokensInPrompt() : int
+    {
+        return $this->getResponseData()['usage']['prompt_tokens'];
+    }
+
+    public function getTokensInAnswer() : int
+    {
+        return $this->getResponseData()['usage']['completion_tokens'];
+    }
+    public function getUserPrompt() : string
+    {
+        foreach ($this->messages as $row) {
+            if($row['role'] === 'user')
+                return $row['content'];
+        }
+        throw new DataQueryFailedError($this, 'User message cannot be found');
+    }
+    public function getAgentId() : string
+    {
+        return $this->getResponseData()['id'];
+    }
+    public function getSequenceNumber() : int
+    {
+        $this->getConversationData();
+        return $this->conversationData->countRows()+1;
     }
 }
