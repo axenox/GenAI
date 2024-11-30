@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
     "created_on": "2024-11-07 12:31:37",
     "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-    "modified_on": "2024-11-27 20:06:22",
+    "modified_on": "2024-11-30 21:27:46",
     "contents": {
         "widget_type": "DataTable",
         "object_alias": "axenox.GenAI.AI_CONVERSATION",
@@ -33,11 +33,8 @@
                 "caption": "Message Count"
             },
             {
-                "\/*": "",
-                "attribute_alias": "LIST(AI_MESSAGE__TOKENS_COMPLETION,AI_MESSAGE__TOKENS_PROMPT):SUM",
-                "caption": "token completion",
-                "hidden": false,
-                "*\/": ""
+                "attribute_alias": "AI_MESSAGE__COST:SUM",
+                "caption": "COST"
             }
         ],
         "buttons": [

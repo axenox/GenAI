@@ -126,9 +126,8 @@ class GenericAssistant implements AiAgentInterface
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE'=> 'system',
                     'MESSAGE'=> $this->systemPrompt,
-                    'SEQUENCE_NUMBER' => $sequenceNumber
+                    'SEQUENCE_NUMBER' => $sequenceNumber++
                 ]);
-                $sequenceNumber++;
             }
 
             $message->addRow([
@@ -136,7 +135,7 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> 'user',
                 'MESSAGE'=> $query->getUserPrompt(),
-                'SEQUENCE_NUMBER' => $sequenceNumber
+                'SEQUENCE_NUMBER' => $sequenceNumber++
             ]);
             
             $message->addRow([
@@ -144,10 +143,11 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> 'assistant',
                 'MESSAGE'=> $query->getAnswer(),
-                'SEQUENCE_NUMBER' => ++$sequenceNumber,
+                'SEQUENCE_NUMBER' => $sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
+                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001
             ]);
             $message->dataCreate(false,$transaction);
         }
