@@ -10,7 +10,5 @@ use exface\Core\Interfaces\Tasks\ResultInterface;
  */
 interface AiResponseInterface extends ResultInterface
 {
-    public function getChoices() : array;
-
     public function toArray() : array;
 }

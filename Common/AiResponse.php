@@ -6,21 +6,16 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 
 class AiResponse extends ResultMessage implements AiResponseInterface
 {
-    private $json = null;
-    public function __construct(TaskInterface $prompt, array $json = [])
+    private $message = null;
+    public function __construct(TaskInterface $prompt, string $answer = null)
     {
         parent::__construct($prompt);
-        $this->json = $json;
-    }
-
-    public function getChoices() : array
-    {
-        return $this->json['choices'];
+        $this->message['Message'] = $answer;
     }
 
     public function toArray() : array
     {
-        return $this->json ?? [];
+        return $this->message ?? [];
     }
 
     /**
@@ -29,6 +24,6 @@ class AiResponse extends ResultMessage implements AiResponseInterface
      */
     public function getMessage() : string 
     {
-        return $this->getChoices()[0]['message']['content'];
+        return $this->message['Message'];
     }
 }
