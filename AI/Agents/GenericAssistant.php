@@ -3,15 +3,19 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
+use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use exface\Core\Interfaces\Selectors\AiAgentSelectorInterface;
@@ -71,6 +75,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $selector = null;
 
+    private $agentDataSheet = null;
+
     /**
      * 
      * @param \exface\Core\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -113,18 +119,18 @@ class GenericAssistant implements AiAgentInterface
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $conversation->addRow([
-                    'AI_AGENT' => $query->getAgentId(),
+                    'AI_AGENT' => $this->getUid(),
                     'META_OBJECT' => $promt->getMetaObject()->getId(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => 'Test',
+                    'TITLE' => StringDataType::truncate($promt->getUserPrompt(), 50, true, true, true),
                 ]);
                 $conversation->dataCreate(false,$transaction);
-                $conversationId = $conversation->getRow(0)['UID'];
+                $conversationId = $conversation->getUidColumn()->getValue(0);
 
                 $message->addRow([
                     'AI_CONVERSATION' => $conversationId,
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE'=> 'system',
+                    'ROLE'=> AiMessageTypeDataType::SYSTEM,
                     'MESSAGE'=> $this->systemPrompt,
                     'SEQUENCE_NUMBER' => $sequenceNumber++
                 ]);
@@ -133,7 +139,7 @@ class GenericAssistant implements AiAgentInterface
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> 'user',
+                'ROLE'=> AiMessageTypeDataType::USER,
                 'MESSAGE'=> $query->getUserPrompt(),
                 'SEQUENCE_NUMBER' => $sequenceNumber++
             ]);
@@ -141,7 +147,7 @@ class GenericAssistant implements AiAgentInterface
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> 'assistant',
+                'ROLE'=> AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE'=> $query->getAnswer(),
                 'SEQUENCE_NUMBER' => $sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
@@ -150,12 +156,12 @@ class GenericAssistant implements AiAgentInterface
                 'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001
             ]);
             $message->dataCreate(false,$transaction);
-        }
-        catch(\Throwable $e){
+            
+            $transaction->commit();
+        } catch(\Throwable $e){
             $transaction->rollback();
-            throw $e;
+            $this->workbench->getLogger()->logException($e);
         }
-        $transaction->commit();
         return $this;
     }
 
@@ -300,5 +306,30 @@ class GenericAssistant implements AiAgentInterface
     {
         $this->name = $name;
         return $this;
+    }
+
+    protected function getModelData() : DataSheetInterface
+    {
+        if ($this->agentDataSheet === null) {
+            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT');
+            $sheet->getColumns()->addFromSystemAttributes();
+            $sheet->getColumns()->addMultiple([
+                'NAME'
+            ]);
+            $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getSelector()->toString(), ComparatorDataType::EQUALS);
+            $sheet->dataRead();
+            $this->agentDataSheet = $sheet;
+        }
+        return $this->agentDataSheet;
+    }
+
+    public function getUid() : string
+    {
+        return $this->getModelData()->getCellValue('UID', 0);
+    }
+
+    public function getName() : string
+    {
+        return $this->getModelData()->getCellValue('NAME', 0);
     }
 }
