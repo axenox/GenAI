@@ -1,0 +1,57 @@
+{
+    "uid": "0x11ef926fdae5d9b8926f025041000001",
+    "alias_with_namespace": "axenox.genai.conversations",
+    "menu_parent_page_selector": "0x11efb71bcc0c07e2b71b025041000001",
+    "menu_index": 1,
+    "menu_visible": true,
+    "name": "Conversations",
+    "description": "",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "created_on": "2024-11-07 12:31:37",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2024-11-30 21:27:46",
+    "contents": {
+        "widget_type": "DataTable",
+        "object_alias": "axenox.GenAI.AI_CONVERSATION",
+        "columns": [
+            {
+                "attribute_alias": "AI_AGENT__NAME"
+            },
+            {
+                "attribute_alias": "TITLE"
+            },
+            {
+                "attribute_alias": "USER__LABEL"
+            },
+            {
+                "attribute_alias": "CREATED_ON"
+            },
+            {
+                "attribute_alias": "AI_MESSAGE__UID:COUNT",
+                "caption": "Message Count"
+            },
+            {
+                "attribute_alias": "AI_MESSAGE__COST:SUM",
+                "caption": "COST"
+            }
+        ],
+        "buttons": [
+            {
+                "caption": "Details",
+                "bind_to_double_click": true,
+                "action": {
+                    "alias": "exface.core.ShowObjectInfoDialog",
+                    "disable_buttons": false
+                }
+            }
+        ],
+        "sorters": [
+            {
+                "attribute_alias": "CREATED_ON",
+                "direction": "desc"
+            }
+        ]
+    }
+}

@@ -81,9 +81,9 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-11-04 10:07:42",
+            "MODIFIED_ON": "2024-11-28 20:49:44",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ef91a72e443c7491a7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -96,7 +96,71 @@
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": null,
             "DATA_ADDRESS_PROPS": null,
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "Dialog",
+                "widgets": [
+                    {
+                        "attribute_alias": "UID",
+                        "id": "UID",
+                        "widget_type": "InputHidden"
+                    },
+                    {
+                        "attribute_alias": "TITLE"
+                    },
+                    {
+                        "attribute_alias": "AI_AGENT__NAME"
+                    },
+                    {
+                        "widget_type": "DataTableResponsive",
+                        "caption": "Messages",
+                        "object_alias": "axenox.GenAI.AI_MESSAGE",
+                        "hide_header": false,
+                        "width": "max",
+                        "height": "max",
+                        "filters": [
+                            {
+                                "attribute_alias": "AI_CONVERSATION",
+                                "required": true,
+                                "value": "=UID",
+                                "hidden": true
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "ROLE"
+                            },
+                            {
+                                "attribute_alias": "TOKENS_PROMPT"
+                            },
+                            {
+                                "attribute_alias": "TOKENS_COMPLETION"
+                            },
+                            {
+                                "attribute_alias": "COST_PER_M_TOKENS"
+                            },
+                            {
+                                "attribute_alias": "MESSAGE"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "caption": "Details",
+                                "bind_to_double_click": true,
+                                "action": {
+                                    "alias": "exface.core.ShowObjectInfoDialog",
+                                    "disable_buttons": false
+                                }
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "SEQUENCE_NUMBER",
+                                "direction": "desc"
+                            }
+                        ]
+                    }
+                ]
+            },
             "ALIAS": "AI_CONVERSATION",
             "DATA_ADDRESS": "exf_ai_conversation"
         }
