@@ -14,10 +14,23 @@ use exface\Core\Interfaces\DataSources\DataQueryInterface;
  */
 interface AiQueryInterface extends DataQueryInterface
 {
+    /**
+     * 
+     * @return string
+     */
     public function getAnswer() : string;
     
+    /**
+     * Returns FALSE if the LLM is not done yet and this is just a partial response
+     * 
+     * @return bool
+     */
     public function isFinished() : bool;
 
+    /**
+     * 
+     * @return void
+     */
     public function getCostPerMTokens() : ?float;
 
     public function getTokensInPrompt() : int;
