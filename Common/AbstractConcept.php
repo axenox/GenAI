@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Uxon\AiConceptUxonSchema;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -15,10 +16,14 @@ abstract class AbstractConcept implements AiConceptInterface
 
     private $placeholder = null;
 
-    public function __construct(WorkbenchInterface $workbench, string $placeholder, UxonObject $uxon = null)
+    private $prompt = Null;
+
+    public function __construct(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon = null)
     {
         $this->workbench = $workbench;
         $this->placeholder = $placeholder;
+        $this->prompt = $prompt;
+        
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
@@ -32,6 +37,11 @@ abstract class AbstractConcept implements AiConceptInterface
     protected function getPlaceholder() : string
     {
         return $this->placeholder;
+    }
+
+    protected function getPrompt() : AiPromptInterface
+    {
+        return $this->prompt;
     }
 
     /**

@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Factories;
 
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Selectors\AiAgentSelector;
 use exface\Core\CommonLogic\Selectors\AiConceptSelector;
 use exface\Core\CommonLogic\UxonObject;
@@ -33,12 +34,15 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return parent::createFromSelector($selector, $constructorArguments);
     }
     /**
-     *
-     * @param string $aliasOrPathOrClassname            
-     * @param WorkbenchInterface $exface            
-     * @return FacadeInterface
+     * 
+     * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
+     * @param string $placeholder
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \exface\Core\CommonLogic\UxonObject $uxon
+     * @throws \exface\Core\Exceptions\UxonParserError
+     * @return \axenox\GenAI\Interfaces\AiConceptInterface
      */
-    public static function createConceptFromUxon(WorkbenchInterface $workbench, string $placeholder, UxonObject $uxon) : AiConceptInterface
+    public static function createConceptFromUxon(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon) : AiConceptInterface
     {
         if ($uxon->hasProperty('class')) {
             $selector = new AiConceptSelector($workbench, $uxon->getProperty('class'));
@@ -46,7 +50,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         } else {
             throw new UxonParserError($uxon, 'Cannot instatiate AI concept: no class property found in UXON model');
         }
-        return static::createFromSelector($selector, [$workbench, $placeholder, $uxon]);
+        return static::createFromSelector($selector, [$workbench, $placeholder, $prompt, $uxon]);
     }
 
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasOrPathOrClass) : AiAgentInterface
