@@ -19,6 +19,8 @@ class AIChat extends InputCustom implements iFillEntireContainer
 {
     private $aiChatFacade = null;
 
+    private $agentAlias = null;
+
     protected function buildHtmlDeepChat() : string
     {
         return <<<HTML
@@ -27,7 +29,7 @@ class AIChat extends InputCustom implements iFillEntireContainer
             id='{$this->getId()}'
             class='exf-aichat'
             connect='{
-                "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/model_tutor/deepchat",
+                "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/deepchat",
                 "method": "POST",
                 "additionalBodyProps": {
                     "object": "{$this->getMetaObject()->getAliasWithNamespace()}",
@@ -36,6 +38,17 @@ class AIChat extends InputCustom implements iFillEntireContainer
             }'
         ></deep-chat>
 HTML;
+    }
+
+    protected function setAgentAlias(string $alias) : AIChat
+    {
+        $this->agentAlias = $alias;
+        return $this;
+    }
+
+    public function getAgentAlias() : string
+    {
+        return $this->agentAlias;
     }
 
     protected function getAiChatFacade() : AiChatFacade
