@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Agents;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\Exceptions\ConceptIncompleteError;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -65,7 +66,7 @@ class GenericAssistant implements AiAgentInterface
 
     private $systemPromptRendered = null;
 
-    private $concepts = [];
+    private $conceptConfig = [];
 
     private $dataConnectionAlias = null;
 
@@ -94,7 +95,15 @@ class GenericAssistant implements AiAgentInterface
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
         $userPromt = $prompt->getUserPrompt();
-        $this->setInstructions($this->getSystemPrompt($prompt));
+        try {
+            $this->setInstructions($this->getSystemPrompt($prompt));
+        } catch (ConceptIncompleteError $e) {
+            throw $e;
+            /* TODO handle different errors differently
+            $this->workbench->getLogger()->logException($e);
+            return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
+            */
+        }
 
         $query = new OpenAiApiDataQuery($this->workbench);
         $query->setSystemPrompt($this->systemPrompt);
@@ -113,7 +122,7 @@ class GenericAssistant implements AiAgentInterface
     {
         $transaction = $this->workbench->data()->startTransaction();
         $sequenceNumber = $query->getSequenceNumber();
-        try{
+        try {
             $conversationId = $promt->getConversationUid();
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
@@ -180,19 +189,22 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
     {
-        foreach ($arrayOfConcepts as $placeholder => $uxon) {
-            $this->concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $uxon);
-        }
+        $this->concepts = null;
+        $this->conceptConfig = $arrayOfConcepts;
         return $this;
     }
 
     /**
      * 
-     * @return array
+     * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
      */
-    protected function getConcepts(AiPromptInterface $promt) : array
+    protected function getConcepts(AiPromptInterface $prompt) : array
     {
-        return $this->concepts;
+        $concepts = [];
+        foreach ($this->conceptConfig as $placeholder => $uxon) {
+            $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, $uxon);
+        }
+        return $concepts;
     }
 
     /**
@@ -227,7 +239,11 @@ class GenericAssistant implements AiAgentInterface
                 $renderer->addPlaceholder($concept);
             }
             
-            $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
+            try {
+                $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
+            } catch (\Throwable $e) {
+                throw new ConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
+            }
         }
         return $this->systemPromptRendered;
     }
@@ -275,6 +291,18 @@ class GenericAssistant implements AiAgentInterface
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query) : AiResponse
     {
         return new AiResponse($prompt, $query->getAnswer());
+    }
+
+    /**
+     * 
+     * @param string $message
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param mixed $e
+     * @return AiResponse
+     */
+    protected function createResponseUnavailable(string $message, AiPromptInterface $prompt, ?\Throwable $e = null)
+    {
+        return new AiResponse($prompt, $message);
     }
 
     /**
