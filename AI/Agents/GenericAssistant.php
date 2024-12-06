@@ -4,7 +4,7 @@ namespace axenox\GenAI\AI\Agents;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
-use axenox\GenAI\Exceptions\ConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -97,7 +97,7 @@ class GenericAssistant implements AiAgentInterface
         $userPromt = $prompt->getUserPrompt();
         try {
             $this->setInstructions($this->getSystemPrompt($prompt));
-        } catch (ConceptIncompleteError $e) {
+        } catch (AiConceptIncompleteError $e) {
             throw $e;
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
@@ -196,7 +196,7 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
+     * @return \axenox\GenAI\Interfaces\AiAiConceptInterface[]
      */
     protected function getConcepts(AiPromptInterface $prompt) : array
     {
@@ -242,7 +242,7 @@ class GenericAssistant implements AiAgentInterface
             try {
                 $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
             } catch (\Throwable $e) {
-                throw new ConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
+                throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
             }
         }
         return $this->systemPromptRendered;
