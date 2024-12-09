@@ -104,7 +104,7 @@ class GenericAssistant implements AiAgentInterface
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
             */
         }
-
+        
         $query = new OpenAiApiDataQuery($this->workbench);
         $query->setSystemPrompt($this->systemPrompt);
         $query->appendMessage($userPromt);
@@ -118,20 +118,20 @@ class GenericAssistant implements AiAgentInterface
         return $this->parseDataQueryResponse($prompt, $performedQuery);
     }
 
-    public function saveConversation(AiPromptInterface $promt, AiQueryInterface $query) : self
+    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : self
     {
         $transaction = $this->workbench->data()->startTransaction();
         $sequenceNumber = $query->getSequenceNumber();
         try {
-            $conversationId = $promt->getConversationUid();
+            $conversationId = $prompt->getConversationUid();
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $conversation->addRow([
                     'AI_AGENT' => $this->getUid(),
-                    'META_OBJECT' => $promt->getMetaObject()->getId(),
+                    'META_OBJECT' => $prompt->getMetaObject()->getId(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => StringDataType::truncate($promt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
                 ]);
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
@@ -164,7 +164,7 @@ class GenericAssistant implements AiAgentInterface
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001
             ]);
-            $message->dataCreate(false,$transaction);
+            $message->dataCreate(false, $transaction);
             
             $transaction->commit();
         } catch(\Throwable $e){
@@ -173,7 +173,6 @@ class GenericAssistant implements AiAgentInterface
         }
         return $this;
     }
-
     /**
      * AI concepts to be used in the system prompt
      * 
