@@ -5,11 +5,29 @@ meta {
 }
 
 get {
-  url: {{BASE_URL}}/api/aichat/model_tutor/completions?object=exface.Core.USER_ROLE
-  body: none
-  auth: inherit
+  url: {{BASE_URL}}/api/aichat/model_tutor/completions?object=exface.Core.USER_ROLE&XDEBUG_SESSION=XDEBUG_VSCODE&conversation=0x11ef9bfa1de2c07e9bfa025041000001
+  body: json
+  auth: basic
 }
 
 params:query {
   object: exface.Core.USER_ROLE
+  XDEBUG_SESSION: XDEBUG_VSCODE
+  conversation: 0x11ef9bfa1de2c07e9bfa025041000001
+}
+
+auth:basic {
+  username: admin
+  password: admin
+}
+
+body:json {
+  {
+    "messages" : [
+      {
+      "role" : "user",
+      "text" : "user message"
+      }
+    ]
+  }
 }

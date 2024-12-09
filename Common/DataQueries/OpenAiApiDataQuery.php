@@ -13,6 +13,7 @@ use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 
 /**
  * Data query in OpenAI style
@@ -21,9 +22,6 @@ use axenox\GenAI\Interfaces\AiQueryInterface;
  */
 class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 {
-    const ROLE_SYSTEM = 'system';
-    const ROLE_USER = 'user';
-    const ROLE_ASSISTANT = 'assistant';
 
     private $workbench;
 
@@ -58,11 +56,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $messages = [];
         if ($systemPrompt = $this->getSystemPrompt()) {
-            $messages[] = ['content' => $systemPrompt, 'role' => self::ROLE_SYSTEM];
+            $messages[] = ['content' => $systemPrompt, 'role' => AiMessageTypeDataType::SYSTEM];
         }
         if ($includeConversation === true) {
-            foreach ($this->getConversationData() as $row) {
-                $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
+            foreach ($this->getConversationData()->getRows() as $row) {
+                    $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
             }
         }
         $messages = array_merge($messages, $this->messages);
@@ -75,7 +73,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      * @param string $role
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
      */
-    public function appendMessage(string $content, string $role = self::ROLE_USER) : OpenAiApiDataQuery
+    public function appendMessage(string $content, string $role = AiMessageTypeDataType::USER) : OpenAiApiDataQuery
     {
         $this->messages[] = ['content' => $content, 'role' => $role];
         return $this;
@@ -140,6 +138,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
                 'ROLE'
             ]);
             $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationUid());
+            $sheet->getSorters()->addFromString('SEQUENCE_NUMBER','ASC');
             $sheet->dataRead();
             $this->conversationData = $sheet;
         }
@@ -277,18 +276,15 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
-            if($row['role'] === 'user')
+            if($row['role'] === AiMessageTypeDataType::USER)
                 return $row['content'];
         }
         throw new DataQueryFailedError($this, 'User message cannot be found');
     }
-    public function getAgentId() : string
-    {
-        return $this->getResponseData()['id'];
-    }
+
     public function getSequenceNumber() : int
     {
-        $this->getConversationData();
-        return $this->conversationData->countRows()+1;
+        $this-> getConversationData();
+        return $this->conversationData-> countRows() + 1;
     }
 }
