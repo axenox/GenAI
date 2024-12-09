@@ -33,11 +33,33 @@ interface AiQueryInterface extends DataQueryInterface
      */
     public function getCostPerMTokens() : ?float;
 
+    /**
+     * 
+     * @return int
+     */
     public function getTokensInPrompt() : int;
-
+    
+    /**
+     * 
+     * @return int
+     */
     public function getTokensInAnswer() : int;
+
+    /**
+     * 
+     * @return int
+     */
     public function getSequenceNumber() : int;
+
+    /**
+     * 
+     * @return string
+     */
     public function getUserPrompt() : string;
+
+    /**
+     * 
+     * @return void
+     */
     public function getSystemPrompt() : ?string;
-    public function getAgentId() : ?string;
 }
