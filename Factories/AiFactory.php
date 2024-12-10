@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Factories;
 
+use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Selectors\AiAgentSelector;
 use exface\Core\CommonLogic\Selectors\AiConceptSelector;
@@ -59,6 +60,9 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $ds->getFilters()->addConditionFromString('ALIAS_WITH_NS', $aliasOrPathOrClass, ComparatorDataType::EQUALS);
         $ds->getColumns()->addFromAttributeGroup($ds->getMetaObject()->getAttributes());
         $ds->dataRead();
+        if($ds->isEmpty()){
+            throw new AiAgentNotFoundError("Ai Agent '$aliasOrPathOrClass' not found");
+        }
         $row = $ds->getRow(0);
 
         $uxon = UxonObject::fromAnything($row['CONFIG_UXON']);
