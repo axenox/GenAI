@@ -7,10 +7,12 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
 class AiResponse extends ResultMessage implements AiResponseInterface
 {
     private $message = null;
-    public function __construct(TaskInterface $prompt, string $answer = null)
+    private $conversationId = null;
+    public function __construct(TaskInterface $prompt, string $answer = null, ?string $conversationId = null)
     {
         parent::__construct($prompt);
-        $this->message['Message'] = $answer;
+        $this->message = $answer;
+        $this->conversationId = $conversationId;
     }
 
     public function toArray() : array
@@ -24,6 +26,11 @@ class AiResponse extends ResultMessage implements AiResponseInterface
      */
     public function getMessage() : string 
     {
-        return $this->message['Message'];
+        return $this->message;
+    }
+    
+    public function getConversationId() : string 
+    {
+        return $this->conversationId;
     }
 }
