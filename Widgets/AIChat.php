@@ -36,6 +36,20 @@ class AIChat extends InputCustom implements iFillEntireContainer
                     "page": "{$this->getPage()->getAliasWithNamespace()}"
                 }
             }'
+            responseInterceptor  = 'function (message) {
+                var domEl = document.getElementById({$this->getId()});
+                domEl.conversationId = message.conversation; 
+                return message; 
+            }'
+
+            requestInterceptor = 'function (requestDetails) {
+                var domEl = document.getElementById({$this->getId()});
+                requestDetails.body = {
+                    prompt: requestDetails.body.messages, 
+                    conversation : domEl.conversationId
+                }; 
+                return requestDetails;
+            }'
         ></deep-chat>
 HTML;
     }

@@ -24,6 +24,7 @@ use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
+use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -104,7 +105,7 @@ class GenericAssistant implements AiAgentInterface
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
             */
         }
-
+        
         $query = new OpenAiApiDataQuery($this->workbench);
         $query->setSystemPrompt($this->systemPrompt);
         $query->appendMessage($userPromt);
@@ -113,25 +114,25 @@ class GenericAssistant implements AiAgentInterface
         }
 
         $performedQuery = $this->getConnection()->query($query);
-        $this->saveConversation($prompt, $performedQuery);
+        $conversationId = $this->saveConversation($prompt, $performedQuery);
 
-        return $this->parseDataQueryResponse($prompt, $performedQuery);
+        return $this->parseDataQueryResponse($prompt, $performedQuery,$conversationId);
     }
 
-    public function saveConversation(AiPromptInterface $promt, AiQueryInterface $query) : self
+    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
     {
         $transaction = $this->workbench->data()->startTransaction();
         $sequenceNumber = $query->getSequenceNumber();
         try {
-            $conversationId = $promt->getConversationUid();
+            $conversationId = $prompt->getConversationUid();
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $conversation->addRow([
                     'AI_AGENT' => $this->getUid(),
-                    'META_OBJECT' => $promt->getMetaObject()->getId(),
+                    'META_OBJECT' => $prompt->getMetaObject()->getId(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => StringDataType::truncate($promt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
                 ]);
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
@@ -143,6 +144,15 @@ class GenericAssistant implements AiAgentInterface
                     'MESSAGE'=> $this->systemPrompt,
                     'SEQUENCE_NUMBER' => $sequenceNumber++
                 ]);
+            }
+            else{
+                $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+                $ds->getFilters()->addConditionFromAttribute($ds->getMetaObject()->getUidAttribute(), $conversationId, ComparatorDataType::EQUALS);
+                $ds->getColumns()->addFromAttributeGroup($ds->getMetaObject()->getAttributes());
+                $ds->dataRead();
+                if($ds->isEmpty()){
+                    throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
+                }
             }
 
             $message->addRow([
@@ -164,16 +174,15 @@ class GenericAssistant implements AiAgentInterface
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001
             ]);
-            $message->dataCreate(false,$transaction);
+            $message->dataCreate(false, $transaction);
             
             $transaction->commit();
         } catch(\Throwable $e){
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
         }
-        return $this;
+        return $conversationId;
     }
-
     /**
      * AI concepts to be used in the system prompt
      * 
@@ -288,9 +297,9 @@ class GenericAssistant implements AiAgentInterface
      * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
      * @return \axenox\GenAI\Common\AiResponse
      */
-    protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query) : AiResponse
+    protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        return new AiResponse($prompt, $query->getAnswer());
+        return new AiResponse($prompt, $query->getAnswer(), $conversationId);
     }
 
     /**

@@ -22,7 +22,8 @@ class AiPrompt extends HttpTask implements AiPromptInterface
      */
     public function getConversationUid() : ?string
     {
-        return $this->getParameter('conversation');
+        $params = $this->getParameters();
+        return ($params['conversation']);
     }
 
     public function getUserMessages() : array

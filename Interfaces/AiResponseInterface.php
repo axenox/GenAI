@@ -11,4 +11,5 @@ use exface\Core\Interfaces\Tasks\ResultInterface;
 interface AiResponseInterface extends ResultInterface
 {
     public function toArray() : array;
+    public function getConversationId() : string ;
 }
