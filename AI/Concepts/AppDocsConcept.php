@@ -2,7 +2,6 @@
 namespace axenox\GenAI\AI\Concepts;
 
 use axenox\GenAI\Common\AbstractConcept;
-use axenox\GenAI\Exceptions\ConceptIncompleteError;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
 
 class AppDocsConcept extends AbstractConcept
@@ -46,7 +45,7 @@ class AppDocsConcept extends AbstractConcept
         $app = $this->getWorkbench()->getApp($this->getAppAlias());
         $pathToApp = $app->getDirectoryAbsolutePath();
         $pathToDocs = $pathToApp . DIRECTORY_SEPARATOR . 'Docs';
-        if (file_exists($pathToDocs)) {
+        if (! file_exists($pathToDocs)) {
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
         }
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
