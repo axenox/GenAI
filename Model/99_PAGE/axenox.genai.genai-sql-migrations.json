@@ -1,0 +1,19 @@
+{
+    "uid": "0x11efa9e7199f1c34a9e7025041000001",
+    "alias_with_namespace": "axenox.genai.genai-sql-migrations",
+    "menu_parent_page_selector": "0xb90bb0b8949f11e7a605028037ec0200",
+    "menu_index": 0,
+    "menu_visible": true,
+    "name": "GenAI SQL migrations",
+    "description": "",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2024-12-16 12:51:34",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2024-12-16 12:51:34",
+    "contents": {
+        "extend_widget": "[exface.core.core-sql-migrations]",
+        "object_alias": "axenox.GenAI.SQL_MIGRATIONS"
+    }
+}
