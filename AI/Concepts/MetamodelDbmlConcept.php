@@ -293,10 +293,9 @@ class MetamodelDbmlConcept extends AbstractConcept
                 $schema ='string';
                 break;
             case $dataType instanceof StringDataType:
+            default:
                 $schema = 'string';
                 break;
-            default:
-                throw new InvalidArgumentException('Datatype: ' . $dataType->getAlias() . ' not recognized.');
         }
         return $schema;
         
