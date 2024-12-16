@@ -2,7 +2,7 @@
 
 ALTER TABLE dbo.exf_ai_message
 ADD sequence_number int NULL,
-ADD cost_per_m_tokens float NULL;
+    cost_per_m_tokens float NULL;
 
 -- DOWN
 
