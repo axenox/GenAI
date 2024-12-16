@@ -22,11 +22,9 @@ class SqlFilteringAssistant extends GenericAssistant
                     throw new RuntimeException('Cannot generate AI filter: no base object specified in prompt');
                 }
                 $objFilter = function(MetaObjectInterface $obj) use ($targetConnectionAlias) {
-                    $isSql = $obj->getDataConnection() instanceof SqlDataConnectorInterface;
                     $isInTargetConnection = $obj->getDataConnection()->isExactly($targetConnectionAlias);
-                    $isTable = stripos($obj->getDataAddress(), '(') === false; // Otherwise it is a SQL statement like (SELECT ...)
                     // TODO also only those, that are in the same database as the object we are filtering
-                    return $isSql && $isTable && $isInTargetConnection;
+                    return $isInTargetConnection;
                 };
                 $concept->setObjectFilterCallback($objFilter);
             }
