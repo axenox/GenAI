@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI;
 
+use axenox\GenAI\Common\AiAgentInstaller;
 use axenox\GenAI\Facades\AiChatFacade;
 use exface\Core\Interfaces\InstallerInterface;
 use exface\Core\CommonLogic\Model\App;
@@ -40,6 +41,10 @@ class GenAIApp extends App
         } else {
             $this->getWorkbench()->getLogger()->error('Cannot initialize DB installer for app "' . $this->getSelector()->toString() . '": the cores model loader installer must be compatible with AbstractSqlDatabaseInstaller!');
         }
+
+        // Built-in AI agents
+        $aiInstaller = new AiAgentInstaller($this->getSelector());
+        $installer->addInstaller($aiInstaller);
         
         return $installer;
     }
