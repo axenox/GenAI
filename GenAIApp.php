@@ -24,6 +24,10 @@ class GenAIApp extends App
         $tplInstaller = new HttpFacadeInstaller($this->getSelector());
         $tplInstaller->setFacade(FacadeFactory::createFromString(AiChatFacade::class, $this->getWorkbench()));
         $installer->addInstaller($tplInstaller);
+
+        // Built-in AI agents
+        $aiInstaller = new AiAgentInstaller($this->getSelector());
+        $installer->addInstaller($aiInstaller);
         
         // AI SQL schema
         $modelLoader = $this->getWorkbench()->model()->getModelLoader();
@@ -41,10 +45,6 @@ class GenAIApp extends App
         } else {
             $this->getWorkbench()->getLogger()->error('Cannot initialize DB installer for app "' . $this->getSelector()->toString() . '": the cores model loader installer must be compatible with AbstractSqlDatabaseInstaller!');
         }
-
-        // Built-in AI agents
-        $aiInstaller = new AiAgentInstaller($this->getSelector());
-        $installer->addInstaller($aiInstaller);
         
         return $installer;
     }

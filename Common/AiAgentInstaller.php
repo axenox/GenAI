@@ -21,8 +21,8 @@ class AiAgentInstaller extends DataInstaller
      */
     public function __construct(SelectorInterface $selectorToInstall)
     {
-        parent::__construct($selectorToInstall, MetaModelInstaller::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . 'ETL');
+        parent::__construct($selectorToInstall, MetaModelInstaller::FOLDER_NAME_MODEL . DIRECTORY_SEPARATOR . 'AI');
         
-        $this->addDataToReplace('axenox.GenAI.AI_AGENT', 'CREATED_ON', 'APP', [], 'AI/[#alias#]/01_AI_AGENT.json');
+        $this->addDataToReplace('axenox.GenAI.AI_AGENT', 'CREATED_ON', 'APP', [], '[#ALIAS#]/01_AI_AGENT.json');
     }
 }
