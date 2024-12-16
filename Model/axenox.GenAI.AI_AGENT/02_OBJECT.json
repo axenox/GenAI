@@ -81,7 +81,7 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-11-04 10:07:33",
+            "MODIFIED_ON": "2024-12-16 13:09:10",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
@@ -96,7 +96,7 @@
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": null,
             "DATA_ADDRESS_PROPS": {
-                "SQL_READ_FROM": "@MySQL: (SELECT \n\taa.*,\n\t(CASE WHEN cdc.value IS NOT NULL THEN UNHEX(SUBSTRING(cdc.value, 3)) ELSE aa.data_connection_default_oid END) AS data_connection_oid\nFROM \n\texf_ai_agent aa\n\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aa.oid\n)\n@T-SQL: (SELECT \n\taa.*,\n\t(CASE WHEN cdc.value IS NOT NULL THEN CONVERT(binary(16),cdc.value,1) ELSE aa.data_connection_default_oid END) AS data_connection_oid\nFROM \n\texf_communication_channel aa\n\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aa.oid\n)"
+                "SQL_READ_FROM": "@MySQL: (SELECT \n\taa.*,\n\t(CASE WHEN cdc.value IS NOT NULL THEN UNHEX(SUBSTRING(cdc.value, 3)) ELSE aa.data_connection_default_oid END) AS data_connection_oid\nFROM \n\texf_ai_agent aa\n\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aa.oid\n)\n@T-SQL: (SELECT \n\taa.*,\n\t(CASE WHEN cdc.value IS NOT NULL THEN CONVERT(binary(16),cdc.value,1) ELSE aa.data_connection_default_oid END) AS data_connection_oid\nFROM \n\texf_ai_agent aa\n\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aa.oid\n)"
             },
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
