@@ -132,7 +132,7 @@ class GenericAssistant implements AiAgentInterface
                     'AI_AGENT' => $this->getUid(),
                     'META_OBJECT' => $prompt->getMetaObject()->getId(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => $query->getTitle(),//StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
                 ]);
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
@@ -228,7 +228,8 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setInstructions(string $text) : AiAgentInterface
     {
-        $this->systemPrompt = $text;
+        $jsonModeOn = "\r\nAnswer using the folowing JSON schema\r\n{ title: <title>, message: <message> }";
+        $this->systemPrompt = $text . $jsonModeOn;
         return $this;
     }
 

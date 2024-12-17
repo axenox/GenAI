@@ -256,7 +256,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function getAnswer() : string
     {
-        return $this->getResponseData()['choices'][0]['message']['content'];
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        $model = json_decode($json);
+        return $model->message;
     }
 
     public function isFinished() : bool
@@ -286,5 +288,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $this-> getConversationData();
         return $this->conversationData-> countRows() + 1;
+    }
+    public function getTitle() : string
+    {
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        $model = json_decode($json);
+        return $model->title;
     }
 }
