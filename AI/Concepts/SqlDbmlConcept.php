@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\Concepts;
 
+use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use exface\Core\DataConnectors\MariaDbSqlConnector;
 use exface\Core\DataConnectors\MsSqlConnector;
 use exface\Core\DataConnectors\MySqlConnector;
@@ -67,7 +68,7 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
     {
         $objects = [];
         foreach (parent::getObjects() as $obj) {
-            $connection = $obj->getDataConnection;
+            $connection = $obj->getDataConnection();
             $isSql = $connection instanceof SqlDataConnectorInterface;
             $isTable = stripos($obj->getDataAddress(), '(') === false; // Otherwise it is a SQL statement like (SELECT ...)
             // TODO also only those, that are in the same database as the object we are filtering
@@ -79,6 +80,9 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
                     $objects[] = $obj;
                 }
             }
+        }
+        if (empty($objects)) {
+            throw new AiConceptIncompleteError('No SQL-based meta objects found!');
         }
         return $objects;
     }
