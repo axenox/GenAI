@@ -4,7 +4,6 @@ namespace axenox\GenAI\AI\Agents;
 use axenox\GenAI\AI\Concepts\MetamodelDbmlConcept;
 use exface\Core\Exceptions\RuntimeException;
 use axenox\GenAI\Interfaces\AiPromptInterface;
-use exface\Core\Interfaces\DataSources\SqlDataConnectorInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Templates\Placeholders\ArrayPlaceholders;
 
