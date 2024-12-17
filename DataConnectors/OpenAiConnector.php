@@ -84,6 +84,7 @@ class OpenAiConnector extends AbstractDataConnector
     {
         $json = [
             'model' => $this->getModelName($query),
+            'response_format'=> ['type'=> 'json_object'],
             'messages' => $query->getMessages(true)
         ];
 
