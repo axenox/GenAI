@@ -81,9 +81,9 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-11-28 20:49:44",
+            "MODIFIED_ON": "2024-12-18 12:57:18",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11eca7f5b092f284a7f5005056bea39f",
             "UID": "0x11ef91a72e443c7491a7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -136,10 +136,10 @@
                                 "attribute_alias": "TOKENS_COMPLETION"
                             },
                             {
-                                "attribute_alias": "COST_PER_M_TOKENS"
+                                "attribute_alias": "COST"
                             },
                             {
-                                "attribute_alias": "MESSAGE"
+                                "attribute_alias": "=Left(MESSAGE, 80)"
                             }
                         ],
                         "buttons": [
