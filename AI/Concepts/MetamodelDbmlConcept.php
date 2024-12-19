@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Concepts;
 
 use axenox\GenAI\Common\AbstractConcept;
+use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BinaryDataType;
@@ -72,6 +73,9 @@ class MetamodelDbmlConcept extends AbstractConcept
         $aliasCol = $ds->getColumns()->addFromExpression('ALIAS_WITH_NS');
         if (null !== $filtersUxon = $this->getObjectFiltersUxon()) {
             $ds->setFilters(ConditionGroupFactory::createFromUxon($this->getWorkbench(), $filtersUxon, $ds->getMetaObject()));
+            if ($ds->getFilters()->isEmpty(true)) {
+                throw new AiConceptIncompleteError('Cannot use a DBML concept without `filters` or with empty filter values!');
+            }
         }
         $ds->dataRead();
         return $aliasCol->getValues();
@@ -99,33 +103,33 @@ class MetamodelDbmlConcept extends AbstractConcept
     }
 
     public function buildDBML() : string
-{
-    $indent = '  ';
-    $dbml = '';
-    $array = $this->buildArray();
-
-    
-    foreach ($array['Tables'] as $name => $tblData) {
-        $dbml .= 'Table ' . $tblData['Table'] . ' {' . PHP_EOL;
-        
-        foreach ($tblData['Columns'] as $colData) {
-            $dbml .= $indent . implode(' ', $colData) . PHP_EOL;
-            
-        }
-        $dbml .= '}' . PHP_EOL; 
-    }
-    foreach ($array['Enums'] as $name => $enumVals) 
     {
-        $dbml .= 'Enum '. $name . '{';
-        foreach ($enumVals as $valData) {
-            $dbml .= $indent . implode(' ', $valData) . PHP_EOL;
+        $indent = '  ';
+        $dbml = '';
+        $array = $this->buildArray();
+
+        
+        foreach ($array['Tables'] as $name => $tblData) {
+            $dbml .= 'Table ' . $tblData['Table'] . ' {' . PHP_EOL;
+            
+            foreach ($tblData['Columns'] as $colData) {
+                $dbml .= $indent . implode(' ', $colData) . PHP_EOL;
+                
+            }
+            $dbml .= '}' . PHP_EOL; 
         }
-        $dbml .= '}' . PHP_EOL ;
+        foreach ($array['Enums'] as $name => $enumVals) 
+        {
+            $dbml .= 'Enum '. $name . '{';
+            foreach ($enumVals as $valData) {
+                $dbml .= $indent . implode(' ', $valData) . PHP_EOL;
+            }
+            $dbml .= '}' . PHP_EOL ;
+        }
+        $dbml .= PHP_EOL;
+        
+        return $dbml;
     }
-    $dbml .= PHP_EOL;
-    
-    return $dbml;
-}
 
 
     /**
@@ -293,10 +297,9 @@ class MetamodelDbmlConcept extends AbstractConcept
                 $schema ='string';
                 break;
             case $dataType instanceof StringDataType:
+            default:
                 $schema = 'string';
                 break;
-            default:
-                throw new InvalidArgumentException('Datatype: ' . $dataType->getAlias() . ' not recognized.');
         }
         return $schema;
         

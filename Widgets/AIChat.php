@@ -3,7 +3,6 @@ namespace axenox\GenAI\Widgets;
 
 use axenox\GenAI\Facades\AiChatFacade;
 use exface\Core\Factories\FacadeFactory;
-use exface\Core\Interfaces\Actions\ActionInterface;
 use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
 use exface\Core\Widgets\InputCustom;
 use exface\Core\Interfaces\Widgets\iFillEntireContainer;
@@ -21,8 +20,49 @@ class AIChat extends InputCustom implements iFillEntireContainer
 
     private $agentAlias = null;
 
+    protected function init()
+    {
+        $this->setHideCaption(true);
+        $this->setHtmlHeadTags(['<script type="module" src="vendor/npm-asset/deep-chat/dist/deepChat.bundle.js"></script>']);
+        $this->setCssClass('exf-aichat');
+        $this->setScriptToResize(<<<JS
+        
+            setTimeout(function(jqSelf){
+                var jqParent = jqSelf.parent();
+                var iHeightP = jqParent.innerHeight();
+                var iWidthP = jqParent.innerWidth();
+                if (iHeightP > 0) {
+                    jqSelf.height(iHeightP);
+                }
+                if (iWidthP > 0) {
+                    jqSelf.width(iWidthP);
+                }
+            }, 100, $('#{$this->getId()}'));
+JS);
+        
+        // Get/set value
+        $this->setScriptToSetValue("$('#{$this->getId()}').data('exf-value', [#~mValue#])");
+        $this->setScriptToGetValue("$('#{$this->getId()}').data('exf-value')");
+
+        // Disable/enable
+        $this->setScriptToDisable("$('#{$this->getId()}')[0].disableSubmitButton()");
+        $this->setScriptToEnable("$('#{$this->getId()}')[0].disableSubmitButton(false)");
+    }
+
     protected function buildHtmlDeepChat() : string
     {
+        if ($this->isBoundToAttribute()) {
+            // Use only double quotes here as single quotes produce JS parser errors in the interceptors
+            $requestDataJs = <<<JS
+
+                requestDetails.body.data = {
+                    oId: "{$this->getMetaObject()->getId()}", 
+                    rows: [
+                        { {$this->getAttributeAlias()}: $("#{$this->getId()}").data("exf-value") }
+                    ]
+                }
+JS;
+        }
         return <<<HTML
 
         <deep-chat 
@@ -37,17 +77,16 @@ class AIChat extends InputCustom implements iFillEntireContainer
                 }
             }'
             responseInterceptor  = 'function (message) {
-                var domEl = document.getElementById({$this->getId()});
+                var domEl = document.getElementById("{$this->getId()}");
                 domEl.conversationId = message.conversation; 
                 return message; 
             }'
 
             requestInterceptor = 'function (requestDetails) {
-                var domEl = document.getElementById({$this->getId()});
-                requestDetails.body = {
-                    prompt: requestDetails.body.messages, 
-                    conversation : domEl.conversationId
-                }; 
+                var domEl = document.getElementById("{$this->getId()}");
+                console.log("reqInter", requestDetails);
+                requestDetails.body.conversation = domEl.conversationId;
+                {$requestDataJs};
                 return requestDetails;
             }'
         ></deep-chat>
@@ -86,99 +125,15 @@ HTML;
         
         return null;
     }
-    
+
     /**
+     * Override getHtml() here to render the DeepChat domElement after all changes to widget and facade
+     * element were definitely applied. Calling it inside init() is too early!
      * 
-     * @return string|NULL
+     * @see \exface\Core\Widgets\InputCustom::getHtml()
      */
     public function getHtml() : ?string
     {
         return $this->buildHtmlDeepChat();
-    }
-
-    public function getHtmlHeadTags(bool $addIncludes = true) : array
-    {
-        $includes = parent::getHtmlHeadTags();
-        array_unshift($includes, '<script type="module" src="vendor/npm-asset/deep-chat/dist/deepChat.bundle.js"></script>');
-        return $includes;
-    }
-    
-    /**
-     * 
-     * @return string|NULL
-     */
-    public function getScriptToGetValue() : ?string
-    {
-        // TODO
-        return parent::getScriptToGetValue();
-    }
-    
-    /**
-     * 
-     * @param string $valueJs
-     * @return string|NULL
-     */
-    public function getScriptToSetValue(string $valueJs) : ?string
-    {
-        // TODO
-        return parent::getScriptToSetValue($valueJs);
-    }
-    
-    /**
-     * 
-     * @return string|NULL
-     */
-    public function getCssClass() : ?string
-    {
-        return 'exf-aichat';
-    }
-    
-    /**
-     * 
-     * @return string|NULL
-     */
-    public function getScriptToEnable() : ?string
-    {
-        // TODO
-        return parent::getScriptToEnable();
-    }
-    
-    /**
-     * 
-     * @return string|NULL
-     */
-    public function getScriptToDisable() : ?string
-    {
-        // TODO
-        return parent::getScriptToDisable();
-    }
-    
-    /**
-     * 
-     * @param string $fnOnChangeJs
-     * @return string|NULL
-     */
-    public function getScriptToAttachOnChange(string $fnOnChangeJs) : ?string
-    {
-        // TODO
-        return parent::getScriptToAttachOnChange($fnOnChangeJs);
-    }
-
-    public function getScriptToResize() : ?string
-    {
-        return parent::getScriptToResize() . <<<JS
-        
-            setTimeout(function(jqSelf){
-                var jqParent = jqSelf.parent();
-                var iHeightP = jqParent.innerHeight();
-                var iWidthP = jqParent.innerWidth();
-                if (iHeightP > 0) {
-                    jqSelf.height(iHeightP);
-                }
-                if (iWidthP > 0) {
-                    jqSelf.width(iWidthP);
-                }
-            }, 100, $('#{$this->getId()}'));
-JS;
     }
 }

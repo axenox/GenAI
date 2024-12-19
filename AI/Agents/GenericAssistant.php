@@ -16,13 +16,16 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use exface\Core\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
+use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
+use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 
@@ -121,7 +124,7 @@ class GenericAssistant implements AiAgentInterface
         // }
         $conversationId = $this->saveConversation($prompt, $performedQuery);
 
-        return $this->parseDataQueryResponse($prompt, $performedQuery,$conversationId);
+        return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
     }
 
     public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
@@ -133,12 +136,15 @@ class GenericAssistant implements AiAgentInterface
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-                $conversation->addRow([
+                $row = [
                     'AI_AGENT' => $this->getUid(),
-                    'META_OBJECT' => $prompt->getMetaObject()->getId(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $query->getTitle(),//StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
-                ]);
+                ];
+                if ($prompt->hasMetaObject()) {
+                    $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
+                }
+                $conversation->addRow($row);
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
 
@@ -212,17 +218,25 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return \axenox\GenAI\Interfaces\AiAiConceptInterface[]
      */
-    protected function getConcepts(AiPromptInterface $prompt) : array
+    protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
     {
         $concepts = [];
         foreach ($this->conceptConfig as $placeholder => $uxon) {
-            $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, $uxon);
+            $json = $uxon->toJson();
+            $json = $configRenderer->render($json);
+            $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, UxonObject::fromJson($json));
         }
         return $concepts;
     }
 
     /**
-     * An introduction to explain the LLM, what the assistant is supposed to do
+     * An introduction to explain the LLM, what the assistant is supposed to do.
+     * 
+     * ## Available placeholders
+     * 
+     * - `[#~app:#]` - get properties of the app, where the assistant is called from: e.g. `[#~app:alias#]`
+     * - `[#~input:#]` - access the first row of the input data (e.g. data sent by the AIChat widget)
+     * - `[#~config:#]`
      * 
      * @uxon-property instructions
      * @uxon-type string
@@ -248,8 +262,14 @@ class GenericAssistant implements AiAgentInterface
             $renderer = new BracketHashStringTemplateRenderer($this->workbench);
             $renderer->addPlaceholder(new FormulaPlaceholders($this->workbench, null, null, '='));
             $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
+            if (null !== $app = $this->getApp($prompt)) {
+                $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
+            }
+            if ($prompt->hasInputData()) {
+                $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
+            }
             
-            foreach ($this->getConcepts($prompt) as $concept) {
+            foreach ($this->getConcepts($prompt, $renderer) as $concept) {
                 $renderer->addPlaceholder($concept);
             }
             
@@ -263,6 +283,16 @@ class GenericAssistant implements AiAgentInterface
             }
         }
         return $this->systemPromptRendered;
+    }
+
+    protected function getApp(AiPromptInterface $prompt) : ?AppInterface
+    {
+        $app = null;
+        if ($prompt->isTriggeredOnPage()) {
+            $app = $prompt->getPageTriggeredOn()->getApp();
+        }
+        // TODO determine the app from input data?
+        return $app;
     }
 
     /**

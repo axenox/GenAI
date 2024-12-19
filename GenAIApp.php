@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI;
 
+use axenox\GenAI\Common\AiAgentInstaller;
 use axenox\GenAI\Facades\AiChatFacade;
 use exface\Core\Interfaces\InstallerInterface;
 use exface\Core\CommonLogic\Model\App;
@@ -23,6 +24,10 @@ class GenAIApp extends App
         $tplInstaller = new HttpFacadeInstaller($this->getSelector());
         $tplInstaller->setFacade(FacadeFactory::createFromString(AiChatFacade::class, $this->getWorkbench()));
         $installer->addInstaller($tplInstaller);
+
+        // Built-in AI agents
+        $aiInstaller = new AiAgentInstaller($this->getSelector());
+        $installer->addInstaller($aiInstaller);
         
         // AI SQL schema
         $modelLoader = $this->getWorkbench()->model()->getModelLoader();
