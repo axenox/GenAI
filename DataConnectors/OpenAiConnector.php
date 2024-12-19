@@ -84,9 +84,11 @@ class OpenAiConnector extends AbstractDataConnector
     {
         $json = [
             'model' => $this->getModelName($query),
-            'response_format'=> ['type'=> 'json_object'],
             'messages' => $query->getMessages(true)
         ];
+
+        if($query->getResponseJsonSchema())
+            $json['response_format'] = ['type'=> 'json_object'];
 
         if (null !== $val = $this->getTemperature($query)) {
             $json['temperature'] = $val;

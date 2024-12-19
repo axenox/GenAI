@@ -42,6 +42,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $responseData = null;
 
     private $costPerMTokens = null;
+    
+    private $jsonSchema = null;
 
     public function __construct(WorkbenchInterface $workbench)
     {
@@ -294,5 +296,15 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         $json = $this->getResponseData()['choices'][0]['message']['content'];
         $model = json_decode($json);
         return $model->title;
+    }
+
+    public function setResponseJsonSchema(bool $value)
+    {
+        $this->jsonSchema = $value;
+    }
+
+    public function getResponseJsonSchema() : bool
+    {
+        return $this->jsonSchema;
     }
 }
