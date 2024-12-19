@@ -4,6 +4,7 @@ namespace axenox\GenAI\Facades;
 use axenox\GenAI\Common\AiPrompt;
 use exface\Core\Exceptions\Facades\FacadeRoutingError;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
+use exface\Core\Facades\AbstractHttpFacade\Middleware\DataUrlParamReader;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\JsonBodyParser;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\TaskReader;
 use axenox\GenAI\Factories\AiFactory;
@@ -134,6 +135,7 @@ class AiChatFacade extends AbstractHttpFacade
         [
             'object' => 'object_alias'
         ]);
+        $middleware[] = new DataUrlParamReader($this, 'data', 'setInputData');
         
         // Add HTTP basic auth for simpler API testing. This allows to log in with
         // username and password from API clients like PostMan.
