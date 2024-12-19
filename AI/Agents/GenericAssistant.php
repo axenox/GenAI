@@ -112,8 +112,13 @@ class GenericAssistant implements AiAgentInterface
         if (null !== $val = $prompt->getConversationUid()) {
             $query->setConversationUid($val);
         }
-
+        if($this->hasJsonSchema())
+            $query->setResponseJsonSchema();
         $performedQuery = $this->getConnection()->query($query);
+        // if(!$query->isFinished())
+        // {
+        //     $query->getFinishReason();
+        // }
         $conversationId = $this->saveConversation($prompt, $performedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery,$conversationId);
@@ -228,8 +233,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setInstructions(string $text) : AiAgentInterface
     {
-        $jsonModeOn = "\r\nAnswer using the folowing JSON schema\r\n{ title: <title>, message: <message> }";
-        $this->systemPrompt = $text . $jsonModeOn;
+        $this->systemPrompt = $text;
         return $this;
     }
 
@@ -251,6 +255,9 @@ class GenericAssistant implements AiAgentInterface
             
             try {
                 $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
+                if($this->hasJsonSchema()){
+                    $this->systemPromptRendered .= $this->getSystemPromptForJsonSchema();
+                }
             } catch (\Throwable $e) {
                 throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
             }
@@ -369,5 +376,30 @@ class GenericAssistant implements AiAgentInterface
     public function getName() : string
     {
         return $this->getModelData()->getCellValue('NAME', 0);
+    }
+
+    private function getSystemPromptForJsonSchema() : string
+    {
+        return "\r\nAnswer using the folowing JSON schema\r\n{
+                \"type\": \"object\",
+                \"properties\": {
+                    \"title\": {
+                        \"type\": \"string\",
+                        \"description\": \"Short definition of the conversation\"
+                    },
+                    \"message\": {
+                        \"type\": \"string\",
+                        \"description\": \"Response of the users request\"
+                    }
+                },
+                \"required\": [
+                    \"title\",
+                    \"message\"
+                ]
+        }";
+    }
+    private function hasJsonSchema() : bool
+    {
+        return true;
     }
 }
