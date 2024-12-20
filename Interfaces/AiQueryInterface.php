@@ -62,4 +62,10 @@ interface AiQueryInterface extends DataQueryInterface
      * @return void
      */
     public function getSystemPrompt() : ?string;
+
+    /**
+     * 
+     * @return void
+     */
+    public function getTitle() : ?string;
 }

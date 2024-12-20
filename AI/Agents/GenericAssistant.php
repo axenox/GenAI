@@ -115,11 +115,15 @@ class GenericAssistant implements AiAgentInterface
         if (null !== $val = $prompt->getConversationUid()) {
             $query->setConversationUid($val);
         }
-
-        /**
-         * @var \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
-         */
+        if($this->hasJsonSchema())
+            $query->setResponseJsonSchema(true);
+        else
+            $query->setResponseJsonSchema(false);
         $performedQuery = $this->getConnection()->query($query);
+        // if(!$query->isFinished())
+        // {
+        //     $query->getFinishReason();
+        // }
         $conversationId = $this->saveConversation($prompt, $performedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
@@ -137,7 +141,7 @@ class GenericAssistant implements AiAgentInterface
                 $row = [
                     'AI_AGENT' => $this->getUid(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => $query->getTitle() ?? StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
@@ -214,7 +218,7 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @return \axenox\GenAI\Interfaces\AiAiConceptInterface[]
+     * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
      */
     protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
     {
@@ -273,6 +277,9 @@ class GenericAssistant implements AiAgentInterface
             
             try {
                 $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
+                if($this->hasJsonSchema()){
+                    $this->systemPromptRendered .= $this->getSystemPromptForJsonSchema();
+                }
             } catch (\Throwable $e) {
                 throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
             }
@@ -401,5 +408,38 @@ class GenericAssistant implements AiAgentInterface
     public function getName() : string
     {
         return $this->getModelData()->getCellValue('NAME', 0);
+    }
+
+    private function getSystemPromptForJsonSchema() : string
+    {
+        return "\r\nAnswer using the folowing JSON schema\r\n{
+                \"type\": \"object\",
+                \"properties\": {
+                    \"title\": {
+                        \"type\": \"string\",
+                        \"description\": \"Short definition of the conversation\"
+                    },
+                    \"message\": {
+                        \"type\": \"string\",
+                        \"description\": \"Response of the users request\"
+                    },
+                    \"sql_statement\": {
+                        \"type\": \"string\",
+                        \"description\": \"SQL statements if exists\"
+                    },
+                    \"explanation\": {
+                        \"type\": \"string\",
+                        \"description\": \"Explanations about SQL statements if exists\"
+                    }
+                },
+                \"required\": [
+                    \"title\",
+                    \"message\"
+                ]
+        }";
+    }
+    private function hasJsonSchema() : bool
+    {
+        return true;
     }
 }

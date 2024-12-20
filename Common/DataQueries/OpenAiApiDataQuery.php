@@ -42,6 +42,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $responseData = null;
 
     private $costPerMTokens = null;
+    
+    private $jsonSchema = null;
 
     public function __construct(WorkbenchInterface $workbench)
     {
@@ -256,7 +258,19 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function getAnswer() : string
     {
-        return $this->getResponseData()['choices'][0]['message']['content'];
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        if($this->jsonSchema)
+        {
+            $model = json_decode($json);
+            $returnMessage = $model->message;
+            if($model->sql_statement !== null)
+                $returnMessage .= PHP_EOL. "```sql". PHP_EOL .$model->sql_statement . PHP_EOL ."```". PHP_EOL;
+            if($model->explanation !== null)
+                $returnMessage .=  PHP_EOL." ### Explanation" . PHP_EOL . $model->explanation;
+            return $returnMessage;
+        }
+        else
+            return $json;
     }
 
     public function isFinished() : bool
@@ -286,5 +300,23 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $this-> getConversationData();
         return $this->conversationData-> countRows() + 1;
+    }
+    public function getTitle() : ?string
+    {
+        if(!$this->jsonSchema)
+            return null;
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        $model = json_decode($json);
+        return $model->title;
+    }
+
+    public function setResponseJsonSchema(bool $value)
+    {
+        $this->jsonSchema = $value;
+    }
+
+    public function getResponseJsonSchema() : bool
+    {
+        return $this->jsonSchema;
     }
 }
