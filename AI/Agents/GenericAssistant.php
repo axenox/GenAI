@@ -116,7 +116,9 @@ class GenericAssistant implements AiAgentInterface
             $query->setConversationUid($val);
         }
         if($this->hasJsonSchema())
-            $query->setResponseJsonSchema();
+            $query->setResponseJsonSchema(true);
+        else
+            $query->setResponseJsonSchema(false);
         $performedQuery = $this->getConnection()->query($query);
         // if(!$query->isFinished())
         // {
@@ -139,7 +141,7 @@ class GenericAssistant implements AiAgentInterface
                 $row = [
                     'AI_AGENT' => $this->getUid(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => $query->getTitle(),//StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => $query->getTitle() ?? StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
@@ -216,7 +218,7 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @return \axenox\GenAI\Interfaces\AiAiConceptInterface[]
+     * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
      */
     protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
     {
@@ -420,6 +422,14 @@ class GenericAssistant implements AiAgentInterface
                     \"message\": {
                         \"type\": \"string\",
                         \"description\": \"Response of the users request\"
+                    },
+                    \"sql_statement\": {
+                        \"type\": \"string\",
+                        \"description\": \"SQL statements if exists\"
+                    },
+                    \"explanation\": {
+                        \"type\": \"string\",
+                        \"description\": \"Explanations about SQL statements if exists\"
                     }
                 },
                 \"required\": [
