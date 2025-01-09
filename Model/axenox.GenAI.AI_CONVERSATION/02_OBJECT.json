@@ -81,7 +81,7 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-11-28 20:49:44",
+            "MODIFIED_ON": "2024-12-23 14:54:07",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -108,7 +108,13 @@
                         "attribute_alias": "TITLE"
                     },
                     {
+                        "attribute_alias": "PAGE_UID__NAME"
+                    },
+                    {
                         "attribute_alias": "AI_AGENT__NAME"
+                    },
+                    {
+                        "attribute_alias": "DATA"
                     },
                     {
                         "widget_type": "DataTableResponsive",
@@ -137,6 +143,9 @@
                             },
                             {
                                 "attribute_alias": "COST_PER_M_TOKENS"
+                            },
+                            {
+                                "attribute_alias": "FINISH_REASON"
                             },
                             {
                                 "attribute_alias": "MESSAGE"

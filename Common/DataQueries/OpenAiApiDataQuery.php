@@ -259,14 +259,15 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getAnswer() : string
     {
         $json = $this->getResponseData()['choices'][0]['message']['content'];
-        if($this->jsonSchema)
+        if(!empty($this->jsonSchema))
         {
             $model = json_decode($json);
-            $returnMessage = $model->message;
-            if($model->sql_statement !== null)
-                $returnMessage .= PHP_EOL. "```sql". PHP_EOL .$model->sql_statement . PHP_EOL ."```". PHP_EOL;
-            if($model->explanation !== null)
-                $returnMessage .=  PHP_EOL." ### Explanation" . PHP_EOL . $model->explanation;
+            $attributes = get_object_vars($model);
+            foreach ($attributes as $key => $value) {
+                if(in_array(strtolower($key), ["title", "caption"]))
+                    continue;
+                $returnMessage .= $value . PHP_EOL;
+            }
             return $returnMessage;
         }
         else
@@ -275,7 +276,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function isFinished() : bool
     {
-        return $this->getResponseData()['choices']['finish_reason'] === 'stop';
+        return $this->getResponseData()['choices'][0]['finish_reason'] === 'stop';
     }
 
     public function getTokensInPrompt() : int
@@ -287,6 +288,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         return $this->getResponseData()['usage']['completion_tokens'];
     }
+
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
@@ -301,22 +303,39 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         $this-> getConversationData();
         return $this->conversationData-> countRows() + 1;
     }
+
     public function getTitle() : ?string
     {
         if(!$this->jsonSchema)
             return null;
         $json = $this->getResponseData()['choices'][0]['message']['content'];
         $model = json_decode($json);
-        return $model->title;
+        $attributes = get_object_vars($model);
+        foreach ($attributes as $key => $value) {
+            if(in_array(strtolower($key), ["title", "caption"]))
+                return $value;
+        }
+        return null;
     }
 
-    public function setResponseJsonSchema(bool $value)
+    public function setResponseJsonSchema(array $value)
     {
         $this->jsonSchema = $value;
+        return $this;
     }
 
-    public function getResponseJsonSchema() : bool
+    public function getResponseJsonSchema() : ?array
     {
         return $this->jsonSchema;
+    }
+
+    public function getFinishReason() : string
+    {
+        return $this->getResponseData()['choices'][0]['finish_reason'];
+    }
+
+    public function getRawAnswer() : string
+    {
+        return $this->getResponseData()['choices'][0]['message']['content'];
     }
 }
