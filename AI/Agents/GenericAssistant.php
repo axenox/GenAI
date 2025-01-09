@@ -81,6 +81,7 @@ class GenericAssistant implements AiAgentInterface
     private $selector = null;
 
     private $agentDataSheet = null;
+    private $responseJsonSchema = null;
 
     /**
      * 
@@ -112,18 +113,13 @@ class GenericAssistant implements AiAgentInterface
         $query = new OpenAiApiDataQuery($this->workbench);
         $query->setSystemPrompt($this->systemPrompt);
         $query->appendMessage($userPromt);
-        if (null !== $val = $prompt->getConversationUid()) {
+        if (null !== $val = $prompt->getConversationUid()) 
             $query->setConversationUid($val);
-        }
+
         if($this->hasJsonSchema())
-            $query->setResponseJsonSchema(true);
-        else
-            $query->setResponseJsonSchema(false);
+            $query->setResponseJsonSchema($this->responseJsonSchema);
+
         $performedQuery = $this->getConnection()->query($query);
-        // if(!$query->isFinished())
-        // {
-        //     $query->getFinishReason();
-        // }
         $conversationId = $this->saveConversation($prompt, $performedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
@@ -142,6 +138,8 @@ class GenericAssistant implements AiAgentInterface
                     'AI_AGENT' => $this->getUid(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $query->getTitle() ?? StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
+                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
+                    //'PAGE_UID' => $prompt->getPageTriggeredOn()->getUid()
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
@@ -181,11 +179,13 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE'=> $query->getAnswer(),
+                'DATA' => $query->getRawAnswer(),
                 'SEQUENCE_NUMBER' => $sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
-                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001
+                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001,
+                'FINISH_REASON' => $query->getFinishReason()
             ]);
             $message->dataCreate(false, $transaction);
             
@@ -277,9 +277,6 @@ class GenericAssistant implements AiAgentInterface
             
             try {
                 $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
-                if($this->hasJsonSchema()){
-                    $this->systemPromptRendered .= $this->getSystemPromptForJsonSchema();
-                }
             } catch (\Throwable $e) {
                 throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
             }
@@ -410,36 +407,22 @@ class GenericAssistant implements AiAgentInterface
         return $this->getModelData()->getCellValue('NAME', 0);
     }
 
-    private function getSystemPromptForJsonSchema() : string
-    {
-        return "\r\nAnswer using the folowing JSON schema\r\n{
-                \"type\": \"object\",
-                \"properties\": {
-                    \"title\": {
-                        \"type\": \"string\",
-                        \"description\": \"Short definition of the conversation\"
-                    },
-                    \"message\": {
-                        \"type\": \"string\",
-                        \"description\": \"Response of the users request\"
-                    },
-                    \"sql_statement\": {
-                        \"type\": \"string\",
-                        \"description\": \"SQL statements if exists\"
-                    },
-                    \"explanation\": {
-                        \"type\": \"string\",
-                        \"description\": \"Explanations about SQL statements if exists\"
-                    }
-                },
-                \"required\": [
-                    \"title\",
-                    \"message\"
-                ]
-        }";
-    }
     private function hasJsonSchema() : bool
+    {        
+        return $this->responseJsonSchema !== null;
+    }
+
+    /**
+     * Summary of setResponseJsonSchema
+     * @uxon-property response_json_schema 
+     * @uxon-type object
+     * @uxon-template {"type": "object", "properties": {"title": {"type", "description"}, "text": {"type", "description"}}, "additionalProperties": false, "required": {}}
+     * @param \exface\Core\CommonLogic\UxonObject $uxon
+     * @return static
+     */
+    protected function setResponseJsonSchema(UxonObject $uxon)
     {
-        return true;
+        $this->responseJsonSchema = $uxon->toArray();
+        return $this;
     }
 }

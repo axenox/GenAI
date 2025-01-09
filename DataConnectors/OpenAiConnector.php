@@ -87,8 +87,17 @@ class OpenAiConnector extends AbstractDataConnector
             'messages' => $query->getMessages(true)
         ];
 
-        if($query->getResponseJsonSchema())
-            $json['response_format'] = ['type'=> 'json_object'];
+        if(!empty($query->getResponseJsonSchema()))
+        {
+            $json['response_format'] = [
+                'type'=>'json_schema',
+                'json_schema' => [
+                    'name' => 'powerUi',
+                    'schema'=> $query->getResponseJsonSchema(),
+                    'strict' => true
+                ]
+            ];
+        } 
 
         if (null !== $val = $this->getTemperature($query)) {
             $json['temperature'] = $val;

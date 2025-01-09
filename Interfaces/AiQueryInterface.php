@@ -68,4 +68,16 @@ interface AiQueryInterface extends DataQueryInterface
      * @return void
      */
     public function getTitle() : ?string;
+
+    /**
+     * 
+     * @return string
+     */
+    public function getFinishReason() : string;
+
+    /**
+     * 
+     * @return string
+     */
+    public function getRawAnswer() : string;
 }
