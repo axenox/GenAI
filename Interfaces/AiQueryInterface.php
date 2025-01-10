@@ -15,10 +15,17 @@ use exface\Core\Interfaces\DataSources\DataQueryInterface;
 interface AiQueryInterface extends DataQueryInterface
 {
     /**
-     * 
+     * Returns the answer of the LLM as text (raw)
      * @return string
      */
     public function getAnswer() : string;
+
+    /**
+     * Returns the structured data returned by an LLM if it runs in JSON mode
+     * 
+     * @return array|null
+     */
+    public function getAnswerJson() : ?array;
     
     /**
      * Returns FALSE if the LLM is not done yet and this is just a partial response

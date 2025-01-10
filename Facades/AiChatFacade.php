@@ -133,7 +133,9 @@ class AiChatFacade extends AbstractHttpFacade
         }, 
         // URL parameters, that we need in the task
         [
-            'object' => 'object_alias'
+            'object' => 'object_alias',
+            'page' => 'page_alias',
+            'widget' => 'widget_id'
         ]);
         $middleware[] = new DataUrlParamReader($this, 'data', 'setInputData');
         

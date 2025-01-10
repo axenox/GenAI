@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
+use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
@@ -83,6 +84,10 @@ class GenericAssistant implements AiAgentInterface
     private $agentDataSheet = null;
     private $responseJsonSchema = null;
 
+    private $responseAnswerPath = null;
+
+    private $responseTitlePath = null;
+
     /**
      * 
      * @param \exface\Core\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -117,7 +122,7 @@ class GenericAssistant implements AiAgentInterface
             $query->setConversationUid($val);
 
         if($this->hasJsonSchema())
-            $query->setResponseJsonSchema($this->responseJsonSchema);
+            $query->setResponseJsonSchema($this->getResponseJsonSchema());
 
         $performedQuery = $this->getConnection()->query($query);
         $conversationId = $this->saveConversation($prompt, $performedQuery);
@@ -138,11 +143,13 @@ class GenericAssistant implements AiAgentInterface
                     'AI_AGENT' => $this->getUid(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $query->getTitle() ?? StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
-                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
-                    //'PAGE_UID' => $prompt->getPageTriggeredOn()->getUid()
+                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson()
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
+                }
+                if ($prompt->isTriggeredOnPage()) {
+                    $row['PAGE'] = $prompt->getPageTriggeredOn()->getUid();
                 }
                 $conversation->addRow($row);
                 $conversation->dataCreate(false,$transaction);
@@ -178,7 +185,7 @@ class GenericAssistant implements AiAgentInterface
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::ASSISTANT,
-                'MESSAGE'=> $query->getAnswer(),
+                'MESSAGE'=> $this->getAnswer($query),
                 'DATA' => $query->getRawAnswer(),
                 'SEQUENCE_NUMBER' => $sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
@@ -336,7 +343,39 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        return new AiResponse($prompt, $query->getAnswer(), $conversationId);
+        return new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+    }
+
+    /**
+     * 
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @return string
+     */
+    protected function getAnswer(AiQueryInterface $query) : string
+    {
+        if ($this->hasJsonSchema()) {
+            $json = $query->getAnswerJson();
+            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath());
+        } else {
+            $answer = $query->getAnswer();
+        }
+        return $answer;
+    }
+
+    /**
+     * 
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @return string
+     */
+    protected function getTitle(AiQueryInterface $query) : string
+    {
+        if ($this->hasJsonSchema()) {
+            $json = $query->getAnswerJson();
+            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath());
+        } else {
+            $answer = $query->getAnswer();
+        }
+        return $answer;
     }
 
     /**
@@ -407,6 +446,11 @@ class GenericAssistant implements AiAgentInterface
         return $this->getModelData()->getCellValue('NAME', 0);
     }
 
+    protected function getResponseJsonSchema() : ?array
+    {
+        return $this->responseJsonSchema;
+    }
+
     private function hasJsonSchema() : bool
     {        
         return $this->responseJsonSchema !== null;
@@ -416,7 +460,7 @@ class GenericAssistant implements AiAgentInterface
      * Summary of setResponseJsonSchema
      * @uxon-property response_json_schema 
      * @uxon-type object
-     * @uxon-template {"type": "object", "properties": {"title": {"type", "description"}, "text": {"type", "description"}}, "additionalProperties": false, "required": {}}
+     * @uxon-template {"type":"object","properties":{"title":{"type":"string","description":"Summary of the conversation"},"text":{"type":"string","description":"Your answer as markdown"}},"additionalProperties":false,"required":["title"]}
      * @param \exface\Core\CommonLogic\UxonObject $uxon
      * @return static
      */
@@ -424,5 +468,47 @@ class GenericAssistant implements AiAgentInterface
     {
         $this->responseJsonSchema = $uxon->toArray();
         return $this;
+    }
+
+    /**
+     * The JSONPath to the response message if a JSON schema is used by this assistant
+     * 
+     * @uxon-property response_answer_path
+     * @uxon-type string
+     * @uxon-template $.text
+     * 
+     * @param string $jsonPath
+     * @return \axenox\GenAI\AI\Agents\GenericAssistant
+     */
+    protected function setResponseAnswerPath(string $jsonPath) : GenericAssistant
+    {
+        $this->responseAnswerPath = $jsonPath;
+        return $this;
+    } 
+
+    protected function getResponseAnswerPath() : ?string
+    {
+        return $this->responseAnswerPath;
+    }
+
+    /**
+     * The JSONPath to the conversation title in the response JSON if a JSON schema is used by this assistant
+     * 
+     * @uxon-property response_title_path
+     * @uxon-type string
+     * @uxon-template $.title
+     * 
+     * @param string $jsonPath
+     * @return \axenox\GenAI\AI\Agents\GenericAssistant
+     */
+    protected function setResponseTitlePath(string $jsonPath) : GenericAssistant
+    {
+        $this->responseTitlePath = $jsonPath;
+        return $this;
+    } 
+
+    protected function getResponseTitlePath() : ?string
+    {
+        return $this->responseTitlePath;
     }
 }
