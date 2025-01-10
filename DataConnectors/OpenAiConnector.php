@@ -87,13 +87,13 @@ class OpenAiConnector extends AbstractDataConnector
             'messages' => $query->getMessages(true)
         ];
 
-        if(!empty($query->getResponseJsonSchema()))
+        if(null !== $schema = $query->getResponseJsonSchema())
         {
             $json['response_format'] = [
                 'type'=>'json_schema',
                 'json_schema' => [
                     'name' => 'powerUi',
-                    'schema'=> $query->getResponseJsonSchema(),
+                    'schema'=> $schema,
                     'strict' => true
                 ]
             ];

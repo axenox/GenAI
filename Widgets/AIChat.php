@@ -73,7 +73,8 @@ JS;
                 "method": "POST",
                 "additionalBodyProps": {
                     "object": "{$this->getMetaObject()->getAliasWithNamespace()}",
-                    "page": "{$this->getPage()->getAliasWithNamespace()}"
+                    "page": "{$this->getPage()->getAliasWithNamespace()}",
+                    "widget": "{$this->getId()}"
                 }
             }'
             responseInterceptor  = 'function (message) {

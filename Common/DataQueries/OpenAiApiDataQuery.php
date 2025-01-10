@@ -256,22 +256,23 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $debug_widget;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswer()
+     */
     public function getAnswer() : string
     {
-        $json = $this->getResponseData()['choices'][0]['message']['content'];
-        if(!empty($this->jsonSchema))
-        {
-            $model = json_decode($json);
-            $attributes = get_object_vars($model);
-            foreach ($attributes as $key => $value) {
-                if(in_array(strtolower($key), ["title", "caption"]))
-                    continue;
-                $returnMessage .= $value . PHP_EOL;
-            }
-            return $returnMessage;
-        }
-        else
-            return $json;
+        $fullAnswer = $this->getResponseData()['choices'][0]['message']['content'];
+        return $fullAnswer;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswerJson()
+     */
+    public function getAnswerJson() : ?array
+    {
+        return json_decode($this->getAnswer(), true);
     }
 
     public function isFinished() : bool
