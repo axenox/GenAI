@@ -53,9 +53,9 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:29:49",
-            "MODIFIED_ON": "2024-12-18 12:56:48",
+            "MODIFIED_ON": "2024-12-16 12:14:26",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11eca7f5b092f284a7f5005056bea39f",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef997726a6346a9977025041000001",
             "NAME": "SQL admin assistant",
             "DESCRIPTION": "Helps writing SQL statements in the built-in SQL admin",
@@ -64,7 +64,7 @@
             "DATA_CONNECTION_DEFAULT": null,
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "CONFIG_UXON": {
-                "instructions": "You will help to modify and query a SQL database.\n\nHere is the DB schema in DBML (enclosed in six ticks \"``````\"): \n\n``````\n[#metamodel_dbml#] \n``````\n\nAnswer using the following locale: \"[#=User('LOCALE')#]\".",
+                "instructions": "You will help to modify and query a SQL database. will answer questions about the structure of the following database and will help write SQL. \n\nHere is the DB schema in DBML (enclosed in four dashes `\"\"\"`): \n\n\"\"\"\n[#metamodel_dbml#] \n\"\"\"\n\nAnswer using the following locale: \"[#=User('LOCALE')#]\".",
                 "concepts": {
                     "metamodel_dbml": {
                         "class": "\\axenox\\GenAI\\AI\\Concepts\\SqlDbmlConcept",

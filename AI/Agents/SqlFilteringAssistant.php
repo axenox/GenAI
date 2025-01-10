@@ -6,12 +6,13 @@ use exface\Core\Exceptions\RuntimeException;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Templates\Placeholders\ArrayPlaceholders;
+use exface\Core\Templates\BracketHashStringTemplateRenderer;
 
 class SqlFilteringAssistant extends GenericAssistant
 {
-    protected function getConcepts(AiPromptInterface $prompt) : array
+    protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
     {
-        $concepts = parent::getConcepts($prompt);
+        $concepts = parent::getConcepts($prompt, $configRenderer);
         foreach ($concepts as $concept) {
             if ($concept instanceof MetamodelDbmlConcept) {
                 if ($prompt->hasMetaObject()) {
