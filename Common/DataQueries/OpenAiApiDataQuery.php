@@ -42,6 +42,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $responseData = null;
 
     private $costPerMTokens = null;
+    
+    private $jsonSchema = null;
 
     public function __construct(WorkbenchInterface $workbench)
     {
@@ -256,12 +258,25 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function getAnswer() : string
     {
-        return $this->getResponseData()['choices'][0]['message']['content'];
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        if(!empty($this->jsonSchema))
+        {
+            $model = json_decode($json);
+            $attributes = get_object_vars($model);
+            foreach ($attributes as $key => $value) {
+                if(in_array(strtolower($key), ["title", "caption"]))
+                    continue;
+                $returnMessage .= $value . PHP_EOL;
+            }
+            return $returnMessage;
+        }
+        else
+            return $json;
     }
 
     public function isFinished() : bool
     {
-        return $this->getResponseData()['choices']['finish_reason'] === 'stop';
+        return $this->getResponseData()['choices'][0]['finish_reason'] === 'stop';
     }
 
     public function getTokensInPrompt() : int
@@ -273,6 +288,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         return $this->getResponseData()['usage']['completion_tokens'];
     }
+
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
@@ -286,5 +302,40 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $this-> getConversationData();
         return $this->conversationData-> countRows() + 1;
+    }
+
+    public function getTitle() : ?string
+    {
+        if(!$this->jsonSchema)
+            return null;
+        $json = $this->getResponseData()['choices'][0]['message']['content'];
+        $model = json_decode($json);
+        $attributes = get_object_vars($model);
+        foreach ($attributes as $key => $value) {
+            if(in_array(strtolower($key), ["title", "caption"]))
+                return $value;
+        }
+        return null;
+    }
+
+    public function setResponseJsonSchema(array $value)
+    {
+        $this->jsonSchema = $value;
+        return $this;
+    }
+
+    public function getResponseJsonSchema() : ?array
+    {
+        return $this->jsonSchema;
+    }
+
+    public function getFinishReason() : string
+    {
+        return $this->getResponseData()['choices'][0]['finish_reason'];
+    }
+
+    public function getRawAnswer() : string
+    {
+        return $this->getResponseData()['choices'][0]['message']['content'];
     }
 }

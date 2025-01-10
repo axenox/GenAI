@@ -7,5 +7,5 @@ ADD `cost_per_m_tokens` float NULL AFTER `sequence_number`;
 -- DOWN
 
 ALTER TABLE `exf_ai_message`
-DROP `cost_per_m_tokens`,
-DROP `sequence_number`;
+DROP COLUMN `cost_per_m_tokens`,
+DROP COLUMN `sequence_number`;
