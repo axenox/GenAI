@@ -59,12 +59,23 @@
             "UID": "0x11ef997726a6346a9977025041000001",
             "NAME": "SQL admin assistant",
             "DESCRIPTION": "Helps writing SQL statements in the built-in SQL admin",
-            "PROTOTYPE_CLASS": "axenox\/genai\/AI\/Agents\/GenericAssistant.php",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "ALIAS": "sql_admin_assistant",
             "DATA_CONNECTION_DEFAULT": null,
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "CONFIG_UXON": {
-                "instructions": "You will help to modify and query a SQL database. will answer questions about the structure of the following database and will help write SQL. \n\nHere is the DB schema in DBML (enclosed in four dashes `\"\"\"`): \n\n\"\"\"\n[#metamodel_dbml#] \n\"\"\"\n\nAnswer using the following locale: \"[#=User('LOCALE')#]\".",
+                "instructions": [
+                    "// Multiline text delimited by `\n`",
+                    "You will help to modify and query a SQL database. will answer questions about the structure of the following database and will help write SQL. ",
+                    "",
+                    "Here is the DB schema in DBML (enclosed in four dashes `\"\"\"`): ",
+                    "",
+                    "\"\"\"",
+                    "[#metamodel_dbml#] ",
+                    "\"\"\"",
+                    "",
+                    "Answer using the following locale: \"[#=User('LOCALE')#]\"."
+                ],
                 "concepts": {
                     "metamodel_dbml": {
                         "class": "\\axenox\\GenAI\\AI\\Concepts\\SqlDbmlConcept",
