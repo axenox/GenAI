@@ -2,7 +2,7 @@
 
 ALTER TABLE `exf_ai_conversation`
 ADD `data` text COLLATE 'utf8mb3_general_ci' NULL,
-ADD `page_uid` binary NULL AFTER `data`;
+ADD `page_uid` binary(16) NULL AFTER `data`;
 
 -- DOWN
 
