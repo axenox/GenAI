@@ -258,9 +258,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswer()
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getFullAnswer()
      */
-    public function getAnswer() : string
+    public function getFullAnswer() : string
     {
         $fullAnswer = $this->getResponseData()['choices'][0]['message']['content'];
         return $fullAnswer;
@@ -272,7 +272,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getAnswerJson() : ?array
     {
-        return json_decode($this->getAnswer(), true);
+        return json_decode($this->getFullAnswer(), true);
     }
 
     public function isFinished() : bool
@@ -333,10 +333,5 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getFinishReason() : string
     {
         return $this->getResponseData()['choices'][0]['finish_reason'];
-    }
-
-    public function getRawAnswer() : string
-    {
-        return $this->getResponseData()['choices'][0]['message']['content'];
     }
 }
