@@ -1,10 +1,10 @@
 -- UP
 
 ALTER TABLE dbo.exf_ai_conversation
-ADD data text COLLATE 'utf8mb3_general_ci' NULL,
-    page_uid binary NULL;
+ADD [data] text NULL,
+    [page_uid] binary(16) NULL;
 -- DOWN
 
 ALTER TABLE dbo.exf_ai_conversation
-DROP COLUMN data,
-            page_uid;
+DROP COLUMN [data],
+            [page_uid];
