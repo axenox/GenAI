@@ -18,7 +18,7 @@ interface AiQueryInterface extends DataQueryInterface
      * Returns the answer of the LLM as text (raw)
      * @return string
      */
-    public function getAnswer() : string;
+    public function getFullAnswer() : string;
 
     /**
      * Returns the structured data returned by an LLM if it runs in JSON mode
@@ -81,10 +81,4 @@ interface AiQueryInterface extends DataQueryInterface
      * @return string
      */
     public function getFinishReason() : string;
-
-    /**
-     * 
-     * @return string
-     */
-    public function getRawAnswer() : string;
 }
