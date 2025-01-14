@@ -142,7 +142,7 @@ class GenericAssistant implements AiAgentInterface
                 $row = [
                     'AI_AGENT' => $this->getUid(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => $query->getTitle() ?? StringDataType::truncate($prompt->getUserPrompt(), 50, true, true, true),
+                    'TITLE' => $this->getTitle($query),
                     'DATA' => $prompt->getInputData()->exportUxonObject()->toJson()
                 ];
                 if ($prompt->hasMetaObject()) {
@@ -186,7 +186,7 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE'=> $this->getAnswer($query),
-                'DATA' => $query->getRawAnswer(),
+                'DATA' => $query->getFullAnswer(),
                 'SEQUENCE_NUMBER' => $sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
@@ -355,9 +355,9 @@ class GenericAssistant implements AiAgentInterface
     {
         if ($this->hasJsonSchema()) {
             $json = $query->getAnswerJson();
-            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath());
+            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
         } else {
-            $answer = $query->getAnswer();
+            $answer = $query->getFullAnswer();
         }
         return $answer;
     }
@@ -371,11 +371,11 @@ class GenericAssistant implements AiAgentInterface
     {
         if ($this->hasJsonSchema()) {
             $json = $query->getAnswerJson();
-            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath());
+            $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
         } else {
-            $answer = $query->getAnswer();
+            $title = StringDataType::truncate($query->getUserPrompt(), 50, true, true, true);
         }
-        return $answer;
+        return $title;
     }
 
     /**
