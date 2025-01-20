@@ -8,7 +8,7 @@ use exface\Core\Widgets\InputCustom;
 use exface\Core\Interfaces\Widgets\iFillEntireContainer;
 
 /**
- * 
+ * Chat with AI assistants
  * 
  * 
  * @author Andrej Kabachnik
@@ -85,7 +85,6 @@ JS;
 
             requestInterceptor = 'function (requestDetails) {
                 var domEl = document.getElementById("{$this->getId()}");
-                console.log("reqInter", requestDetails);
                 requestDetails.body.conversation = domEl.conversationId;
                 {$requestDataJs};
                 return requestDetails;
@@ -94,17 +93,35 @@ JS;
 HTML;
     }
 
+    /**
+     * Alias of the agent to chat with - with namespace for agents from apps and without for local agents
+     * 
+     * @uxon-property agent_alias
+     * @uxon-type string
+     * @uxon-required true
+     * 
+     * @param string $alias
+     * @return AIChat
+     */
     protected function setAgentAlias(string $alias) : AIChat
     {
         $this->agentAlias = $alias;
         return $this;
     }
 
+    /**
+     * 
+     * @return string
+     */
     public function getAgentAlias() : string
     {
         return $this->agentAlias;
     }
 
+    /**
+     * 
+     * @return AiChatFacade
+     */
     protected function getAiChatFacade() : AiChatFacade
     {
         if ($this->aiChatFacade === null) {
