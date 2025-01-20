@@ -318,23 +318,23 @@
         {
             "_EXPORT_SUMMARY": "Message [MESSAGE]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-09-17 15:07:03",
+            "MODIFIED_ON": "2025-01-20 18:46:57",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efaaad2e8396a8aaad025041000001",
             "SORTABLEFLAG": 1,
             "FILTERABLEFLAG": 1,
             "AGGREGATABLEFLAG": 1,
-            "DEFAULT_AGGREGATE_FUNCTION": null,
+            "DEFAULT_AGGREGATE_FUNCTION": "",
             "VALUE_LIST_DELIMITER": ",",
             "READABLEFLAG": 1,
             "WRITABLEFLAG": 1,
             "SYSTEMFLAG": 0,
             "DEFAULT_EDITOR_UXON": null,
-            "COPY_WITH_RELATED_OBJECT": null,
-            "DELETE_WITH_RELATED_OBJECT": null,
+            "COPY_WITH_RELATED_OBJECT": 0,
+            "DELETE_WITH_RELATED_OBJECT": 0,
             "DEFAULT_DISPLAY_UXON": null,
-            "COMMENTS": null,
+            "COMMENTS": "",
             "NAME": "Message",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
@@ -343,7 +343,7 @@
             "DATATYPE": "0x31310000000000000000000000000000",
             "DATA_ADDRESS": "message",
             "OBJECT": "0x11ef950a2e445768950a025041000001",
-            "FORMATTER": null,
+            "FORMATTER": "",
             "DISPLAYORDER": null,
             "LABELFLAG": 0,
             "UIDFLAG": 0,
@@ -352,15 +352,13 @@
             "REQUIREDFLAG": 1,
             "RELATED_OBJ": null,
             "SORTERPOS": null,
-            "SORTERDIR": null,
+            "SORTERDIR": "",
             "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": {
-                "length_max": 65535
-            }
+            "CUSTOM_DATA_TYPE": null
         },
         {
             "_EXPORT_SUMMARY": "Tokens completion [TOKENS_COMPLETION]",
@@ -594,9 +592,9 @@
         {
             "_EXPORT_SUMMARY": "Data [DATA]",
             "CREATED_ON": "2025-01-08 13:04:24",
-            "MODIFIED_ON": "2025-01-08 13:33:47",
+            "MODIFIED_ON": "2025-01-20 18:46:45",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8112b4a2266a8112025041000001",
             "SORTABLEFLAG": 1,
             "FILTERABLEFLAG": 1,
@@ -634,9 +632,7 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
-            "CUSTOM_DATA_TYPE": {
-                "length_max": 65535
-            }
+            "CUSTOM_DATA_TYPE": null
         }
     ],
     "totals_rows": [],
