@@ -18,8 +18,8 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
     public function buildDBML() : string
     {
         $dbml = parent::buildDBML();
-        return "// Current DB engine: {$this->getSqlEngine()}
-        " . $dbml;
+        return "// Current DB engine: {$this->getSqlEngine()}" . PHP_EOL
+            . $dbml;
     }
 
     protected function getSqlEngine() : string
@@ -35,8 +35,8 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
 
     protected function buildDbmlColName(MetaAttributeInterface $attr) : ?string
     {
-        $address = $attr->getDataAddress();
-        if ($this->isCustomSQL($address)) {
+        $address = trim($attr->getDataAddress());
+        if ($address === null || $address === '' || $this->isCustomSQL($address)) {
             return null;
         }
         return StringDataType::stripLineBreaks($address);
@@ -49,8 +49,8 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
 
     protected function buildDbmlTableName(MetaObjectInterface $obj) : ?string
     {
-        $address = $obj->getDataAddress();
-        if ($this->isCustomSQL($address)) {
+        $address = trim($obj->getDataAddress());
+        if ($address === null || $address === '' || $this->isCustomSQL($address)) {
             return null;
         }
         return $address;
@@ -66,24 +66,27 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
 
     protected function getObjects() : array
     {
-        $objects = [];
-        foreach (parent::getObjects() as $obj) {
-            $connection = $obj->getDataConnection();
-            $isSql = $connection instanceof SqlDataConnectorInterface;
-            $isTable = stripos($obj->getDataAddress(), '(') === false; // Otherwise it is a SQL statement like (SELECT ...)
-            // TODO also only those, that are in the same database as the object we are filtering
-            if ($isSql && $isTable) {
-                if ($this->connection === null) {
-                    $this->connection = $connection;
-                }
-                if ($this->connection === $connection) {
-                    $objects[] = $obj;
-                }
-            }
-        }
+        $objects = parent::getObjects();
         if (empty($objects)) {
             throw new AiConceptIncompleteError('No SQL-based meta objects found!');
         }
         return $objects;
+    }
+
+    protected function includesObject(MetaObjectInterface $obj) : bool
+    {
+        $connection = $obj->getDataConnection();
+        $isSql = $connection instanceof SqlDataConnectorInterface;
+        $isTable = stripos($obj->getDataAddress(), '(') === false; // Otherwise it is a SQL statement like (SELECT ...)
+        // TODO also only those, that are in the same database as the object we are filtering
+        if ($isSql && $isTable) {
+            if ($this->connection === null) {
+                $this->connection = $connection;
+            }
+            if ($this->connection === $connection) {
+                return true;
+            }
+        }
+        return false;
     }
 }
