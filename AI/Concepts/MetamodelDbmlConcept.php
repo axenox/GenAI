@@ -90,7 +90,7 @@ class MetamodelDbmlConcept extends AbstractConcept
             foreach ($this->getObjectAliases() as $alias) {
                 try {
                     $obj = MetaObjectFactory::createFromString($this->getWorkbench(), $alias);
-                    if ($filterCallback === null || $filterCallback($obj) === true) {
+                    if ($this->includesObject($obj) && ($filterCallback === null || $filterCallback($obj) === true)) {
                         $this->objectCache[] = $obj;
                     }
                 } catch (\Throwable $e) {
@@ -120,7 +120,7 @@ class MetamodelDbmlConcept extends AbstractConcept
         }
         foreach ($array['Enums'] as $name => $enumVals) 
         {
-            $dbml .= 'Enum '. $name . '{';
+            $dbml .= 'Enum '. $name . '{' . PHP_EOL;
             foreach ($enumVals as $valData) {
                 $dbml .= $indent . implode(' ', $valData) . PHP_EOL;
             }
@@ -157,11 +157,23 @@ class MetamodelDbmlConcept extends AbstractConcept
      */
 
     public function buildArray() : array{
-    $array = [];
-    foreach ($this->getObjects() as $obj) {
-        $array = array_merge_recursive($array, $this->buildDbmlArrayForObject($obj));
-    }
-    return $array;
+        $array = [
+            'Tables' => [],
+            'Enums' => []
+        ];
+        $tableNames = [];
+        foreach ($this->getObjects() as $obj) {
+            $tableName = $this->buildDbmlTableName($obj);
+            if ($tableName === null || in_array($tableName, $tableNames)) {
+                continue;
+            }
+            $tableNames[] = $tableName;
+            $array = [
+                'Tables' => array_merge($array['Tables'], $this->buildDbmlArrayForObject($obj)['Tables']),
+                'Enums' => array_merge($array['Enums'], $this->buildDbmlArrayForObject($obj)['Enums'])
+            ];
+        }
+        return $array;
     }
 
     protected function buildDbmlArrayForObject(MetaObjectInterface $obj) : array
@@ -172,12 +184,17 @@ class MetamodelDbmlConcept extends AbstractConcept
         }
 
         $enums = [];
+        $cols = [];
         $table = [
             'Table' => $tableName,
             'Columns' => []
         ];
+
         foreach ($obj->getAttributes() as $attribute) { 
             $colName = $this->buildDbmlColName($attribute);
+            if (in_array($colName, $cols)) {
+                continue;
+            }
             if ($colName !== null) {
                 $col = [
                     'name' => $colName,
@@ -187,18 +204,18 @@ class MetamodelDbmlConcept extends AbstractConcept
                 if (! empty($settings)) {
                     $col['settings'] = '[' . implode(', ', $settings) . ']';
                 }
-                $table['Columns'][] = $col;
+                $cols[$colName] = $col;
 
                 $datatype = $attribute->getDataType();
                 if ($datatype instanceof EnumDataTypeInterface) {
                     $enumVals = [];
                     foreach($datatype->getLabels() as $value => $label){
-                        $enumVals[] = [ 
-                            'name' => $value,
-                            'settings' => '[note: ' . $label . ']'
+                        $enumVals[$value] = [ 
+                            'name' => $value === null || $value === '' ? null : $this->escapeString($value),
+                            'settings' => '[note: ' . $this->escapeString($label) . ']'
                         ];
                     }
-                    $enums[$this->getKeyOfEnum($datatype, $attribute)] = $enumVals;
+                    $enums[$this->getKeyOfEnum($datatype, $attribute)] = array_values($enumVals);
                 }
             } else {
                 // TODO use custom-SQL columns somehow. Maybe create some sort of hints for the AI
@@ -208,8 +225,10 @@ class MetamodelDbmlConcept extends AbstractConcept
             
             // TODO add complex relations (e.g. over compound attributes) here if they cannot be handled
             // inside the table defs
-
         }
+
+        $table['Columns'] = array_values($cols);
+
         return [
             'Tables' => [$this->getKeyOfTable($obj) => $table],
             'Enums'=> $enums
@@ -223,7 +242,7 @@ class MetamodelDbmlConcept extends AbstractConcept
 
     protected function getKeyOfEnum(DataTypeInterface $datatype, MetaAttributeInterface $attr) : string
     {
-        return $datatype->getAliasWithNamespace();
+        return StringDataType::convertCaseDelimiterToCamel($datatype->getAliasWithNamespace(), '.', false);
     }
 
     protected function buildDbmlColName(MetaAttributeInterface $attr) : ?string
@@ -251,20 +270,34 @@ class MetamodelDbmlConcept extends AbstractConcept
         */
 
         if ($attr->isRelation()) {
-            $arr[] = 'ref: ' . $this->buildDbmlColRelationship($attr->getRelation());
+            if (null !== $ref = $this->buildDbmlColRelationship($attr->getRelation())) {
+                $arr[] = 'ref: ' . $ref;
+            }
         }
 
         if (null !== $descr = $this->buildDbmlColDescription($attr)) {
-            $arr[] = 'note: ' . StringDataType::stripLineBreaks($descr);
+            $arr[] = 'note: ' . $this->escapeString(StringDataType::stripLineBreaks($descr));
         }
 
         return $arr;
     }
 
+    protected function escapeString(string $str) : string
+    {
+        return json_encode($str, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    }
+
     protected function buildDbmlColDescription(MetaAttributeInterface $attr) : ?string
     {
         $descr = $attr->getShortDescription();
-        return $descr === null || trim($descr) === '' ? null : $descr;
+        if ($descr === null) {
+            return null;
+        }
+        $descr = trim(trim($descr), ".");
+        if ($descr === '') {
+            return null;
+        }
+        return $descr;
     }
 
     protected function buildDbmlColType(DataTypeInterface $dataType, MetaAttributeInterface $attribute = null) : string 
@@ -305,8 +338,15 @@ class MetamodelDbmlConcept extends AbstractConcept
         
     }
 
-    protected function buildDbmlColRelationship(MetaRelationInterface $rel) : string 
+    protected function buildDbmlColRelationship(MetaRelationInterface $rel) : ?string 
     {
+        if (! $this->includesObject($rel->getRightObject())) {
+            return null;
+        }
+        $rightKey = $this->buildDbmlColName($rel->getRightKeyAttribute());
+        if ($rightKey === null) {
+            return null;
+        }
         switch ($rel->getCardinality()) {
             case RelationCardinalityDataType::ONE_TO_ONE: $sign = '-'; break;
             case RelationCardinalityDataType::N_TO_ONE: $sign = '>'; break;
@@ -314,7 +354,7 @@ class MetamodelDbmlConcept extends AbstractConcept
             default:
                 $sign = '>';
         }
-        return "$sign {$this->buildDbmlTableName($rel->getRightObject())}";
+        return "$sign {$this->buildDbmlTableName($rel->getRightObject())}.{$rightKey}";
     }
 
     protected function buildDbmlTableName(MetaObjectInterface $obj) : ?string
@@ -343,5 +383,10 @@ class MetamodelDbmlConcept extends AbstractConcept
         $phVals = [];
         $phVals[$this->getPlaceholder()] = $this->buildDBML();
         return $phVals;
+    }
+
+    protected function includesObject(MetaObjectInterface $obj) : bool
+    {
+        return true;
     }
 }
