@@ -143,9 +143,9 @@ class OpenAiConnector extends AbstractDataConnector
     /**
      * 
      * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
-     * @return mixed
+     * @return float|null
      */
-    public function getTemperature(OpenAiApiDataQuery $query) : ?int
+    public function getTemperature(OpenAiApiDataQuery $query) : ?float
     {
         return $query->getTemperature() ?? $this->temperature;
     }
@@ -158,10 +158,13 @@ class OpenAiConnector extends AbstractDataConnector
      * 
      * If not set, the default of the API will be used.
      * 
+     * @uxon-property temperature
+     * @uxon-type number
+     * 
      * @param int $val
      * @return \exface\Core\DataConnectors\OpenAiConnector
      */
-    protected function setTemperature(int $val) : OpenAiConnector
+    protected function setTemperature(float $val) : OpenAiConnector
     {
         $this->temperature = $val;
         return $this;
