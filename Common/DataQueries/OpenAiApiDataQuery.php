@@ -95,10 +95,10 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * 
-     * @param int $temperature
+     * @param float $temperature
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
      */
-    public function setTemperature(int $temperature) : OpenAiApiDataQuery
+    public function setTemperature(float $temperature) : OpenAiApiDataQuery
     {
         $this->temperature = $temperature;
         return $this;
@@ -106,9 +106,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * 
-     * @return int|null
+     * @return float|null
      */
-    public function getTemperature() : ?int
+    public function getTemperature() : ?float
     {
         return $this->temperature;
     }
