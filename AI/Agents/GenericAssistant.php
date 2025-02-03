@@ -21,7 +21,7 @@ use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
-use exface\Core\Interfaces\Selectors\AiAgentSelectorInterface;
+use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
@@ -90,7 +90,7 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @param \exface\Core\Interfaces\Selectors\AiAgentSelectorInterface $selector
+     * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
      * @param \exface\Core\CommonLogic\UxonObject|null $uxon
      */
     public function __construct(AiAgentSelectorInterface $selector, UxonObject $uxon = null)
