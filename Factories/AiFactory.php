@@ -3,8 +3,9 @@ namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
-use exface\Core\CommonLogic\Selectors\AiAgentSelector;
-use exface\Core\CommonLogic\Selectors\AiConceptSelector;
+use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Common\Selectors\AiAgentSelector;
+use axenox\GenAI\Common\Selectors\AiConceptSelector;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\Exceptions\UxonParserError;
@@ -12,8 +13,7 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Factories\AbstractSelectableComponentFactory;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Interfaces\Facades\FacadeInterface;
-use exface\Core\Interfaces\Selectors\AiAgentSelectorInterface;
+use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\SelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 

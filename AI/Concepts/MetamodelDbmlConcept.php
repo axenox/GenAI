@@ -14,7 +14,6 @@ use exface\Core\DataTypes\NumberDataType;
 use exface\Core\DataTypes\RelationCardinalityDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\TimeDataType;
-use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Factories\ConditionGroupFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\MetaObjectFactory;
