@@ -53,7 +53,7 @@
     "rows": [
         {
             "CREATED_ON": "2024-09-17 13:29:49",
-            "MODIFIED_ON": "2025-01-20 18:14:58",
+            "MODIFIED_ON": "2025-02-14 14:39:41",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef997726a6346a9977025041000001",
@@ -68,13 +68,15 @@
                     "// Multiline text delimited by `\n`",
                     "You will help to modify and query a SQL database. will answer questions about the structure of the following database and will help write SQL. ",
                     "",
+                    "Only use data that has been given to you in the DMBL. You are not allowed to make anything up!",
+                    "",
                     "Here is the DB schema in DBML: ",
                     "",
                     "```",
                     "[#metamodel_dbml#] ",
                     "```",
                     "",
-                    "Answer using the following locale: \"[#=User('LOCALE')#]\"."
+                    "Answer using the locale: \"[#=User('LOCALE')#]\"."
                 ],
                 "concepts": {
                     "metamodel_dbml": {
