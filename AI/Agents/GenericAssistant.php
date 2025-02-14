@@ -5,6 +5,8 @@ use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -88,6 +90,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
+    private $tools = [];
+
     /**
      * 
      * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -124,8 +128,18 @@ class GenericAssistant implements AiAgentInterface
         if($this->hasJsonSchema())
             $query->setResponseJsonSchema($this->getResponseJsonSchema());
 
+        foreach ($this->getTools() as $tool) {
+            // TODO
+            // $query->addTool($tool);
+        }
         $performedQuery = $this->getConnection()->query($query);
         $conversationId = $this->saveConversation($prompt, $performedQuery);
+
+        // TODO add tool checks
+        /*
+        if ($performedQuery->hasToolCalls()) {
+            // TODO call tools and send response to ChatGPT. Then wait for next response from chatgpt
+        }*/
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
     }
@@ -311,6 +325,16 @@ class GenericAssistant implements AiAgentInterface
         // TODO
         return $uxon;
     } 
+    
+    /**
+     *
+     * {@inheritdoc}
+     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::getUxonSchemaClass()
+     */
+    public static function getUxonSchemaClass() : ?string
+    {
+        return AiAgentUxonSchema::class;
+    }
 
     /**
      * 
@@ -436,21 +460,37 @@ class GenericAssistant implements AiAgentInterface
         return $this->agentDataSheet;
     }
 
+    /**
+     * 
+     * @return string
+     */
     public function getUid() : string
     {
         return $this->getModelData()->getCellValue('UID', 0);
     }
 
+    /**
+     * 
+     * @return string
+     */
     public function getName() : string
     {
         return $this->getModelData()->getCellValue('NAME', 0);
     }
 
+    /**
+     * 
+     * @return array|null
+     */
     protected function getResponseJsonSchema() : ?array
     {
         return $this->responseJsonSchema;
     }
 
+    /**
+     * 
+     * @return bool
+     */
     private function hasJsonSchema() : bool
     {        
         return $this->responseJsonSchema !== null;
@@ -486,6 +526,10 @@ class GenericAssistant implements AiAgentInterface
         return $this;
     } 
 
+    /**
+     * Returns the JSONpath to find the text answer in the response JSON if a response_json_schema was provided
+     * @return string
+     */
     protected function getResponseAnswerPath() : ?string
     {
         return $this->responseAnswerPath;
@@ -507,8 +551,60 @@ class GenericAssistant implements AiAgentInterface
         return $this;
     } 
 
+    /**
+     * Returns the JSONPath to the conversation title in the response JSON if a JSON schema is used by this assistant
+     * 
+     * @return string
+     */
     protected function getResponseTitlePath() : ?string
     {
         return $this->responseTitlePath;
+    }
+
+    /**
+     * Tools (function calls) made available to the LLM
+     * 
+     * ```
+     *   {
+     *      "tools": {
+     *          "GetDocs": {
+     *              "description": "Load markdown from our documentation by URL",
+     *              "arguments": [
+     *                  {
+     *                      "name": "uri",
+     *                      "description": "Markdown file URL - absolute (with https://...) or relative to api/docs on this server",
+     *                      "data_type": {
+     *                          "alias": "exface.Core.String"
+     *                      }
+     *                  }
+     *              ]
+     *          }
+     *      }
+     *  }
+     *  
+     * ```
+     * @xuon-property tools
+     * @uxon-type \axenox\GenAI\Common\AbstractAiTool[]
+     * @uxon-template {"": {"description": "", "arguments": [{"name": "", "data_type": {"alias": ""}}}]}
+     * 
+     * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
+     * @return GenericAssistant
+     */
+    protected function setTools(UxonObject $objectWithToolDefs) : AiAgentInterface
+    {
+        foreach ($objectWithToolDefs as $tool => $uxon) {
+            $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
+            $this->tools[] = $tool;
+        }
+        return $this;
+    }
+
+    /**
+     * 
+     * @return AiToolInterface[]
+     */
+    protected function getTools() : array
+    {
+        return $this->tools;
     }
 }

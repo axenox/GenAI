@@ -8,6 +8,9 @@ use axenox\GenAI\Common\Selectors\AiAgentSelector;
 use axenox\GenAI\Common\Selectors\AiConceptSelector;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\PhpClassDataType;
+use exface\Core\DataTypes\PhpFilePathDataType;
+use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\UxonParserError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
@@ -75,5 +78,35 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $agent = static::createFromSelector($prototypeSelector, [$selector, $uxon]);
 
         return $agent;
+    }
+
+    public static function createToolFromUxon(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : AiToolInterface
+    {
+        if ($uxon->hasProperty('class')) {
+            $class = $uxon->getProperty('class');
+            if (! $uxon->hasProperty('name')) {
+                $uxon->setProperty('name', $functionName);
+            }
+        } else {
+            $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
+            $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
+            $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
+            $ds->getColumns()->addMultiple([
+                'PATHNAME_ABSOLUTE',
+                'FILENAME'
+            ]);
+            $ds->dataRead();
+            if($ds->isEmpty()){
+                throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
+            }
+            $row = $ds->getRow(0);
+    
+            $path = $row['PATHNAME_ABSOLUTE'];
+            $class = PhpFilePathDataType::findClassInFile($path);
+        }
+
+        $tool = new $class($workbench, $uxon);
+
+        return $tool;
     }
 }
