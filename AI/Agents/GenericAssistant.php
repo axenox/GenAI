@@ -232,7 +232,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
     {
-        $this->concepts = null;
+        $this->conceptConfig = null;
         $this->conceptConfig = $arrayOfConcepts;
         return $this;
     }
