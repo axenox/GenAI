@@ -97,4 +97,9 @@ class GetDocsTool extends AbstractAiTool
                 ->setDescription('Markdown file URL - absolute (with https://...) or relative to api/docs on this server')
         ];
     }
+    
+    function get_weather(float $latitude, float $longitude) : string
+    {
+        return "29 Celcius";
+    }
 }

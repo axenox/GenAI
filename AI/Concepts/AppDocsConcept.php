@@ -8,6 +8,7 @@ class AppDocsConcept extends AbstractConcept
 {
     private $appAlias = null;
 
+    private $depth = 0;
     /**
      * 
      * {@inheritDoc}
@@ -38,6 +39,23 @@ class AppDocsConcept extends AbstractConcept
     protected function getAppAlias() : string
     {
         return $this->appAlias;
+    }
+    
+    /**
+     * Determines the depth of the file reading
+     * 
+     * @param string $depth
+     * @return AppDocsConcept
+     */
+    protected function setDepth(string $depth): AppDocsConcept
+    {
+        $this->depth = $depth;
+        return $this;
+    }
+
+    protected function getDepth() : int
+    {
+        return $this->depth;
     }
 
     protected function buildMarkdownDocs() : string
