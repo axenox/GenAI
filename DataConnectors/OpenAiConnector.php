@@ -98,6 +98,10 @@ class OpenAiConnector extends AbstractDataConnector
                 ]
             ];
         } 
+        // if(null !== $tools = $query->getTools())
+        // {
+            $json['tools'] = $query->getTools();
+        // }
 
         if (null !== $val = $this->getTemperature($query)) {
             $json['temperature'] = $val;

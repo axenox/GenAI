@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\Agents;
 
+use axenox\GenAI\AI\Tools\GetDocsTool;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
@@ -90,7 +91,9 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
-    private $tools = [];
+    private $allowed_functions = [];
+
+    private $toolCallResponses = [];
 
     /**
      * 
@@ -104,7 +107,14 @@ class GenericAssistant implements AiAgentInterface
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
+                                                                                                                                                                                 
+        $getDocsToolInstance = new GetDocsTool($this->workbench);
+        $this->allowed_functions = [
+            "get_weather" => [$getDocsToolInstance, "get_weather"],
+            "getDocs" => [$getDocsToolInstance, "invoke"] 
+        ];
     }
+
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
@@ -130,21 +140,43 @@ class GenericAssistant implements AiAgentInterface
 
         foreach ($this->getTools() as $tool) {
             // TODO
-            // $query->addTool($tool);
+             $query->addTool($tool);
         }
         $performedQuery = $this->getConnection()->query($query);
-        $conversationId = $this->saveConversation($prompt, $performedQuery);
 
+        // First response of the Ai includes the token values and tool calls. To not lose it, it is cloned.
+        $clonedPerformedQuery = clone $performedQuery; 
+        
         // TODO add tool checks
-        /*
         if ($performedQuery->hasToolCalls()) {
-            // TODO call tools and send response to ChatGPT. Then wait for next response from chatgpt
-        }*/
+
+            $requestedCalls = $performedQuery->requestedToolCalls();
+            foreach($requestedCalls as $call){
+                $function = $call['function'];
+                
+                if (array_key_exists($function['name'], $this->allowed_functions)) {
+                    $arguments = json_decode($function['arguments'], true);
+                    $resultOfTool = call_user_func_array($this->allowed_functions[$function['name']], array_values($arguments));
+
+                    $query->appendToolMessages($resultOfTool, $call['id'], $performedQuery->getResponseMessage());
+
+                    $this->toolCallResponses[] = [
+                        'callId' => $call['id'],
+                        'tool' => $function['name'],
+                        'arguments' => $function['arguments'],
+                        'toolResponse' => $resultOfTool
+                    ];
+                }
+            }
+            $performedQuery = $this->getConnection()->query($query);
+        }
+        
+        $conversationId = $this->saveConversation($prompt, $performedQuery, $clonedPerformedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
     }
 
-    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
+    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query, AiQueryInterface $firstQuery) : string
     {
         $transaction = $this->workbench->data()->startTransaction();
         $sequenceNumber = $query->getSequenceNumber();
@@ -177,7 +209,8 @@ class GenericAssistant implements AiAgentInterface
                     'SEQUENCE_NUMBER' => $sequenceNumber++
                 ]);
             }
-            else{
+            else
+            {
                 $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $ds->getFilters()->addConditionFromAttribute($ds->getMetaObject()->getUidAttribute(), $conversationId, ComparatorDataType::EQUALS);
                 $ds->getColumns()->addFromAttributeGroup($ds->getMetaObject()->getAttributes());
@@ -186,7 +219,7 @@ class GenericAssistant implements AiAgentInterface
                     throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
                 }
             }
-
+            
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -194,7 +227,35 @@ class GenericAssistant implements AiAgentInterface
                 'MESSAGE'=> $query->getUserPrompt(),
                 'SEQUENCE_NUMBER' => $sequenceNumber++
             ]);
-            
+
+            if($firstQuery->hasToolCalls())
+            {
+                $message->addRow([
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
+                    'MESSAGE'=> json_encode($firstQuery->requestedToolCalls()),
+                    'DATA' => json_encode($firstQuery->getResponseMessage()),
+                    'SEQUENCE_NUMBER' => $sequenceNumber++,
+                    'TOKENS_COMPLETION' => $firstQuery->getTokensInAnswer(),
+                    'TOKENS_PROMPT' => $firstQuery->getTokensInPrompt(),
+                    'COST_PER_M_TOKENS'=> $firstQuery->getCostPerMTokens(),
+                    'COST' => ($firstQuery->getTokensInPrompt() + $firstQuery->getTokensInAnswer()) * $firstQuery->getCostPerMTokens() * 0.000001,
+                    'FINISH_REASON' => $firstQuery->getFinishReason()
+                ]);
+
+                foreach($this->toolCallResponses as $toolResponse)
+                {
+                    $message->addRow([
+                        'AI_CONVERSATION' => $conversationId,
+                        'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                        'ROLE'=> AiMessageTypeDataType::TOOL,
+                        'MESSAGE'=> json_encode($toolResponse),
+                        'SEQUENCE_NUMBER' => $sequenceNumber++
+                    ]);
+                }                
+            }
+                
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -207,9 +268,10 @@ class GenericAssistant implements AiAgentInterface
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001,
                 'FINISH_REASON' => $query->getFinishReason()
-            ]);
+            ]);            
+
             $message->dataCreate(false, $transaction);
-            
+
             $transaction->commit();
         } catch(\Throwable $e){
             $transaction->rollback();
@@ -217,6 +279,7 @@ class GenericAssistant implements AiAgentInterface
         }
         return $conversationId;
     }
+
     /**
      * AI concepts to be used in the system prompt
      * 
