@@ -91,6 +91,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
+    private $tools = [];
+
     private $allowed_functions = [];
 
     private $toolCallResponses = [];
