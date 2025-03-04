@@ -47,7 +47,7 @@ class AppDocsConcept extends AbstractConcept
      * @param string $depth
      * @return AppDocsConcept
      */
-    protected function setDepth(string $depth): AppDocsConcept
+    protected function setDepth(int $depth): AppDocsConcept
     {
         $this->depth = $depth;
         return $this;
