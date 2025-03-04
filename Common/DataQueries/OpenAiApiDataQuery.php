@@ -363,24 +363,6 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
                                         "strict" => true
                                     ]
                                 ]);
-// TODO: will be deleted. it is for dummy function
-        array_push($this->tools, [
-                                    "type"=> "function",
-                                    "function"=> [
-                                        "name"=> "get_weather",
-                                        "description"=> "Get current temperature for provided coordinates in celsius.",
-                                        "parameters"=> [
-                                            "type"=> "object",
-                                            "properties"=> [
-                                                "latitude"=> ["type"=> "number"],
-                                                "longitude"=> ["type"=> "number"]
-                                            ],
-                                            "required"=> ["latitude", "longitude"],
-                                            "additionalProperties"=> False
-                                        ],
-                                        "strict"=> True
-                                    ]
-                                ]);
         
         return $this;
     }

@@ -45,7 +45,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ```
  */
-class GetDocsTool extends AbstractAiTool
+class GetWeatherTool extends AbstractAiTool
 {
     /**
      * E.g. 
@@ -56,32 +56,8 @@ class GetDocsTool extends AbstractAiTool
     const ARG_URI = 'uri';
 
     public function invoke(array $arguments): string
-    {
-        list($url) = $arguments;
-        $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
-        switch (true) {
-            case UrlDataType::isAbsolute($url):
-                $filePath = StringDataType::substringAfter($url, '/Docs/');
-                break;
-            // Full HTTP URL to the api/docs
-            case stripos($url, $docsFacade->buildUrlToFacade(true)):
-                $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
-                break;
-            // Relative URL
-            default:
-                // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                list($vendor, $appAlias, $pathWithinApp) = explode('/', $url, 3);
-                $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
-                $appPath = $app->getDirectoryAbsolutePath();
-                $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
-                break;
-                
-        }
-        if (! file_exists($filePath)) {
-            return 'ERROR: file not found!';
-        }
-        $md = file_get_contents($filePath);
-        return $md;
+    {        
+        return "29 Celcius";
     }
 
     /**
