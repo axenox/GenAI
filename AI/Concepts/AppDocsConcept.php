@@ -40,7 +40,7 @@ class AppDocsConcept extends AbstractConcept
     {
         return $this->appAlias;
     }
-    
+
     /**
      * Determines the depth of the file reading
      * 
@@ -69,6 +69,25 @@ class AppDocsConcept extends AbstractConcept
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
         $content = file_get_contents($pathToIndex);
 
+        $baseUrl = $app->getDirectory() . '\Docs';
+        $content = $this->rebaseRelativeLinks($content, $baseUrl);
+
+        // Tutorials/... -> exface/Core/Docs/Tutorials...
         return $content;
+    }
+
+    protected function rebaseRelativeLinks(string $html, string $baseUrl) : string
+    {
+        $base = rtrim($baseUrl, "/\\") . '/';
+        $pattern = '/\(([^\)]+)\)/';
+    
+        $callback = function ($matches) use ($base) {
+            $link = $matches[1];
+            $newLink = $base . $link;
+            return '(' . $newLink . ')';
+        };
+
+        $html = preg_replace_callback($pattern, $callback, $html);
+        return $html;
     }
 }
