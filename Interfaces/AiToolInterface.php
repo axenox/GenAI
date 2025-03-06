@@ -22,4 +22,16 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
      * @return \exface\Core\Interfaces\Actions\ServiceParameterInterface[]
      */
     public function getArguments() : array;
+
+    /**
+     * 
+     * @return string
+     */
+    public function getName() : string;
+
+    /**
+     * 
+     * @return string
+     */
+    public function getDescription() : string;
 }

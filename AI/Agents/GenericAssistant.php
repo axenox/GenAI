@@ -1,12 +1,11 @@
 <?php
 namespace axenox\GenAI\AI\Agents;
 
-use axenox\GenAI\AI\Tools\GetDocsTool;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
-use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
@@ -15,7 +14,6 @@ use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
 use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -111,12 +109,6 @@ class GenericAssistant implements AiAgentInterface
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
-                                                                                                                                                                                 
-        $getDocsToolInstance = new GetDocsTool($this->workbench);
-        $this->allowed_functions = [
-            "GetWeather" => [$getDocsToolInstance, "invoke"],
-            "GetDocs" => [$getDocsToolInstance, "invoke"] 
-        ];
     }
 
 
@@ -143,8 +135,7 @@ class GenericAssistant implements AiAgentInterface
             $query->setResponseJsonSchema($this->getResponseJsonSchema());
 
         foreach ($this->getTools() as $tool) {
-            // TODO
-             $query->addTool($tool);
+            $query->addTool($tool);
         }
         $performedQuery = $this->getConnection()->query($query);
 
@@ -158,11 +149,18 @@ class GenericAssistant implements AiAgentInterface
             foreach($requestedCalls as $call){
                 $function = $call['function'];
                 
-                if (array_key_exists($function['name'], $this->allowed_functions)) {
                     $arguments = json_decode($function['arguments'], true);
-                    $tool = $this->getClassOfTheTool($function['name']);
+                    foreach($this->getTools() as $tool){
+                        if($tool->getName()=== $function['name']){
+                            break;
+                        }
+                        $tool = null;
+                    }
+                    if($tool === null){
+                        throw new AiToolNotFoundError("Requested tool not found");
+                    }
+                    
                     $resultOfTool = $tool->invoke(array_values($arguments));
-                    //$resultOfTool = call_user_func_array($this->allowed_functions[$function['name']], array_values($arguments));
 
                     $query->appendToolMessages($resultOfTool, $call['id'], $performedQuery->getResponseMessage());
 
@@ -172,7 +170,7 @@ class GenericAssistant implements AiAgentInterface
                         'arguments' => $function['arguments'],
                         'toolResponse' => $resultOfTool
                     ];
-                }
+                
             }
             $performedQuery = $this->getConnection()->query($query);
         }
@@ -675,28 +673,5 @@ class GenericAssistant implements AiAgentInterface
     protected function getTools() : array
     {
         return $this->tools;
-    }
-
-    protected function getClassOfTheTool(string $functionName) : object
-    {
-        $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
-        $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
-        $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
-        $ds->getColumns()->addMultiple([
-            'PATHNAME_ABSOLUTE',
-            'FILENAME'
-        ]);
-        $ds->dataRead();
-        if($ds->isEmpty()){
-            throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
-        }
-        $row = $ds->getRow(0);
-
-        $path = $row['PATHNAME_ABSOLUTE'];
-        $class = PhpFilePathDataType::findClassInFile($path);
-   
-
-        return new $class($this->workbench); 
-
     }
 }
