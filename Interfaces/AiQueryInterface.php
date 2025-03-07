@@ -36,7 +36,7 @@ interface AiQueryInterface extends DataQueryInterface
 
     /**
      * 
-     * @return void
+     * @return float|null
      */
     public function getCostPerMTokens() : ?float;
 
@@ -66,19 +66,37 @@ interface AiQueryInterface extends DataQueryInterface
 
     /**
      * 
-     * @return void
+     * @return string|null
      */
     public function getSystemPrompt() : ?string;
-
-    /**
-     * 
-     * @return void
-     */
-    public function getTitle() : ?string;
 
     /**
      * 
      * @return string
      */
     public function getFinishReason() : string;
+
+    /**
+     * 
+     * @return bool
+     */
+    public function hasToolCalls() : bool;
+
+    /**
+     * 
+     * @return array
+     */
+    public function getResponseMessage() : array;
+    
+    /**
+     * 
+     * @return array
+     */
+    public function requestedToolCalls() : array;
+
+    /**
+     * 
+     * @return string
+     */
+    public function getRawAnswer() : string;
 }

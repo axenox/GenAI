@@ -8,6 +8,7 @@ class AppDocsConcept extends AbstractConcept
 {
     private $appAlias = null;
 
+    private $depth = 0;
     /**
      * 
      * {@inheritDoc}
@@ -40,6 +41,23 @@ class AppDocsConcept extends AbstractConcept
         return $this->appAlias;
     }
 
+    /**
+     * Determines the depth of the file reading
+     * 
+     * @param string $depth
+     * @return AppDocsConcept
+     */
+    protected function setDepth(int $depth): AppDocsConcept
+    {
+        $this->depth = $depth;
+        return $this;
+    }
+
+    protected function getDepth() : int
+    {
+        return $this->depth;
+    }
+
     protected function buildMarkdownDocs() : string
     {
         $app = $this->getWorkbench()->getApp($this->getAppAlias());
@@ -51,6 +69,25 @@ class AppDocsConcept extends AbstractConcept
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
         $content = file_get_contents($pathToIndex);
 
+        $baseUrl = $app->getDirectory() . '\Docs';
+        $content = $this->rebaseRelativeLinks($content, $baseUrl);
+
+        // Tutorials/... -> exface/Core/Docs/Tutorials...
         return $content;
+    }
+
+    protected function rebaseRelativeLinks(string $html, string $baseUrl) : string
+    {
+        $base = rtrim($baseUrl, "/\\") . '/';
+        $pattern = '/\(([^\)]+)\)/';
+    
+        $callback = function ($matches) use ($base) {
+            $link = $matches[1];
+            $newLink = $base . $link;
+            return '(' . $newLink . ')';
+        };
+
+        $html = preg_replace_callback($pattern, $callback, $html);
+        return $html;
     }
 }

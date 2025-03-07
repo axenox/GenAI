@@ -48,7 +48,7 @@ abstract class AbstractAiTool implements AiToolInterface
     protected function setArguments(UxonObject $arrayOfServiceParams) : AiToolInterface
     {
         foreach ($arrayOfServiceParams as $i => $uxon) {
-            $this->arguments = new ServiceParameter($this, $uxon);
+            array_push($this->arguments, new ServiceParameter($this, $uxon));
         }
         return $this;
     }
