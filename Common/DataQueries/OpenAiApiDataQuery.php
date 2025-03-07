@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Common\DataQueries;
 
+use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
 use exface\Core\DataTypes\JsonDataType;
@@ -45,6 +46,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     
     private $jsonSchema = null;
 
+    private $tools = [];
+
     public function __construct(WorkbenchInterface $workbench)
     {
         $this->workbench = $workbench;
@@ -62,6 +65,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         }
         if ($includeConversation === true) {
             foreach ($this->getConversationData()->getRows() as $row) {
+                if(!in_array($row['ROLE'] ,[AiMessageTypeDataType::SYSTEM, AiMessageTypeDataType::TOOL, AiMessageTypeDataType::TOOLCALLING]))
                     $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
             }
         }
@@ -78,6 +82,17 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function appendMessage(string $content, string $role = AiMessageTypeDataType::USER) : OpenAiApiDataQuery
     {
         $this->messages[] = ['content' => $content, 'role' => $role];
+        return $this;
+    }
+
+    public function appendToolMessages(string $toolResponse, string $callId, array $requestMessage) : OpenAiApiDataQuery
+    {
+        $this->messages[] = $requestMessage;
+        $this->messages[] = [
+            'content' => $toolResponse, 
+            'role' => AiMessageTypeDataType::TOOL, 
+            'tool_call_id' => $callId
+        ];
         return $this;
     }
 
@@ -305,20 +320,6 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->conversationData-> countRows() + 1;
     }
 
-    public function getTitle() : ?string
-    {
-        if(!$this->jsonSchema)
-            return null;
-        $json = $this->getResponseData()['choices'][0]['message']['content'];
-        $model = json_decode($json);
-        $attributes = get_object_vars($model);
-        foreach ($attributes as $key => $value) {
-            if(in_array(strtolower($key), ["title", "caption"]))
-                return $value;
-        }
-        return null;
-    }
-
     public function setResponseJsonSchema(array $value)
     {
         $this->jsonSchema = $value;
@@ -333,5 +334,69 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getFinishReason() : string
     {
         return $this->getResponseData()['choices'][0]['finish_reason'];
+    }
+
+    public function addTool(AiToolInterface $tool) : OpenAiApiDataQuery 
+    {
+        $arguments = [];
+        $requireds = [];
+        foreach($tool->getArguments() as $argument)
+        {
+            $arguments[$argument->getName()] = [  
+                "type" => strtolower($argument->getDataType()->getName()),
+                "description" => $argument->getDescription()
+            ];
+            $requireds[] = $argument->getName();
+        }
+        
+        array_push($this->tools,  [
+                                    "type" => "function",
+                                    "function" => [
+                                        "name" => $tool->getName(),
+                                        "description" => $tool->getDescription(),
+                                        "parameters" => [
+                                            "type" => "object",
+                                            "properties" => $arguments,
+                                            "required" => $requireds,
+                                            "additionalProperties" => false
+                                        ],
+                                        "strict" => true
+                                    ]
+                                ]);
+        
+        return $this;
+    }
+
+    public function getTools() : ?array
+    {
+        return $this->tools;
+    }
+    
+    public function hasToolCalls() : bool
+    {
+        return $this->getResponseData()['choices'][0]['finish_reason'] === 'tool_calls';
+    }
+
+    /**
+     * gets the called tools in the message for tool calling
+     * @return array
+     */
+    public function requestedToolCalls() : array
+    {
+        return $this->getResponseData()['choices'][0]['message']['tool_calls'];
+    }
+
+    /**
+     * gets the message for tool calling
+     * @return array
+     */
+    public function getResponseMessage() : array
+    {
+        return $this->getResponseData()['choices'][0]['message'];
+    }
+
+    public function getRawAnswer() : string
+    {
+        return $this->getResponseData()['choices'][0]['message']['content'];
     }
 }

@@ -22,6 +22,8 @@ class AiMessageTypeDataType extends StringDataType implements EnumDataTypeInterf
     const SYSTEM = "system";
     const USER = "user";
     const ASSISTANT = "assistant";
+    const TOOL = "tool";
+    const TOOLCALLING = "tool calling";
 
     
     
@@ -36,7 +38,9 @@ class AiMessageTypeDataType extends StringDataType implements EnumDataTypeInterf
         return [
             self::SYSTEM => 'System',
             self::USER => 'User',
-            self::ASSISTANT => 'Assistant'
+            self::ASSISTANT => 'Assistant',
+            self::TOOL => 'Tool',
+            self::TOOLCALLING => 'Tool Calling'
         ];
     }
 }

@@ -102,7 +102,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             $row = $ds->getRow(0);
     
             $path = $row['PATHNAME_ABSOLUTE'];
-            $class = PhpFilePathDataType::findClassInFile($path);
+            $class = PhpFilePathDataType::findClassInFile($path, 1000);
         }
 
         $tool = new $class($workbench, $uxon);
