@@ -9,6 +9,7 @@ class AppDocsConcept extends AbstractConcept
     private $appAlias = null;
 
     private $depth = 0;
+
     /**
      * 
      * {@inheritDoc}
@@ -44,7 +45,10 @@ class AppDocsConcept extends AbstractConcept
     /**
      * Determines the depth of the file reading
      * 
-     * @param string $depth
+     * @uxon-property depth
+     * @uxon-type number
+     * 
+     * @param int $depth
      * @return AppDocsConcept
      */
     protected function setDepth(int $depth): AppDocsConcept
@@ -66,10 +70,14 @@ class AppDocsConcept extends AbstractConcept
         if (! file_exists($pathToDocs)) {
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
         }
+        if ($this->depth < 0 || !file_exists($pathToDocs)) {
+            return "";
+        }
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
-        $content = file_get_contents($pathToIndex);
 
-        $baseUrl = $app->getDirectory() . '\Docs';
+        $content = $this->extractLinks($pathToIndex, $pathToDocs, $this->depth);
+        
+        $baseUrl = $app->getDirectory();
         $content = $this->rebaseRelativeLinks($content, $baseUrl);
 
         // Tutorials/... -> exface/Core/Docs/Tutorials...
@@ -82,6 +90,9 @@ class AppDocsConcept extends AbstractConcept
         $pattern = '/\(([^\)]+)\)/';
     
         $callback = function ($matches) use ($base) {
+            if(str_starts_with($matches[1], 'http'))
+                return '(' . $matches[1] . ')';
+
             $link = $matches[1];
             $newLink = $base . $link;
             return '(' . $newLink . ')';
@@ -89,5 +100,46 @@ class AppDocsConcept extends AbstractConcept
 
         $html = preg_replace_callback($pattern, $callback, $html);
         return $html;
+    }
+
+    protected function extractLinks($filePath, $basePath, $depth, $currentDepth = 2) {
+        if ($depth < 0 || !file_exists($filePath)) {
+            return "";
+        }
+        
+        $content = file_get_contents($filePath);
+        
+        $pattern = '/\[(.*?)\]\((.*?)\)/';
+        preg_match_all($pattern, $content, $matches, PREG_SET_ORDER);
+        $output = "";
+        
+        foreach ($matches as $match) {
+            $linkedFile = $match[2];
+            if (str_starts_with($match[2], 'http')){
+                $output .= str_repeat("#", $currentDepth) . "- " . $match[1] . " (" . $linkedFile . ")\n";
+                continue;
+            }
+            if(str_starts_with($match[1], '<kbd>')){
+                continue;
+            }
+
+            $normalizedPath = dirname($filePath) . DIRECTORY_SEPARATOR . $linkedFile;
+            $fullPath = realpath($normalizedPath);
+
+            $relativePath = strstr($fullPath, 'Docs\\') ?: $linkedFile;
+
+            if (isset($processedLinks[$relativePath])) {
+                continue;
+            }
+            $processedLinks[$relativePath] = true;
+            
+            $output .= str_repeat("#", $currentDepth) . "- " . $match[1] . " (" . $relativePath . ")\n";
+            
+            if ($fullPath && pathinfo($fullPath, PATHINFO_EXTENSION) === 'md') {
+                $output .= $this->extractLinks($fullPath, dirname($fullPath), $depth - 1, $currentDepth + 1);
+            }
+        }
+        
+        return $output;
     }
 }

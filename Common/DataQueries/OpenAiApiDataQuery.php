@@ -85,17 +85,27 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this;
     }
 
-    public function appendToolMessages(string $toolResponse, string $callId, array $requestMessage) : OpenAiApiDataQuery
+    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : OpenAiApiDataQuery
     {
-        $this->messages[] = $requestMessage;
+        if (!$existingCall){
+            $this->messages[] = $requestMessage;
+        }
+        
         $this->messages[] = [
+            'tool_call_id' => $callId,
             'content' => $toolResponse, 
-            'role' => AiMessageTypeDataType::TOOL, 
-            'tool_call_id' => $callId
+            'role' => AiMessageTypeDataType::TOOL
         ];
+
         return $this;
     }
 
+    public function clearPreviousToolCalls()
+    {
+        $this->messages = array_filter($this->messages, function ($message) {
+            return isset($message['role']) && $message['role'] === AiMessageTypeDataType::USER;
+        });
+    }
     /**
      * 
      * @param string $content
