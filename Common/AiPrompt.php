@@ -5,6 +5,8 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 
 class AiPrompt extends HttpTask implements AiPromptInterface
 {
+    private $conversationId = null;
+
     public function getMessages() : array
     {
         $params = $this->getParameters();
@@ -22,8 +24,17 @@ class AiPrompt extends HttpTask implements AiPromptInterface
      */
     public function getConversationUid() : ?string
     {
-        $params = $this->getParameters();
-        return ($params['conversation']);
+        if ($this->conversationId === null) {
+            $params = $this->getParameters();
+            $this->conversationId = ($params['conversation']);
+        }
+        return $this->conversationId;
+    }
+
+    public function setConversationUid(string $uid) : AiPromptInterface
+    {
+        $this->conversationId = $uid;
+        return $this;
     }
 
     public function getUserMessages() : array

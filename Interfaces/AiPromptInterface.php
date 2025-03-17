@@ -23,4 +23,11 @@ interface AiPromptInterface extends TaskInterface
      * @return string|null
      */
     public function getConversationUid() : ?string;
+
+    /**
+     * 
+     * @param string $uid
+     * @return void
+     */
+    public function setConversationUid(string $uid) : AiPromptInterface;
 }

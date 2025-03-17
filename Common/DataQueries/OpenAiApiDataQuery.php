@@ -15,6 +15,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\Common\AiToolCall;
 
 /**
  * Data query in OpenAI style
@@ -326,8 +327,12 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function getSequenceNumber() : int
     {
-        $this-> getConversationData();
-        return $this->conversationData-> countRows() + 1;
+        $storedSheet = $this->getConversationData();
+        $cnt = $storedSheet->countRows();
+        if ($this->hasResponse()) {
+            $cnt++;
+        }
+        return $cnt;
     }
 
     public function setResponseJsonSchema(array $value)
@@ -387,13 +392,22 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->getResponseData()['choices'][0]['finish_reason'] === 'tool_calls';
     }
 
-    /**
-     * gets the called tools in the message for tool calling
-     * @return array
-     */
     public function requestedToolCalls() : array
     {
         return $this->getResponseData()['choices'][0]['message']['tool_calls'];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
+    public function getToolCalls() : array
+    {
+        $result = [];
+        foreach($this->getResponseData()['choices'][0]['message']['tool_calls'] as $call) {
+            $result[] = new AiToolCall($call['function'], $call['id'], []);
+        }
+        return $result;
     }
 
     /**
