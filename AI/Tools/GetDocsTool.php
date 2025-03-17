@@ -59,29 +59,36 @@ class GetDocsTool extends AbstractAiTool
     {
         list($url) = $arguments;
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
-        switch (true) {
-            case UrlDataType::isAbsolute($url):
-                $filePath = StringDataType::substringAfter($url, '/Docs/');
-                break;
-            // Full HTTP URL to the api/docs
-            case stripos($url, $docsFacade->buildUrlToFacade(true)):
-                $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
-                break;
-            // Relative URL
-            default:
+        $url = rtrim($url, '.');
+        try{
+            switch (true) {
+                case UrlDataType::isAbsolute($url):
+                    $filePath = StringDataType::substringAfter($url, '/Docs/');
+                    break;
+                    // Full HTTP URL to the api/docs
+                case stripos($url, $docsFacade->buildUrlToFacade(true)):
+                    $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
+                    break;
+                    // Relative URL
+                default:
                 // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                list($vendor, $appAlias, $pathWithinApp) = explode('\\', $url, 3);
+                list($vendor, $appAlias, $pathWithinApp) = explode(DIRECTORY_SEPARATOR, $url, 3);
                 $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
                 $appPath = $app->getDirectoryAbsolutePath();
                 $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
                 break;
-                
+                        
+            }
+            if (! file_exists($filePath)) {
+                return 'ERROR: file not found!';
+            }
+            $md = file_get_contents($filePath);
+            return $md;
         }
-        if (! file_exists($filePath)) {
+        catch(\Throwable $e){
+            $this->workbench->getLogger()->logException($e);
             return 'ERROR: file not found!';
         }
-        $md = file_get_contents($filePath);
-        return $md;
     }
 
     /**
