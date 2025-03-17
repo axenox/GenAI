@@ -99,4 +99,10 @@ interface AiQueryInterface extends DataQueryInterface
      * @return string
      */
     public function getRawAnswer() : string;
+
+    /**
+     * 
+     * @return void
+     */
+    public function getToolCalls() : array;
 }
