@@ -85,6 +85,7 @@ class GenericAssistant implements AiAgentInterface
     private $selector = null;
 
     private $agentDataSheet = null;
+
     private $responseJsonSchema = null;
 
     private $responseAnswerPath = null;
@@ -92,8 +93,6 @@ class GenericAssistant implements AiAgentInterface
     private $responseTitlePath = null;
 
     private $tools = [];
-
-    private $allowed_functions = [];
 
     private $toolCallResponses = [];
 
@@ -138,49 +137,53 @@ class GenericAssistant implements AiAgentInterface
             $query->addTool($tool);
         }
         $performedQuery = $this->getConnection()->query($query);
-
-        // First response of the Ai includes the token values and tool calls. To not lose it, it is cloned.
-        $clonedPerformedQuery = clone $performedQuery; 
         
-        // TODO add tool checks
-        if ($performedQuery->hasToolCalls()) {
+        while ($performedQuery->hasToolCalls()) {
 
             $requestedCalls = $performedQuery->requestedToolCalls();
+            $existingCall = false;
+
             foreach($requestedCalls as $call){
                 $function = $call['function'];
                 
-                    $arguments = json_decode($function['arguments'], true);
-                    foreach($this->getTools() as $tool){
-                        if($tool->getName()=== $function['name']){
-                            break;
-                        }
-                        $tool = null;
+                $arguments = json_decode($function['arguments'], true);
+                foreach ($this->getTools() as $tool){
+                    if ($tool->getName() === $function['name']){
+                        break;
                     }
-                    if($tool === null){
-                        throw new AiToolNotFoundError("Requested tool not found");
-                    }
-                    
-                    $resultOfTool = $tool->invoke(array_values($arguments));
-
-                    $query->appendToolMessages($resultOfTool, $call['id'], $performedQuery->getResponseMessage());
-
-                    $this->toolCallResponses[] = [
-                        'callId' => $call['id'],
-                        'tool' => $function['name'],
-                        'arguments' => $function['arguments'],
-                        'toolResponse' => $resultOfTool
-                    ];
+                    $tool = null;
+                }
+                if ($tool === null){
+                    throw new AiToolNotFoundError("Requested tool not found");
+                }
                 
-            }
+                $resultOfTool = $tool->invoke(array_values($arguments));
+
+                //to prevent duplication on calls
+                $callId = $call['id']; 
+                $this->toolCallResponses[$callId] = [
+                    'query' => $existingCall ? null : $performedQuery,
+                    'callId' => $call['id'],
+                    'tool' => $function['name'],
+                    'arguments' => $function['arguments'],
+                    'toolResponse' => $resultOfTool
+                ];
+                
+                $query->appendToolMessages($existingCall, $resultOfTool, $call['id'], $performedQuery->getResponseMessage());
+                $existingCall = true;  
+            }            
+
             $performedQuery = $this->getConnection()->query($query);
+            
+            $query->clearPreviousToolCalls();
         }
         
-        $conversationId = $this->saveConversation($prompt, $performedQuery, $clonedPerformedQuery);
+        $conversationId = $this->saveConversation($prompt, $performedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
     }
 
-    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query, AiQueryInterface $firstQuery) : string
+    public function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
     {
         $transaction = $this->workbench->data()->startTransaction();
         $sequenceNumber = $query->getSequenceNumber();
@@ -213,8 +216,7 @@ class GenericAssistant implements AiAgentInterface
                     'SEQUENCE_NUMBER' => $sequenceNumber++
                 ]);
             }
-            else
-            {
+            else {
                 $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $ds->getFilters()->addConditionFromAttribute($ds->getMetaObject()->getUidAttribute(), $conversationId, ComparatorDataType::EQUALS);
                 $ds->getColumns()->addFromAttributeGroup($ds->getMetaObject()->getAttributes());
@@ -232,34 +234,33 @@ class GenericAssistant implements AiAgentInterface
                 'SEQUENCE_NUMBER' => $sequenceNumber++
             ]);
 
-            if($firstQuery->hasToolCalls())
-            {
-                $message->addRow([
-                    'AI_CONVERSATION' => $conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                    'MESSAGE'=> json_encode($firstQuery->requestedToolCalls()),
-                    'DATA' => json_encode($firstQuery->getResponseMessage()),
-                    'SEQUENCE_NUMBER' => $sequenceNumber++,
-                    'TOKENS_COMPLETION' => $firstQuery->getTokensInAnswer(),
-                    'TOKENS_PROMPT' => $firstQuery->getTokensInPrompt(),
-                    'COST_PER_M_TOKENS'=> $firstQuery->getCostPerMTokens(),
-                    'COST' => ($firstQuery->getTokensInPrompt() + $firstQuery->getTokensInAnswer()) * $firstQuery->getCostPerMTokens() * 0.000001,
-                    'FINISH_REASON' => $firstQuery->getFinishReason()
-                ]);
-
-                foreach($this->toolCallResponses as $toolResponse)
-                {
+            foreach ($this->toolCallResponses as $response) {
+                
+                if(null !== $response['query']){
                     $message->addRow([
                         'AI_CONVERSATION' => $conversationId,
                         'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                        'ROLE'=> AiMessageTypeDataType::TOOL,
-                        'MESSAGE'=> json_encode($toolResponse),
-                        'SEQUENCE_NUMBER' => $sequenceNumber++
+                        'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
+                        'MESSAGE'=> json_encode($response['query']->requestedToolCalls()),
+                        'DATA' => json_encode($response['query']->getResponseMessage()),
+                        'SEQUENCE_NUMBER' => $sequenceNumber++,
+                        'TOKENS_COMPLETION' => $response['query']->getTokensInAnswer(),
+                        'TOKENS_PROMPT' => $response['query']->getTokensInPrompt(),
+                        'COST_PER_M_TOKENS'=> $response['query']->getCostPerMTokens(),
+                        'COST' => ($response['query']->getTokensInPrompt() + $response['query']->getTokensInAnswer()) * $response['query']->getCostPerMTokens() * 0.000001,
+                        'FINISH_REASON' => $response['query']->getFinishReason()
                     ]);
-                }                
+                }
+                $message->addRow([
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE' => AiMessageTypeDataType::TOOL,
+                    'DATA' => json_encode($response['toolResponse']),
+                    'MESSAGE' => json_encode($response['toolResponse']),
+                    'SEQUENCE_NUMBER' => $sequenceNumber++
+                ]);
             }
-                
+
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
