@@ -117,7 +117,7 @@ class AppDocsConcept extends AbstractConcept
             $output .= str_repeat("#", $currentDepth) . "- " . $match[1] . " (" . $relativePath . ")\n";
             
             if ($fullPath && pathinfo($fullPath, PATHINFO_EXTENSION) === 'md') {
-                $output .= $this->extractLinks($fullPath, dirname($fullPath), $depth - 1, $currentDepth + 1);
+                $output .= $this->rebaseRelativeLinks($fullPath, dirname($fullPath), $depth - 1, $currentDepth + 1);
             }
         }
         
