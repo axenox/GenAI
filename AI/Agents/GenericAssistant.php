@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
+use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
@@ -94,6 +95,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $tools = [];
 
+    private $sequenceNumber = null;
+
     /**
      * 
      * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -137,21 +140,19 @@ class GenericAssistant implements AiAgentInterface
 
         $conversationId = $this->saveConversation($prompt, $query);
         $prompt->setConversationUid($conversationId);
+
         $performedQuery = $this->getConnection()->query($query);
-        $this->saveConversationResponse($prompt, $performedQuery);
         
         while ($performedQuery->hasToolCalls()) {
+            $this->saveConversationToolCallRequest($prompt, $performedQuery);
 
-            $requestedCalls = $performedQuery->requestedToolCalls();
+            $requestedCalls = $performedQuery->getToolCalls();
             $existingCall = false;
 
             foreach($requestedCalls as $call){
-                // TODO move this to OpenAiApiDataQuery and read AiTooCalls here.
-                $function = $call['function'];
-                
-                $arguments = json_decode($function['arguments'], true);
+
                 foreach ($this->getTools() as $tool){
-                    if ($tool->getName() === $function['name']){
+                    if ($tool->getName() === $call->getToolName()){
                         break;
                     }
                     $tool = null;
@@ -161,38 +162,44 @@ class GenericAssistant implements AiAgentInterface
                 }
                 
                 // TODO
-                // $resultOfTool = $tool->invoke($toolCall->getArguments());
-                $resultOfTool = $tool->invoke(array_values($arguments));
+                $resultOfTool = $tool->invoke(array_values($call->getArguments()));
 
                 //to prevent duplication on calls
-                $callId = $call['id']; 
+                $callId = $call->getCallId();
                 // TODO create a separate class like AiToolCallResponse instead of using an array
-                $toolCallResponses[$callId] = [
-                    'query' => $existingCall ? null : $performedQuery,
-                    'callId' => $call['id'],
-                    'tool' => $function['name'],
-                    'arguments' => $function['arguments'],
-                    'toolResponse' => $resultOfTool
-                ];
+                $toolCallResponses[$callId] = new AiToolCallResponse(
+                    $call->getToolName(),
+                    $callId,
+                    $call->getArguments(),
+                    $resultOfTool
+                );
                 
-                $query->appendToolMessages($existingCall, $resultOfTool, $call['id'], $performedQuery->getResponseMessage());
+                $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;  
             }            
             $this->saveConversationToolCalls($prompt, $query, $toolCallResponses);
 
             $performedQuery = $this->getConnection()->query($query);
-            $this->saveConversationResponse($prompt, $performedQuery);
             
             $query->clearPreviousToolCalls();
         }
+        $this->saveConversationResponse($prompt, $performedQuery);
 
         return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
     }
 
+    /**
+     * Saves the first system message and the user messages and returns conversationId
+     * 
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @throws \axenox\GenAI\Exceptions\AiConversationNotFoundError
+     * @return string
+     */
     protected function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
     {
         $transaction = $this->workbench->data()->startTransaction();
-        $sequenceNumber = $query->getSequenceNumber();
+        $this->sequenceNumber = $query->getSequenceNumber();
         try {
             $conversationId = $prompt->getConversationUid();
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
@@ -219,7 +226,7 @@ class GenericAssistant implements AiAgentInterface
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE'=> AiMessageTypeDataType::SYSTEM,
                     'MESSAGE'=> $this->systemPrompt,
-                    'SEQUENCE_NUMBER' => $sequenceNumber++
+                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
                 ]);
             }
             else {
@@ -237,7 +244,7 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::USER,
                 'MESSAGE'=> $query->getUserPrompt(),
-                'SEQUENCE_NUMBER' => $sequenceNumber++
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
 
             $message->dataCreate(false, $transaction);
@@ -250,9 +257,53 @@ class GenericAssistant implements AiAgentInterface
         return $conversationId;
     }
 
-    protected function saveConversationResponse(AiPromptInterface $prompt, AiQueryInterface $query) : string
+    /**
+     * Saves the Tool Calling request of AI 
+     * 
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @return void
+     */
+    protected function saveConversationToolCallRequest(AiPromptInterface $prompt, AiQueryInterface $query) 
     {
-        $sequenceNumber = $query->getSequenceNumber();
+        $transaction = $this->workbench->data()->startTransaction();
+        $conversationId = $prompt->getConversationUid();
+        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        try {
+
+            $message->addRow([
+                'AI_CONVERSATION' => $conversationId,
+                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
+                'MESSAGE'=> json_encode($query->getToolCalls(), JSON_PRETTY_PRINT),
+                'DATA' => json_encode($query->getResponseMessage(), JSON_PRETTY_PRINT),
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++,
+                'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
+                'TOKENS_PROMPT' => $query->getTokensInPrompt(),
+                'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
+                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001,
+                'FINISH_REASON' => $query->getFinishReason()
+            ]);         
+
+            $message->dataCreate(false, $transaction);
+            $transaction->commit();
+
+        } catch(\Throwable $e){
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
+        }
+    }
+
+    /**
+     * Saves the response of AI to the user
+     * 
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @return void
+     */
+    protected function saveConversationResponse(AiPromptInterface $prompt, AiQueryInterface $query) 
+    {
+        $transaction = $this->workbench->data()->startTransaction();
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         try {
@@ -263,7 +314,7 @@ class GenericAssistant implements AiAgentInterface
                 'ROLE'=> AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE'=> $this->getAnswer($query),
                 'DATA' => $query->getFullAnswer(),
-                'SEQUENCE_NUMBER' => $sequenceNumber,
+                'SEQUENCE_NUMBER' => $this->sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
@@ -271,53 +322,45 @@ class GenericAssistant implements AiAgentInterface
                 'FINISH_REASON' => $query->getFinishReason()
             ]);            
 
-            $message->dataCreate(false);
+            $message->dataCreate(false, $transaction);
+            $transaction->commit();
 
         } catch(\Throwable $e){
+            $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
         }
-        return $conversationId;
     }
 
-    protected function saveConversationToolCalls(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) : string
+    /**
+     * saves the responses of the requested tools 
+     * 
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
+     * @param array $responses
+     * @return void
+     */
+    protected function saveConversationToolCalls(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) 
     {
-        $sequenceNumber = $query->getSequenceNumber();
+        $transaction = $this->workbench->data()->startTransaction();
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         try {
-            foreach ($responses as $response) {
-                    
-                if(null !== $response['query']){
-                    $message->addRow([
-                        'AI_CONVERSATION' => $conversationId,
-                        'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                        'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                        'MESSAGE'=> json_encode($response['query']->requestedToolCalls()),
-                        'DATA' => json_encode($response['query']->getResponseMessage()),
-                        'SEQUENCE_NUMBER' => $sequenceNumber++,
-                        'TOKENS_COMPLETION' => $response['query']->getTokensInAnswer(),
-                        'TOKENS_PROMPT' => $response['query']->getTokensInPrompt(),
-                        'COST_PER_M_TOKENS'=> $response['query']->getCostPerMTokens(),
-                        'COST' => ($response['query']->getTokensInPrompt() + $response['query']->getTokensInAnswer()) * $response['query']->getCostPerMTokens() * 0.000001,
-                        'FINISH_REASON' => $response['query']->getFinishReason()
-                    ]);
-                }
-                $message->addRow([
-                    'AI_CONVERSATION' => $conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE' => AiMessageTypeDataType::TOOL,
-                    'DATA' => json_encode($response['toolResponse']),
-                    'MESSAGE' => json_encode($response['toolResponse']),
-                    'SEQUENCE_NUMBER' => $sequenceNumber++
-                ]);
-            }          
+            $message->addRow([
+                'AI_CONVERSATION' => $conversationId,
+                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'ROLE' => AiMessageTypeDataType::TOOL,
+                'DATA' => json_encode($responses, JSON_PRETTY_PRINT),
+                'MESSAGE' => json_encode($responses, JSON_PRETTY_PRINT),
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++
+            ]);
 
-            $message->dataCreate(false);
+            $message->dataCreate(false, $transaction);
+            $transaction->commit();
 
         } catch(\Throwable $e){
+            $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
         }
-        return $conversationId;
     }
 
     /**

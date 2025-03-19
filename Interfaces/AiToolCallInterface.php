@@ -13,4 +13,6 @@ interface AiToolCallInterface
     public function getToolName() : string;
 
     public function getCallId() : string;
+
+    public function getArguments() : array;
 }
