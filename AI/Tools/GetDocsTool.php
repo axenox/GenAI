@@ -72,7 +72,7 @@ class GetDocsTool extends AbstractAiTool
                     // Relative URL
                 default:
                 // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                list($vendor, $appAlias, $pathWithinApp) = explode(DIRECTORY_SEPARATOR, $url, 3);
+                list($vendor, $appAlias, $pathWithinApp) = explode('/', $url, 3);
                 $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
                 $appPath = $app->getDirectoryAbsolutePath();
                 $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
