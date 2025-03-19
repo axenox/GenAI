@@ -75,34 +75,14 @@ class AppDocsConcept extends AbstractConcept
         }
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
 
-        $content = $this->extractLinks($pathToIndex, $pathToDocs, $this->depth);
-        
         $baseUrl = $app->getDirectory();
-        $content = $this->rebaseRelativeLinks($content, $baseUrl);
+        $content = $this->rebaseRelativeLinks($pathToIndex, $baseUrl, $this->depth);
 
         // Tutorials/... -> exface/Core/Docs/Tutorials...
         return $content;
     }
-
-    protected function rebaseRelativeLinks(string $html, string $baseUrl) : string
-    {
-        $base = rtrim($baseUrl, "/\\") . '/';
-        $pattern = '/\(([^\)]+)\)/';
     
-        $callback = function ($matches) use ($base) {
-            if(str_starts_with($matches[1], 'http'))
-                return '(' . $matches[1] . ')';
-
-            $link = $matches[1];
-            $newLink = $base . $link;
-            return '(' . $newLink . ')';
-        };
-
-        $html = preg_replace_callback($pattern, $callback, $html);
-        return $html;
-    }
-
-    protected function extractLinks($filePath, $basePath, $depth, $currentDepth = 2) {
+    protected function rebaseRelativeLinks($filePath, $basePath, $depth, $currentDepth = 2) {
         if ($depth < 0 || !file_exists($filePath)) {
             return "";
         }
@@ -110,6 +90,7 @@ class AppDocsConcept extends AbstractConcept
         $content = file_get_contents($filePath);
         
         $pattern = '/\[(.*?)\]\((.*?)\)/';
+
         preg_match_all($pattern, $content, $matches, PREG_SET_ORDER);
         $output = "";
         
@@ -125,8 +106,8 @@ class AppDocsConcept extends AbstractConcept
 
             $normalizedPath = dirname($filePath) . DIRECTORY_SEPARATOR . $linkedFile;
             $fullPath = realpath($normalizedPath);
-
-            $relativePath = strstr($fullPath, 'Docs\\') ?: $linkedFile;
+            $base = $basePath . '\\';
+            $relativePath = strstr($fullPath, 'Docs\\') ? $base . strstr($fullPath, 'Docs\\') : $linkedFile;
 
             if (isset($processedLinks[$relativePath])) {
                 continue;
