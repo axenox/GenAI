@@ -183,6 +183,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
      * 
      * @param string $text
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
@@ -262,6 +264,10 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->response;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getCostPerMTokens() : ?float
     {
         return $this->costPerMTokens;
@@ -300,22 +306,38 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         return json_decode($this->getFullAnswer(), true);
     }
-
+    
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function isFinished() : bool
     {
         return $this->getResponseData()['choices'][0]['finish_reason'] === 'stop';
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getTokensInPrompt() : int
     {
         return $this->getResponseData()['usage']['prompt_tokens'];
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getTokensInAnswer() : int
     {
         return $this->getResponseData()['usage']['completion_tokens'];
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
@@ -325,13 +347,14 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         throw new DataQueryFailedError($this, 'User message cannot be found');
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getSequenceNumber() : int
     {
         $storedSheet = $this->getConversationData();
         $cnt = $storedSheet->countRows();
-        if ($this->hasResponse()) {
-            $cnt++;
-        }
         return $cnt;
     }
 
@@ -346,6 +369,10 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->jsonSchema;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function getFinishReason() : string
     {
         return $this->getResponseData()['choices'][0]['finish_reason'];
@@ -387,14 +414,13 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->tools;
     }
     
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
     public function hasToolCalls() : bool
     {
         return $this->getResponseData()['choices'][0]['finish_reason'] === 'tool_calls';
-    }
-
-    public function requestedToolCalls() : array
-    {
-        return $this->getResponseData()['choices'][0]['message']['tool_calls'];
     }
 
     /**
@@ -405,22 +431,19 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $result = [];
         foreach($this->getResponseData()['choices'][0]['message']['tool_calls'] as $call) {
-            $result[] = new AiToolCall($call['function'], $call['id'], []);
+            $function = $call['function'];
+            $result[] = new AiToolCall($function['name'], $call['id'], json_decode($function['arguments'], true));
         }
         return $result;
     }
 
     /**
-     * gets the message for tool calling
-     * @return array
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
      */
     public function getResponseMessage() : array
     {
         return $this->getResponseData()['choices'][0]['message'];
     }
 
-    public function getRawAnswer() : string
-    {
-        return $this->getResponseData()['choices'][0]['message']['content'];
-    }
 }

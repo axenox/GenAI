@@ -16,6 +16,7 @@ interface AiQueryInterface extends DataQueryInterface
 {
     /**
      * Returns the answer of the LLM as text (raw)
+     * 
      * @return string
      */
     public function getFullAnswer() : string;
@@ -77,32 +78,23 @@ interface AiQueryInterface extends DataQueryInterface
     public function getFinishReason() : string;
 
     /**
+     * Checks if the request has tool calls
      * 
      * @return bool
      */
     public function hasToolCalls() : bool;
 
     /**
+     * Full request for tool calling
      * 
      * @return array
      */
     public function getResponseMessage() : array;
-    
+
     /**
+     * Requested Tool Calls
      * 
      * @return array
-     */
-    public function requestedToolCalls() : array;
-
-    /**
-     * 
-     * @return string
-     */
-    public function getRawAnswer() : string;
-
-    /**
-     * 
-     * @return void
      */
     public function getToolCalls() : array;
 }
