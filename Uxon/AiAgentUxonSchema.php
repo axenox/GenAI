@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Uxon;
 
 use axenox\GenAI\AI\Agents\GenericAssistant;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Uxon\UxonSchema;
 
 /**
@@ -24,9 +25,9 @@ class AiAgentUxonSchema extends UxonSchema
      * {@inheritdoc}
      * @see UxonSchemaInterface::getPropertiesTemplates()
      */
-    public function getPropertiesTemplates(string $prototypeClass) : array
+    public function getPropertiesTemplates(string $prototypeClass, UxonObject $uxon, array $path) : array
     {
-        $tpls = parent::getPropertiesTemplates($prototypeClass);
+        $tpls = parent::getPropertiesTemplates($prototypeClass, $uxon, $path);
         // TODO generate templates from tool classes here
         return $tpls;
     }
