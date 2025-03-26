@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
 use axenox\GenAI\Common\Selectors\AiConceptSelector;
+use axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\PhpClassDataType;
@@ -80,6 +81,19 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return $agent;
     }
 
+    /**
+     * Instantiates an AI tool from a function name
+     * 
+     * Examples:
+     * 
+     * - `createToolFromUxon($this->getWorkbench(), 'GetDocs')`
+     * 
+     * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
+     * @param string $functionName
+     * @param \exface\Core\CommonLogic\UxonObject $uxon
+     * @throws \axenox\GenAI\Exceptions\AiAgentNotFoundError
+     * @return object
+     */
     public static function createToolFromUxon(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : AiToolInterface
     {
         if ($uxon->hasProperty('class')) {
@@ -107,6 +121,34 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
         $tool = new $class($workbench, $uxon);
 
+        return $tool;
+    }
+
+    /**
+     * Instantiates an AI tool from a selector
+     * 
+     * Examples:
+     * 
+     * - `createToolFromUxon(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class))`
+     * 
+     * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
+     * @param \axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface $selector
+     * @param \exface\Core\CommonLogic\UxonObject $uxon
+     * @return AiToolInterface
+     */
+    public static function createToolFromSelector(AiToolSelectorInterface $selector, UxonObject $uxon) : AiToolInterface
+    {
+        switch (true) {
+            case $selector->isAlias():
+                return self::createToolFromUxon($selector->getWorkbench(), $selector->toString(), $uxon);
+            case $selector->isClassname():
+                $class = $selector->toString();
+                break;
+            case $selector->isFilepath():
+                $class = PhpFilePathDataType::findClassInFile($selector->toString());
+                break;
+        }
+        $tool = new $class($selector->getWorkbench(), $uxon);
         return $tool;
     }
 }
