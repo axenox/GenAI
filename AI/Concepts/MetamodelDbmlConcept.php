@@ -20,9 +20,11 @@ use exface\Core\Factories\MetaObjectFactory;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\DataTypes\EnumDataTypeInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\Model\MetaRelationInterface;
+use Throwable;
 
 class MetamodelDbmlConcept extends AbstractConcept
 {
@@ -269,8 +271,12 @@ class MetamodelDbmlConcept extends AbstractConcept
         */
 
         if ($attr->isRelation()) {
-            if (null !== $ref = $this->buildDbmlColRelationship($attr->getRelation())) {
-                $arr[] = 'ref: ' . $ref;
+            try {
+                if (null !== $ref = $this->buildDbmlColRelationship($attr->getRelation())) {
+                    $arr[] = 'ref: ' . $ref;
+                }   
+            } catch (Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e, LoggerInterface::WARNING);
             }
         }
 
