@@ -442,6 +442,11 @@ class GenericAssistant implements AiAgentInterface
             
             foreach ($this->getConcepts($prompt, $renderer) as $concept) {
                 $renderer->addPlaceholder($concept);
+                if(is_a($concept, \axenox\GenAI\Interfaces\AiConceptInterface::class)){
+                    foreach($concept->getTools() as $tool){
+                        $this->addTool($tool);
+                    }
+                }
             }
             
             try {
@@ -742,7 +747,7 @@ class GenericAssistant implements AiAgentInterface
     {
         foreach ($objectWithToolDefs as $tool => $uxon) {
             $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
-            $this->tools[] = $tool;
+            $this->addTool($tool);
         }
         return $this;
     }
@@ -754,5 +759,10 @@ class GenericAssistant implements AiAgentInterface
     protected function getTools() : array
     {
         return $this->tools;
+    }
+
+    protected function addTool(AiToolInterface $tool)
+    {
+        $this->tools[] = $tool;
     }
 }

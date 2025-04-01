@@ -66,4 +66,9 @@ abstract class AbstractConcept implements AiConceptInterface
     {
         return AiConceptUxonSchema::class;
     }
+
+    public function getTools() : array
+    {
+        return [];
+    }
 }
