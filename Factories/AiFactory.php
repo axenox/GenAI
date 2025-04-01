@@ -129,7 +129,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * 
      * Examples:
      * 
-     * - `createToolFromUxon(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class))`
+     * - `createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class))`
      * 
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param \axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface $selector
