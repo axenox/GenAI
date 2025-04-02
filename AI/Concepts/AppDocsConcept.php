@@ -2,6 +2,11 @@
 namespace axenox\GenAI\AI\Concepts;
 
 use axenox\GenAI\Common\AbstractConcept;
+use axenox\GenAI\Common\FileReader;
+use axenox\GenAI\Common\LinkRebaser;
+use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Factories\AiFactory;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
 
 class AppDocsConcept extends AbstractConcept
@@ -67,60 +72,46 @@ class AppDocsConcept extends AbstractConcept
         $app = $this->getWorkbench()->getApp($this->getAppAlias());
         $pathToApp = $app->getDirectoryAbsolutePath();
         $pathToDocs = $pathToApp . DIRECTORY_SEPARATOR . 'Docs';
+
         if (! file_exists($pathToDocs)) {
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
         }
-        if ($this->depth < 0 || !file_exists($pathToDocs)) {
+        if ($this->depth < 0) {
             return "";
         }
         $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
 
+        $fileReader = new FileReader();
+        $indexContent = $fileReader->readFile($pathToIndex);
+
         $baseUrl = $app->getDirectory();
-        $content = $this->rebaseRelativeLinks($pathToIndex, $baseUrl, $this->depth);
+        $linkRebaser = new LinkRebaser();
+        $tableOfContents = $linkRebaser->getTableOfContents($indexContent , $pathToIndex, $baseUrl, $this->depth);
 
         // Tutorials/... -> exface/Core/Docs/Tutorials...
-        return $content;
+        return $tableOfContents;
     }
-    
-    protected function rebaseRelativeLinks($filePath, $basePath, $depth, $currentDepth = 2) {
-        if ($depth < 0 || !file_exists($filePath)) {
-            return "";
-        }
-        
-        $content = file_get_contents($filePath);
-        
-        $pattern = '/\[(.*?)\]\((.*?)\)/';
 
-        preg_match_all($pattern, $content, $matches, PREG_SET_ORDER);
-        $output = "";
-        
-        foreach ($matches as $match) {
-            $linkedFile = $match[2];
-            if (str_starts_with($match[2], 'http')){
-                $output .= str_repeat("#", $currentDepth) . "- " . $match[1] . " (" . $linkedFile . ")\n";
-                continue;
-            }
-            if(str_starts_with($match[1], '<kbd>')){
-                continue;
-            }
+    public function getTools() : array
+    {
+        $tool = [];
+        $getDocsToolUxon = new UxonObject(
+                            [
+                                'name'=> 'GetDocs',
+                                'description'=> 'Load markdown from our documentation by URL',
+                                'arguments'=> [                
+                                    [
+                                        'name'=> 'url',
+                                        'description'=> 'Markdown file URL - absolute (with https->//...) or relative to api/docs on this server',
+                                        'data_type'=> [
+                                            'alias'=> 'exface.Core.String'
+                                        ]            
+                                    ]    
+                                ]
+                            ]
+                        );
+        $tool[] = AiFactory::createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class), $getDocsToolUxon);
 
-            $normalizedPath = dirname($filePath) . DIRECTORY_SEPARATOR . $linkedFile;
-            $fullPath = realpath($normalizedPath);
-            $base = $basePath . '\\';
-            $relativePath = strstr($fullPath, 'Docs\\') ? $base . strstr($fullPath, 'Docs\\') : $linkedFile;
-
-            if (isset($processedLinks[$relativePath])) {
-                continue;
-            }
-            $processedLinks[$relativePath] = true;
-            
-            $output .= str_repeat("#", $currentDepth) . "- " . $match[1] . " (" . $relativePath . ")\n";
-            
-            if ($fullPath && pathinfo($fullPath, PATHINFO_EXTENSION) === 'md') {
-                $output .= $this->extractLinks($fullPath, dirname($fullPath), $depth - 1, $currentDepth + 1);
-            }
-        }
-        
-        return $output;
+        return $tool;
     }
 }

@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\FileReader;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\UrlDataType;
@@ -72,17 +73,16 @@ class GetDocsTool extends AbstractAiTool
                     // Relative URL
                 default:
                 // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                list($vendor, $appAlias, $pathWithinApp) = explode('/', $url, 3);
+                list(, , $vendor, $appAlias, $pathWithinApp) = explode('/', $url, 5);
                 $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
                 $appPath = $app->getDirectoryAbsolutePath();
                 $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
                 break;
                         
             }
-            if (! file_exists($filePath)) {
-                return 'ERROR: file not found!';
-            }
-            $md = file_get_contents($filePath);
+            $fileReader = new FileReader();
+            $md = $fileReader->readFile($filePath);
+
             return $md;
         }
         catch(\Throwable $e){

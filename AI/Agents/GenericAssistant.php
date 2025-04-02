@@ -97,6 +97,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $sequenceNumber = null;
 
+    private $maxNumberOfCalls = 3;
+
     /**
      * 
      * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -142,10 +144,10 @@ class GenericAssistant implements AiAgentInterface
         $prompt->setConversationUid($conversationId);
 
         $performedQuery = $this->getConnection()->query($query);
-        
+        $numberOfCalls = 0;
         while ($performedQuery->hasToolCalls()) {
             $this->saveConversationToolCallRequest($prompt, $performedQuery);
-
+           
             $requestedCalls = $performedQuery->getToolCalls();
             $existingCall = false;
 
@@ -160,13 +162,12 @@ class GenericAssistant implements AiAgentInterface
                 if ($tool === null){
                     throw new AiToolNotFoundError("Requested tool not found");
                 }
-                
-                // TODO
-                $resultOfTool = $tool->invoke(array_values($call->getArguments()));
+
+                $resultOfTool = $this->maxNumberOfCalls > $numberOfCalls ? $tool->invoke(array_values($call->getArguments())): "Maximum number of calls have been reached.";
 
                 //to prevent duplication on calls
                 $callId = $call->getCallId();
-                // TODO create a separate class like AiToolCallResponse instead of using an array
+                
                 $toolCallResponses[$callId] = new AiToolCallResponse(
                     $call->getToolName(),
                     $callId,
@@ -177,10 +178,10 @@ class GenericAssistant implements AiAgentInterface
                 $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;  
             }            
-            $this->saveConversationToolCalls($prompt, $query, $toolCallResponses);
-
+            $toolCallResponses = $this->saveConversationToolCalls($prompt, $query, $toolCallResponses);
+            // $toolCallResponses = null;
             $performedQuery = $this->getConnection()->query($query);
-            
+            $numberOfCalls++;
             $query->clearPreviousToolCalls();
         }
         $this->saveConversationResponse($prompt, $performedQuery);
@@ -339,7 +340,7 @@ class GenericAssistant implements AiAgentInterface
      * @param array $responses
      * @return void
      */
-    protected function saveConversationToolCalls(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) 
+    protected function saveConversationToolCalls(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) : ?array 
     {
         $transaction = $this->workbench->data()->startTransaction();
         $conversationId = $prompt->getConversationUid();
@@ -356,10 +357,11 @@ class GenericAssistant implements AiAgentInterface
 
             $message->dataCreate(false, $transaction);
             $transaction->commit();
-
+            return null;
         } catch(\Throwable $e){
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
+            return $responses;
         }
     }
 
@@ -440,6 +442,11 @@ class GenericAssistant implements AiAgentInterface
             
             foreach ($this->getConcepts($prompt, $renderer) as $concept) {
                 $renderer->addPlaceholder($concept);
+                if(is_a($concept, \axenox\GenAI\Interfaces\AiConceptInterface::class)){
+                    foreach($concept->getTools() as $tool){
+                        $this->addTool($tool);
+                    }
+                }
             }
             
             try {
@@ -539,7 +546,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getTitle(AiQueryInterface $query) : string
     {
-        if ($this->hasJsonSchema()) {
+        if ($this->hasJsonSchema() && $query->hasResponse()) {
             $json = $query->getAnswerJson();
             $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
         } else {
@@ -740,7 +747,7 @@ class GenericAssistant implements AiAgentInterface
     {
         foreach ($objectWithToolDefs as $tool => $uxon) {
             $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
-            $this->tools[] = $tool;
+            $this->addTool($tool);
         }
         return $this;
     }
@@ -752,5 +759,10 @@ class GenericAssistant implements AiAgentInterface
     protected function getTools() : array
     {
         return $this->tools;
+    }
+
+    protected function addTool(AiToolInterface $tool)
+    {
+        $this->tools[] = $tool;
     }
 }
