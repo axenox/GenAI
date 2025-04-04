@@ -61,6 +61,12 @@ interface AiQueryInterface extends DataQueryInterface
 
     /**
      * 
+     * @return bool
+     */
+    public function hasResponse() : bool;
+
+    /**
+     * 
      * @return string
      */
     public function getUserPrompt() : string;
