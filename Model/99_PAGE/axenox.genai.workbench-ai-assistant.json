@@ -1,0 +1,20 @@
+{
+    "uid": "0x11f0ac78ebfcb5b6ac78025041000001",
+    "alias_with_namespace": "axenox.genai.workbench-ai-assistant",
+    "menu_parent_page_selector": "0xf8310d4bba2c11e7895fe4b318306b9a",
+    "menu_index": 20,
+    "menu_visible": true,
+    "name": "AI Assistant",
+    "description": "",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2025-04-14 11:36:20",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2025-04-14 12:21:07",
+    "contents": {
+        "widget_type": "axenox.GenAI.AIChat",
+        "object_alias": "exface.Core.DUMMY",
+        "agent_alias": "axenox.GenAI.workbench_ai_assistant"
+    }
+}
