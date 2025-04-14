@@ -15,6 +15,8 @@ class AppDocsConcept extends AbstractConcept
 
     private $depth = 0;
 
+    private $startingPage = null;
+
     /**
      * 
      * {@inheritDoc}
@@ -79,7 +81,7 @@ class AppDocsConcept extends AbstractConcept
         if ($this->depth < 0) {
             return "";
         }
-        $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . 'index.md';
+        $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . $this->getStartingPage();
 
         $fileReader = new FileReader();
         $indexContent = $fileReader->readFile($pathToIndex);
@@ -113,5 +115,29 @@ class AppDocsConcept extends AbstractConcept
         $tool[] = AiFactory::createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class), $getDocsToolUxon);
 
         return $tool;
+    }
+
+    /**
+     * 
+     * @return string
+     */
+    protected function getStartingPage() : string
+    {
+        return $this->startingPage ?? 'index.md';
+    }
+
+    /**
+     * Define the page to start the docs with
+     * 
+     * @uxon-property starting_page
+     * @uxon-type string
+     * 
+     * @param string $page
+     * @return AppDocsConcept
+     */
+    protected function setStartingPage(string $page) : AppDocsConcept
+    {
+        $this->startingPage = $page;
+        return $this;
     }
 }
