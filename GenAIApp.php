@@ -48,4 +48,16 @@ class GenAIApp extends App
         
         return $installer;
     }
+
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\Model\App::getUid()
+     */
+    public function getUid() : ?string
+    {
+        // Hardcode the UID of the core app, because some installers might attempt to use it
+        // before the model is fully functional on first time installing.
+        return '0x11efbd2d8f0ae0babd2dc84bd653ed63';
+    }
 }
