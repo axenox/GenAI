@@ -85,23 +85,41 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
-            "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-04 16:04:08",
+            "_EXPORT_SUMMARY": "AI agent version [axenox.GenAI.AI_AGENT_VERSION]",
+            "CREATED_ON": "2025-09-04 15:38:32",
+            "MODIFIED_ON": "2025-09-04 16:09:57",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11ef8ec22e439a628ec2025041000001",
+            "UID": "0x11f0a47972e1dbf6a479025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "AI agent",
+            "NAME": "AI agent version",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "SHORT_DESCRIPTION": "",
             "PARENT_OBJECT": null,
-            "DATA_ADDRESS_PROPS": null,
+            "DATA_ADDRESS_PROPS": {
+                "SQL_READ_FROM": [
+                    "// Multiline text delimited by `\n`",
+                    "@MySQL: (SELECT ",
+                    "\taav.*,",
+                    "\t(CASE WHEN cdc.value IS NOT NULL THEN UNHEX(SUBSTRING(cdc.value, 3)) ELSE aav.data_connection_default_oid END) AS data_connection_oid",
+                    "FROM ",
+                    "\texf_ai_agent_version aav",
+                    "\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent_version' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aav.oid",
+                    ")",
+                    "@T-SQL: (SELECT ",
+                    "\taav.*,",
+                    "\t(CASE WHEN cdc.value IS NOT NULL THEN CONVERT(binary(16),cdc.value,1) ELSE aav.data_connection_default_oid END) AS data_connection_oid",
+                    "FROM ",
+                    "\texf_ai_agent_version aav",
+                    "\tLEFT JOIN exf_customizing cdc ON cdc.table_name = 'exf_ai_agent_version' AND cdc.column_name = 'data_connection_oid' AND cdc.row_oid = aav.oid",
+                    ")"
+                ]
+            },
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
                 "widgets": [
@@ -111,17 +129,36 @@
                         "columns_in_grid": 2,
                         "widgets": [
                             {
-                                "attribute_alias": "NAME"
+                                "widget_type": "WidgetGroup",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "AI_AGENT"
+                                    },
+                                    {
+                                        "attribute_alias": "VERSION"
+                                    }
+                                ]
+                            },
+                            {
+                                "widget_type": "WidgetGroup",
+                                "caption": "Connection",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "DATA_CONNECTION_DEFAULT"
+                                    },
+                                    {
+                                        "attribute_alias": "DATA_CONNECTION",
+                                        "id": "current_connection_selector"
+                                    }
+                                ]
+                            },
+                            {
+                                "attribute_alias": "PROTOTYPE_CLASS",
+                                "id": "prototype_field"
                             },
                             {
                                 "attribute_alias": "DESCRIPTION",
-                                "height": 3
-                            },
-                            {
-                                "attribute_alias": "ALIAS"
-                            },
-                            {
-                                "attribute_alias": "APP"
+                                "height": 2
                             }
                         ]
                     },
@@ -132,49 +169,45 @@
                         "height": "max",
                         "widgets": [
                             {
-                                "widget_type": "DataTable",
-                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
-                                "filters": [
-                                    {
-                                        "attribute_alias": "AI_AGENT",
-                                        "comparator": "==",
-                                        "required": true,
-                                        "hidden": true
-                                    }
-                                ],
-                                "columns": [
-                                    {
-                                        "attribute_alias": "VERSION"
-                                    },
-                                    {
-                                        "attribute_alias": "DESCRIPTION"
-                                    },
-                                    {
-                                        "attribute_alias": "DATA_CONNECTION__LABEL"
-                                    }
-                                ],
-                                "buttons": [
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectCreateDialog"
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectEditDialog",
-                                        "bind_to_double_click": true
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.ShowObjectCopyDialog"
-                                    },
-                                    {
-                                        "action_alias": "exface.Core.DeleteObject"
-                                    }
-                                ]
+                                "widget_type": "InputUxon",
+                                "attribute_alias": "CONFIG_UXON",
+                                "hide_caption": true,
+                                "root_prototype": "=prototype_field",
+                                "width": "max",
+                                "height": "max"
                             }
                         ]
                     }
+                ],
+                "buttons": [
+                    {
+                        "caption": "Create connection",
+                        "close_dialog": false,
+                        "action": {
+                            "alias": "exface.Core.ShowObjectCreateDialog",
+                            "object_alias": "exface.Core.CONNECTION"
+                        }
+                    },
+                    {
+                        "caption": "Edit current connection",
+                        "close_dialog": false,
+                        "action": {
+                            "alias": "exface.Core.ShowObjectEditDialog",
+                            "object_alias": "exface.Core.CONNECTION",
+                            "input_mapper": {
+                                "column_to_column_mappings": [
+                                    {
+                                        "from": "DATA_CONNECTION",
+                                        "to": "UID"
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 ]
             },
-            "ALIAS": "AI_AGENT",
-            "DATA_ADDRESS": "exf_ai_agent"
+            "ALIAS": "AI_AGENT_VERSION",
+            "DATA_ADDRESS": "exf_ai_agent_version"
         }
     ],
     "totals_rows": [],
