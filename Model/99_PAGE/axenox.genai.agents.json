@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2024-09-17 13:26:38",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2024-12-09 16:48:46",
+    "modified_on": "2025-09-04 15:52:41",
     "contents": {
         "widget_type": "DataTable",
         "object_alias": "axenox.GenAI.AI_AGENT",
@@ -26,7 +26,7 @@
                 "attribute_alias": "ALIAS"
             },
             {
-                "attribute_alias": "CONFIG_UXON"
+                "attribute_alias": "AI_AGENT_VERSION__CONFIG_UXON"
             }
         ],
         "columns": [
@@ -40,10 +40,12 @@
                 "attribute_alias": "ALIAS"
             },
             {
-                "attribute_alias": "PROTOTYPE_CLASS__LABEL"
+                "attribute_alias": "AI_AGENT_VERSION__UID:COUNT",
+                "caption": "Versions"
             },
             {
-                "attribute_alias": "DATA_CONNECTION__LABEL"
+                "attribute_alias": "AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",
+                "caption": "Connection(s)"
             },
             {
                 "attribute_alias": "DESCRIPTION"
@@ -65,12 +67,6 @@
             },
             {
                 "action_alias": "exface.Core.ShowObjectCopyDialog"
-            },
-            {
-                "action_alias": "axenox.GenAI.AiAgentChangeConnectionDialog"
-            },
-            {
-                "action_alias": "axenox.GenAI.AiAgentRestoreDefaults"
             },
             {
                 "action_alias": "exface.Core.DeleteObject",

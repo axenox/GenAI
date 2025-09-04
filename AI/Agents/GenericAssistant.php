@@ -208,6 +208,7 @@ class GenericAssistant implements AiAgentInterface
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
                 $row = [
                     'AI_AGENT' => $this->getUid(),
+                    'AI_AGENT_VERSION_NO' => $this->getVersion(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $this->getTitle($query),
                     'DATA' => $prompt->getInputData()->exportUxonObject()->toJson()
@@ -606,7 +607,7 @@ class GenericAssistant implements AiAgentInterface
             $sheet->getColumns()->addMultiple([
                 'NAME'
             ]);
-            $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getSelector()->toString(), ComparatorDataType::EQUALS);
+            $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getAliasWithNamespace(), ComparatorDataType::EQUALS);
             $sheet->dataRead();
             $this->agentDataSheet = $sheet;
         }
@@ -629,6 +630,15 @@ class GenericAssistant implements AiAgentInterface
     public function getName() : string
     {
         return $this->getModelData()->getCellValue('NAME', 0);
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function getVersion() : string
+    {
+        return $this->getSelector()->getVersion();
     }
 
     /**

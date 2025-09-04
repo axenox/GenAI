@@ -2,8 +2,8 @@
 namespace axenox\GenAI\Common\Selectors;
 
 use exface\Core\CommonLogic\Selectors\AbstractSelector;
-use exface\Core\CommonLogic\Selectors\Traits\ResolvableNameSelectorTrait;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
+use exface\Core\CommonLogic\Selectors\Traits\VersionedAliasSelectorTrait;
 
 /**
  * Generic implementation of the AiAgentSelectorInterface.
@@ -15,7 +15,7 @@ use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
  */
 class AiAgentSelector extends AbstractSelector implements AiAgentSelectorInterface
 {
-    use ResolvableNameSelectorTrait;
+    use VersionedAliasSelectorTrait;
     
     /**
      *

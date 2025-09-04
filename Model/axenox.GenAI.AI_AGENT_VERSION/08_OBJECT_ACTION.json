@@ -65,21 +65,21 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI agent: Change connection",
+            "_EXPORT_SUMMARY": "AI agent version: Change connection [AiAgentVersionChangeConnectionDialog]",
             "CREATED_ON": "2024-09-17 13:31:42",
-            "MODIFIED_ON": "2024-11-04 10:27:59",
+            "MODIFIED_ON": "2025-09-04 15:45:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efac9c69a150b0ac9c025041000001",
-            "OBJECT": "0x11ef8ec22e439a628ec2025041000001",
+            "OBJECT": "0x11f0a47972e1dbf6a479025041000001",
             "ACTION_PROTOTYPE": "exface/Core/Actions/ShowDialog.php",
-            "ALIAS": "AiAgentChangeConnectionDialog",
+            "ALIAS": "AiAgentVersionChangeConnectionDialog",
             "NAME": "Change connection",
             "SHORT_DESCRIPTION": "Change the connection for this agent locally (only on this installation)",
             "CONFIG_UXON": {
                 "input_rows_min": 1,
                 "input_rows_max": 1,
-                "input_object_alias": "axenox.GenAI.AI_AGENT",
+                "input_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
                 "prefill_with_input_data": true,
                 "dialog": {
                     "maximized": false,
@@ -106,7 +106,7 @@
                                 "input_mapper": {
                                     "column_to_column_mappings": [
                                         {
-                                            "from": "'exf_ai_agent'",
+                                            "from": "'exf_ai_agent_version'",
                                             "to": "TABLE_NAME"
                                         },
                                         {
@@ -134,7 +134,7 @@
                                 "input_mapper": {
                                     "column_to_filter_mappings": [
                                         {
-                                            "from": "'exf_ai_agent'",
+                                            "from": "'exf_ai_agent_version'",
                                             "to": "TABLE_NAME",
                                             "comparator": "=="
                                         },
@@ -160,15 +160,15 @@
             "DOCS": ""
         },
         {
-            "_EXPORT_SUMMARY": "AI agent: Restore defaults",
+            "_EXPORT_SUMMARY": "AI agent version: Restore defaults [AiAgentVersionRestoreDefaults]",
             "CREATED_ON": "2024-09-17 13:32:25",
-            "MODIFIED_ON": "2024-11-04 10:27:26",
+            "MODIFIED_ON": "2025-09-04 15:45:27",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efb47b83750a68b47b025041000001",
-            "OBJECT": "0x11ef8ec22e439a628ec2025041000001",
+            "OBJECT": "0x11f0a47972e1dbf6a479025041000001",
             "ACTION_PROTOTYPE": "exface/Core/Actions/DeleteObject.php",
-            "ALIAS": "AiAgentRestoreDefaults",
+            "ALIAS": "AiAgentVersionRestoreDefaults",
             "NAME": "Restore defaults",
             "SHORT_DESCRIPTION": "",
             "CONFIG_UXON": {
@@ -187,7 +187,7 @@
                                 "comparator": "=="
                             },
                             {
-                                "from": "'exf_ai_agent'",
+                                "from": "'exf_ai_agent_version'",
                                 "to": "TABLE_NAME",
                                 "comparator": "=="
                             }
@@ -198,7 +198,7 @@
                                 "to": "ROW_UID"
                             },
                             {
-                                "from": "'exf_ai_agent'",
+                                "from": "'exf_ai_agent_version'",
                                 "to": "TABLE_NAME"
                             }
                         ]
