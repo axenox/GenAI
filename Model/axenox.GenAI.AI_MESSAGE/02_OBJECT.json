@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI message [axenox.GenAI.AI_MESSAGE]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-01-08 15:55:36",
+            "MODIFIED_ON": "2025-09-05 10:18:22",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef950a2e445768950a025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -109,19 +109,33 @@
                         "caption": "Message",
                         "widgets": [
                             {
-                                "attribute_alias": "ROLE"
+                                "widget_type": "WidgetGroup",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "ROLE"
+                                    },
+                                    {
+                                        "attribute_alias": "FINISH_REASON"
+                                    }
+                                ]
                             },
                             {
-                                "attribute_alias": "TOKENS_PROMPT"
-                            },
-                            {
-                                "attribute_alias": "TOKENS_COMPLETION"
-                            },
-                            {
-                                "attribute_alias": "COST_PER_M_TOKENS"
-                            },
-                            {
-                                "attribute_alias": "FINISH_REASON"
+                                "widget_type": "WidgetGroup",
+                                "caption": "Cost",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "TOKENS_PROMPT"
+                                    },
+                                    {
+                                        "attribute_alias": "TOKENS_COMPLETION"
+                                    },
+                                    {
+                                        "attribute_alias": "COST_PER_M_TOKENS"
+                                    },
+                                    {
+                                        "attribute_alias": "COST"
+                                    }
+                                ]
                             },
                             {
                                 "attribute_alias": "MESSAGE",
