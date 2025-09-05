@@ -315,7 +315,8 @@ class GenericAssistant implements AiAgentInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE'=> $this->getAnswer($query),
-                'DATA' => $query->getFullAnswer(),
+                // TODO save the JSON data here if we are in JSON mode. Can we detect JSON mode in the answer?
+                // 'DATA' => $query->getAnswerJson(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
