@@ -15,7 +15,7 @@ CREATE TABLE exf_ai_agent_version (
     config_uxon nvarchar(MAX),
     data_connection_default_oid binary(16) DEFAULT NULL,
     CONSTRAINT PK_exf_ai_agent_version PRIMARY KEY (oid),
-    CONSTRAINT FK_exf_ai_agent_version_agent FOREIGN KEY (ai_agent_oid) REFERENCES exf_ai_agent (oid) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT FK_exf_ai_agent_version_agent FOREIGN KEY (ai_agent_oid) REFERENCES exf_ai_agent (oid),
     CONSTRAINT FK_exf_ai_agent_version_data_connection_default FOREIGN KEY (data_connection_default_oid) REFERENCES exf_data_connection (oid)
 );
 
@@ -68,6 +68,8 @@ ALTER TABLE exf_ai_agent
 
 BEGIN TRANSACTION;
 BEGIN TRY
+    DROP INDEX IF EXISTS IDX_dbo_exf_ai_agent_data_connection_default ON dbo.exf_ai_agent;
+
     -- Declare table, column, and schema names
     DECLARE @schema NVARCHAR(256) = 'dbo';
     DECLARE @table NVARCHAR(256) = 'exf_ai_agent';
@@ -78,36 +80,36 @@ BEGIN TRY
     DECLARE @qualifiedTable NVARCHAR(MAX) = QUOTENAME(@schema) + '.' + QUOTENAME(@table);
 
     -- Drop Default Constraints
-SELECT @sql = STRING_AGG('ALTER TABLE ' + @qualifiedTable + ' DROP CONSTRAINT ' + QUOTENAME(name), '; ')
-FROM sys.default_constraints
-WHERE parent_object_id = OBJECT_ID(@schema + '.' + @table)
-  AND COL_NAME(parent_object_id, parent_column_id) = @column;
-
-IF @sql IS NOT NULL EXEC sp_executesql @sql;
-
-    -- Drop Foreign Key Constraints
-SELECT @sql = STRING_AGG('ALTER TABLE ' + @qualifiedTable + ' DROP CONSTRAINT ' + QUOTENAME(name), '; ')
-FROM sys.foreign_keys
-WHERE parent_object_id = OBJECT_ID(@schema + '.' + @table);
-
-IF @sql IS NOT NULL EXEC sp_executesql @sql;
-
-    -- Drop Indexes
-SELECT @sql = STRING_AGG('DROP INDEX ' + QUOTENAME(i.name) + ' ON ' + @qualifiedTable, '; ')
-FROM sys.indexes i
-         INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-WHERE OBJECT_NAME(ic.object_id, DB_ID(@schema)) = @table
-  AND COL_NAME(ic.object_id, ic.column_id) = @column;
-
-IF @sql IS NOT NULL EXEC sp_executesql @sql;
-
-    -- Drop the Column
-    SET @sql = 'ALTER TABLE ' + @qualifiedTable + ' DROP COLUMN ' + QUOTENAME(@column);
-	IF COL_LENGTH(CONCAT(@schema, '.', @table), @column) IS NOT NULL
-    EXEC sp_executesql @sql;
-
-    -- Commit transaction if all operations succeed
-COMMIT TRANSACTION;
+    SELECT @sql = STRING_AGG('ALTER TABLE ' + @qualifiedTable + ' DROP CONSTRAINT ' + QUOTENAME(name), '; ')
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID(@schema + '.' + @table)
+      AND COL_NAME(parent_object_id, parent_column_id) = @column;
+    
+    IF @sql IS NOT NULL EXEC sp_executesql @sql;
+    
+        -- Drop Foreign Key Constraints
+    SELECT @sql = STRING_AGG('ALTER TABLE ' + @qualifiedTable + ' DROP CONSTRAINT ' + QUOTENAME(name), '; ')
+    FROM sys.foreign_keys
+    WHERE parent_object_id = OBJECT_ID(@schema + '.' + @table);
+    
+    IF @sql IS NOT NULL EXEC sp_executesql @sql;
+    
+        -- Drop Indexes
+    SELECT @sql = STRING_AGG('DROP INDEX ' + QUOTENAME(i.name) + ' ON ' + @qualifiedTable, '; ')
+    FROM sys.indexes i
+             INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+    WHERE OBJECT_NAME(ic.object_id, DB_ID(@schema)) = @table
+      AND COL_NAME(ic.object_id, ic.column_id) = @column;
+    
+    IF @sql IS NOT NULL EXEC sp_executesql @sql;
+    
+        -- Drop the Column
+        SET @sql = 'ALTER TABLE ' + @qualifiedTable + ' DROP COLUMN ' + QUOTENAME(@column);
+        IF COL_LENGTH(CONCAT(@schema, '.', @table), @column) IS NOT NULL
+        EXEC sp_executesql @sql;
+    
+        -- Commit transaction if all operations succeed
+    COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
     -- Rollback transaction in case of an error
