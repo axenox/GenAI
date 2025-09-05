@@ -414,7 +414,7 @@
         {
             "_EXPORT_SUMMARY": "Data [DATA]",
             "CREATED_ON": "2024-12-20 14:03:57",
-            "MODIFIED_ON": "2025-09-04 17:19:08",
+            "MODIFIED_ON": "2025-09-05 10:03:23",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efae13df74dadaae13025041000001",
@@ -436,7 +436,7 @@
             "TYPE": "D",
             "COPYABLEFLAG": 1,
             "ALIAS": "DATA",
-            "DATATYPE": "0x31310000000000000000000000000000",
+            "DATATYPE": "0x11e7b02848321d2398350205857feb80",
             "DATA_ADDRESS": "data",
             "OBJECT": "0x11ef91a72e443c7491a7025041000001",
             "FORMATTER": "",
