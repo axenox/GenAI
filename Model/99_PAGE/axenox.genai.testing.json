@@ -1,0 +1,70 @@
+{
+    "uid": "0x11f0ac2136d0d680ac21025041000001",
+    "alias_with_namespace": "axenox.genai.testing",
+    "menu_parent_page_selector": "0x11efb71bcc0c07e2b71b025041000001",
+    "menu_index": 2,
+    "menu_visible": true,
+    "name": "Testing",
+    "description": "",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2025-09-05 11:17:58",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2025-09-05 12:54:57",
+    "contents": {
+        "widget_type": "DataTable",
+        "object_alias": "axenox.GenAI.AI_TEST_CASE",
+        "filters": [
+            {
+                "attribute_alias": "NAME"
+            },
+            {
+                "attribute_alias": "AI_AGENT"
+            }
+        ],
+        "columns": [
+            {
+                "attribute_alias": "AI_AGENT__LABEL"
+            },
+            {
+                "attribute_alias": "NAME"
+            },
+            {
+                "attribute_alias": "AI_TEST_CRITERION__UID:COUNT",
+                "caption": "Test criteria",
+                "hint": "Number of criteria defined for this test case"
+            }
+        ],
+        "sorters": [
+            {
+                "attribute_alias": "AI_AGENT__LABEL",
+                "direction": "asc"
+            },
+            {
+                "attribute_alias": "NAME",
+                "direction": "asc"
+            }
+        ],
+        "buttons": [
+            {
+                "action_alias": "exface.Core.ShowObjectCreateDialog"
+            },
+            {
+                "action_alias": "exface.Core.ShowObjectEditDialog",
+                "bind_to_double_click": true
+            },
+            {
+                "action_alias": "exface.Core.ShowObjectCopyDialog"
+            },
+            {
+                "action_alias": "axenox.GenAI.AiTestCaseRunTest",
+                "visibility": "promoted"
+            },
+            {
+                "action_alias": "exface.Core.DeleteObject",
+                "visibility": "optional"
+            }
+        ]
+    }
+}
