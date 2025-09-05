@@ -88,10 +88,11 @@ class AppDocsConcept extends AbstractConcept
 
         $baseUrl = $app->getDirectory();
         $linkRebaser = new LinkRebaser();
+        // Tutorials/... -> exface/Core/Docs/Tutorials...
         $tableOfContents = $linkRebaser->getTableOfContents($indexContent , $pathToIndex, $baseUrl, $this->depth);
 
-        // Tutorials/... -> exface/Core/Docs/Tutorials...
-        return $tableOfContents;
+        $result = $indexContent . PHP_EOL . $tableOfContents;
+        return $result;
     }
 
     public function getTools() : array
