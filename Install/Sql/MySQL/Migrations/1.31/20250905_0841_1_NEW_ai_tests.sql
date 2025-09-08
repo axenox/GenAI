@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS `exf_ai_test_case` (
     `automatable_flag` tinyint NOT NULL DEFAULT '0',
     PRIMARY KEY (`oid`) USING BTREE,
     KEY `ai_agent_oid` (`ai_agent_oid`),
-    CONSTRAINT `exf_ai_test_case_ai_agent` FOREIGN KEY (`ai_agent_oid`) REFERENCES `exf_ai_agent` (`oid`)
+    CONSTRAINT `exf_ai_test_case_ai_agent` FOREIGN KEY (`ai_agent_oid`) REFERENCES `exf_ai_agent` (`oid`),
     CONSTRAINT `exf_ai_test_case_app` FOREIGN KEY (`app_oid`) REFERENCES `exf_app` (`oid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=DYNAMIC;
 
