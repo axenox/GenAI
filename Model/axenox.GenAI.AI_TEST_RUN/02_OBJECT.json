@@ -85,17 +85,17 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
-            "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-11 11:09:06",
+            "_EXPORT_SUMMARY": "AI test run [axenox.GenAI.AI_TEST_RUN]",
+            "CREATED_ON": "2025-09-05 11:08:56",
+            "MODIFIED_ON": "2025-09-17 11:49:04",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "UID": "0x11ef91a72e443c7491a7025041000001",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f0b84df3d7056cb84d025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "AI conversation",
+            "NAME": "AI test run",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
@@ -106,37 +106,88 @@
                 "widget_type": "Dialog",
                 "widgets": [
                     {
-                        "attribute_alias": "UID",
-                        "id": "uid_field",
-                        "widget_type": "InputHidden"
-                    },
-                    {
                         "widget_type": "Tabs",
                         "tabs": [
                             {
-                                "caption": "Conversation",
+                                "caption": "Test Run",
                                 "widgets": [
                                     {
-                                        "attribute_alias": "TITLE"
+                                        "attribute_alias": "AI_TEST_CASE"
                                     },
                                     {
-                                        "attribute_alias": "PAGE__NAME"
+                                        "attribute_alias": "AI_CONVERSATION"
                                     },
                                     {
-                                        "attribute_alias": "AI_AGENT__NAME"
+                                        "attribute_alias": "STATUS"
+                                    },
+                                    {
+                                        "attribute_alias": "TESTED_ON"
                                     },
                                     {
                                         "widget_type": "DataTableResponsive",
-                                        "caption": "Messages",
+                                        "caption": "Criteria results",
+                                        "object_alias": "axenox.GenAI.AI_TEST_RESULT",
+                                        "hide_header": false,
+                                        "width": "max",
+                                        "height": 8,
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AI_TEST_RUN",
+                                                "required": true,
+                                                "hidden": true
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "AI_TEST_CRITERION__LABEL"
+                                            },
+                                            {
+                                                "attribute_alias": "USER_RATING"
+                                            },
+                                            {
+                                                "caption": "Calc. rating",
+                                                "hint": "Average auto-calculated ratings",
+                                                "attribute_alias": "AI_TEST_RESULT_RATING__RATING:AVG"
+                                            },
+                                            {
+                                                "calculation": "=Left(VALUE, 60)",
+                                                "caption": "Received"
+                                            },
+                                            {
+                                                "calculation": "=Left(AI_TEST_CRITERION__EXPECTED_VALUE, 60)",
+                                                "caption": "Expected"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "AI_TEST_CRITERION__LABEL",
+                                                "direction": "desc"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "widget_type": "DataTableResponsive",
+                                        "caption": "Conversation",
                                         "object_alias": "axenox.GenAI.AI_MESSAGE",
                                         "hide_header": false,
                                         "width": "max",
                                         "height": "max",
                                         "filters": [
                                             {
-                                                "attribute_alias": "AI_CONVERSATION",
+                                                "attribute_alias": "AI_CONVERSATION__AI_TEST_RUN__UID",
                                                 "required": true,
-                                                "value": "=uid_field",
                                                 "hidden": true
                                             }
                                         ],
@@ -187,12 +238,13 @@
                                 ]
                             },
                             {
-                                "caption": "Data",
+                                "caption": "Agent config",
                                 "widgets": [
                                     {
-                                        "attribute_alias": "DATA",
-                                        "width": "100%",
+                                        "attribute_alias": "AI_CONVERSATION__AGENT_VERSION__CONFIG_UXON",
+                                        "widget_type": "InputUxon",
                                         "height": "100%",
+                                        "width": "100%",
                                         "hide_caption": true
                                     }
                                 ]
@@ -201,8 +253,8 @@
                     }
                 ]
             },
-            "ALIAS": "AI_CONVERSATION",
-            "DATA_ADDRESS": "exf_ai_conversation"
+            "ALIAS": "AI_TEST_RUN",
+            "DATA_ADDRESS": "exf_ai_test_run"
         }
     ],
     "totals_rows": [],

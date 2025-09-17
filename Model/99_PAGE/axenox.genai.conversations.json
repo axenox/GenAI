@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
     "created_on": "2024-11-07 12:31:37",
-    "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2025-01-10 16:53:05",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2025-09-11 11:04:56",
     "contents": {
         "widget_type": "DataTable",
         "object_alias": "axenox.GenAI.AI_CONVERSATION",
@@ -47,6 +47,9 @@
                     "alias": "exface.core.ShowObjectInfoDialog",
                     "disable_buttons": false
                 }
+            },
+            {
+                "action_alias": "exface.Core.ShowObjectCreateDialog"
             }
         ],
         "sorters": [
