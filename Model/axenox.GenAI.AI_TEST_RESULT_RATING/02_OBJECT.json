@@ -85,17 +85,17 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Exf ai test run [axenox.GenAI.exf_ai_test_run]",
-            "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-05 11:08:56",
+            "_EXPORT_SUMMARY": "AI test rating [axenox.GenAI.AI_TEST_RESULT_RATING]",
+            "CREATED_ON": "2025-09-17 11:30:57",
+            "MODIFIED_ON": "2025-09-17 11:32:36",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11f0b84df3d7056cb84d025041000001",
+            "UID": "0x11f0b0a4040d8feeb0a4025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
-            "COMMENTS": null,
-            "DOCS": null,
-            "NAME": "Exf ai test run",
+            "COMMENTS": "",
+            "DOCS": "",
+            "NAME": "AI test rating",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
@@ -103,8 +103,8 @@
             "PARENT_OBJECT": null,
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_EDITOR_UXON": null,
-            "ALIAS": "exf_ai_test_run",
-            "DATA_ADDRESS": "exf_ai_test_run"
+            "ALIAS": "AI_TEST_RESULT_RATING",
+            "DATA_ADDRESS": "exf_ai_test_result_rating"
         }
     ],
     "totals_rows": [],

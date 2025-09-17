@@ -85,17 +85,17 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
-            "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-11 11:09:06",
+            "_EXPORT_SUMMARY": "AI test result [axenox.GenAI.AI_TEST_RESULT]",
+            "CREATED_ON": "2025-09-05 11:08:56",
+            "MODIFIED_ON": "2025-09-17 11:50:42",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "UID": "0x11ef91a72e443c7491a7025041000001",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f0ac11f3d6cd40ac11025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "AI conversation",
+            "NAME": "AI test result",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
@@ -106,94 +106,90 @@
                 "widget_type": "Dialog",
                 "widgets": [
                     {
-                        "attribute_alias": "UID",
-                        "id": "uid_field",
-                        "widget_type": "InputHidden"
-                    },
-                    {
                         "widget_type": "Tabs",
                         "tabs": [
                             {
-                                "caption": "Conversation",
+                                "caption": "Result",
                                 "widgets": [
                                     {
-                                        "attribute_alias": "TITLE"
+                                        "attribute_alias": "UID",
+                                        "widget_type": "InputHidden",
+                                        "id": "uid_field"
                                     },
                                     {
-                                        "attribute_alias": "PAGE__NAME"
+                                        "attribute_alias": "AI_TEST_RUN"
                                     },
                                     {
-                                        "attribute_alias": "AI_AGENT__NAME"
+                                        "attribute_alias": "VALUE",
+                                        "height": 3
                                     },
                                     {
-                                        "widget_type": "DataTableResponsive",
-                                        "caption": "Messages",
-                                        "object_alias": "axenox.GenAI.AI_MESSAGE",
-                                        "hide_header": false,
-                                        "width": "max",
+                                        "attribute_alias": "AI_TEST_CRITERION"
+                                    },
+                                    {
+                                        "attribute_alias": "USER_RATING"
+                                    },
+                                    {
+                                        "widget_type": "DiffText",
+                                        "attribute_alias": "AI_TEST_CRITERION__EXPECTED_VALUE",
+                                        "attribute_alias_to_compare": "VALUE",
                                         "height": "max",
+                                        "width": "100%",
+                                        "hide_caption": true
+                                    }
+                                ]
+                            },
+                            {
+                                "caption": "Auto-calculated ratings",
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.AI_TEST_RESULT_RATING",
                                         "filters": [
                                             {
-                                                "attribute_alias": "AI_CONVERSATION",
+                                                "attribute_alias": "AT_TEST_RESULT",
+                                                "comparator": "==",
                                                 "required": true,
-                                                "value": "=uid_field",
                                                 "hidden": true
                                             }
                                         ],
                                         "columns": [
                                             {
-                                                "attribute_alias": "ROLE"
+                                                "attribute_alias": "NAME"
                                             },
                                             {
-                                                "attribute_alias": "TOKENS_PROMPT",
-                                                "caption": "T. prompt"
+                                                "attribute_alias": "RATING"
                                             },
                                             {
-                                                "attribute_alias": "TOKENS_COMPLETION",
-                                                "caption": "T. compl."
-                                            },
-                                            {
-                                                "attribute_alias": "COST",
-                                                "footer": "SUM"
-                                            },
-                                            {
-                                                "attribute_alias": "FINISH_REASON",
-                                                "caption": "Finish"
-                                            },
-                                            {
-                                                "calculation": "=Left(MESSAGE, 100)"
+                                                "attribute_alias": "explanation"
                                             }
                                         ],
                                         "buttons": [
                                             {
-                                                "caption": "Details",
-                                                "bind_to_double_click": true,
-                                                "action": {
-                                                    "alias": "exface.core.ShowObjectInfoDialog",
-                                                    "disable_buttons": false
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                "disabled_if": {
+                                                    "operator": "AND",
+                                                    "conditions": [
+                                                        {
+                                                            "value_left": "=uid_field",
+                                                            "comparator": "==",
+                                                            "value_right": ""
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
-                                            }
-                                        ],
-                                        "sorters": [
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            },
                                             {
-                                                "attribute_alias": "SEQUENCE_NUMBER",
-                                                "direction": "desc"
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.DeleteObject",
+                                                "visibility": "optional"
                                             }
                                         ]
-                                    }
-                                ]
-                            },
-                            {
-                                "caption": "Data",
-                                "widgets": [
-                                    {
-                                        "attribute_alias": "DATA",
-                                        "width": "100%",
-                                        "height": "100%",
-                                        "hide_caption": true
                                     }
                                 ]
                             }
@@ -201,8 +197,8 @@
                     }
                 ]
             },
-            "ALIAS": "AI_CONVERSATION",
-            "DATA_ADDRESS": "exf_ai_conversation"
+            "ALIAS": "AI_TEST_RESULT",
+            "DATA_ADDRESS": "exf_ai_test_result"
         }
     ],
     "totals_rows": [],
