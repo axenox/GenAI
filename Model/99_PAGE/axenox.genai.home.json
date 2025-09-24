@@ -11,10 +11,261 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2024-11-04 11:01:44",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2024-12-09 16:45:18",
+    "modified_on": "2025-09-24 15:16:05",
     "contents": {
-        "widget_type": "NavTiles",
-        "object_alias": "exface.Core.PAGE",
-        "depth": 1
+        "widget_type": "SplitHorizontal",
+        "object_alias": "axenox.GenAI.AI_AGENT",
+        "panels": [
+            {
+                "width": "50%",
+                "widgets": [
+                    {
+                        "widget_type": "SplitVertical",
+                        "panels": [
+                            {
+                                "height": "122px",
+                                "caption": "AI administration",
+                                "widgets": [
+                                    {
+                                        "widget_type": "NavTiles",
+                                        "object_alias": "exface.Core.PAGE",
+                                        "depth": 1,
+                                        "columns_in_grid": 2
+                                    }
+                                ]
+                            },
+                            {
+                                "widgets": [
+                                    {
+                                        "caption": "Agents",
+                                        "id": "agents_table",
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.AI_AGENT",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "NAME"
+                                            },
+                                            {
+                                                "attribute_alias": "APP"
+                                            },
+                                            {
+                                                "attribute_alias": "ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT_VERSION__CONFIG_UXON"
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "NAME"
+                                            },
+                                            {
+                                                "attribute_alias": "APP__ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT_VERSION__UID:COUNT",
+                                                "caption": "Versions"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",
+                                                "caption": "Connection(s)"
+                                            },
+                                            {
+                                                "attribute_alias": "DESCRIPTION"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "NAME",
+                                                "direction": "asc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.DeleteObject",
+                                                "visibility": "optional"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "widgets": [
+                    {
+                        "widget_type": "SplitVertical",
+                        "panels": [
+                            {
+                                "height": "30%",
+                                "widgets": [
+                                    {
+                                        "widget_type": "SplitHorizontal",
+                                        "panels": [
+                                            {
+                                                "width": "50%",
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "id": "conversations_timeline_chart",
+                                                        "caption": "Conversations in the last 3 months",
+                                                        "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                        "hide_header": true,
+                                                        "data": {
+                                                            "aggregate_by_attribute_alias": [
+                                                                "DATE_WEEK"
+                                                            ],
+                                                            "filters": [
+                                                                {
+                                                                    "attribute_alias": "CREATED_ON",
+                                                                    "comparator": ">=",
+                                                                    "value": "=Date('-3m')"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "spline",
+                                                                "caption": "Conversations",
+                                                                "x_attribute_alias": "DATE_WEEK",
+                                                                "y_attribute_alias": "UID:COUNT"
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "id": "conversations_per_agent_chart",
+                                                        "caption": "Conversations per agent",
+                                                        "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                        "hide_header": true,
+                                                        "hide_footer": true,
+                                                        "data": {
+                                                            "//filters": [
+                                                                {
+                                                                    "attribute_alias": ""
+                                                                }
+                                                            ],
+                                                            "aggregate_by_attribute_alias": [
+                                                                "AI_AGENT__LABEL"
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "pie",
+                                                                "value_attribute_alias": "UID:COUNT",
+                                                                "text_attribute_alias": "AI_AGENT__LABEL"
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                        "caption": "Recent conversations",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AI_AGENT",
+                                                "comparator": "==",
+                                                "hidden": true,
+                                                "apply_on_change": true,
+                                                "value": "=agents_table!UID"
+                                            },
+                                            {
+                                                "attribute_alias": "DATE_WEEK",
+                                                "hidden": true,
+                                                "value": "=conversations_timeline_chart!DATE_WEEK",
+                                                "apply_on_change": true
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT__LABEL",
+                                                "hidden": true,
+                                                "value": "=conversations_per_agent_chart!AI_AGENT__LABEL",
+                                                "apply_on_change": true
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "CREATED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "USER__LABEL"
+                                            },
+                                            {
+                                                "attribute_alias": "TITLE"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT__NAME"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_MESSAGE__UID:COUNT",
+                                                "caption": "Messages"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_MESSAGE__COST:SUM",
+                                                "footer": "SUM"
+                                            },
+                                            {
+                                                "attribute_alias": "RATING"
+                                            },
+                                            {
+                                                "calculation": "=Left(RATING_FEEDBACK, 60)"
+                                            },
+                                            {
+                                                "attribute_alias": "PAGE__LABEL"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Details",
+                                                "bind_to_double_click": true,
+                                                "action": {
+                                                    "alias": "exface.core.ShowObjectInfoDialog",
+                                                    "disable_buttons": false
+                                                }
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiConversationRateDialog"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "CREATED_ON",
+                                                "direction": "desc"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
     }
 }
