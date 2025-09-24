@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-24 15:18:03",
+            "MODIFIED_ON": "2025-09-24 23:20:35",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -125,10 +125,10 @@
                                         "hide_caption": true
                                     },
                                     {
-                                        "attribute_alias": "PAGE__LABEL"
+                                        "attribute_alias": "PAGE"
                                     },
                                     {
-                                        "attribute_alias": "AI_AGENT__LABEL"
+                                        "attribute_alias": "AI_AGENT"
                                     },
                                     {
                                         "attribute_alias": "RATING"
@@ -182,7 +182,8 @@
                                                 }
                                             },
                                             {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                "visibility": "optional"
                                             }
                                         ],
                                         "sorters": [

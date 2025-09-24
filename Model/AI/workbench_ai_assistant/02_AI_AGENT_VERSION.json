@@ -49,6 +49,10 @@
         {
             "name": "AI_AGENT",
             "attribute_alias": "AI_AGENT"
+        },
+        {
+            "name": "ENABLED_FLAG",
+            "attribute_alias": "ENABLED_FLAG"
         }
     ],
     "rows": [
@@ -97,7 +101,8 @@
             },
             "VERSION": 1,
             "DESCRIPTION": "",
-            "AI_AGENT": "0x11f09c3c3860f7dc9c3c025041000001"
+            "AI_AGENT": "0x11f09c3c3860f7dc9c3c025041000001",
+            "ENABLED_FLAG": 1
         }
     ],
     "totals_rows": [],

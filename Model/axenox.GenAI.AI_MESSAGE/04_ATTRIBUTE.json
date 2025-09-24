@@ -271,7 +271,7 @@
         {
             "_EXPORT_SUMMARY": "Conversation [AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2024-09-17 15:07:03",
+            "MODIFIED_ON": "2025-09-24 18:25:49",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef9bc02e835b989bc0025041000001",
@@ -285,7 +285,7 @@
             "SYSTEMFLAG": 0,
             "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": 0,
-            "DELETE_WITH_RELATED_OBJECT": 0,
+            "DELETE_WITH_RELATED_OBJECT": 1,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
             "NAME": "Conversation",

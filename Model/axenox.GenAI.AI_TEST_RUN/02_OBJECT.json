@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI test run [axenox.GenAI.AI_TEST_RUN]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-17 11:49:04",
+            "MODIFIED_ON": "2025-09-24 23:57:13",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0b84df3d7056cb84d025041000001",
@@ -130,6 +130,7 @@
                                         "hide_header": false,
                                         "width": "max",
                                         "height": 8,
+                                        "paginate": false,
                                         "filters": [
                                             {
                                                 "attribute_alias": "AI_TEST_RUN",
@@ -160,14 +161,16 @@
                                         ],
                                         "buttons": [
                                             {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                "visibility": "optional"
                                             },
                                             {
                                                 "action_alias": "exface.Core.ShowObjectEditDialog",
                                                 "bind_to_double_click": true
                                             },
                                             {
-                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog",
+                                                "visibility": "optional"
                                             }
                                         ],
                                         "sorters": [
@@ -184,6 +187,7 @@
                                         "hide_header": false,
                                         "width": "max",
                                         "height": "max",
+                                        "paginate": false,
                                         "filters": [
                                             {
                                                 "attribute_alias": "AI_CONVERSATION__AI_TEST_RUN__UID",
@@ -225,7 +229,8 @@
                                                 }
                                             },
                                             {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                "visibility": "optional"
                                             }
                                         ],
                                         "sorters": [

@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI test result [axenox.GenAI.AI_TEST_RESULT]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-17 11:50:42",
+            "MODIFIED_ON": "2025-09-24 23:54:02",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0ac11f3d6cd40ac11025041000001",
@@ -106,92 +106,95 @@
                 "widget_type": "Dialog",
                 "widgets": [
                     {
-                        "widget_type": "Tabs",
-                        "tabs": [
+                        "attribute_alias": "UID",
+                        "widget_type": "InputHidden",
+                        "id": "uid_field"
+                    },
+                    {
+                        "attribute_alias": "USER_RATING"
+                    },
+                    {
+                        "attribute_alias": "USER_FEEDBACK",
+                        "height": 3
+                    },
+                    {
+                        "attribute_alias": "AI_TEST_RUN"
+                    },
+                    {
+                        "attribute_alias": "AI_TEST_CRITERION"
+                    },
+                    {
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.GenAI.AI_TEST_RESULT_RATING",
+                        "caption": "Metrics",
+                        "height": 7,
+                        "paginate": false,
+                        "filters": [
                             {
-                                "caption": "Result",
-                                "widgets": [
-                                    {
-                                        "attribute_alias": "UID",
-                                        "widget_type": "InputHidden",
-                                        "id": "uid_field"
-                                    },
-                                    {
-                                        "attribute_alias": "AI_TEST_RUN"
-                                    },
-                                    {
-                                        "attribute_alias": "VALUE",
-                                        "height": 3
-                                    },
-                                    {
-                                        "attribute_alias": "AI_TEST_CRITERION"
-                                    },
-                                    {
-                                        "attribute_alias": "USER_RATING"
-                                    },
-                                    {
-                                        "widget_type": "DiffText",
-                                        "attribute_alias": "AI_TEST_CRITERION__EXPECTED_VALUE",
-                                        "attribute_alias_to_compare": "VALUE",
-                                        "height": "max",
-                                        "width": "100%",
-                                        "hide_caption": true
-                                    }
-                                ]
+                                "attribute_alias": "AT_TEST_RESULT",
+                                "comparator": "==",
+                                "required": true,
+                                "hidden": true
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "NAME"
                             },
                             {
-                                "caption": "Auto-calculated ratings",
-                                "widgets": [
-                                    {
-                                        "widget_type": "DataTable",
-                                        "object_alias": "axenox.GenAI.AI_TEST_RESULT_RATING",
-                                        "filters": [
-                                            {
-                                                "attribute_alias": "AT_TEST_RESULT",
-                                                "comparator": "==",
-                                                "required": true,
-                                                "hidden": true
-                                            }
-                                        ],
-                                        "columns": [
-                                            {
-                                                "attribute_alias": "NAME"
-                                            },
-                                            {
-                                                "attribute_alias": "RATING"
-                                            },
-                                            {
-                                                "attribute_alias": "explanation"
-                                            }
-                                        ],
-                                        "buttons": [
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
-                                                "disabled_if": {
-                                                    "operator": "AND",
-                                                    "conditions": [
-                                                        {
-                                                            "value_left": "=uid_field",
-                                                            "comparator": "==",
-                                                            "value_right": ""
-                                                        }
-                                                    ]
-                                                }
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectEditDialog",
-                                                "bind_to_double_click": true
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.DeleteObject",
-                                                "visibility": "optional"
-                                            }
-                                        ]
-                                    }
-                                ]
+                                "attribute_alias": "RATING"
+                            },
+                            {
+                                "attribute_alias": "EXPLANATION"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                "visibility": "optional",
+                                "disabled_if": {
+                                    "operator": "AND",
+                                    "conditions": [
+                                        {
+                                            "value_left": "=uid_field",
+                                            "comparator": "==",
+                                            "value_right": ""
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                "bind_to_double_click": true
+                            },
+                            {
+                                "action_alias": "exface.Core.ShowObjectCopyDialog",
+                                "visibility": "optional"
+                            },
+                            {
+                                "action_alias": "exface.Core.DeleteObject",
+                                "visibility": "optional"
+                            }
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "Value",
+                        "height": "max",
+                        "width": "100%",
+                        "widgets": [
+                            {
+                                "attribute_alias": "VALUE",
+                                "width": "100%",
+                                "height": 3,
+                                "hide_caption": true
+                            },
+                            {
+                                "widget_type": "DiffText",
+                                "attribute_alias": "AI_TEST_CRITERION__EXPECTED_VALUE",
+                                "attribute_alias_to_compare": "VALUE",
+                                "width": "100%",
+                                "hide_caption": true
                             }
                         ]
                     }

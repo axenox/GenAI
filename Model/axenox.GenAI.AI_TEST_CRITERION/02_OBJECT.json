@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI test criterion [axenox.GenAI.AI_TEST_CRITERION]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-05 12:55:48",
+            "MODIFIED_ON": "2025-09-24 22:45:55",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0bd5ef3d63fecbd5e025041000001",
@@ -109,12 +109,18 @@
                         "attribute_alias": "NAME"
                     },
                     {
+                        "attribute_alias": "DESCRIPTION",
+                        "height": 4
+                    },
+                    {
                         "attribute_alias": "AI_TEST_CASE"
                     },
                     {
-                        "attribute_alias": "PROTOTYPE_PATH",
-                        "id": "prototype_field",
-                        "width": 2
+                        "attribute_alias": "PROTOTYPE",
+                        "id": "prototype_field"
+                    },
+                    {
+                        "attribute_alias": "WEIGHT"
                     },
                     {
                         "widget_type": "WidgetGroup",

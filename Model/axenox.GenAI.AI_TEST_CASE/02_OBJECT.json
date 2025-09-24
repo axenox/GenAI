@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI test case [axenox.GenAI.AI_TEST_CASE]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-05 12:59:29",
+            "MODIFIED_ON": "2025-09-24 22:48:53",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0b0e7f3d68ae2b0e7025041000001",
@@ -120,15 +120,22 @@
                                         "attribute_alias": "NAME"
                                     },
                                     {
-                                        "attribute_alias": "APP"
+                                        "attribute_alias": "DESCRIPTION",
+                                        "height": 4
+                                    },
+                                    {
+                                        "attribute_alias": "LOCALE"
                                     },
                                     {
                                         "attribute_alias": "AI_AGENT"
                                     },
                                     {
+                                        "attribute_alias": "APP"
+                                    },
+                                    {
                                         "widget_type": "WidgetGroup",
                                         "caption": "Test prompt",
-                                        "height": "max",
+                                        "height": 6,
                                         "width": "100%",
                                         "widgets": [
                                             {
@@ -136,6 +143,69 @@
                                                 "hide_caption": true,
                                                 "height": "100%",
                                                 "width": "100%"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "caption": "Test cirteria",
+                                        "widget_type": "WidgetGroup",
+                                        "width": "100%",
+                                        "height": "max",
+                                        "widgets": [
+                                            {
+                                                "widget_type": "DataTable",
+                                                "object_alias": "axenox.GenAI.AI_TEST_CRITERION",
+                                                "filters": [
+                                                    {
+                                                        "attribute_alias": "AI_TEST_CASE",
+                                                        "comparator": "==",
+                                                        "required": true,
+                                                        "hidden": true
+                                                    }
+                                                ],
+                                                "columns": [
+                                                    {
+                                                        "attribute_alias": "NAME"
+                                                    },
+                                                    {
+                                                        "calculation": "=Left(EXPECTED_VALUE, 80)"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "PROTOTYPE__LABEL"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "WEIGHT"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "DESCRIPTION"
+                                                    }
+                                                ],
+                                                "buttons": [
+                                                    {
+                                                        "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                        "disabled_if": {
+                                                            "operator": "AND",
+                                                            "conditions": [
+                                                                {
+                                                                    "value_left": "=uid_field",
+                                                                    "comparator": "==",
+                                                                    "value_right": ""
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    {
+                                                        "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                        "bind_to_double_click": true
+                                                    },
+                                                    {
+                                                        "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                                    },
+                                                    {
+                                                        "action_alias": "exface.Core.DeleteObject",
+                                                        "visibility": "optional"
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
@@ -149,60 +219,6 @@
                                         "height": "100%",
                                         "width": "100%",
                                         "hide_caption": true
-                                    }
-                                ]
-                            },
-                            {
-                                "caption": "Test cirteria",
-                                "widgets": [
-                                    {
-                                        "widget_type": "DataTable",
-                                        "object_alias": "axenox.GenAI.AI_TEST_CRITERION",
-                                        "filters": [
-                                            {
-                                                "attribute_alias": "AI_TEST_CASE",
-                                                "comparator": "==",
-                                                "required": true,
-                                                "hidden": true
-                                            }
-                                        ],
-                                        "columns": [
-                                            {
-                                                "attribute_alias": "NAME"
-                                            },
-                                            {
-                                                "calculation": "=Left(EXPECTED_VALUE, 80)"
-                                            },
-                                            {
-                                                "attribute_alias": "PROTOTYPE_PATH"
-                                            }
-                                        ],
-                                        "buttons": [
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
-                                                "disabled_if": {
-                                                    "operator": "AND",
-                                                    "conditions": [
-                                                        {
-                                                            "value_left": "=uid_field",
-                                                            "comparator": "==",
-                                                            "value_right": ""
-                                                        }
-                                                    ]
-                                                }
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectEditDialog",
-                                                "bind_to_double_click": true
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.DeleteObject",
-                                                "visibility": "optional"
-                                            }
-                                        ]
                                     }
                                 ]
                             }

@@ -11,13 +11,13 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2025-09-05 11:17:58",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2025-09-24 15:22:58",
+    "modified_on": "2025-09-25 00:19:17",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_TEST_CASE",
         "panels": [
             {
-                "width": "50%",
+                "width": "40%",
                 "widgets": [
                     {
                         "caption": "Test cases",
@@ -41,6 +41,10 @@
                                 "attribute_alias": "AI_TEST_CRITERION__UID:COUNT",
                                 "caption": "Test criteria",
                                 "hint": "Number of criteria defined for this test case"
+                            },
+                            {
+                                "attribute_alias": "AI_TEST_RUN__UID:COUNT",
+                                "caption": "Runs"
                             }
                         ],
                         "sorters": [
@@ -82,16 +86,24 @@
                         "widget_type": "DataTable",
                         "caption": "Test runs",
                         "object_alias": "axenox.GenAI.AI_TEST_RUN",
+                        "filters": [
+                            {
+                                "attribute_alias": "TESTED_ON",
+                                "widget_type": "RangeFilter"
+                            }
+                        ],
                         "buttons": [
                             {
-                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                "visibility": "optional"
                             },
                             {
                                 "action_alias": "exface.Core.ShowObjectEditDialog",
                                 "bind_to_double_click": true
                             },
                             {
-                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                "action_alias": "exface.Core.ShowObjectCopyDialog",
+                                "visibility": "optional"
                             },
                             {
                                 "action_alias": "exface.Core.DeleteObject",
@@ -99,6 +111,9 @@
                             }
                         ],
                         "columns": [
+                            {
+                                "attribute_alias": "TESTED_ON"
+                            },
                             {
                                 "attribute_alias": "AI_TEST_CASE__LABEL"
                             },
@@ -109,16 +124,16 @@
                                 "attribute_alias": "STATUS"
                             },
                             {
-                                "attribute_alias": "AI_CONVERSATION__TITLE"
-                            },
-                            {
-                                "attribute_alias": "TESTED_ON"
-                            },
-                            {
                                 "attribute_alias": "AI_TEST_RESULT__USER_RATING:AVG"
                             },
                             {
                                 "attribute_alias": "AI_TEST_RESULT__AI_TEST_RESULT_RATING__RATING:AVG"
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "TESTED_ON",
+                                "direction": "desc"
                             }
                         ]
                     }

@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version [axenox.GenAI.AI_AGENT_VERSION]",
             "CREATED_ON": "2025-09-04 15:38:32",
-            "MODIFIED_ON": "2025-09-04 16:09:57",
+            "MODIFIED_ON": "2025-09-24 23:14:10",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a47972e1dbf6a479025041000001",
@@ -136,6 +136,24 @@
                                     },
                                     {
                                         "attribute_alias": "VERSION"
+                                    },
+                                    {
+                                        "attribute_alias": "PROTOTYPE_CLASS",
+                                        "id": "prototype_field"
+                                    }
+                                ]
+                            },
+                            {
+                                "attribute_alias": "ENABLED_FLAG"
+                            },
+                            {
+                                "widget_type": "WidgetGroup",
+                                "caption": "Description",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "DESCRIPTION",
+                                        "height": 4,
+                                        "hide_caption": true
                                     }
                                 ]
                             },
@@ -151,14 +169,6 @@
                                         "id": "current_connection_selector"
                                     }
                                 ]
-                            },
-                            {
-                                "attribute_alias": "PROTOTYPE_CLASS",
-                                "id": "prototype_field"
-                            },
-                            {
-                                "attribute_alias": "DESCRIPTION",
-                                "height": 2
                             }
                         ]
                     },

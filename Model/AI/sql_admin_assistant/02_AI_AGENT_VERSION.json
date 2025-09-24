@@ -49,15 +49,19 @@
         {
             "name": "AI_AGENT",
             "attribute_alias": "AI_AGENT"
+        },
+        {
+            "name": "ENABLED_FLAG",
+            "attribute_alias": "ENABLED_FLAG"
         }
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "0x53514c2061646d696e20617373697374616e74207631",
+            "_EXPORT_SUMMARY": "0x53514c2061646d696e20617373697374616e742076312e30",
             "CREATED_ON": "2024-09-17 13:29:49",
-            "MODIFIED_ON": "2025-09-10 17:48:49",
+            "MODIFIED_ON": "2025-09-25 00:54:16",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef997726a6346a9977025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "DATA_CONNECTION_DEFAULT": null,
@@ -94,7 +98,55 @@
             },
             "VERSION": 1,
             "DESCRIPTION": "",
-            "AI_AGENT": "0x11ef997726a6346a9977025041000001"
+            "AI_AGENT": "0x11ef997726a6346a9977025041000001",
+            "ENABLED_FLAG": 0
+        },
+        {
+            "_EXPORT_SUMMARY": "0x53514c2061646d696e20617373697374616e742076312e3031",
+            "CREATED_ON": "2025-09-25 00:52:19",
+            "MODIFIED_ON": "2025-09-25 00:54:07",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f0b5e7202c3964b5e7025041000001",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
+            "DATA_CONNECTION_DEFAULT": null,
+            "CONFIG_UXON": {
+                "instructions": [
+                    "// Multiline text delimited by `\n`",
+                    "You will help to modify and query a SQL database. will answer questions about the structure of the following database and will help write SQL. ",
+                    "",
+                    "## Instructions",
+                    "",
+                    "- Only use data that has been given to you in the DMBL. You are not allowed to make anything up!",
+                    "- Return the SQL statement and an explanation. Do not attempt to call any tools to execute the SQL.",
+                    "- Answer using the locale: \"[#=User('LOCALE')#]\".",
+                    "",
+                    "## DBML schema of the database: ",
+                    "",
+                    "```",
+                    "[#metamodel_dbml#] ",
+                    "```"
+                ],
+                "concepts": {
+                    "metamodel_dbml": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\SqlDbmlConcept",
+                        "object_filters": {
+                            "operator": "AND",
+                            "conditions": [
+                                {
+                                    "expression": "DATA_SOURCE__CONNECTION",
+                                    "comparator": "==",
+                                    "value": "[#~input:UID#]"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "VERSION": 1.01,
+            "DESCRIPTION": "",
+            "AI_AGENT": "0x11ef997726a6346a9977025041000001",
+            "ENABLED_FLAG": 1
         }
     ],
     "totals_rows": [],
