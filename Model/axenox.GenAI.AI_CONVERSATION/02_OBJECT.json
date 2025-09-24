@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-11 11:09:06",
+            "MODIFIED_ON": "2025-09-24 15:18:03",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -120,10 +120,18 @@
                                         "attribute_alias": "TITLE"
                                     },
                                     {
-                                        "attribute_alias": "PAGE__NAME"
+                                        "attribute_alias": "RATING_FEEDBACK",
+                                        "height": 4,
+                                        "hide_caption": true
                                     },
                                     {
-                                        "attribute_alias": "AI_AGENT__NAME"
+                                        "attribute_alias": "PAGE__LABEL"
+                                    },
+                                    {
+                                        "attribute_alias": "AI_AGENT__LABEL"
+                                    },
+                                    {
+                                        "attribute_alias": "RATING"
                                     },
                                     {
                                         "widget_type": "DataTableResponsive",
@@ -198,6 +206,13 @@
                                 ]
                             }
                         ]
+                    }
+                ],
+                "buttons": [
+                    {
+                        "action_alias": "axenox.GenAI.AiConversationRateDialog",
+                        "visibility": "promoted",
+                        "align": "opposite"
                     }
                 ]
             },
