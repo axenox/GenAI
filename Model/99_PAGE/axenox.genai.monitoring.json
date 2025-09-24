@@ -1,0 +1,298 @@
+{
+    "uid": "0x11f0a881adc65296a881025041000001",
+    "alias_with_namespace": "axenox.genai.monitoring",
+    "menu_parent_page_selector": "0x11efb71bcc0c07e2b71b025041000001",
+    "menu_index": 3,
+    "menu_visible": true,
+    "name": "Monitoring",
+    "description": "Track usage and costs for agents",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2025-09-24 13:00:27",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2025-09-25 00:41:41",
+    "contents": {
+        "widget_type": "SplitHorizontal",
+        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+        "panels": [
+            {
+                "width": "50%",
+                "widgets": [
+                    {
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                        "filters": [
+                            {
+                                "attribute_alias": "AI_AGENT_NAME"
+                            },
+                            {
+                                "attribute_alias": "DATE",
+                                "widget_type": "RangeFilter"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "DATE"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__LABEL"
+                            },
+                            {
+                                "attribute_alias": "COUNT_CONVERSATIONS",
+                                "footer": "SUM"
+                            },
+                            {
+                                "attribute_alias": "COUNT_RATINGS",
+                                "footer": "SUM"
+                            },
+                            {
+                                "attribute_alias": "AVG_RATING",
+                                "footer": "AVG"
+                            },
+                            {
+                                "attribute_alias": "SUM_COST",
+                                "footer": "SUM"
+                            },
+                            {
+                                "attribute_alias": "AVG_CONVERSATION_MESSAGES",
+                                "footer": "AVG"
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "DATE",
+                                "direction": "desc"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "action_alias": "exface.Core.ShowDataImportDialog"
+                            },
+                            {
+                                "action_alias": "exface.Core.ExportXLSX",
+                                "caption": "Export data",
+                                "icon": "download"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "widgets": [
+                    {
+                        "widget_type": "SplitVertical",
+                        "panels": [
+                            {
+                                "height": "33%",
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "conversations_timeline_chart",
+                                        "caption": "Conversations per week",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "data": {
+                                            "aggregate_by_attribute_alias": [
+                                                "DATE_WEEK",
+                                                "AI_AGENT_NAME"
+                                            ],
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "column",
+                                                "split_by_attribute_alias": "AI_AGENT_NAME",
+                                                "stacked": true,
+                                                "caption": "Conversations",
+                                                "x_attribute_alias": "DATE_WEEK",
+                                                "y_attribute_alias": "COUNT_CONVERSATIONS:SUM"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "conversations_per_agent_chart",
+                                        "caption": "Conversations per agent",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "hide_footer": true,
+                                        "data": {
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ],
+                                            "aggregate_by_attribute_alias": [
+                                                "AI_AGENT_NAME"
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "pie",
+                                                "value_attribute_alias": "COUNT_CONVERSATIONS:SUM",
+                                                "text_attribute_alias": "AI_AGENT_NAME"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "height": "33%",
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "conversations_per_connection_chart",
+                                        "caption": "Conversations per LLM",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "hide_footer": true,
+                                        "data": {
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ],
+                                            "aggregate_by_attribute_alias": [
+                                                "AI_AGENT_CONNECTION_NAME"
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "pie",
+                                                "value_attribute_alias": "COUNT_CONVERSATIONS:SUM",
+                                                "text_attribute_alias": "AI_AGENT_CONNECTION_NAME"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "width": "25%",
+                "widgets": [
+                    {
+                        "widget_type": "SplitVertical",
+                        "panels": [
+                            {
+                                "height": "33%",
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "cost_timeline_chart",
+                                        "caption": "Cost per week",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "data": {
+                                            "aggregate_by_attribute_alias": [
+                                                "DATE_WEEK",
+                                                "AI_AGENT_NAME"
+                                            ],
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "column",
+                                                "split_by_attribute_alias": "AI_AGENT_NAME",
+                                                "stacked": true,
+                                                "caption": "Conversations",
+                                                "x_attribute_alias": "DATE_WEEK",
+                                                "y_attribute_alias": "SUM_COST:SUM"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "cost_per_agent_chart",
+                                        "caption": "Cost per agent",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "hide_footer": true,
+                                        "data": {
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ],
+                                            "aggregate_by_attribute_alias": [
+                                                "AI_AGENT_NAME"
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "pie",
+                                                "value_attribute_alias": "SUM_COST:SUM",
+                                                "text_attribute_alias": "AI_AGENT_NAME"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "height": "33%",
+                                "widgets": [
+                                    {
+                                        "widget_type": "Chart",
+                                        "id": "cost_per_connection_chart",
+                                        "caption": "Cost per LLM",
+                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
+                                        "hide_header": true,
+                                        "hide_footer": true,
+                                        "data": {
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "DATE",
+                                                    "comparator": ">=",
+                                                    "value": "-3m"
+                                                }
+                                            ],
+                                            "aggregate_by_attribute_alias": [
+                                                "AI_AGENT_CONNECTION_NAME"
+                                            ]
+                                        },
+                                        "series": [
+                                            {
+                                                "type": "pie",
+                                                "value_attribute_alias": "SUM_COST:SUM",
+                                                "text_attribute_alias": "AI_AGENT_CONNECTION_NAME"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

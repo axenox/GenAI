@@ -1,5 +1,5 @@
 {
-    "object_alias": "axenox.GenAI.AI_AGENT",
+    "object_alias": "exface.Core.OBJECT_BEHAVIORS",
     "columns": [
         {
             "name": "_EXPORT_SUMMARY",
@@ -27,6 +27,22 @@
             "attribute_alias": "UID"
         },
         {
+            "name": "BEHAVIOR",
+            "attribute_alias": "BEHAVIOR"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "OBJECT",
+            "attribute_alias": "OBJECT"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
             "name": "NAME",
             "attribute_alias": "NAME"
         },
@@ -35,38 +51,50 @@
             "attribute_alias": "DESCRIPTION"
         },
         {
-            "name": "ALIAS",
-            "attribute_alias": "ALIAS"
+            "name": "DISABLED_FLAG",
+            "attribute_alias": "DISABLED_FLAG"
         },
         {
-            "name": "APP",
-            "attribute_alias": "APP"
+            "name": "PRIORITY",
+            "attribute_alias": "PRIORITY"
         }
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "SQL admin assistant",
-            "CREATED_ON": "2024-09-17 13:29:49",
-            "MODIFIED_ON": "2025-09-25 00:54:45",
+            "_EXPORT_SUMMARY": "Date + Agent + Connection unique",
+            "CREATED_ON": "2025-09-24 17:34:26",
+            "MODIFIED_ON": "2025-09-24 17:34:26",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
-            "UID": "0x11ef997726a6346a9977025041000001",
-            "NAME": "SQL admin assistant",
-            "DESCRIPTION": "Helps writing SQL statements in the built-in SQL admin",
-            "ALIAS": "sql_admin_assistant",
-            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63"
+            "UID": "0x11f095bff42d18b695bf025041000001",
+            "BEHAVIOR": "exface/Core/Behaviors/PreventDuplicatesBehavior.php",
+            "CONFIG_UXON": {
+                "compare_attributes": [
+                    "DATE",
+                    "AI_AGENT",
+                    "AI_AGENT_CONNECTION_NAME"
+                ],
+                "on_duplicate_single_row": "error",
+                "on_duplicate_multi_row": "update"
+            },
+            "OBJECT": "0x11f0be87f40a90a8be87025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "NAME": "Date + Agent + Connection unique",
+            "DESCRIPTION": "",
+            "DISABLED_FLAG": 0,
+            "PRIORITY": null
         }
     ],
     "totals_rows": [],
     "filters": {
         "operator": "AND",
-        "base_object_alias": "axenox.GenAI.AI_AGENT",
+        "base_object_alias": "exface.Core.OBJECT_BEHAVIORS",
         "conditions": [
             {
                 "expression": "APP",
                 "comparator": "=",
                 "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
-                "object_alias": "axenox.GenAI.AI_AGENT"
+                "object_alias": "exface.Core.OBJECT_BEHAVIORS"
             }
         ]
     },
