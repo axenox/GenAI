@@ -747,9 +747,9 @@ class GenericAssistant implements AiAgentInterface
      *  }
      *  
      * ```
-     * @xuon-property tools
+     * @uxon-property tools
      * @uxon-type \axenox\GenAI\Common\AbstractAiTool[]
-     * @uxon-template {"": {"description": "", "arguments": [{"name": "", "data_type": {"alias": ""}}}]}
+     * @uxon-template {"": {"description": "", "arguments": [{"name": "", "data_type": {"alias": ""}}]}}
      * 
      * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
      * @return GenericAssistant
