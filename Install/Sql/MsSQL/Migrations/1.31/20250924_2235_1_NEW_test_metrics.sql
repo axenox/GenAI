@@ -11,7 +11,7 @@ ALTER TABLE exf_ai_test_criterion
     ADD description NVARCHAR(500) NULL DEFAULT NULL;
 
 ALTER TABLE exf_ai_agent_version
-    ADD COLUMN enabled_flag TINYINT NOT NULL DEFAULT '0';
+    ADD enabled_flag TINYINT NOT NULL DEFAULT '0';
 UPDATE exf_ai_agent_version SET enabled_flag = 1;
 
 ALTER TABLE exf_ai_test_result
