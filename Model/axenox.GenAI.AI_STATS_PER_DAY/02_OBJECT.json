@@ -85,9 +85,9 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI stats per day [axenox.GenAI.AI_STATS_PER_DAY]",
+            "_EXPORT_SUMMARY": "Conversations statistics [axenox.GenAI.AI_STATS_PER_DAY]",
             "CREATED_ON": "2025-09-24 15:39:54",
-            "MODIFIED_ON": "2025-09-24 15:40:22",
+            "MODIFIED_ON": "2025-09-26 11:23:14",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0be87f40a90a8be87025041000001",
@@ -95,7 +95,7 @@
             "WRITABLE_FLAG": 1,
             "COMMENTS": "",
             "DOCS": "",
-            "NAME": "AI stats per day",
+            "NAME": "Conversations statistics",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
