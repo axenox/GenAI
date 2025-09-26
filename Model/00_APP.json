@@ -41,15 +41,15 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "axenox AI Connector [axenox.GenAI]",
+            "_EXPORT_SUMMARY": "axenox AI Agents [axenox.GenAI]",
             "CREATED_ON": "2024-11-04 09:55:36",
-            "MODIFIED_ON": "2024-11-04 10:25:20",
+            "MODIFIED_ON": "2025-09-26 11:23:34",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "DEFAULT_LANGUAGE_CODE": "en",
             "ALIAS": "axenox.GenAI",
-            "NAME": "axenox AI Connector"
+            "NAME": "axenox AI Agents"
         }
     ],
     "totals_rows": [],
