@@ -104,7 +104,7 @@
         {
             "_EXPORT_SUMMARY": "0x53514c2061646d696e20617373697374616e742076312e3031",
             "CREATED_ON": "2025-09-25 00:52:19",
-            "MODIFIED_ON": "2025-09-25 00:54:07",
+            "MODIFIED_ON": "2025-09-25 08:13:59",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0b5e7202c3964b5e7025041000001",
@@ -118,7 +118,8 @@
                     "## Instructions",
                     "",
                     "- Only use data that has been given to you in the DMBL. You are not allowed to make anything up!",
-                    "- Return the SQL statement and an explanation. Do not attempt to call any tools to execute the SQL.",
+                    "- Return the SQL statement and an explanation. Do not attempt to execute the SQL.",
+                    "- Use table aliases whereever possible to avoid ambiguous column errors.",
                     "- Answer using the locale: \"[#=User('LOCALE')#]\".",
                     "",
                     "## DBML schema of the database: ",

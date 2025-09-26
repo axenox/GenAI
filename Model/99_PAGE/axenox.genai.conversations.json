@@ -11,7 +11,9 @@
     "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
     "created_on": "2024-11-07 12:31:37",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2025-09-24 22:59:50",
+    "modified_on": "2025-09-25 10:18:13",
+    "icon": "comments",
+    "icon_set": "fa",
     "contents": {
         "widget_type": "DataTable",
         "object_alias": "axenox.GenAI.AI_CONVERSATION",
@@ -19,7 +21,7 @@
             {
                 "attribute_alias": "DATE",
                 "widget_type": "RangeSpinnerFilter",
-                "value_from": "-3m"
+                "value_from": ""
             },
             {
                 "attribute_alias": "AI_AGENT"

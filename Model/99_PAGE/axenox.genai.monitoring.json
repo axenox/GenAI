@@ -11,7 +11,9 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2025-09-24 13:00:27",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2025-09-25 00:41:41",
+    "modified_on": "2025-09-25 10:40:32",
+    "icon": "bar-chart",
+    "icon_set": "fa",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
