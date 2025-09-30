@@ -212,7 +212,14 @@ class GenericAssistant implements AiAgentInterface
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-                $connection = $this->getConnection();
+                try {
+                    $connection = $this->getConnection();
+                    $modelName = $connection->getModelName($query);
+                    $connectionId = $connection->getId();
+                } catch (\Throwable $e) {
+                    $modelName = null;
+                    $connectionId = null;
+                }
                 $row = [
                     'AI_AGENT' => $this->getUid(),
                     'AI_AGENT_VERSION_NO' => $this->getVersion(),
@@ -220,8 +227,8 @@ class GenericAssistant implements AiAgentInterface
                     'TITLE' => $this->getTitle($query),
                     'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
                     'DEVMODE' => $this->getDevmode(),
-                    'MODEL' => $connection->getModelName($query),
-                    'CONNECTION_OID' => $connection->getId()
+                    'MODEL' => $modelName,
+                    'CONNECTION' => $connectionId
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();

@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
     "created_on": "2024-11-07 12:31:37",
-    "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2025-09-25 10:18:13",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2025-09-29 15:41:30",
     "icon": "comments",
     "icon_set": "fa",
     "contents": {
@@ -40,6 +40,9 @@
             },
             {
                 "attribute_alias": "RATING_FEEDBACK"
+            },
+            {
+                "attribute_alias": "DEVMODE"
             }
         ],
         "columns": [
@@ -75,6 +78,9 @@
             },
             {
                 "attribute_alias": "PAGE__LABEL"
+            },
+            {
+                "attribute_alias": "DEVMODE"
             }
         ],
         "sorters": [
