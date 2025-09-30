@@ -1,15 +1,12 @@
 -- UP
 
 ALTER TABLE exf_ai_conversation
-  ADD COLUMN devmode tinyint,
+  ADD COLUMN devmode tinyint NULL DEFAULT '0',
   ADD COLUMN connection_oid BINARY(16),
-  ADD COLUMN model TEXT;
+  ADD COLUMN model varchar(100);
 
 ALTER TABLE `exf_ai_conversation`
-ADD FOREIGN KEY (`connection_oid`) REFERENCES `exf_data_connection` (`oid`) ON DELETE RESTRICT ON UPDATE RESTRICT
-
-ALTER TABLE `exf_ai_conversation`
-CHANGE `devmode` `devmode` tinyint NULL DEFAULT '0' AFTER `rating_feedback`;
+    ADD FOREIGN KEY (`connection_oid`) REFERENCES `exf_data_connection` (`oid`) ON DELETE RESTRICT ON UPDATE RESTRICT
 
 -- DOWN
 
