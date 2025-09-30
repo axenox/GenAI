@@ -14,6 +14,7 @@ use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
 use exface\Core\DataTypes\ArrayDataType;
+use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
@@ -700,13 +701,14 @@ class GenericAssistant implements AiAgentInterface
         return $this->responseJsonSchema !== null;
     }
 
-    public function setDevmode(int $num): void
+    public function setDevmode(bool $trueOrFalse): AiAgentInterface
     {
         if ($num !== 0 && $num !== 1) {
             throw new InvalidArgumentException('devMode muss 0 oder 1 sein');
         }
 
         $this->devMode = $num;
+        return $this;
     }
 
     /**
@@ -716,7 +718,7 @@ class GenericAssistant implements AiAgentInterface
     public function getDevmode() : int
     {
         if($this->devMode === null){
-        $this->setDevmode($this->getVersionRow()['ENABLED_FLAG']);
+            $this->setDevmode(BooleanDataType::cast($this->getVersionRow()['ENABLED_FLAG']));
         }
         return $this->devMode;
         

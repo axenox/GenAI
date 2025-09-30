@@ -30,4 +30,10 @@ interface AiPromptInterface extends TaskInterface
      * @return void
      */
     public function setConversationUid(string $uid) : AiPromptInterface;
+
+    /**
+     * @param string $text
+     * @return AiPromptInterface
+     */
+    public function setPrompt(string $text) : AiPromptInterface;
 }
