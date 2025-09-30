@@ -73,7 +73,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             'AI_AGENT__NAME',
             'AI_AGENT__ALIAS',
             'VERSION',
-            'PROTOTYPE_CLASS'
+            'PROTOTYPE_CLASS',
+            'ENABLED_FLAG'
         ]);
         $ds->dataRead();
         if($ds->isEmpty()){
