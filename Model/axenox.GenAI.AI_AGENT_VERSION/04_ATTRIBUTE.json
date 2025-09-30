@@ -508,7 +508,7 @@
         {
             "_EXPORT_SUMMARY": "Agent [LABEL]",
             "CREATED_ON": "2025-09-04 16:12:45",
-            "MODIFIED_ON": "2025-09-04 16:13:03",
+            "MODIFIED_ON": "2025-09-30 12:51:21",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a8d83ab4579aa8d8025041000001",
@@ -545,9 +545,7 @@
             "SORTERDIR": "",
             "RELATED_OBJ_ATTR": null,
             "SHORT_DESCRIPTION": "",
-            "DATA_ADDRESS_PROPS": {
-                "SQL_DATA_TYPE": "binary"
-            },
+            "DATA_ADDRESS_PROPS": null,
             "DEFAULT_VALUE": "",
             "FIXED_VALUE": "",
             "CUSTOM_DATA_TYPE": null
