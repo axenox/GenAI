@@ -63,4 +63,23 @@ class AiPrompt extends HttpTask implements AiPromptInterface
             }
         });
     }
+
+    /**
+     * The user message for this prompt
+     * 
+     * @uxon-property prompt
+     * @uxon-type string
+     * 
+     * @param string $text
+     * @return AiPromptInterface
+     */
+    public function setPrompt(string $text) : AiPromptInterface
+    {
+        $msgs = [[
+            'role' => 'user',
+            'text' => $text
+        ]];
+        $this->setParameter('messages', $msgs);
+        return $this;
+    }
 }
