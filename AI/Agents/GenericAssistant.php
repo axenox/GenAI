@@ -87,7 +87,13 @@ class GenericAssistant implements AiAgentInterface
 
     private $agentDataSheet = null;
 
+    private $versionDataSheet = null;
+
+    private $versionRow = null;
+
     private $responseJsonSchema = null;
+
+    private $devMode = null;
 
     private $responseAnswerPath = null;
 
@@ -206,12 +212,16 @@ class GenericAssistant implements AiAgentInterface
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
                 $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+                $connection = $this->getConnection();
                 $row = [
                     'AI_AGENT' => $this->getUid(),
                     'AI_AGENT_VERSION_NO' => $this->getVersion(),
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $this->getTitle($query),
-                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson()
+                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
+                    'DEVMODE' => $this->getDevmode(),
+                    'MODEL' => $connection->getModelName($query),
+                    'CONNECTION_OID' => $connection->getId()
                 ];
                 if ($prompt->hasMetaObject()) {
                     $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
@@ -615,6 +625,29 @@ class GenericAssistant implements AiAgentInterface
         return $this->agentDataSheet;
     }
 
+    protected function getVersionModelData() : DataSheetInterface
+    {
+        if($this-> versionDataSheet === null){
+            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT_VERSION');
+            $sheet->getColumns()->addMultiple([
+                    'VERSION',
+                    'ENABLED_FLAG',
+                    'DATA_CONNECTION'
+                ]);
+            $sheet->dataRead();
+            $this->versionDataSheet = $sheet;
+        }
+        return $this->versionDataSheet;
+        
+    }
+
+    protected function getVersionRow()  {
+        if($this->versionRow === null){
+            $this->versionRow = $this->getVersionModelData()->getRow($this->getVersionModelData()->getColumn('VERSION')->findRowByValue($this->getVersion()));
+        }
+        return $this->versionRow;
+    }
+
     /**
      * 
      * @return string
@@ -659,6 +692,30 @@ class GenericAssistant implements AiAgentInterface
     {        
         return $this->responseJsonSchema !== null;
     }
+
+    public function setDevmode(int $num): void
+    {
+        if ($num !== 0 && $num !== 1) {
+            throw new InvalidArgumentException('devMode muss 0 oder 1 sein');
+        }
+
+        $this->devMode = $num;
+    }
+
+    /**
+     * 
+     * @return int
+     */
+    public function getDevmode() : int
+    {
+        if($this->devMode === null){
+        $this->setDevmode($this->getVersionRow()['ENABLED_FLAG']);
+        }
+        return $this->devMode;
+        
+    }
+
+    
 
     /**
      * Summary of setResponseJsonSchema
