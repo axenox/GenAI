@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\DateTimeDataType;
+use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\Factories\MetaObjectFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
@@ -62,9 +63,11 @@ class RunTest extends AbstractActionDeferred
     {
 
         $this->setInputSheet($task?->getInputData());
-
-        $this->runTestCase();
-
+        
+        $caseSheet = $this->getCaseSheet();
+        foreach ($caseSheet->getRows() as $i => $row) {
+            $this->runTestCase($caseSheet, $i);
+        }
         
         yield $this->finishMessage;
     }
@@ -76,13 +79,15 @@ class RunTest extends AbstractActionDeferred
      * 3 let the agent handle the prompt
      * 4 save the run and results
      */
-    protected function runTestCase() : AbstractActionDeferred
+    protected function runTestCase(DataSheetInterface $caseSheet = null, int $rowIdx = 0) : AbstractActionDeferred
     {
+        // TODO pass caseSheet to getAgent() and getPrompt()
         $agent = $this->getAgent();
         $prompt = $this->getPrompt();
         $result = $agent->handle($prompt);
+        $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
         //$result = $this->getAgent()->handle($this->getPrompt());
-        $this->saveTestRun($result);
+        $this->saveTestRun($result, $testCaseId);
         return $this;
     }
 
@@ -92,13 +97,14 @@ class RunTest extends AbstractActionDeferred
      * Creates a row in AI_TEST_RUN and stores the created run UID on the instance
      * Then calls addCriteriaResults to store per criterion results
      */
-    protected function saveTestRun(AiResponseInterface $result) : AbstractActionDeferred
+    protected function saveTestRun(AiResponseInterface $result, string $testCaseId) : AbstractActionDeferred
     {
         $transaction = $this->getworkbench()->data()->startTransaction();
 
         $testRun = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.GenAI.AI_TEST_RUN');
 
         $row = [
+            // TODO use $testCaseId
             'AI_TEST_CASE' => $this->getTestCaseUid(),
             'STATUS' => 1,
             'TESTED_ON' => DateTimeDataType::now(),
@@ -108,25 +114,34 @@ class RunTest extends AbstractActionDeferred
 
         $testRun->addRow($row);
         $testRun->dataCreate(false, $transaction);
-        $this->setTestRunUid($testRun->getUidColumn()->getValue(0));
-        $transaction->commit();
+        $testRunuid = $testRun->getUidColumn()->getValue(0);
+        $this->setTestRunUid($testRunuid);
 
-        $this->addCriteriaResults($result);
+        try {
+            $this->evaluateCriteria($result, $testCaseId, $testRunuid);
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
+        
+        $transaction->commit();
         return $this;
     }
 
     /**
      * Iterates over all criteria for the case and stores a result for each one
      */
-    protected function addCriteriaResults(AiResponseInterface $result) : AbstractActionDeferred
+    protected function evaluateCriteria(AiResponseInterface $result, string $testCaseUid, string $testRunUid) : AbstractActionDeferred
     {
         
-        $rows = $this->getCriteriaSheet()->getRows();
-        
-        foreach($rows as $rowNr => $row){
-            if($row['AI_TEST_CASE']=== $this->getTestCaseUid()){
-                $this->createCriteriaResult($result, $row);
-            }
+        $criteriaSheet = $this->getCriteriaSheet($testCaseUid);
+
+        $criteriaResultSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_RESULT');
+        foreach($criteriaSheet->getRows() as $rowNr => $row){
+            $this->createCriteriaResult($result, $criteriaResultSheet, $criteriaSheet, $rowNr);
+        }
+        if ($criteriaResultSheet->isEmpty() === false) {
+            $criteriaResultSheet->getColumn('AI_TEST_RUN')->setValueOnAllRows($testRunUid);
+            $criteriaResultSheet->dataCreate();
         }
 
         return $this;
@@ -136,21 +151,22 @@ class RunTest extends AbstractActionDeferred
      * Persists a single criterion result for the current run
      * Expects $testCriteria to be an array with at least key UID
      */
-    protected function createCriteriaResult(AiResponseInterface $result,array $testCriteria) : AbstractActionDeferred
+    protected function createCriteriaResult(AiResponseInterface $result, DataSheetInterface $resultSheet, DataSheetInterface $criteriaSheet, int $criteriaIdx = 0) : DataSheetInterface
     {
-        $transaction = $this->getworkbench()->data()->startTransaction();
 
-        $criteriaResultSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_RESULT');
-
+        $pathRel = $criteriaSheet->getCellValue('PROTOTYPE', $criteriaIdx);
+        $pathAbs = $this->getWorkbench()->filemanager()->getPathToDataFolder()
+            . DIRECTORY_SEPARATOR . $pathRel;
+        $class = PhpFilePathDataType::findClassInFile($pathAbs);
+        $criterion = new $class($this->getWorkbench(), UxonObject::fromJson($criteriaSheet->getCellValue('CONFIG_UXON', $criteriaIdx)));
+        
         $row = [
-            'AI_TEST_CRITERION' => $testCriteria['UID'],
-            'AI_TEST_RUN' => $this->getTestRunUid(),
-            'VALUE'=> $result->getMessage()
+            'AI_TEST_CRITERION' => $criteriaSheet->getUidColumn()->getValue($criteriaIdx),
+            'VALUE'=> $criterion->getValue()
         ];
-
-        $criteriaResultSheet->addRow($row);
-        $criteriaResultSheet->dataCreate(false, $transaction);
-        $transaction->commit();
+        
+        
+        $resultSheet->addRow($row);
 
         return $this;
     }
@@ -265,21 +281,19 @@ class RunTest extends AbstractActionDeferred
      * Loads and caches all criteria for the current test case
      * Adds minimal columns and filters by the current case UID
      */
-    protected function getCriteriaSheet() : DataSheetInterface
+    protected function getCriteriaSheet(string $testCaseUid) : DataSheetInterface
     {
-        if($this->criteraSheet === null)
-        {
-            $criteriaSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_CRITERION');
-            $criteriaSheet->getColumns()->addMultiple([
-                'UID',
-                'AI_TEST_CASE',
-                'PROTOTYPE'
-            ]);
-            $criteriaSheet->getFilters()->addConditionFromString('AI_TEST_CASE',$this->getTestCaseUid(),ComparatorDataType::EQUALS);
-            $criteriaSheet->dataRead();
-            
-            $this->criteriaSheet = $criteriaSheet;
-        }
+        $criteriaSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_CRITERION');
+        $criteriaSheet->getColumns()->addMultiple([
+            'UID',
+            'AI_TEST_CASE',
+            'PROTOTYPE',
+            'CONFIG_UXON'
+        ]);
+        $criteriaSheet->getFilters()->addConditionFromString('AI_TEST_CASE', $testCaseUid,ComparatorDataType::EQUALS);
+        $criteriaSheet->dataRead();
+        
+        $this->criteriaSheet = $criteriaSheet;
 
         return $this->criteriaSheet;
     }
