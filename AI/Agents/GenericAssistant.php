@@ -17,6 +17,7 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -703,11 +704,7 @@ class GenericAssistant implements AiAgentInterface
 
     public function setDevmode(bool $trueOrFalse): AiAgentInterface
     {
-        if ($num !== 0 && $num !== 1) {
-            throw new InvalidArgumentException('devMode muss 0 oder 1 sein');
-        }
-
-        $this->devMode = $num;
+        $this->devMode = $trueOrFalse;
         return $this;
     }
 
