@@ -4,6 +4,7 @@ namespace axenox\GenAI\Actions;
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
@@ -13,28 +14,32 @@ use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use exface\Core\Interfaces\Tasks\ResultMessageStreamInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\DataTypes\ComparatorDataType;
 
 /**
- * Will run selected AI test cases and store results in the test run object
- * 
- * TODO add docs
+ * Class RunTest
+ *
+ * Will run selected AI test cases and store results.
  */
 class RunTest extends AbstractActionDeferred
 {
+    /** @var string Message shown when the test run finishes */
+    private $finishMessage = 'Testcase erfolgreich ausgeführt';
 
-    private $testCaseId = null;
+    private ?string $testCaseUid = null;
 
-    private $data = null;
+    private ?string $testRunUid = null;
 
-    private $prompt = null;
+    private ?DataSheetInterface $inputSheet = null;
 
-    private $agentAlias = null;
+    private ?DataSheetInterface $caseSheet = null;
 
-    private $response = null;
+    private ?AiAgentInterface $agent = null;
 
-    private $error  = null;
+    private ?AiPrompt $prompt = null;
 
-
+    private ?DataSheetInterface $criteriaSheet = null;
 
     protected function init()
     {
@@ -56,156 +61,230 @@ class RunTest extends AbstractActionDeferred
     protected function performDeferred(TaskInterface $task = null): \Generator
     {
 
-        $inputSheet = $task->getInputData();
+        $this->setInputSheet($task?->getInputData());
 
-        $inputSheet = $task->getInputData();
+        $this->runTestCase();
 
-        $collector = new DataCollector(MetaObjectFactory::createFromString($this->getWorkbench(), 'axenox.GenAI.AI_TEST_CASE'));
-        $collector->addAttributeAlias('PROMPT');
-        $collector->addAttributeAlias('AI_AGENT__ALIAS_WITH_NS');
-        $collector->addAttributeAlias('CONTEXT');
-        $collector->collectFrom($inputSheet);
-        $caseSheet = $collector->getRequiredData();
+        
+        yield $this->finishMessage;
+    }
 
-        // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
-        $agentAlias = $caseSheet->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
-        $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
-        $agent->setDevmode(true);
-        $prompt = new AiPrompt($this->getWorkbench());
-        $prompt->importUxonObject(UxonObject::fromJson($caseSheet->getCellValue('CONTEXT', 0)));
-        $prompt->setPrompt($caseSheet->getCellValue('PROMPT'));
+    /**
+     * Runs a single test case
+     * 1 get the agent
+     * 2 build the prompt
+     * 3 let the agent handle the prompt
+     * 4 save the run and results
+     */
+    protected function runTestCase() : AbstractActionDeferred
+    {
+        $agent = $this->getAgent();
+        $prompt = $this->getPrompt();
         $result = $agent->handle($prompt);
+        //$result = $this->getAgent()->handle($this->getPrompt());
+        $this->saveTestRun($result);
+        return $this;
+    }
 
+
+    /**
+     * Persists the test run meta data
+     * Creates a row in AI_TEST_RUN and stores the created run UID on the instance
+     * Then calls addCriteriaResults to store per criterion results
+     */
+    protected function saveTestRun(AiResponseInterface $result) : AbstractActionDeferred
+    {
         $transaction = $this->getworkbench()->data()->startTransaction();
 
         $testRun = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.GenAI.AI_TEST_RUN');
 
-        //run test
-
         $row = [
-            'AI_TEST_CASE' => $this->getTestCaseId($task),
+            'AI_TEST_CASE' => $this->getTestCaseUid(),
             'STATUS' => 1,
-            'TESTED_ON' => DateTimeDataType::now()
+            'TESTED_ON' => DateTimeDataType::now(),
+            'AI_CONVERSATION' => $result->getConversationId()
         ];
 
-        $testresponse = $this->sendDeepChatRequest($task);
 
         $testRun->addRow($row);
         $testRun->dataCreate(false, $transaction);
+        $this->setTestRunUid($testRun->getUidColumn()->getValue(0));
         $transaction->commit();
 
-
-
-
-        
-        yield 'Testing not really implemented yet!';
+        $this->addCriteriaResults($result);
+        return $this;
     }
-    
-    protected function getPrompt(UxonObject $promptUxon) : AiPrompt
-    {
-        $prompt = new AiPrompt($this->getWorkbench());
-        $prompt->importUxonObject($promptUxon);
-        return $prompt;
-    }
-    
-    protected function getAgent() : AiAgentInterface
+
+    /**
+     * Iterates over all criteria for the case and stores a result for each one
+     */
+    protected function addCriteriaResults(AiResponseInterface $result) : AbstractActionDeferred
     {
         
+        $rows = $this->getCriteriaSheet()->getRows();
+        
+        foreach($rows as $rowNr => $row){
+            if($row['AI_TEST_CASE']=== $this->getTestCaseUid()){
+                $this->createCriteriaResult($result, $row);
+            }
+        }
+
+        return $this;
     }
 
-    protected function sendDeepChatRequest(TaskInterface $task = null): ?array
+     /**
+     * Persists a single criterion result for the current run
+     * Expects $testCriteria to be an array with at least key UID
+     */
+    protected function createCriteriaResult(AiResponseInterface $result,array $testCriteria) : AbstractActionDeferred
     {
-        $url = "http://localhost/exface/exface/api/aichat/axenox.GenAI." . $this->getAgentAlias($task) . "/deepchat";
+        $transaction = $this->getworkbench()->data()->startTransaction();
 
-        $body = [
-            "messages" => [
-                [
-                    "role" => "user",
-                    "text" =>  $this->getPrompt($task) . "TestPrompt"
-                ]
-            ],
-            "object" => "exface.Core.CONNECTION",
-            "page"   => "exface.core.connections",
-            "widget" => "DataTable_DataToolbar_ButtonGroup_DataButton06_Dialog_DialogSidebar_AIChat",
-            "data"   => [
-                "oId"  => "0x33380000000000000000000000000000",
-                "rows" => [
-                    [
-                        "UID" => "0x11ea72c00f0fadeca3480205857feb80"
-                    ]
-                ]
-            ]
+        $criteriaResultSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_RESULT');
+
+        $row = [
+            'AI_TEST_CRITERION' => $testCriteria['UID'],
+            'AI_TEST_RUN' => $this->getTestRunUid(),
+            'VALUE'=> $result->getMessage()
         ];
 
-        $ch = curl_init($url);
+        $criteriaResultSheet->addRow($row);
+        $criteriaResultSheet->dataCreate(false, $transaction);
+        $transaction->commit();
 
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json'
-            ],
-            CURLOPT_POSTFIELDS     => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 30
-        ]);
-
-        $this->response = curl_exec($ch);
-        $this->error    = curl_error($ch);
-
-        curl_close($ch);
-
-        if ($this->error) {
-            throw new \RuntimeException("DeepChat Request Error: " . $this->error);
-        }
-
-        return $this->response ? json_decode($this->response, true) : null;
+        return $this;
     }
 
-    protected function getTestCaseId(TaskInterface $task = null)
+    protected function setTestCaseUid(string $uid) : AbstractActionDeferred
     {
-        if($this->id === null){
-            $this->getData($task);
-        }
-        return $this->testCaseId;
+        $this->testCaseUid = $uid;
+        return $this;
     }
 
-    protected function getData(TaskInterface $task = null)
+    protected function getTestCaseUid() : string
     {
-        if($this->data === null){
+        if($this->testCaseUid === null){
+            $this->testCaseUid = $this->getCaseSheet()->getCellValue('UID', 0); 
+        }
+        return $this->testCaseUid;
+    }
+
+    protected function setTestRunUid(string $uid) : AbstractActionDeferred
+    {
+        $this->testRunUid = $uid;
+        return $this;
+    }
+
+    protected function getTestRunUid() : string
+    {
+        return $this->testRunUid;
+    }
+
+    protected function setInputSheet(DataSheetInterface $sheet = null) : AbstractActionDeferred
+    {
+        $this->inputSheet = $sheet;
+        return $this;
+    }
+
+    protected function getInputSheet()
+    {
+        return $this->inputSheet;
+    }
+
+    /**
+     * Lazily builds and caches the case sheet for the given input rows
+     */
+    protected function getCaseSheet() : DataSheetInterface
+    {
+        if($this->caseSheet === null){
             
+        $collector = new DataCollector(MetaObjectFactory::createFromString($this->getWorkbench(), 'axenox.GenAI.AI_TEST_CASE'));
+        $collector->addAttributeAlias('PROMPT');
+        $collector->addAttributeAlias('AI_AGENT__ALIAS_WITH_NS');
+        $collector->addAttributeAlias('CONTEXT');
+        $collector->collectFrom($this->getInputSheet());
 
-            $id = $sheet->getCellValue('UID',0);
-
-            $sheet->getColumns()->addMultiple([
-            'AI_AGENT',
-            'AI_AGENT__ALIAS',
-            'PROMPT'
-            ]);
-
-            $sheet->dataRead();
-            $this->data = $sheet->getRow($sheet->getColumn('UID')->findRowByValue($id));
-            $this->testCaseId = $id;
+        $this->caseSheet = $collector->getRequiredData();
         }
-        return $this->data;
+
+        return $this->caseSheet;
     }
 
-    /*
-    protected function getPrompt(TaskInterface $task = null)
+    /**
+     * Resolves and caches the AI agent from the case sheet
+     * Also enables developer mode on the agent
+     */
+    protected function getAgent() : AiAgentInterface
     {
-        if ($this->prompt === null) {
-            $this->prompt = $this->getData($task)['PROMPT'];
+        if($this->agent === null){
+            // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
+            $agentAlias = $this->getcaseSheet()->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
+            $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
+            $agent->setDevmode(true);
+            $this->agent = $agent;
         }
+
+        return $this->agent;
+    }
+
+    /**
+     * Builds and caches the AiPrompt from case sheet values
+     * Parses CONTEXT as JSON and injects a page_alias
+     */
+    protected function getPrompt() : AiPrompt
+    {
+        if($this->prompt === null)
+        {
+            $caseSheet = $this->getCaseSheet();
+            $prompt = new AiPrompt($this->getWorkbench());
+            $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
+
+            $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
+
+            // Decode and ensure array structure and enrich page_alias
+            $decoded = json_decode($uxonJson, true);
+            if (!is_array($decoded)) {
+                $decoded = [];
+            }
+            $decoded['page_alias'] = 'axenox.genai.testing';
+            $uxonJson = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+
+            $prompt->importUxonObject(UxonObject::fromJson($uxonJson));
+
+            $promptText = $caseSheet->getCellValue('PROMPT',0);
+            $prompt->setPrompt($promptText);
+            $this->prompt = $prompt;
+        }
+
         return $this->prompt;
-    }*/
-
-
-    protected function getAgentAlias(TaskInterface $task = null)
-    {
-        if($this->agentAlias === null){
-            $this->agentAlias = $this->getData($task)['AI_AGENT__ALIAS'];
-        }
-        return $this->agentAlias;
     }
+
+
+    /**
+     * Loads and caches all criteria for the current test case
+     * Adds minimal columns and filters by the current case UID
+     */
+    protected function getCriteriaSheet() : DataSheetInterface
+    {
+        if($this->criteraSheet === null)
+        {
+            $criteriaSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_CRITERION');
+            $criteriaSheet->getColumns()->addMultiple([
+                'UID',
+                'AI_TEST_CASE',
+                'PROTOTYPE'
+            ]);
+            $criteriaSheet->getFilters()->addConditionFromString('AI_TEST_CASE',$this->getTestCaseUid(),ComparatorDataType::EQUALS);
+            $criteriaSheet->dataRead();
+            
+            $this->criteriaSheet = $criteriaSheet;
+        }
+
+        return $this->criteriaSheet;
+    }
+    
+  
 
 
 
