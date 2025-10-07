@@ -160,7 +160,7 @@ class RunTest extends AbstractActionDeferred
         
         $row = [
             'AI_TEST_CRITERION' => $criteriaSheet->getUidColumn()->getValue($criteriaIdx),
-            'VALUE'=> $this->getValue($pathRel, $result),
+            'VALUE'=> $this->getValue($pathRel, $result, $criteriaSheet, $criteriaIdx),
             'AI_TEST_RUN'=> $testRunUid
         ];
         
@@ -294,7 +294,7 @@ class RunTest extends AbstractActionDeferred
      *
      * @throws \Throwable If an unexpected error occurs (handled internally with logging)
      */
-    protected function getValue(string $prototypePathRel, AiResponseInterface $result) : string
+    protected function getValue(string $prototypePathRel, AiResponseInterface $result, DataSheetInterface $criteriaSheet, int $criteriaIdx = 0) : string
     {
         try{
             $pathAbs = $this->getWorkbench()->filemanager()->getPathToVendorFolder()
