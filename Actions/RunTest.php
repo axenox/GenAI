@@ -105,7 +105,7 @@ class RunTest extends AbstractActionDeferred
 
         $row = [
             // TODO use $testCaseId
-            'AI_TEST_CASE' => $this->getTestCaseUid(),
+            'AI_TEST_CASE' => $testCaseId,
             'STATUS' => 1,
             'TESTED_ON' => DateTimeDataType::now(),
             'AI_CONVERSATION' => $result->getConversationId()
@@ -168,20 +168,6 @@ class RunTest extends AbstractActionDeferred
         $resultSheet->addRow($row);
 
         return $this;
-    }
-
-    protected function setTestCaseUid(string $uid) : AbstractActionDeferred
-    {
-        $this->testCaseUid = $uid;
-        return $this;
-    }
-
-    protected function getTestCaseUid() : string
-    {
-        if($this->testCaseUid === null){
-            $this->testCaseUid = $this->getCaseSheet()->getCellValue('UID', 0); 
-        }
-        return $this->testCaseUid;
     }
 
     protected function setTestRunUid(string $uid) : AbstractActionDeferred
