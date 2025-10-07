@@ -15,14 +15,18 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * If not configured, it will use the entire response message as criterion. In most cases, you will want
  * to extract certain parts - e.g. `extract_code_block` or `extract_by_regex`.
  * 
+ * 
+ * To do implement Interface 
  */
-class TextResponseTestCriterion implements AiTestCriterionInterface
+class TextResponseTestCriterion
 {
     use ImportUxonObjectTrait;
     
     private WorkbenchInterface $workbench;
     private ?UxonObject $uxon = null;
     private ?string $regex = null;
+    private ?bool $withBlock = false;
+
     
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon)
     {
@@ -40,8 +44,9 @@ class TextResponseTestCriterion implements AiTestCriterionInterface
             }
             try {
                 $matches = [];
+                $message =  $response->getMessage();
                 preg_match($regex, $response->getMessage(), $matches);
-                $value = $matches[0];
+                $value = $matches[$this->withBlock ? 0 : 1];
             } catch (\Exception $e) {
                 // TODO expection wrapper
                 throw $e;
@@ -55,7 +60,7 @@ class TextResponseTestCriterion implements AiTestCriterionInterface
     /**
      * @return string
      */
-    protected function getExtractionRegex(): string
+    protected function getExtractionRegex(): string | null
     {
         return $this->regex;
     }
@@ -86,8 +91,22 @@ class TextResponseTestCriterion implements AiTestCriterionInterface
      */
     protected function setExtractCodeBlock(int $number) : TextResponseTestCriterion
     {
-        $this->setExtractByRegex('/```.*```/im');
+        $this->setExtractByRegex('/```([\s\S]*?)```/');
         return $this;
+    }
+
+    /**
+     * Extract der Block with Regexfunction
+     *
+     * @uxon-property with_block
+     * @uxon-type bool
+     * 
+     * @param bool $bool
+     * @return $this
+     */
+    protected function setWithBlock(bool $value) : TextResponseTestCriterion
+    {
+       
     }
 
     /**
