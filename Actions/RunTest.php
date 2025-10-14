@@ -105,7 +105,7 @@ class RunTest extends AbstractActionDeferred
 
         $row = [
             // TODO use $testCaseId
-            'AI_TEST_CASE' => $this->getTestCaseUid(),
+            'AI_TEST_CASE' => $testCaseId,
             'STATUS' => 1,
             'TESTED_ON' => DateTimeDataType::now(),
             'AI_CONVERSATION' => $result->getConversationId()
@@ -136,11 +136,13 @@ class RunTest extends AbstractActionDeferred
         $criteriaSheet = $this->getCriteriaSheet($testCaseUid);
 
         $criteriaResultSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getworkbench(), 'axenox.GenAI.AI_TEST_RESULT');
+        $rows = $criteriaSheet->getRows();
         foreach($criteriaSheet->getRows() as $rowNr => $row){
-            $this->createCriteriaResult($result, $criteriaResultSheet, $criteriaSheet, $rowNr);
+            $rowUID = $criteriaSheet->getUidColumn()->getValue($rowNr);
+            $this->createCriteriaResult($result, $criteriaResultSheet, $criteriaSheet, $testRunUid, $rowNr);
         }
         if ($criteriaResultSheet->isEmpty() === false) {
-            $criteriaResultSheet->getColumn('AI_TEST_RUN')->setValueOnAllRows($testRunUid);
+            //$criteriaResultSheet->getColumn('AI_TEST_RUN')->setValueOnAllRows($testRunUid);
             $criteriaResultSheet->dataCreate();
         }
 
@@ -151,38 +153,21 @@ class RunTest extends AbstractActionDeferred
      * Persists a single criterion result for the current run
      * Expects $testCriteria to be an array with at least key UID
      */
-    protected function createCriteriaResult(AiResponseInterface $result, DataSheetInterface $resultSheet, DataSheetInterface $criteriaSheet, int $criteriaIdx = 0) : DataSheetInterface
+    protected function createCriteriaResult(AiResponseInterface $result, DataSheetInterface $resultSheet, DataSheetInterface $criteriaSheet, string $testRunUid, int $criteriaIdx = 0) : AbstractActionDeferred
     {
 
         $pathRel = $criteriaSheet->getCellValue('PROTOTYPE', $criteriaIdx);
-        $pathAbs = $this->getWorkbench()->filemanager()->getPathToDataFolder()
-            . DIRECTORY_SEPARATOR . $pathRel;
-        $class = PhpFilePathDataType::findClassInFile($pathAbs);
-        $criterion = new $class($this->getWorkbench(), UxonObject::fromJson($criteriaSheet->getCellValue('CONFIG_UXON', $criteriaIdx)));
         
         $row = [
             'AI_TEST_CRITERION' => $criteriaSheet->getUidColumn()->getValue($criteriaIdx),
-            'VALUE'=> $criterion->getValue()
+            'VALUE'=> $this->getValue($pathRel, $result, $criteriaSheet, $criteriaIdx),
+            'AI_TEST_RUN'=> $testRunUid
         ];
         
         
         $resultSheet->addRow($row);
 
         return $this;
-    }
-
-    protected function setTestCaseUid(string $uid) : AbstractActionDeferred
-    {
-        $this->testCaseUid = $uid;
-        return $this;
-    }
-
-    protected function getTestCaseUid() : string
-    {
-        if($this->testCaseUid === null){
-            $this->testCaseUid = $this->getCaseSheet()->getCellValue('UID', 0); 
-        }
-        return $this->testCaseUid;
     }
 
     protected function setTestRunUid(string $uid) : AbstractActionDeferred
@@ -296,6 +281,33 @@ class RunTest extends AbstractActionDeferred
         $this->criteriaSheet = $criteriaSheet;
 
         return $this->criteriaSheet;
+    }
+
+        /**
+     * Loads a prototype class from a given relative path and uses it to extract a value from the AI response.
+     *
+     * @param string $prototypePathRel Relative path to the prototype file inside the vendor folder
+     * @param AiResponseInterface $result The AI response object to process
+     *
+     * @return string Extracted value from the AI response if prototype works,
+     *                otherwise returns the original AI response message
+     *
+     * @throws \Throwable If an unexpected error occurs (handled internally with logging)
+     */
+    protected function getValue(string $prototypePathRel, AiResponseInterface $result, DataSheetInterface $criteriaSheet, int $criteriaIdx = 0) : string
+    {
+        try{
+            $pathAbs = $this->getWorkbench()->filemanager()->getPathToVendorFolder()
+            . DIRECTORY_SEPARATOR . $prototypePathRel;
+            $class = PhpFilePathDataType::findClassInFile($pathAbs);
+            $criterion = new $class($this->getWorkbench(), UxonObject::fromJson($criteriaSheet->getCellValue('CONFIG_UXON', $criteriaIdx)));
+            $value = $criterion->getValue($result);
+            return $value;
+        }catch(\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+            return $result->getMessage();
+        }
+        
     }
     
   
