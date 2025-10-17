@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Widgets;
 
+use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Facades\AiChatFacade;
 use exface\Core\Factories\FacadeFactory;
 use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
@@ -19,6 +20,17 @@ class AIChat extends InputCustom implements iFillEntireContainer
     private $aiChatFacade = null;
 
     private $agentAlias = null;
+
+    private array $promptSuggestionsWidget = [];
+
+    private array $promptSuggestionsAgent = [];
+
+    private $buttons = [];
+
+    private ?UxonObject $resetButton = null;
+
+    private ?UxonObject $feedbackButton = null;
+
 
     protected function init()
     {
@@ -52,45 +64,115 @@ JS);
     protected function buildHtmlDeepChat() : string
     {
         if ($this->isBoundToAttribute()) {
-            // Use only double quotes here as single quotes produce JS parser errors in the interceptors
             $requestDataJs = <<<JS
-
                 requestDetails.body.data = {
                     oId: "{$this->getMetaObject()->getId()}", 
                     rows: [
                         { {$this->getAttributeAlias()}: $("#{$this->getId()}").data("exf-value") }
                     ]
                 }
-JS;
+    JS;
+
+     
         }
+
+        $suggestionsHtml = $this->getSuggestionsHTML();
+        $top = $this->getButtonsHTML('top');
+        $botton = $this->getButtonsHTML('botton');
+
+        
         return <<<HTML
 
-        <deep-chat 
-            id='{$this->getId()}'
-            class='exf-aichat'
-            connect='{
-                "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/deepchat",
-                "method": "POST",
-                "additionalBodyProps": {
-                    "object": "{$this->getMetaObject()->getAliasWithNamespace()}",
-                    "page": "{$this->getPage()->getAliasWithNamespace()}",
-                    "widget": "{$this->getId()}"
-                }
-            }'
-            responseInterceptor  = 'function (message) {
-                var domEl = document.getElementById("{$this->getId()}");
-                domEl.conversationId = message.conversation; 
-                return message; 
-            }'
+        <div class="deep-chat-wrapper">
+            <div
+            class='exf-aichat-top'
+            style="display:flex; flex-direction:row; gap:8px; align-items:center;">
+                {$top}
+            </div>
+            <deep-chat 
+                id='{$this->getId()}'
+                class='exf-aichat'
+                connect='{
+                    "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/deepchat",
+                    "method": "POST",
+                    "additionalBodyProps": {
+                        "object": "{$this->getMetaObject()->getAliasWithNamespace()}",
+                        "page": "{$this->getPage()->getAliasWithNamespace()}",
+                        "widget": "{$this->getId()}"
+                    }
+                }'
+                responseInterceptor  = 'function (message) {
+                    var domEl = document.getElementById("{$this->getId()}");
+                    domEl.conversationId = message.conversation; 
+                    return message; 
+                }'
+                requestInterceptor = 'function (requestDetails) {
+                    var domEl = document.getElementById("{$this->getId()}");
+                    requestDetails.body.conversation = domEl.conversationId;
+                    {$requestDataJs};
+                    return requestDetails;
+                }'
+            ></deep-chat>
 
-            requestInterceptor = 'function (requestDetails) {
-                var domEl = document.getElementById("{$this->getId()}");
-                requestDetails.body.conversation = domEl.conversationId;
-                {$requestDataJs};
-                return requestDetails;
-            }'
-        ></deep-chat>
-HTML;
+            <div
+            class='exf-aichat-top'
+            style="display:flex; flex-direction:row; gap:8px; align-items:center;">
+                {$botton}
+            </div>
+
+            
+        </div>
+
+        <script>
+
+            const chat = document.getElementById('{$this->getId()}');
+
+            let historyInitDone = false;
+
+            chat.addEventListener('render', () => {               // Deep Chat ist fertig
+                if (historyInitDone) return;
+                historyInitDone = true;
+
+                chat.history = [
+                {html: `$suggestionsHtml`, role: 'user'}
+                ];
+            });
+            function resetDeepChat(chatId) {
+                var domEl = document.getElementById(chatId);
+                if (domEl) {
+                    domEl.conversationId = null;
+                    domEl.clearMessages();
+                    chat.history = [
+                    {html: `$suggestionsHtml`, role: 'user'}
+                    ];
+                    
+                }
+            }
+        </script>
+    HTML;
+    }
+
+    protected function getSuggestionsHTML() : string 
+    {
+        $suggestions = $this->getPromptSuggestions();
+        if(count($suggestions) > 0){
+            $buttons = [];
+            foreach ($suggestions as $i => $s){
+                $buttons [] = ' <button class="deep-chat-button deep-chat-suggestion-button" style="margin-top:5px">'.$s.'</button>';
+            }
+            return '<div class=\"deep-chat-temporary-message\">' . implode("\n", $buttons) . '</div>';
+        }else{
+            return "";
+        } 
+    }
+
+    protected function getButtonsHTML(string $position) : string 
+    {
+        $buttons = [];
+        foreach($this->buttons as $btn){
+            $buttons [] = $btn($position);
+        }
+        return implode("\n", $buttons);
     }
 
     /**
@@ -117,6 +199,110 @@ HTML;
     {
         return $this->agentAlias;
     }
+
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property prompt_suggestions
+     * @uxon-type UxonObject
+     * @uxon-required true
+     * @uxon-template [""]
+     * 
+     * @param UxonObject $alias
+     * @return AIChat
+     */
+    protected function setPromptSuggestions(UxonObject $suggestions) : AIChat
+    {
+        $array = $suggestions->getPropertiesAll();
+        foreach ($array as $s) {
+            if (!is_string($s)) {
+                
+                continue;
+            }
+        }
+
+        $this->promptSuggestionsWidget = $array;
+        return $this;
+    }
+
+    protected function setPromptSuggestionsFromAgent(array $suggestions) : AIChat
+    {
+        foreach ($suggestions as $s) {
+            if (!is_string($s)) {
+                
+                continue;
+            }
+        }
+
+        $this->promptSuggestionsAgent = $suggestions;
+        return $this;
+    }
+
+    public function getPromptSuggestions() : array
+    {
+        $all = array_merge(
+        $this->promptSuggestionsWidget ?? [],
+        $this->promptSuggestionsAgent ?? []
+        );
+
+        return $all;
+
+    }
+
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property reset_button
+     * @uxon-type UxonObject
+     * @uxon-required true
+     * @uxon-template {"enabled": true,"position": "top"}
+     * 
+     * @param UxonObject $alias
+     * @return AIChat
+     */
+    protected function setResetButton(UxonObject $var) : AIChat
+    {
+        $this->resetButton = $var;
+        $this->buttons[] = [$this,'getResetButtonHTML'];
+        return $this;
+    }
+
+    protected function getResetButtonHTML(string $position) : string
+    {
+        $properties = $this->resetButton->getPropertiesAll();
+
+        $propPosition = strtolower($properties['position'] ?? '');
+        $enabled = $properties['enabled'] ?? true;
+        $order = ($properties['order'] ?? '1');
+
+        if ($propPosition === strtolower($position) && $enabled) {
+            return <<<HTML
+                    <button style="order : {$order}" type="button" onclick="resetDeepChat('{$this->getId()}')">Reset</button>
+                    HTML;
+                        }
+
+        return '';
+    }
+
+
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property feedback_window
+     * @uxon-type UxonObject
+     * @uxon-required true
+     * @uxon-template {"enabled": true,"position": "top"}
+     * 
+     * @param UxonObject $alias
+     * @return AIChat
+     */
+    protected function setFeedbackWindow(UxonObject $var) : AIChat
+    {
+        $this->feedbackButton = $var;
+        
+        return $this;
+    }
+
 
     /**
      * 
@@ -152,6 +338,7 @@ HTML;
      */
     public function getHtml() : ?string
     {
+        $test = $this->buildHtmlDeepChat();
         return $this->buildHtmlDeepChat();
     }
 }
