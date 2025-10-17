@@ -107,6 +107,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $maxNumberOfCalls = 3;
 
+    private $promptSuggestions = [];
+
     /**
      * 
      * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
@@ -837,5 +839,36 @@ class GenericAssistant implements AiAgentInterface
     protected function addTool(AiToolInterface $tool)
     {
         $this->tools[] = $tool;
+    }
+
+
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property prompt_suggestions
+     * @uxon-type UxonObject
+     * @uxon-required true
+     * @uxon-template [""]
+     * 
+     * @param UxonObject $alias
+     * @return AIChat
+     */
+    protected function setPromptSuggestions(UxonObject $suggestions) : GenericAssistant
+    {
+        $array = $suggestions->getPropertiesAll();
+        foreach ($array as $s) {
+            if (!is_string($s)) {
+                
+                return $this;
+            }
+        }
+
+        $this->promptSuggestions = $array;
+        return $this;
+    }
+
+    public function getPromptSuggestions(): array
+    {
+        return $this->promptSuggestions;
     }
 }
