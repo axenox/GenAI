@@ -33,6 +33,8 @@ class AIChat extends InputCustom implements iFillEntireContainer
 
     private ?UxonObject $feedbackButton = null;
 
+    private string $introMessage = '';
+
 
     protected function init()
     {
@@ -81,7 +83,11 @@ JS);
         $suggestionsHtml = $this->getSuggestionsHTML();
         $top = $this->getButtonsHTML('top');
         $botton = $this->getButtonsHTML('botton');
+        $introMessage = $this->getIntroMessage();
 
+
+        //Mögliches To Do https://deepchat.dev/docs/messages/styles && https://deepchat.dev/examples/design 
+        //Möglichkeit geben den Style der bubble anzupassen?
         
         return <<<HTML
 
@@ -114,6 +120,8 @@ JS);
                     {$requestDataJs};
                     return requestDetails;
                 }'
+
+                introMessage='{$introMessage}'
             ></deep-chat>
 
             <div
@@ -298,6 +306,29 @@ JS);
         $this->feedbackButton = $var;
         
         return $this;
+    }
+
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property intro_message
+     * @uxon-type string
+     * @uxon-required true
+     * 
+     * 
+     * @param string $alias
+     * @return AIChat
+     */
+    protected function setIntroMessage(string $var) : AIChat
+    {
+        $this->introMessage = $var;
+        
+        return $this;
+    }
+
+    protected function getIntroMessage() : string
+    {
+        return '{"text": "' . $this->introMessage . '"}';
     }
 
 
