@@ -7,6 +7,8 @@ use exface\Core\Factories\FacadeFactory;
 use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
 use exface\Core\Widgets\InputCustom;
 use exface\Core\Interfaces\Widgets\iFillEntireContainer;
+use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Interfaces\AiAgentInterface;
 
 /**
  * Chat with AI assistants
@@ -23,7 +25,7 @@ class AIChat extends InputCustom implements iFillEntireContainer
 
     private array $promptSuggestionsWidget = [];
 
-    private array $promptSuggestionsAgent = [];
+    private ?AiAgentInterface $agent = null;
 
     private $buttons = [];
 
@@ -225,24 +227,19 @@ JS);
         return $this;
     }
 
-    protected function setPromptSuggestionsFromAgent(array $suggestions) : AIChat
+    protected function getPromptSuggestionAgent() : array 
     {
-        foreach ($suggestions as $s) {
-            if (!is_string($s)) {
-                
-                continue;
-            }
+        if(!$this->agent){
+            $this->agent = AiFactory::createAgentFromString($this->getWorkbench(), $this->getAgentAlias());
         }
-
-        $this->promptSuggestionsAgent = $suggestions;
-        return $this;
+        return $this->agent->getPromptSuggestions();
     }
 
     public function getPromptSuggestions() : array
     {
         $all = array_merge(
         $this->promptSuggestionsWidget ?? [],
-        $this->promptSuggestionsAgent ?? []
+        $this->getPromptSuggestionAgent() ?? []
         );
 
         return $all;
