@@ -12,4 +12,6 @@ interface AiAgentInterface extends iCanBeConvertedToUxon
     public function handle(AiPromptInterface $prompt) : AiResponseInterface;
 
     public function setDevmode(bool $trueOrFalse): AiAgentInterface;
+
+    public function getPromptSuggestions(): array;
 }
