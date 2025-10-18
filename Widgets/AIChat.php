@@ -158,6 +158,60 @@ JS);
                     
                 }
             }
+
+            const input = document.getElementById("ratingInput");
+            const stars = document.querySelectorAll("#stars span");
+
+            function setRating(rating) {
+                input.value = rating;
+                stars.forEach((star, i) => {
+                    star.textContent = i < rating ? "★" : "☆";
+                    star.style.color = i < rating ? "gold" : "#bbb";
+                });
+                console.log('Send Rating')
+            }
+
+            stars.forEach((star, i) => {
+            star.addEventListener("click", () => setRating(i + 1));
+            });
+
+
+            /*
+
+            Idea for how to send the Feedback
+            
+            
+            function sendRating(chatId) {
+                const el = document.getElementById(chatId);
+                const rating = Number(document.getElementById("ratingInput").value || 0);
+
+                const connect = {
+                    url: "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/rateChat",
+                    method: "POST",
+                    additionalBodyProps: {
+                        object: "{$this->getMetaObject()->getAliasWithNamespace()}",
+                        page: "{$this->getPage()->getAliasWithNamespace()}",
+                        widget: chatId,
+                        conversation: el?.conversationId ?? null,
+                        rating
+                    }
+                };
+
+                fetch(connect.url, {
+                    method: connect.method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(connect.additionalBodyProps)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    console.log("Antwort von rateChat:", data);
+                })
+                .catch(err => console.error("Fehler:", err));
+            }
+            
+            
+            */
+            
         </script>
     HTML;
     }
@@ -254,6 +308,20 @@ JS);
 
     }
 
+
+    /*
+    * Checks two standard properties of the given object ("position" and "enabled")
+    * and returns true only if the object's position matches the given position
+    * and it is marked as enabled (allowed to be used).
+    */
+    protected function canUseButton(UxonObject $var, string $position) : bool
+    {
+        $properties = $var->getPropertiesAll();
+        $propPosition = strtolower($properties['position'] ?? '');
+        $enabled = $properties['enabled'] ?? true;
+        return $propPosition === strtolower($position) && $enabled;
+    }
+
     /**
      * defines examples of suggestions for the Prompt
      * 
@@ -276,11 +344,9 @@ JS);
     {
         $properties = $this->resetButton->getPropertiesAll();
 
-        $propPosition = strtolower($properties['position'] ?? '');
-        $enabled = $properties['enabled'] ?? true;
         $order = ($properties['order'] ?? '1');
 
-        if ($propPosition === strtolower($position) && $enabled) {
+        if ($this->canUseButton($this->resetButton, $position)) {
             return <<<HTML
                     <button style="order : {$order}" type="button" onclick="resetDeepChat('{$this->getId()}')">Reset</button>
                     HTML;
@@ -304,8 +370,36 @@ JS);
     protected function setFeedbackWindow(UxonObject $var) : AIChat
     {
         $this->feedbackButton = $var;
-        
+        $this->buttons[] = [$this,'getFeedbackWindow'];
+
         return $this;
+    }
+
+    protected function getFeedbackWindow(string $position) : string
+    {
+
+        $properties = $this->feedbackButton->getPropertiesAll();
+        $order = ($properties['order'] ?? '2');
+
+
+        if($this->canUseButton($this->feedbackButton, $position)){
+            return <<<HTML
+                    <div style="order:{$order}; display:flex; align-items:center; gap:12px;">
+                        <input id="feedbackInput" type="text" placeholder="Dein Feedback..."
+                            style="flex:1; padding:8px; font-size:16px; border:1px solid #ccc; border-radius:6px;" />
+
+                        <div id="stars" style="font-size:30px; cursor:pointer; white-space:nowrap;">
+                            <span id="s1" style="color:#bbb;">☆</span>
+                            <span id="s2" style="color:#bbb;">☆</span>
+                            <span id="s3" style="color:#bbb;">☆</span>
+                            <span id="s4" style="color:#bbb;">☆</span>
+                            <span id="s5" style="color:#bbb;">☆</span>
+                        </div>
+                    </div>
+
+                    HTML;
+        }
+        return '';
     }
 
     /**
