@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Actions;
 
 use axenox\GenAI\Common\AiPrompt;
+use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
@@ -27,6 +28,8 @@ class RunTest extends AbstractActionDeferred
 {
     /** @var string Message shown when the test run finishes */
     private $finishMessage = 'Testcase erfolgreich ausgeführt';
+
+    private $userFeedback = [];
 
     private ?string $testCaseUid = null;
 
@@ -84,7 +87,14 @@ class RunTest extends AbstractActionDeferred
         // TODO pass caseSheet to getAgent() and getPrompt()
         $agent = $this->getAgent($caseSheet);
         $prompt = $this->getPrompt($caseSheet);
-        $result = $agent->handle($prompt);
+        try{
+            $result = $agent->handle($prompt);
+        }catch(\Throwable $e){
+            $errorMessage = $e->getMessage();
+            $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
+            $result = new AiResponse($prompt, '', $e->getConversationId());
+            $this->userFeedback = ['USER_RATING' => 1, 'USER_FEEDBACK' => $errorMessage];
+        }
         $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
         //$result = $this->getAgent()->handle($this->getPrompt());
         $this->saveTestRun($result, $testCaseId);
@@ -164,7 +174,10 @@ class RunTest extends AbstractActionDeferred
             'AI_TEST_RUN'=> $testRunUid
         ];
         
-        
+        if (!empty($this->userFeedback)) {
+            $row = array_merge($row, $this->userFeedback);
+        }
+
         $resultSheet->addRow($row);
 
         return $this;
