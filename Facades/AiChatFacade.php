@@ -53,38 +53,42 @@ class AiChatFacade extends AbstractHttpFacade
         // exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent, completions
         list($agentSelector, $pathInFacade) = explode('/', $pathInFacade, 2);
         $pathInFacade = mb_strtolower($pathInFacade);
-                        
+        try{                
         // Do the routing here
-        switch (true) {     
-            case $pathInFacade === 'completions':
-                $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
-                $agent = $this->findAgent($agentSelector);
-                $response = $agent->handle($prompt);
+            switch (true) {     
+                case $pathInFacade === 'completions':
+                    $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
+                    $agent = $this->findAgent($agentSelector);
+                    $response = $agent->handle($prompt);
 
-                $responseCode = 200;
-                $headers['content-type'] = 'application/json';
-                $body = json_encode($response->toArray(), JSON_UNESCAPED_UNICODE);
-                break;
-            // Deepchat format - see https://deepchat.dev/docs/connect#Response
-            case $pathInFacade === 'deepchat':
-                $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
-                $agent = $this->findAgent($agentSelector);
-                $response = $agent->handle($prompt);
+                    $responseCode = 200;
+                    $headers['content-type'] = 'application/json';
+                    $body = json_encode($response->toArray(), JSON_UNESCAPED_UNICODE);
+                    break;
+                // Deepchat format - see https://deepchat.dev/docs/connect#Response
+                case $pathInFacade === 'deepchat':
+                    
+                    $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
+                    $agent = $this->findAgent($agentSelector);
+                    $response = $agent->handle($prompt);
 
-                $responseCode = 200;
-                $headers['content-type'] = 'application/json';
-                $body = json_encode([
-                        'text' => $response->getMessage(),
-                        'conversation'=> $response->getConversationId()
-                    ]
-                    , JSON_UNESCAPED_UNICODE
-                );
-                break;
-            default:
-                throw new FacadeRoutingError('Route "' . $pathInFacade . '" not found!');
+                    $responseCode = 200;
+                    $headers['content-type'] = 'application/json';
+                    $body = json_encode([
+                            'text' => $response->getMessage(),
+                            'conversation'=> $response->getConversationId()
+                        ]
+                        , JSON_UNESCAPED_UNICODE
+                    );
+                    break;
+                default:
+                    throw new FacadeRoutingError('Route "' . $pathInFacade . '" not found!');
+            }
+            return new Response(($responseCode ?? 404), $headers, Utils::streamFor($body ?? ''));
         }
-        
-        return new Response(($responseCode ?? 404), $headers, Utils::streamFor($body ?? ''));
+        catch(\Throwable $e){
+            return $this->createResponseFromError($e, $request);
+        } 
     }
 
     /**
@@ -100,7 +104,7 @@ class AiChatFacade extends AbstractHttpFacade
                 'error' => $exception->getMessage()
             ];
             $body = json_encode($json, JSON_UNESCAPED_UNICODE);
-            return $response->withBody(Utils::streamFor($body));
+            return $response->withBody(Utils::streamFor($body))->withHeader('content-type','application/json');
         }
         return parent::createResponseFromError($exception, $request);
     }
