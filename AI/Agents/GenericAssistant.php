@@ -34,6 +34,7 @@ use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
+use exface\Core\Templates\Placeholders\ArrayPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 
 /**
@@ -228,7 +229,7 @@ class GenericAssistant implements AiAgentInterface
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'TITLE' => $this->getTitle($query),
                     'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
-                    'DEVMODE' => $this->getDevmode(),
+                    'DEVMODE' => $this->getDevmode() ? 1 : 0,
                     'MODEL' => $modelName,
                     'CONNECTION' => $connectionId
                 ];
@@ -456,11 +457,10 @@ class GenericAssistant implements AiAgentInterface
             $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
             if (null !== $app = $this->getApp($prompt)) {
                 $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
-            }
+            }     
             if ($prompt->hasInputData()) {
                 $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
-            }
-            
+            }            
             foreach ($this->getConcepts($prompt, $renderer) as $concept) {
                 $renderer->addPlaceholder($concept);
                 if(is_a($concept, \axenox\GenAI\Interfaces\AiConceptInterface::class)){
@@ -710,9 +710,9 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @return int
+     * @return bool
      */
-    public function getDevmode() : int
+    public function getDevmode() : bool
     {
         if($this->devMode === null){
             $this->setDevmode(BooleanDataType::cast($this->getVersionRow()['ENABLED_FLAG']));
