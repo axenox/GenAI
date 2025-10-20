@@ -82,8 +82,8 @@ class RunTest extends AbstractActionDeferred
     protected function runTestCase(DataSheetInterface $caseSheet = null, int $rowIdx = 0) : AbstractActionDeferred
     {
         // TODO pass caseSheet to getAgent() and getPrompt()
-        $agent = $this->getAgent();
-        $prompt = $this->getPrompt();
+        $agent = $this->getAgent($caseSheet);
+        $prompt = $this->getPrompt($caseSheet);
         $result = $agent->handle($prompt);
         $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
         //$result = $this->getAgent()->handle($this->getPrompt());
@@ -215,11 +215,11 @@ class RunTest extends AbstractActionDeferred
      * Resolves and caches the AI agent from the case sheet
      * Also enables developer mode on the agent
      */
-    protected function getAgent() : AiAgentInterface
+    protected function getAgent(DataSheetInterface $caseSheet) : AiAgentInterface
     {
         if($this->agent === null){
             // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
-            $agentAlias = $this->getcaseSheet()->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
+            $agentAlias = $caseSheet->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
             $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
             $agent->setDevmode(true);
             $this->agent = $agent;
@@ -232,11 +232,10 @@ class RunTest extends AbstractActionDeferred
      * Builds and caches the AiPrompt from case sheet values
      * Parses CONTEXT as JSON and injects a page_alias
      */
-    protected function getPrompt() : AiPrompt
+    protected function getPrompt(DataSheetInterface $caseSheet) : AiPrompt
     {
         if($this->prompt === null)
         {
-            $caseSheet = $this->getCaseSheet();
             $prompt = new AiPrompt($this->getWorkbench());
             $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
 
