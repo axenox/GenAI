@@ -151,10 +151,11 @@ JS);
                 var domEl = document.getElementById(chatId);
                 if (domEl) {
                     domEl.conversationId = null;
-                    domEl.clearMessages();
-                    chat.history = [
+                    domEl.messages = [];
+                    domEl.history = [
                     {html: `$suggestionsHtml`, role: 'user'}
                     ];
+                    domEl.setAttribute('introMessage', '$introMessage' )
                     
                 }
             }
