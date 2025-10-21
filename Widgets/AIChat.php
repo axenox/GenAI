@@ -9,6 +9,7 @@ use exface\Core\Widgets\InputCustom;
 use exface\Core\Interfaces\Widgets\iFillEntireContainer;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Widgets\parts\MessageRoles;
 
 /**
  * Chat with AI assistants
@@ -34,6 +35,8 @@ class AIChat extends InputCustom implements iFillEntireContainer
     private ?UxonObject $feedbackButton = null;
 
     private string $introMessage = '';
+
+    private ?UxonObject $messageStyles = null;
 
 
     protected function init()
@@ -426,6 +429,24 @@ JS);
         return '{"text": "' . $this->introMessage . '"}';
     }
 
+    /**
+     * defines examples of suggestions for the Prompt
+     * 
+     * @uxon-property message_styles
+     * @uxon-type UxonObject
+     * @uxon-required true
+     * @uxon-template {}
+     * 
+     * @param UxonObject $uxon
+     * @return AIChat
+     */
+    protected function setMessageStyles(UxonObject $var) : AIChat
+    {
+        //$test = new MessageRoles($this, $var);
+        $this->messageStyles = $var;
+        return $this;
+    }
+    
 
     /**
      * 
