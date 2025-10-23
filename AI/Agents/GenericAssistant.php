@@ -171,7 +171,8 @@ class GenericAssistant implements AiAgentInterface
                     $tool = null;
                 }
                 if ($tool === null){
-                    throw new AiToolNotFoundError("Requested tool not found");
+                    throw (new AiToolNotFoundError("Requested tool not found"))
+                            ->setConversationId($conversationId);
                 }
 
                 $resultOfTool = $this->maxNumberOfCalls > $numberOfCalls ? $tool->invoke(array_values($call->getArguments())): "Maximum number of calls have been reached.";
