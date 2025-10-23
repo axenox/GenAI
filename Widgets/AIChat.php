@@ -111,7 +111,12 @@ JS);
                 }'
                 responseInterceptor  = 'function (message) {
                     var domEl = document.getElementById("{$this->getId()}");
-                    domEl.conversationId = message.conversation; 
+
+                    if (message.errorMessage && !message.error) {
+                        message.error = message.errorMessage;
+                    }else{
+                        domEl.conversationId = message.conversation;
+                    }    
                     return message; 
                 }'
                 requestInterceptor = 'function (requestDetails) {
@@ -119,6 +124,15 @@ JS);
                     requestDetails.body.conversation = domEl.conversationId;
                     {$requestDataJs};
                     return requestDetails;
+                }'
+
+                errorMessages='{
+                    "displayServiceErrorMessages": true,
+                    "overrides": {
+                    "default": "Fehler bitte erneut versuchen",
+                    "service": "Dienstfehler",
+                    "speechToText": "Spracherkennung fehlgeschlagen"
+                    }
                 }'
 
                 introMessage='{$introMessage}'
@@ -268,7 +282,7 @@ JS);
      * defines examples of suggestions for the Prompt
      * 
      * @uxon-property prompt_suggestions
-     * @uxon-type UxonObject
+     * @uxon-type array
      * @uxon-required true
      * @uxon-template [""]
      * 
