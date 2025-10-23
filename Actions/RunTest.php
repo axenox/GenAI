@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Actions;
 
 use axenox\GenAI\Common\AiPrompt;
+use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
@@ -27,6 +28,8 @@ class RunTest extends AbstractActionDeferred
 {
     /** @var string Message shown when the test run finishes */
     private $finishMessage = 'Testcase erfolgreich ausgeführt';
+
+    private $userFeedback = [];
 
     private ?string $testCaseUid = null;
 
@@ -82,9 +85,16 @@ class RunTest extends AbstractActionDeferred
     protected function runTestCase(DataSheetInterface $caseSheet = null, int $rowIdx = 0) : AbstractActionDeferred
     {
         // TODO pass caseSheet to getAgent() and getPrompt()
-        $agent = $this->getAgent();
-        $prompt = $this->getPrompt();
-        $result = $agent->handle($prompt);
+        $agent = $this->getAgent($caseSheet);
+        $prompt = $this->getPrompt($caseSheet);
+        try{
+            $result = $agent->handle($prompt);
+        }catch(\Throwable $e){
+            $errorMessage = $e->getMessage();
+            $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
+            $result = new AiResponse($prompt, '', $e->getConversationId());
+            $this->userFeedback = ['USER_RATING' => 1, 'USER_FEEDBACK' => $errorMessage];
+        }
         $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
         //$result = $this->getAgent()->handle($this->getPrompt());
         $this->saveTestRun($result, $testCaseId);
@@ -164,7 +174,10 @@ class RunTest extends AbstractActionDeferred
             'AI_TEST_RUN'=> $testRunUid
         ];
         
-        
+        if (!empty($this->userFeedback)) {
+            $row = array_merge($row, $this->userFeedback);
+        }
+
         $resultSheet->addRow($row);
 
         return $this;
@@ -215,11 +228,11 @@ class RunTest extends AbstractActionDeferred
      * Resolves and caches the AI agent from the case sheet
      * Also enables developer mode on the agent
      */
-    protected function getAgent() : AiAgentInterface
+    protected function getAgent(DataSheetInterface $caseSheet) : AiAgentInterface
     {
         if($this->agent === null){
             // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
-            $agentAlias = $this->getcaseSheet()->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
+            $agentAlias = $caseSheet->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
             $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
             $agent->setDevmode(true);
             $this->agent = $agent;
@@ -232,11 +245,10 @@ class RunTest extends AbstractActionDeferred
      * Builds and caches the AiPrompt from case sheet values
      * Parses CONTEXT as JSON and injects a page_alias
      */
-    protected function getPrompt() : AiPrompt
+    protected function getPrompt(DataSheetInterface $caseSheet) : AiPrompt
     {
         if($this->prompt === null)
         {
-            $caseSheet = $this->getCaseSheet();
             $prompt = new AiPrompt($this->getWorkbench());
             $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
 
