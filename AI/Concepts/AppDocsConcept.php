@@ -91,7 +91,7 @@ class AppDocsConcept extends AbstractConcept
         // Tutorials/... -> exface/Core/Docs/Tutorials...
         $tableOfContents = $linkRebaser->getTableOfContents($indexContent , $pathToIndex, $baseUrl, $this->depth);
 
-        $result = $indexContent . PHP_EOL . $tableOfContents;
+        $result = str_replace('\\', '\/', $tableOfContents);;
         return $result;
     }
 
