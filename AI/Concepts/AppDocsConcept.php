@@ -89,7 +89,7 @@ class AppDocsConcept extends AbstractConcept
         $baseUrl = $app->getDirectory();
         $linkRebaser = new LinkRebaser();
         // Tutorials/... -> exface/Core/Docs/Tutorials...
-        $tableOfContents = $linkRebaser->getTableOfContents($indexContent , $pathToIndex, $baseUrl, $this->depth);
+        $tableOfContents = $linkRebaser->rebaseRelativeLinks($indexContent , $pathToIndex, $baseUrl, $this->depth);
 
         $result = str_replace('\\', '\/', $tableOfContents);;
         return $result;
