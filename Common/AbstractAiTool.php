@@ -25,6 +25,10 @@ abstract class AbstractAiTool implements AiToolInterface
 
     private $description = null;
 
+    private $securitychecks = [];
+
+    private $securityFailureMessage = 'This is not allowed';
+
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
         $this->workbench = $workbench;
@@ -116,6 +120,93 @@ abstract class AbstractAiTool implements AiToolInterface
     {
         $this->description = $description;
         return $this;
+    }
+
+
+    /**
+     * If the KI is only allowed to query certain things, you can set up comparisons here. 
+     * 
+     * @uxon-property checks
+     * @uxon-type array
+     * @uxon-required true
+     * 
+     * @param array $checks
+     * @return AiToolInterface
+     */
+    protected function setSecurityCheck(array $checks): AiToolInterface
+    {
+        foreach ($checks as $check) {
+
+            $allowedKeys = ['startsWith', 'endsWith', 'contains', 'equals'];
+            $filtered = [];
+
+            foreach ($allowedKeys as $key) {
+                if (isset($check[$key])) {
+                    $filtered[$key] = $check[$key];
+                }
+            }
+
+            if (!empty($filtered)) {
+                $this->securitychecks[] = $filtered;
+            }
+        }
+
+        return $this;
+    }
+
+    protected function checkSecurity(string $value): bool
+    {
+        if (count($this->securitychecks) <= 0) {
+            return true;
+        }
+        foreach ($this->securitychecks as $check) {
+            foreach ($check as $type => $expected) {
+                switch ($type) {
+                    case 'startsWith':
+                        if (str_starts_with($value, $expected)) {
+                            return true;
+                        }
+                        break;
+                    case 'endsWith':
+                        if (str_ends_with($value, $expected)) {
+                            return true;
+                        }
+                        break;
+                    case 'contains':
+                        if (str_contains($value, $expected)) {
+                            return true;
+                        }
+                        break;
+                    case 'equals':
+                        if ($value === $expected) {
+                            return true;
+                        }
+                        break;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The response when the securityCheck goes wrong
+     * 
+     * @uxon-property message
+     * @uxon-type string
+     * @uxon-required true
+     * 
+     * @param string $message
+     * @return AiToolInterface
+     */
+    protected function setSecurityFailureMessage(string $message) : AiToolInterface
+    {
+        $this->securityFailureMessage = $message;
+        return $this;
+    }
+
+    public function getSecurityFailurMessage() : string
+    {
+        return $this->securityFailureMessage;
     }
 
     /**
