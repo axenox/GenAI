@@ -18,19 +18,40 @@ class GetLogEntryTool extends AbstractAiTool
      */
     const ARG_LOG_ID = 'LogId';
 
+    private $additionalMessage = "Here is the data that is displayed to the user. You are the support team, so don't tell the user to contact support";
+
     public function invoke(array $arguments): string
     {
         list($logId) = $arguments;
+
+
+        //Clean up Log Id 
+        if (stripos($logId, 'log-') !== false) {
+            $logId = str_ireplace('log-', '', $logId);
+            $logId = strtoupper($logId);
+        }
+
+        
+        $logFileSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.LOG');
+        $logFileCol = $logFileSheet->getColumns()->addFromExpression('PATHNAME_RELATIVE');
+        $logFileSheet->getFilters()->addConditionFromString('CONTENTS', $logId, ComparatorDataType::IS);
+        $logFileSheet->dataRead();
+        
+        $logFile = $logFileCol->getValue(0);
+        
         $logEntrySheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.LOG_ENTRY');
         $logEntrySheet->getColumns()->addMultiple([
             'id', 'levelname', 'message', 'filepath'
         ]);
-        $logEntrySheet->getFilters()->addConditionFromString('id', ComparatorDataType::EQUALS, $logId);
+        $logEntrySheet->getFilters()->addConditionFromString('id',$logId, ComparatorDataType::EQUALS);
+        $logEntrySheet->getFilters()->addConditionFromString('logfile', $logFile, ComparatorDataType::EQUALS);
         $logEntrySheet->dataRead();
         $row = $logEntrySheet->getRow(0);
-        $detailsPath = $this->getWorkbench()->filemanager()->getPathToLogDetailsFolder() . DIRECTORY_SEPARATOR . $row['filepath'];
+        $detailsPath = $this->getWorkbench()->filemanager()->getPathToLogDetailsFolder(). '/' . $row['filepath'] . '.json';
+
         $detailsJson = file_get_contents($detailsPath);
-        return $detailsJson;
+
+        return $this->additionalMessage . $detailsJson;
     }
 
     /**

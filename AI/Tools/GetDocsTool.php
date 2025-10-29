@@ -58,7 +58,15 @@ class GetDocsTool extends AbstractAiTool
 
     public function invoke(array $arguments): string
     {
+        $this->setSecurityCheck([
+            ['startsWith' => 'api/docs']
+        ])
+        ->setSecurityFailureMessage('This Link is currently not avaible.');
+        
         list($url) = $arguments;
+        if(!$this->checkSecurity($url)){
+            return $this->getSecurityFailurMessage();
+        }
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
