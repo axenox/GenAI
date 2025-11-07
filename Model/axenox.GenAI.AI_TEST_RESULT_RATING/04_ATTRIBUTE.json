@@ -177,11 +177,11 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Test result [AT_TEST_RESULT]",
+            "_EXPORT_SUMMARY": "Test result [AI_TEST_RESULT]",
             "CREATED_ON": "2025-09-17 11:30:57",
-            "MODIFIED_ON": "2025-09-24 23:53:47",
+            "MODIFIED_ON": "2025-11-03 14:06:06",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f08cc4042d75848cc4025041000001",
             "SORTABLEFLAG": 1,
             "FILTERABLEFLAG": 1,
@@ -200,7 +200,7 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
-            "ALIAS": "AT_TEST_RESULT",
+            "ALIAS": "AI_TEST_RESULT",
             "DATATYPE": "0x11e8091315d97da6b5b5e4b318306b9a",
             "DATA_ADDRESS": "ai_test_result_oid",
             "OBJECT": "0x11f0b0a4040d8feeb0a4025041000001",
