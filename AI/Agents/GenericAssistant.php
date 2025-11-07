@@ -108,6 +108,9 @@ class GenericAssistant implements AiAgentInterface
 
     private $maxNumberOfCalls = 3;
 
+    /** @var AiToolCallResponse[] */
+    private array $toolCalls = [];
+
     private $promptSuggestions = [];
 
     /**
@@ -186,6 +189,8 @@ class GenericAssistant implements AiAgentInterface
                     $call->getArguments(),
                     $resultOfTool
                 );
+
+                $this->toolCalls[] = $toolCallResponses[$callId];
                 
                 $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;  
@@ -194,7 +199,7 @@ class GenericAssistant implements AiAgentInterface
             // $toolCallResponses = null;
             $performedQuery = $this->getConnection()->query($query);
             $numberOfCalls++;
-            $query->clearPreviousToolCalls();
+            //$query->clearPreviousToolCalls();
         }
         $this->saveConversationResponse($prompt, $performedQuery);
 
@@ -544,7 +549,9 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        return new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        $response->setToolCalls($this->toolCalls);
+        return $response;
     }
 
     /**

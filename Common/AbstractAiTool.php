@@ -15,7 +15,7 @@ abstract class AbstractAiTool implements AiToolInterface
 {
     use ImportUxonObjectTrait;
 
-    private $workbench = null;
+    protected $workbench = null;
 
     private $uxon = null;
 
