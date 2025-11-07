@@ -1,14 +1,11 @@
 <?php
 namespace axenox\genAI\common;
 
-use axenox\GenAI\AI\Metrics\TextMatchTestMetric;
-use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
-use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
-use exface\Core\DataTypes\RegularExpressionDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -16,10 +13,9 @@ use exface\Core\Interfaces\WorkbenchInterface;
  */
 abstract class AbstractTestMetric implements AiTestMetricInterface
 {
-    use ImportUxonObjectTrait;
+    use ICanBeConvertedToUxonTrait;
     
     protected WorkbenchInterface $workbench;
-    private ?UxonObject $uxon = null;
     
     private ?string $type;
     private ?string $name;
@@ -38,11 +34,12 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
 
 
 
-    public function __construct(WorkbenchInterface $workbench, UxonObject $uxon)
+    public function __construct(WorkbenchInterface $workbench, ?UxonObject $uxon = null)
     {
         $this->workbench = $workbench;
-        $this->uxon = $uxon;
-        $this->importUxonObject($uxon);
+        if ($uxon !== null) {
+            $this->importUxonObject($uxon);
+        }
     }
 
     protected function checkIfNewRequest(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AbstractTestMetric
@@ -67,15 +64,13 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
 
     /**
      * @uxon-property type
-     * @uxon-type string
+     * @uxon-type metamodel:axenox.GenAI.AI_TEST_METRIC_PROTOTYPE:ALIAS_WITH_NS
      * 
      */
     protected function setType(string $type) : AiTestMetricInterface
     {
-        
         $this->type = $type;
         return $this;
-
     }
 
     public function getType(): string
@@ -119,15 +114,6 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
     {
         // TODO: Implement setWeight() method.
         return $this;
-    }
-    
-    
-    /**
-     * @inheritDoc
-     */
-    public function exportUxonObject()
-    {
-        return $this->uxon;
     }
 
     /**

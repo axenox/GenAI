@@ -5,6 +5,7 @@ use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
+use axenox\GenAI\Interfaces\AiTestMetRatingInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -49,19 +50,27 @@ abstract class AbstractTestCriterion implements AiTestCriterionInterface
         }
         return $this;
     }
-    
+
+    /**
+     * @return AiTestMetricInterface[]
+     */
     public function getMetrics() : array
     {
         return $this->metrics;
     }
-    
-    public function executeMetrics(string $aiTestResultOid, AiResponseInterface $result) : AiTestCriterionInterface
+
+    /**
+     * {@inheritDoc}
+     * @see AiTestCriterionInterface::evaluateMetrics()
+     */
+    public function evaluateMetrics(AiResponseInterface $response) : array
     {
-        foreach ($this->metrics as $metricData) {
-            $metricData->createAiTestMetric($aiTestResultOid,$result, $this);
+        $ratings = [];
+        foreach ($this->getMetrics() as $metric) {
+            $ratings = $metric->evaluate($response, $this);
         }
 
-        return $this;
+        return $ratings;
     }
     
     
