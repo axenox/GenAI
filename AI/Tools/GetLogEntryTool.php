@@ -41,7 +41,7 @@ class GetLogEntryTool extends AbstractAiTool
         
         $logEntrySheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.LOG_ENTRY');
         $logEntrySheet->getColumns()->addMultiple([
-            'id', 'levelname', 'message', 'filepath'
+            'id', 'levelname', 'message', 'filepath', 'context' , 'channel'
         ]);
         $logEntrySheet->getFilters()->addConditionFromString('id',$logId, ComparatorDataType::EQUALS);
         $logEntrySheet->getFilters()->addConditionFromString('logfile', $logFile, ComparatorDataType::EQUALS);
@@ -51,7 +51,7 @@ class GetLogEntryTool extends AbstractAiTool
 
         $detailsJson = file_get_contents($detailsPath);
 
-        return $this->additionalMessage . $detailsJson;
+        return $this->getLogContent($detailsPath);
     }
 
     /**
@@ -66,5 +66,51 @@ class GetLogEntryTool extends AbstractAiTool
                 ->setName(self::ARG_LOG_ID)
                 ->setDescription('Log-ID pointing to the log entry to get details for')
         ];
+    }
+    
+    protected function getLogContent(string $filePath) : string{
+
+        $completeLog = file_get_contents($filePath);
+        $jsonLog = json_decode($completeLog, true);
+
+
+        $sections = [
+            'error_tab' => [
+                'title' => '## Error',
+                'collector' => '',
+                'filter' => fn(string $v) => !str_contains(strtolower($v), 'support'),
+            ],
+            'widget_uxon_tab' => [
+                'title' => '## WidgetInformation',
+                'collector' => '',
+                'filter' => fn() => true, // no Filter
+            ],
+        ];
+
+
+        foreach ($jsonLog['widgets'] as $widget) {
+            $id = $widget['id'] ?? null;
+            if (!$id || !isset($sections[$id]) || empty($widget['widgets'])) {
+                continue;
+            }
+
+            foreach ($widget['widgets'] as $innerWidget) {
+                $value = $innerWidget['value'] ?? '';
+                if (($sections[$id]['filter'])($value)) {
+                    $sections[$id]['collector'] .= $value . PHP_EOL;
+                }
+            }
+        }
+
+
+        $output = '';
+        foreach ($sections as $section) {
+            if (!empty($section['collector'])) {
+                $output .= $section['title'] . PHP_EOL . $section['collector'] . PHP_EOL;
+            }
+        }
+        
+        
+        return $output;
     }
 }
