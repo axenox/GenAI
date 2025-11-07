@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\TestCriteria;
 
+use axenox\genAI\common\AbstractTestCriterion;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
@@ -8,6 +9,8 @@ use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\RegularExpressionDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
+
+
 
 /**
  * Allows to extract testing criteria from a pure-text LLM response
@@ -18,22 +21,16 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * To do implement Interface 
  */
-class TextResponseTestCriterion
+class TextResponseTestCriterion extends AbstractTestCriterion
 {
     use ImportUxonObjectTrait;
     
-    private WorkbenchInterface $workbench;
-    private ?UxonObject $uxon = null;
+
     private ?string $regex = null;
     private ?bool $withBlock = false;
 
     
-    public function __construct(WorkbenchInterface $workbench, UxonObject $uxon)
-    {
-        $this->workbench = $workbench;
-        $this->uxon = $uxon;
-        $this->importUxonObject($uxon);
-    }
+   
     
     public function getValue(AiResponseInterface $response): string
     {
@@ -106,14 +103,11 @@ class TextResponseTestCriterion
      */
     protected function setWithBlock(bool $value) : TextResponseTestCriterion
     {
-       
+       return $this;
     }
 
     /**
      * @inheritDoc
      */
-    public function exportUxonObject()
-    {
-        return $this->uxon;
-    }
+
 }

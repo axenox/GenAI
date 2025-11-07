@@ -4,6 +4,7 @@ namespace axenox\GenAI\Actions;
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
@@ -103,6 +104,8 @@ class RunTest extends AbstractActionDeferred
 
 
     /**
+     * Save AI_TEST_RUN
+     * 
      * Persists the test run meta data
      * Creates a row in AI_TEST_RUN and stores the created run UID on the instance
      * Then calls addCriteriaResults to store per criterion results
@@ -151,15 +154,18 @@ class RunTest extends AbstractActionDeferred
             $rowUID = $criteriaSheet->getUidColumn()->getValue($rowNr);
             $this->createCriteriaResult($result, $criteriaResultSheet, $criteriaSheet, $testRunUid, $rowNr);
         }
+        /*
         if ($criteriaResultSheet->isEmpty() === false) {
             //$criteriaResultSheet->getColumn('AI_TEST_RUN')->setValueOnAllRows($testRunUid);
             $criteriaResultSheet->dataCreate();
         }
-
+        */
         return $this;
     }
 
      /**
+     * Save / create AI_TEST_RESULT
+     *
      * Persists a single criterion result for the current run
      * Expects $testCriteria to be an array with at least key UID
      */
@@ -168,17 +174,34 @@ class RunTest extends AbstractActionDeferred
 
         $pathRel = $criteriaSheet->getCellValue('PROTOTYPE', $criteriaIdx);
         
+        $criterion = AiTestingFactory::createCriterionFromPathRel($this->getworkbench(), $pathRel, UxonObject::fromJson($criteriaSheet->getCellValue('CONFIG_UXON', $criteriaIdx)));
+        
+        
         $row = [
             'AI_TEST_CRITERION' => $criteriaSheet->getUidColumn()->getValue($criteriaIdx),
-            'VALUE'=> $this->getValue($pathRel, $result, $criteriaSheet, $criteriaIdx),
+            'VALUE'=> $criterion->getValue($result),
             'AI_TEST_RUN'=> $testRunUid
         ];
         
         if (!empty($this->userFeedback)) {
             $row = array_merge($row, $this->userFeedback);
         }
+        
+        
 
         $resultSheet->addRow($row);
+
+        $resultSheet->dataCreate();
+
+        $criteriaResultUid = $resultSheet->getUidColumn()->getValue(0);
+        
+        $criterion->executeMetrics($criteriaResultUid,$result);
+
+        return $this;
+    }
+
+    protected function createTestResultRating() : AbstractActionDeferred
+    {
 
         return $this;
     }
@@ -317,6 +340,7 @@ class RunTest extends AbstractActionDeferred
             return $value;
         }catch(\Throwable $e) {
             $this->getWorkbench()->getLogger()->logException($e);
+            $this->finishMessage = $this->finishMessage . `              Warning: `  . $e->getMessage();
             return $result->getMessage();
         }
         
