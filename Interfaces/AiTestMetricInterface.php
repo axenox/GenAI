@@ -6,23 +6,15 @@ use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 interface AiTestMetricInterface extends iCanBeConvertedToUxon
 {
-    public function getType():string;
+    /**
+     * @return string
+     */
+    public function getName() : string;
 
-    
-    public function getName():string;
-
-    
-    public function getWeight():int;
-
-    public function createAITestMetric(string $aiTestResultOid, AiResponseInterface $response , AiTestCriterionInterface $criterion) : AiTestMetricInterface;
-    public function createAITestResultRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion) :AiTestMetricInterface; //the same like createAITestMetric
-    
-    public function getRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion) : int;
-    public function getExplanation(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion) : string;
-    public function getPros(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string;
-    public function getCons(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string;
-    
-    
-    
-    
+    /**
+     * @param AiResponseInterface $response
+     * @param AiTestCriterionInterface|null $criterion
+     * @return AiTestRatingInterface
+     */
+    public function evaluate(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null) : AiTestRatingInterface;
 }
