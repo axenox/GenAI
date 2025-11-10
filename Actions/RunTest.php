@@ -174,6 +174,7 @@ class RunTest extends AbstractActionDeferred
 
         $pathRel = $criteriaSheet->getCellValue('PROTOTYPE', $criteriaIdx);
         
+        // TODO switch to selectors
         $criterion = AiTestingFactory::createCriterionFromPathRel($this->getworkbench(), $pathRel, UxonObject::fromJson($criteriaSheet->getCellValue('CONFIG_UXON', $criteriaIdx)));
         
         
@@ -195,7 +196,7 @@ class RunTest extends AbstractActionDeferred
 
         $criteriaResultUid = $resultSheet->getUidColumn()->getValue(0);
         
-        $criterion->executeMetrics($criteriaResultUid,$result);
+        $criterion->evaluateMetrics($criteriaResultUid,$result);
 
         return $this;
     }
