@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 
+use axenox\GenAI\Common\AiTestRating;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 
@@ -11,11 +12,11 @@ use exface\Core\Interfaces\iCanBeConvertedToUxon;
  */
 interface AiTestCriterionInterface extends iCanBeConvertedToUxon
 {
-    public function getValue(AiResponseInterface $result) : string;
+    public function getValue(AiResponseInterface $response) : string;
 
     /**
      * @param AiResponseInterface $response
-     * @return array
+     * @return AiTestRating[]
      */
     public function evaluateMetrics(AiResponseInterface $response) : array;
 }

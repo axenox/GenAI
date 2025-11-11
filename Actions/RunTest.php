@@ -3,10 +3,12 @@ namespace axenox\GenAI\Actions;
 
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Common\AiResponse;
+use axenox\GenAI\Common\AiTestRating;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
+use axenox\GenAI\Interfaces\AiTestMetricInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
@@ -137,7 +139,7 @@ class RunTest extends AbstractActionDeferred
         }
         
         $transaction->commit();
-        return $this;
+        return $this; 
     }
 
     /**
@@ -195,15 +197,36 @@ class RunTest extends AbstractActionDeferred
         $resultSheet->dataCreate();
 
         $criteriaResultUid = $resultSheet->getUidColumn()->getValue(0);
+
+        $resultRatings = $criterion->evaluateMetrics($result);
+
         
-        $criterion->evaluateMetrics($criteriaResultUid,$result);
+        
+        foreach ($resultRatings as $resultItem) {
+            $this->createTestResultRating($criteriaResultUid, $resultItem);
+        }
+
 
         return $this;
     }
 
-    protected function createTestResultRating() : AbstractActionDeferred
+    protected function createTestResultRating(string $aiTestResultOid,  AiTestRating $rating) : AbstractActionDeferred
     {
+        $resultRatingSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.GenAI.AI_TEST_RESULT_RATING');
 
+        $row = [
+            'NAME' => $rating->getMetric()->getName(),
+            'RATING' => $rating->getRating(),
+            'AI_TEST_RESULT' => $aiTestResultOid,
+            'RAW_VALUE' => $rating->getCriterion()->getValue($rating->getResponse()), //TODO improve this
+            'EXPLANATION' => $rating->getExplanation() ?? '',
+            'PROS' => $rating->getExplanationPros() ?? '',
+            'CONS' => $rating->getExplanationCons()?? '',
+        ];
+
+        $resultRatingSheet->addRow($row);
+
+        $resultRatingSheet->dataCreate();
         return $this;
     }
 

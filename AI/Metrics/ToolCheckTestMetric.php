@@ -4,10 +4,12 @@ namespace axenox\GenAI\AI\Metrics;
 
 use axenox\GenAI\AI\Metrics\UxonConfigData\ToolCheckData;
 use axenox\genAI\common\AbstractTestMetric;
+use axenox\GenAI\Common\AiTestRating;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
+use axenox\GenAI\Interfaces\AiTestRatingInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\DataSheetFactory;
 
@@ -47,11 +49,21 @@ class ToolCheckTestMetric extends AbstractTestMetric
 
     /** @var ToolCheckData[] */
     private ?array $tools = null;
+    
+    private bool $toolCallForbidden = false;
 
 
-    protected function evaluate(AiResponseInterface $response): ToolCheckTestMetric
+    public function evaluate(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): AiTestRatingInterface
     {
+
         $toolCalls = $response->getToolCallResponses();
+        
+        //TODO cons, pros, Explanation
+        if($this->toolCallForbidden){
+            $rating = 1;
+            if(count($toolCalls) === 0) $rating = 5;
+            return new AiTestRating($response, $this,$rating, $criterion);
+        }
 
         // Tool Calls nach Name gruppieren
         $callGroups = [];
@@ -255,7 +267,14 @@ class ToolCheckTestMetric extends AbstractTestMetric
             $this->pros = ['Nix anzumerken'];
         }
 
-        return $this;
+        $testRating = new AiTestRating($response, $this, $this->rating, $criterion);
+        $testRating
+            ->setPros(implode("\n", $this->pros))
+            ->setCons(implode("\n", $this->cons))
+            ->setExplanation($this->explanation);
+            
+
+        return $testRating;
     }
 
 
@@ -301,83 +320,30 @@ class ToolCheckTestMetric extends AbstractTestMetric
     {
         return $this->tools;
     }
-    
-    
-    
-    
 
-    public function createAITestMetric(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface
+    /**
+     * If true, best rating (5) when no tool call is made and worst (1) if any occurs.
+     * If false or unset, normal criteria evaluation applies.
+     *
+     * @uxon-property tool_call_forbidden
+     * @uxon-type bool
+     */
+    protected function setToolCallForbidden(bool $toolCallForbidden): ToolCheckTestMetric
     {
-        return $this->createAITestResultRating($aiTestResultOid, $response, $criterion);
-    }
-
-    public function createAITestResultRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface
-    {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-
-        //$transaction = $this->workbench->data()->startTransaction();
-        $resultRatingSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TEST_RESULT_RATING');
-
-        $row = [
-            'NAME' => $this->getName(),
-            'RATING' => $this->getRating($aiTestResultOid, $response, $criterion),
-            'AI_TEST_RESULT' => $this->aiTestResultOid,
-            'RAW_VALUE' => $criterion->getValue($response),
-            'EXPLANATION' => $this->getExplanation($aiTestResultOid, $response, $criterion),
-            'PROS' => $this->getpros($aiTestResultOid, $response, $criterion),
-            'CONS' => $this->getcons($aiTestResultOid, $response, $criterion),
-        ];
-
-        $resultRatingSheet->addRow($row);
-
-        $resultRatingSheet->dataCreate();
-
-
-        //$transaction->commit();
-
+        $this->toolCallForbidden = $toolCallForbidden;
         return $this;
     }
 
-    public function getRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): int
+    public function isToolCallForbidden(): bool
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-        if(!$this->rating) {
-            $this->evaluate($response);
-        }
-            
-        return $this->rating;
+        return $this->toolCallForbidden;
     }
 
-    public function getExplanation(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
-    {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-        if (!$this->explanation) {
-            $this->evaluate($response);
-        }
+    
+    
 
-        return $this->explanation;
-    }
 
-    public function getPros(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
-    {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-        if (!$this->pros) {
-            $this->evaluate($response);
-        }
 
-        return implode("\n", $this->pros);
 
-    }
-
-    public function getCons(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
-    {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-        if (!$this->cons) {
-            $this->evaluate($response);
-        }
-
-        return implode("\n", $this->cons);
-
-    }
 
 }
