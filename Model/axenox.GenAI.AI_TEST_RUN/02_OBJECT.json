@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI test run [axenox.GenAI.AI_TEST_RUN]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-24 23:57:13",
+            "MODIFIED_ON": "2025-11-11 12:02:34",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0b84df3d7056cb84d025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -124,39 +124,61 @@
                                         "attribute_alias": "TESTED_ON"
                                     },
                                     {
-                                        "widget_type": "DataTableResponsive",
+                                        "widget_type": "DataMatrix",
                                         "caption": "Criteria results",
-                                        "object_alias": "axenox.GenAI.AI_TEST_RESULT",
-                                        "hide_header": false,
+                                        "object_alias": "axenox.GenAI.AI_TEST_RESULT_RATING",
+                                        "hidden_if": {
+                                            "operator": "AND",
+                                            "conditions": [
+                                                {
+                                                    "value_left": "=COUNT(AI_TEST_RESULT__AI_TEST_RUN)",
+                                                    "comparator": "<=",
+                                                    "value_right": 0
+                                                }
+                                            ]
+                                        },
+                                        "hide_header": true,
                                         "width": "max",
                                         "height": 8,
                                         "paginate": false,
                                         "filters": [
                                             {
-                                                "attribute_alias": "AI_TEST_RUN",
+                                                "attribute_alias": "AI_TEST_RESULT__AI_TEST_RUN",
                                                 "required": true,
-                                                "hidden": true
+                                                "hidden": false
                                             }
                                         ],
                                         "columns": [
                                             {
-                                                "attribute_alias": "AI_TEST_CRITERION__LABEL"
+                                                "attribute_alias": "AI_TEST_RESULT__AI_TEST_CRITERION__LABEL"
                                             },
                                             {
-                                                "attribute_alias": "USER_RATING"
+                                                "attribute_alias": "AI_TEST_RESULT__USER_RATING"
                                             },
                                             {
                                                 "caption": "Calc. rating",
                                                 "hint": "Average auto-calculated ratings",
-                                                "attribute_alias": "AI_TEST_RESULT_RATING__RATING:AVG"
+                                                "attribute_alias": "AI_TEST_RESULT__AI_TEST_RESULT_RATING__RATING:AVG"
                                             },
                                             {
-                                                "calculation": "=Left(VALUE, 60)",
+                                                "attribute_alias": "NAME"
+                                            },
+                                            {
+                                                "widget_type": "DataColumnTransposed",
+                                                "attribute_alias": "RATING",
+                                                "label_attribute_alias": "NAME"
+                                            },
+                                            {
+                                                "calculation": "=Left(AI_TEST_RESULT__VALUE, 60)",
                                                 "caption": "Received"
                                             },
                                             {
-                                                "calculation": "=Left(AI_TEST_CRITERION__EXPECTED_VALUE, 60)",
+                                                "calculation": "=Left(AI_TEST_RESULT__AI_TEST_CRITERION__EXPECTED_VALUE, 60)",
                                                 "caption": "Expected"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_TEST_RESULT",
+                                                "hidden": false
                                             }
                                         ],
                                         "buttons": [
@@ -165,8 +187,21 @@
                                                 "visibility": "optional"
                                             },
                                             {
-                                                "action_alias": "exface.Core.ShowObjectEditDialog",
-                                                "bind_to_double_click": true
+                                                "bind_to_double_click": true,
+                                                "action": {
+                                                    "alias": "exface.Core.ShowObjectEditDialog",
+                                                    "object_alias": "axenox.GenAI.AI_TEST_RESULT",
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.AI_TEST_RESULT_RATING",
+                                                        "to_object_alias": "axenox.GenAI.AI_TEST_RESULT",
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "AI_TEST_RESULT",
+                                                                "to": "UID"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
                                             },
                                             {
                                                 "action_alias": "exface.Core.ShowObjectCopyDialog",
@@ -175,7 +210,7 @@
                                         ],
                                         "sorters": [
                                             {
-                                                "attribute_alias": "AI_TEST_CRITERION__LABEL",
+                                                "attribute_alias": "AI_TEST_RESULT__AI_TEST_CRITERION__LABEL",
                                                 "direction": "desc"
                                             }
                                         ]
