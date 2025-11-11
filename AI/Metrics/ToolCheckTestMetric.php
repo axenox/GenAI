@@ -55,6 +55,9 @@ class ToolCheckTestMetric extends AbstractTestMetric
 
     public function evaluate(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): AiTestRatingInterface
     {
+        //TODO Improve this process
+        //TODO Example when no argument is given or something like that
+        //and split in Parts
 
         $toolCalls = $response->getToolCallResponses();
         
