@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiTestCriterionInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -17,8 +18,8 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
     
     protected WorkbenchInterface $workbench;
     
-    private ?string $type;
-    private ?string $name;
+    private ?string $type = null;
+    private ?string $name = null;
 
     protected ?string $aiTestResultOid = null;
 
@@ -42,25 +43,7 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
         }
     }
 
-    protected function checkIfNewRequest(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AbstractTestMetric
-    {
-        $newResult = $criterion->getValue($response);
-
-        if ($this->result !== $newResult || $this->aiTestResultOid !== $aiTestResultOid) {
-
-            $this->aiTestResultOid = $aiTestResultOid;
-            $this->result = $newResult;
-            $this->rating = null;
-            $this->explanation = null;
-            $this->pros = null;
-            $this->cons = null;
-        }
-
-
-        return $this;
-    }
-
-    
+   
 
     /**
      * @uxon-property type
@@ -94,9 +77,12 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
 
     public function getName(): string
     {
-        if(!$this->name) return $this->getName();
+        if (!$this->name) {
+            $this->name = substr(strrchr($this->getType(), AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER), 1);
+        }
         return $this->name;
     }
+
 
     public function getWeight(): int
     {
@@ -106,6 +92,8 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
 
 
     /**
+     * currently not available
+     * 
      * @uxon-property weight
      * @uxon-type int
      *
@@ -115,36 +103,7 @@ abstract class AbstractTestMetric implements AiTestMetricInterface
         // TODO: Implement setWeight() method.
         return $this;
     }
-
-    /**
-     * Create a new AI test result rating (same as createAITestResultRating).
-     */
-    abstract public function createAITestMetric(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface;
-
-    /**
-     * Create a new AI test result rating (same as createAITestMetric).
-     */
-    abstract public function createAITestResultRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface;
-
-    /**
-     * Get the numeric rating for a test result.
-     */
-    abstract public function getRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): int;
-
-    /**
-     * Get an explanation for the rating.
-     */
-    abstract public function getExplanation(string $aiTestResultOid, AiResponseInterface $response ,AiTestCriterionInterface $criterion): string;
-
-    /**
-     * Get the positive aspects of the test result.
-     */
-    abstract public function getPros(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string;
-
-    /**
-     * Get the negative aspects of the test result.
-     */
-    abstract public function getCons(string $aiTestResultOid, AiResponseInterface $response,AiTestCriterionInterface $criterion): string;
-
+    
+    
     
 }
