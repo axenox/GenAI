@@ -4,21 +4,68 @@ namespace axenox\GenAI\Common\Markdown;
 
 use axenox\GenAI\Common\AbstractPrinter;
 use axenox\GenAI\Interfaces\MarkdownPrinterInterface;
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\MetaObjectFactory;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
+use exface\Core\Interfaces\Model\MetaObjectInterface;
+use exface\Core\Interfaces\WorkbenchInterface;
+use MongoDB\BSON\ObjectId;
 
-class ObjectMarkdownPrinter extends AbstractPrinter implements MarkdownPrinterInterface
+class ObjectMarkdownPrinter implements MarkdownPrinterInterface
 {
 
-    private ?string $objectId = null;
+    protected WorkbenchInterface $workbench;
+    
+    private string $objectId;
+    
+    private int $depth = 3;
+    
+    private int $currentDepth = 0;
+    
+    private ?ObjectMarkdownPrinter $parent = null;
+    
+    private array $relations = [];
+    
+    private array $finishedRelations = [];
+
+    
+
+    public function __construct(WorkbenchInterface $workbench, string $objectId, ObjectMarkdownPrinter $parent = null)
+    {
+        $this->workbench = $workbench;
+        $this->objectId = $objectId;
+        if($parent){
+            $this->parent = $parent;
+            $this->currentDepth = $parent->getCurrentDepth() + 1;
+            $this->depth = $parent->getDepth();
+        }
+    }
     
     public function getMarkdown(): string
     {
         if(!$this->objectId) return '';
-
-        $markdown = "| Name | Alias | Data Address | Data Type | Required | Relation |\n";
+        $metaObject = MetaObjectFactory::createFromString($this->workbench, $this->objectId);
+        $this->addFinishedRelation($metaObject->getId());
+        
+        $markdown = '# ' . $metaObject->getAlias() . "\n\n";
+        
+        $markdown .= "| Name | Alias | Data Address | Data Type | Required | Relation |\n";
         $markdown .= "|------|--------|--------------|------------|-----------|-----------|\n";
         
-        $markdown.= implode("\n",$this->getAttributes($this->objectId));
+        $markdown.= implode("\n",$this->getAttributes($metaObject));
+        $markdown .= "\n";
+        
+        if($this->depth >= $this->currentDepth){
+            foreach ($this->relations as $relation){
+                if(!in_array($relation, $this->getFinishedRelations(), true)){
+                    $childPrinter = new ObjectMarkdownPrinter($this->workbench, $relation, $this);
+                    $markdown .= $childPrinter->getMarkdown();
+                    $this->addFinishedRelation($relation);
+                }
+                
+            }
+        }
         
         return $markdown;
         
@@ -27,29 +74,63 @@ class ObjectMarkdownPrinter extends AbstractPrinter implements MarkdownPrinterIn
      * Returns a list of attribute strings in Markdown format.
      *| Name | Alias | Data Address | Data Type | Required | Relation |
      * 
-     * @param string $objectId
+     * @param MetaObjectInterface $metaObject
      * @return string[]  
      */
-    protected function getAttributes(string $objectId): array
+    protected function getAttributes(MetaObjectInterface $metaObject): array
     {
-        $metaObject = MetaObjectFactory::createFromString($this->workbench, $objectId);
-        $attributes = $metaObject->getAttributes();
-
         
-
+        $attributes = $metaObject->getAttributes();
+        
         $list = [];
         
         foreach ($attributes->getAll() as  $attribute ) {
             $name = $attribute->getName();
             $alias = $attribute->getAlias();
             $dataAddress = $attribute->getDataAddress();
-            $dataType = $attribute->getDataType();
+            $dataType = $attribute->getDataType()->getName();
             $required = $attribute->isRequired();
-            $relation = $attribute->getRelationPath();
+            $relation = "";
+            if($attribute->isRelation()){
+                $relationObject = $attribute->getRelation();
+                $relation = $relationObject->getAlias();
+                $this->addRelation($relationObject->getRightObject()->getId());
+            }
+
+            
 
             $list[] = "| {$name} | {$alias} | {$dataAddress} | {$dataType} | {$required} | {$relation} |\n";
         }
         return $list;
+    }
+    
+    protected function addRelation(string $relation) : ObjectMarkdownPrinter
+    {
+        if(!in_array($relation, $this->getFinishedRelations(), true)
+            && !in_array($relation, $this->relations, true)){
+            $this->relations[] = $relation;
+        }
+        return $this;
+    }
+    
+    public function addFinishedRelation(string $relation) : ObjectMarkdownPrinter
+    {
+        if($this->parent){
+            return $this->parent->addFinishedRelation($relation);
+        }else {
+            if(!in_array($relation, $this->finishedRelations, true)){
+                $this->finishedRelations[] = $relation;
+            }
+            return $this;
+        }
+    }
+    
+    protected function addFinishedRelations(array $relations) : ObjectMarkdownPrinter
+    {
+        foreach ($relations as $relation){
+            $this->addFinishedRelation($relation);
+        }
+        return $this;
     }
 
     public function getObjectId(): ?string
@@ -62,6 +143,37 @@ class ObjectMarkdownPrinter extends AbstractPrinter implements MarkdownPrinterIn
         $this->objectId = $objectId;
         return $this;
     }
+
+    public function getDepth(): int
+    {
+        return $this->depth;
+    }
+
+    public function getCurrentDepth(): int
+    {
+        return $this->currentDepth;
+    }
+
+    public function getParent(): ?ObjectMarkdownPrinter
+    {
+        return $this->parent;
+    }
+
+    public function getRelations(): array
+    {
+        return $this->relations;
+    }
+    
+    public function getFinishedRelations(): array
+    {
+        if($this->parent){
+            return $this->parent->getFinishedRelations();
+        }else{
+            return $this->finishedRelations;
+        }
+    }
+
+    
     
     
 }
