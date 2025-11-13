@@ -25,8 +25,7 @@ class GetObjectTool extends AbstractAiTool
     {
         list($objectId) = $arguments;
 
-        $printer = new ObjectMarkdownPrinter($this->workbench);
-        $printer->setObjectId($objectId);
+        $printer = new ObjectMarkdownPrinter($this->workbench, $objectId);
         return $printer->getMarkdown();
     }
 
