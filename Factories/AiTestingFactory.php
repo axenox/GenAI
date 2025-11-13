@@ -36,8 +36,8 @@ class AiTestingFactory extends AbstractStaticFactory
                 $appPath = $app->getDirectoryAbsolutePath();
                 $metricsPath = $appPath . DIRECTORY_SEPARATOR . 'AI' . DIRECTORY_SEPARATOR . 'Metrics';
                 // E.g. TextMatch
-                $metricAlias = StringDataType::substringAfter($appSelector->toString() . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER);
-                $filename = $metricsPath . DIRECTORY_SEPARATOR . $metricAlias . DIRECTORY_SEPARATOR . 'TestMetric.php';
+                $metricAlias = substr(strrchr($selector->toString(), AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER), 1);//StringDataType::substringAfter($selector->toString() , AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER);
+                $filename = $metricsPath . DIRECTORY_SEPARATOR . $metricAlias . 'TestMetric.php';
                 $class = PhpFilePathDataType::findClassInFile($filename);
         }
         $metric = new $class($selector->getWorkbench());

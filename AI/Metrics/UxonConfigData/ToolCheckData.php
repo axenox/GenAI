@@ -129,6 +129,7 @@ class ToolCheckData
      */
     public function getMaxCalls(): int
     {
+        if(!($this->max_calls)) return 99;
         return $this->max_calls;
     }
 
@@ -137,6 +138,7 @@ class ToolCheckData
      */
     public function getMinCalls(): int
     {
+        if(!$this->min_calls) return 1;
         return $this->min_calls;
     }
 
@@ -145,6 +147,7 @@ class ToolCheckData
      */
     public function getArguments(): array
     {
+        if(!$this->arguments) return [];
         return $this->arguments;
     }
 

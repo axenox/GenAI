@@ -67,7 +67,7 @@ abstract class AbstractTestCriterion implements AiTestCriterionInterface
     {
         $ratings = [];
         foreach ($this->getMetrics() as $metric) {
-            $ratings = $metric->evaluate($response, $this);
+            $ratings[] = $metric->evaluate($response, $this);
         }
 
         return $ratings;
@@ -84,5 +84,5 @@ abstract class AbstractTestCriterion implements AiTestCriterionInterface
         return $this->uxon;
     }
 
-    abstract public function getValue(AiResponseInterface $result): string;
+    abstract public function getValue(AiResponseInterface $response): string;
 }

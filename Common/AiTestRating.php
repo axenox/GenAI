@@ -80,6 +80,29 @@ class AiTestRating implements AiTestRatingInterface
     {
         return $this->cons;
     }
+
+    public function setRating(int $rating): AitestRating
+    {
+        $this->rating = $rating;
+    }
+
+    public function setExplanation(?string $explanation): AitestRating
+    {
+        $this->explanation = $explanation;
+        return $this;
+    }
+
+    public function setPros(?string $pros): AitestRating
+    {
+        $this->pros = $pros;
+        return $this;
+    }
+
+    public function setCons(?string $cons): AitestRating
+    {
+        $this->cons = $cons;
+        return $this;
+    }
     
-    // TODO add setter methods
+    
 }

@@ -3,9 +3,11 @@
 namespace axenox\GenAI\AI\Metrics;
 
 use axenox\genAI\common\AbstractTestMetric;
+use axenox\GenAI\Common\AiTestRating;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
+use axenox\GenAI\Interfaces\AiTestRatingInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\DataSheetFactory;
 
@@ -67,14 +69,10 @@ class TextMatchTestMetric extends  AbstractTestMetric
      */
     protected ?string $containsIgnoreCase = null;
     
-    public function createAITestMetric(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface
-    {
-        return $this->createAITestResultRating($aiTestResultOid, $response, $criterion);
-    }
 
     public function createAITestResultRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): AiTestMetricInterface
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
+
 
         //$transaction = $this->workbench->data()->startTransaction();
         $resultRatingSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TEST_RESULT_RATING');
@@ -84,9 +82,9 @@ class TextMatchTestMetric extends  AbstractTestMetric
             'RATING' => $this->getRating($aiTestResultOid, $response, $criterion),
             'AI_TEST_RESULT' => $this->aiTestResultOid,
             'RAW_VALUE' => $this->getResult($response, $criterion),
-            'EXPLANATION' => $this->getExplanation($aiTestResultOid, $response, $criterion),
-            'PROS' => $this->getpros($aiTestResultOid, $response, $criterion),
-            'CONS' => $this->getcons($aiTestResultOid, $response, $criterion),
+            'EXPLANATION' => $this->getExplanation( $response, $criterion),
+            'PROS' => $this->getpros($response, $criterion),
+            'CONS' => $this->getcons($response, $criterion),
         ];
         
         $resultRatingSheet->addRow($row);
@@ -100,9 +98,30 @@ class TextMatchTestMetric extends  AbstractTestMetric
         
     }
 
-    public function getRating(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): int
+    public function evaluate(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): AiTestRatingInterface
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
+        $this->clearCache();
+        $rating = $this->getRating($response, $criterion);
+        $testRating = new AiTestRating($response, $this,$rating, $criterion);
+        $testRating
+            ->setPros($this->getpros($response, $criterion))
+            ->setCons($this->getcons($response, $criterion))
+            ->setExplanation($this->getExplanation( $response, $criterion));
+        
+        return $testRating;
+    }
+    
+    protected function clearCache() : TextMatchTestMetric
+    {
+        $this->rating = null;
+        $this->cons = null;
+        $this->pros = null;
+        $this->explanation = null;
+        return $this;
+    }
+
+    public function getRating( AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): int
+    {
         if($this->rating) return $this->rating;
         
         $value = $this->getResult($response, $criterion);
@@ -144,16 +163,14 @@ class TextMatchTestMetric extends  AbstractTestMetric
         return (int) floor($sum / $count);
     }
 
-    public function getExplanation(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
+    public function getExplanation(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): string
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
         // TODO: Implement method.
         return 'Look in Pros & Cons';
     }
 
-    public function getPros(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
+    public function getPros( AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): string
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
 
         if(!$this->pros){
             $value = $this->getResult($response, $criterion);
@@ -169,10 +186,8 @@ class TextMatchTestMetric extends  AbstractTestMetric
 
     }
 
-    public function getCons(string $aiTestResultOid, AiResponseInterface $response, AiTestCriterionInterface $criterion): string
+    public function getCons(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): string
     {
-        $this->checkIfNewRequest($aiTestResultOid, $response, $criterion);
-        
         if(!$this->cons){
             
             $value = $this->getResult($response, $criterion);
@@ -186,10 +201,15 @@ class TextMatchTestMetric extends  AbstractTestMetric
         return implode("\n", $this->cons);
     }
     
-    private function getResult(AiResponseInterface $response, AiTestCriterionInterface $criterion): string
+    private function getResult(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): string
     {
+        
         if(!$this->result){
-            $this->result = $criterion->getValue($response);
+            if(!$criterion){
+                $this->result = $response->getMessage();
+            }else {
+                $this->result = $criterion->getValue($response);
+            }
         }
         return $this->result;
     }
@@ -649,4 +669,5 @@ class TextMatchTestMetric extends  AbstractTestMetric
         return $this;
     }
 
+    
 }

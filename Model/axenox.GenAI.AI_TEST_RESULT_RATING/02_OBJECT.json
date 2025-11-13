@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI test rating [axenox.GenAI.AI_TEST_RESULT_RATING]",
             "CREATED_ON": "2025-09-17 11:30:57",
-            "MODIFIED_ON": "2025-09-25 00:00:48",
+            "MODIFIED_ON": "2025-11-04 16:20:12",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0b0a4040d8feeb0a4025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -109,7 +109,7 @@
                         "attribute_alias": "NAME"
                     },
                     {
-                        "attribute_alias": "AT_TEST_RESULT"
+                        "attribute_alias": "AI_TEST_RESULT"
                     },
                     {
                         "attribute_alias": "RATING"
