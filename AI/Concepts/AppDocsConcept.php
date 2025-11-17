@@ -7,7 +7,9 @@ use axenox\GenAI\Common\LinkRebaser;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Factories\AiFactory;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\CommonLogic\Workbench;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
+use exface\Core\Facades\DocsFacade\MarkdownPrinters\DocMarkdownPrinter;
 
 class AppDocsConcept extends AbstractConcept
 {
@@ -71,27 +73,17 @@ class AppDocsConcept extends AbstractConcept
 
     protected function buildMarkdownDocs() : string
     {
-        $app = $this->getWorkbench()->getApp($this->getAppAlias());
-        $pathToApp = $app->getDirectoryAbsolutePath();
-        $pathToDocs = $pathToApp . DIRECTORY_SEPARATOR . 'Docs';
-
-        if (! file_exists($pathToDocs)) {
+        $docPrinter = (new DocMarkdownPrinter($this->getWorkbench()))
+            ->setDocsPath($this->getStartingPage())
+            ->setAppAlias($this->getAppAlias());
+            
+        if(!$docPrinter->docsExists()){
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
         }
-        if ($this->depth < 0) {
-            return "";
-        }
-        $pathToIndex = $pathToDocs . DIRECTORY_SEPARATOR . $this->getStartingPage();
+        
+        $markdown = $docPrinter->getMarkdown();
 
-        $fileReader = new FileReader();
-        $indexContent = $fileReader->readFile($pathToIndex);
-
-        $baseUrl = $app->getDirectory();
-        $linkRebaser = new LinkRebaser();
-        // Tutorials/... -> exface/Core/Docs/Tutorials...
-        $tableOfContents = $linkRebaser->rebaseRelativeLinks($indexContent , $pathToIndex, $baseUrl, $this->depth);
-
-        $result = str_replace('\\', '\/', $tableOfContents);;
+        $result = str_replace('\\', '\/', $markdown);;
         return $result;
     }
 
