@@ -3,11 +3,8 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
-use axenox\GenAI\Common\Markdown\ObjectMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Factories\MetaObjectFactory;
-use exface\Core\Interfaces\Model\MetaAttributeInterface;
+use exface\Core\Facades\DocsFacade\MarkdownPrinters\ObjectMarkdownPrinter;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 class GetObjectTool extends AbstractAiTool
@@ -25,8 +22,7 @@ class GetObjectTool extends AbstractAiTool
     {
         list($objectId) = $arguments;
 
-        $printer = new ObjectMarkdownPrinter($this->workbench);
-        $printer->setObjectId($objectId);
+        $printer = new ObjectMarkdownPrinter($this->workbench, $objectId);
         return $printer->getMarkdown();
     }
 
