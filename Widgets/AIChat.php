@@ -94,7 +94,7 @@ JS);
         
         return <<<HTML
 
-        <div class="deep-chat-wrapper">
+        <div class="deep-chat-wrapper" style="height: 100%">
             <div
             class='exf-aichat-top'
             style="display:flex; flex-direction:row; gap:8px; align-items:center;">
@@ -151,8 +151,10 @@ JS);
         </div>
 
         <script>
-
-            const chat = document.getElementById('{$this->getId()}');
+            // TODO this "chat" is a global variable! This will cause a lot of propblems with multipe
+            // chat widgets. There were already lots of JS errors when opening and closing jEasyUI
+            // dialogs with AiChat widgets in them!
+            var chat = document.getElementById('{$this->getId()}');
 
             let historyInitDone = false;
 
@@ -261,7 +263,7 @@ JS);
      * Alias of the agent to chat with - with namespace for agents from apps and without for local agents
      * 
      * @uxon-property agent_alias
-     * @uxon-type string
+     * @uxon-type metamodel:axenox.GenAI.AI_AGENT:ALIAS_WITH_NS
      * @uxon-required true
      * 
      * @param string $alias
