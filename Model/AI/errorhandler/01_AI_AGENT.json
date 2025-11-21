@@ -1,0 +1,85 @@
+{
+    "object_alias": "axenox.GenAI.AI_AGENT",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "ErrorHandler",
+            "CREATED_ON": "2025-10-23 14:13:52",
+            "MODIFIED_ON": "2025-11-21 13:29:10",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f0b170bd0b2e08b170025041000001",
+            "NAME": "ErrorHandler",
+            "DESCRIPTION": "The agent helps with occurring errors, analyzes the cause and gives a clear practical solution.",
+            "ALIAS": "errorhandler",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_AGENT",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_AGENT"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

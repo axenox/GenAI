@@ -4,9 +4,10 @@ namespace axenox\GenAI\AI\Metrics\UxonConfigData;
 
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\WorkbenchInterface;
 
-class ToolCheckData
+class ToolCheckData implements IcanBeConvertedToUxon
 {
     use ImportUxonObjectTrait;
 
@@ -90,7 +91,15 @@ class ToolCheckData
     }
 
     /**
-     * List of argument definitions
+     * List of argument definitions.
+     *
+     * The name of each key represents the expected argument and the value specifies
+     * the content that the argument should have when the tool is invoked.
+     *
+     * Example:
+     * arguments: [ user: "Peter" ]
+     * This means that the AI should call the tool with an argument named "user"
+     * whose value is "Peter".
      *
      * @uxon-property arguments
      * @uxon-type \axenox\GenAI\AI\Metrics\UxonConfigData\ArgumentData[]
