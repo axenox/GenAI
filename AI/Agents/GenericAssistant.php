@@ -34,7 +34,6 @@ use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
-use exface\Core\Templates\Placeholders\ArrayPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 
 /**
@@ -132,7 +131,8 @@ class GenericAssistant implements AiAgentInterface
     {
         $userPromt = $prompt->getUserPrompt();
         try {
-            $this->setInstructions($this->getSystemPrompt($prompt));
+            $systemPrompt = $this->getSystemPrompt($prompt);
+            $this->setInstructions($systemPrompt);
         } catch (AiConceptIncompleteError $e) {
             throw $e;
             /* TODO handle different errors differently

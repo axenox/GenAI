@@ -85,9 +85,13 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $row = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
 
         $uxon = UxonObject::fromAnything($row['CONFIG_UXON']);
-        $uxon->setProperty('data_connection_alias', $row['DATA_CONNECTION']);
+        // Required props
         $uxon->setProperty('name', $row['AI_AGENT__NAME']);
         $uxon->setProperty('alias', $row['AI_AGENT__ALIAS']);
+        // Optional props
+        if (null !== $val = $row['DATA_CONNECTION']) {
+            $uxon->setProperty('data_connection_alias', $val);
+        }
 
         // Create a new selector with the exact version
         $exactSelector = new AiAgentSelector($workbench, $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFit);

@@ -64,7 +64,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0874eebc3aa90874e025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f08ad2944fc3528ad2025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "instructions": [
                     "// Multiline text delimited by `\n`",
@@ -136,7 +136,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f09c331317fbb89c33025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f08ad2944fc3528ad2025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "instructions": [
                     "// Multiline text delimited by `\n`",
@@ -221,7 +221,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0bddcac111364bddc025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f08ad2944fc3528ad2025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "instructions": [
                     "// Multiline text delimited by `\n`",
