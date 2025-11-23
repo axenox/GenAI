@@ -163,7 +163,7 @@ JS);
                 historyInitDone = true;
 
                 chat.history = [
-                {html: `$suggestionsHtml`, role: 'user'}
+                    {html: `$suggestionsHtml`, role: 'user'}
                 ];
             });
             function resetDeepChat(chatId) {
@@ -239,15 +239,14 @@ JS);
     protected function getSuggestionsHTML() : string 
     {
         $suggestions = $this->getPromptSuggestions();
-        if(count($suggestions) > 0){
+        if(! empty($suggestions)){
             $buttons = [];
             foreach ($suggestions as $i => $s){
                 $buttons [] = ' <button class="deep-chat-button deep-chat-suggestion-button" style="margin-top:5px">'.$s.'</button>';
             }
             return '<div class=\"deep-chat-temporary-message\">' . implode("\n", $buttons) . '</div>';
-        }else{
-            return "";
-        } 
+        }
+        return '';
     }
 
     protected function getButtonsHTML(string $position) : string 
@@ -311,7 +310,7 @@ JS);
 
     protected function getPromptSuggestionAgent() : array 
     {
-        if(!$this->agent){
+        if(! $this->agent){
             $this->agent = AiFactory::createAgentFromString($this->getWorkbench(), $this->getAgentAlias());
         }
         return $this->agent->getPromptSuggestions();

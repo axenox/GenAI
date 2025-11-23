@@ -2,7 +2,6 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
-use axenox\GenAI\Common\FileReader;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\UrlDataType;
@@ -88,8 +87,7 @@ class GetDocsTool extends AbstractAiTool
                 break;
                         
             }
-            $fileReader = new FileReader();
-            $md = $fileReader->readFile($filePath);
+            $md = $docsFacade->getDocsMarkdown($url);
 
             return $md;
         }
