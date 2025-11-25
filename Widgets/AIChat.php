@@ -151,49 +151,56 @@ JS);
         </div>
 
         <script>
+        
+            (function () {
+                        
+                const chat = document.getElementById('{$this->getId()}');
+                chat.historyInitDone = false;
+            
+                chat.addEventListener('render', () => {
+                    if (chat.historyInitDone) return;
+                    chat.historyInitDone = true;
+            
+                    chat.history = [
+                        { html: `$suggestionsHtml`, role: 'user' }
+                    ];
+                });
+            
+                function resetDeepChat(chatId) {
+                    const domEl = document.getElementById(chatId);
+                    if (domEl) {
+                        domEl.conversationId = null;
+                        domEl.messages = [];
+                        domEl.history = [
+                            { html: `$suggestionsHtml`, role: 'user' }
+                        ];
+                        domEl.setAttribute('introMessage', '$introMessage');
+                    }
+                }
+            
+                const input = document.getElementById("ratingInput");
+                const stars = document.querySelectorAll("#stars span");
+            
+                function setRating(rating) {
+                    input.value = rating;
+                    stars.forEach((star, i) => {
+                        star.textContent = i < rating ? "★" : "☆";
+                        star.style.color = i < rating ? "gold" : "#bbb";
+                    });
+                    console.log('Send Rating');
+                }
+            
+                stars.forEach((star, i) => {
+                    star.addEventListener("click", () => setRating(i + 1));
+                });
+            
+            })();
+
+            
             // TODO this "chat" is a global variable! This will cause a lot of propblems with multipe
             // chat widgets. There were already lots of JS errors when opening and closing jEasyUI
             // dialogs with AiChat widgets in them!
-            var chat = document.getElementById('{$this->getId()}');
-
-            let historyInitDone = false;
-
-            chat.addEventListener('render', () => {               // Deep Chat ist fertig
-                if (historyInitDone) return;
-                historyInitDone = true;
-
-                chat.history = [
-                    {html: `$suggestionsHtml`, role: 'user'}
-                ];
-            });
-            function resetDeepChat(chatId) {
-                var domEl = document.getElementById(chatId);
-                if (domEl) {
-                    domEl.conversationId = null;
-                    domEl.messages = [];
-                    domEl.history = [
-                    {html: `$suggestionsHtml`, role: 'user'}
-                    ];
-                    domEl.setAttribute('introMessage', '$introMessage' )
-                    
-                }
-            }
-
-            const input = document.getElementById("ratingInput");
-            const stars = document.querySelectorAll("#stars span");
-
-            function setRating(rating) {
-                input.value = rating;
-                stars.forEach((star, i) => {
-                    star.textContent = i < rating ? "★" : "☆";
-                    star.style.color = i < rating ? "gold" : "#bbb";
-                });
-                console.log('Send Rating')
-            }
-
-            stars.forEach((star, i) => {
-            star.addEventListener("click", () => setRating(i + 1));
-            });
+            
 
 
             /*
