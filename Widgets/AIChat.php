@@ -42,7 +42,9 @@ class AIChat extends InputCustom implements iFillEntireContainer
     protected function init()
     {
         $this->setHideCaption(true);
-        $this->setHtmlHeadTags(['<script type="module" src="vendor/npm-asset/deep-chat/dist/deepChat.bundle.js"></script>']);
+        $this->setHtmlHeadTags([
+            '<script type="module" src="vendor/npm-asset/deep-chat/dist/deepChat.bundle.js"></script>'
+        ]);
         $this->setCssClass('exf-aichat');
         $this->setScriptToResize(<<<JS
         
@@ -139,6 +141,13 @@ JS);
                 }'
 
                 introMessage='{$introMessage}'
+                messageStyles='{
+                    "default": {
+                      "shared": {
+                        "bubble": { "maxWidth": "90%" }
+                      }
+                    }
+                  }'
             ></deep-chat>
 
             <div
