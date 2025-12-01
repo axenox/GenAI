@@ -4,22 +4,28 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\Facades\DocsFacade\MarkdownPrinters\ObjectMarkdownPrinter;
+use exface\Core\Facades\DocsFacade\MarkdownPrinters\UxonPrototypeMarkdownPrinter;
 use exface\Core\Interfaces\WorkbenchInterface;
 
-class GetObjectTool extends AbstractAiTool
+class GetUxonPrototypeTool extends AbstractAiTool
 {
     /**
      *
      * @var string
      */
-    const ARG_OBJECT_SELECTOR = 'object_alias';    
+    const ARG_OBJECT_SELECTOR = 'selector';
+    
+    /**
+     *
+     * @var string
+     */
+    const ARG_OBJECT_SELECTOR_TYPE = 'selector_type';
 
     public function invoke(array $arguments): string
     {
-        list($objectId) = $arguments;
+        list($selector) = $arguments;
 
-        $printer = new ObjectMarkdownPrinter($this->workbench, $objectId);
+        $printer = new UxonPrototypeMarkdownPrinter($this->workbench, $selector);
         return $printer->getMarkdown();
     }
 
@@ -29,7 +35,7 @@ class GetObjectTool extends AbstractAiTool
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_OBJECT_SELECTOR)
-                ->setDescription('Fully qualified alias (with namespace) or UID of the object to be read: e.g. `exface.Core.PAGE` or `0x11e86314af5caf7f971b0205857feb80`')
+                ->setDescription('PHP class starting with `\` (e.g. `\exface\Core\Actions\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`).')
         ];
     }
 }

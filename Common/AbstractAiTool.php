@@ -133,7 +133,7 @@ abstract class AbstractAiTool implements AiToolInterface
      * @param array $checks
      * @return AiToolInterface
      */
-    protected function setSecurityCheck(array $checks): AiToolInterface
+    protected function addSecurityCheck(array $checks): AiToolInterface
     {
         foreach ($checks as $check) {
 

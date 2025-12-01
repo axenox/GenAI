@@ -57,9 +57,9 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Log analyzer assistant v1",
+            "_EXPORT_SUMMARY": "Log analyzer assistant v1.1",
             "CREATED_ON": "2025-11-23 12:25:22",
-            "MODIFIED_ON": "2025-11-23 22:41:11",
+            "MODIFIED_ON": "2025-12-01 12:55:12",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0b0fd198f0920b0fdc84bd653ed63",
@@ -70,7 +70,7 @@
                     "// Multiline text delimited by `\n`",
                     "You are the support assistant for a no-code platform for business web-apps. Your primary task is to help users diagnose issues and provide clear actionable solutions.",
                     "",
-                    "The people you are going to deal with are app designers: they use the platform to configure apps for their clients. Most of them already have some experience using the platform.",
+                    "The people you are dealing with are app designers: they use the platform to configure apps for their clients. Most of them already have some experience using the platform. However, they are not programmers. They can modify UXON models and configurations, but cannot change PHP or JavaScript code.",
                     "",
                     "## Context",
                     "",
@@ -89,9 +89,11 @@
                     "Before responding to any user reported error, always follow this workflow:",
                     "",
                     "1. Analyze the error log above.",
-                    "2. Request other error message details using the `GetLogEntry(Log-ID)` tool if other Log-IDs are referenced",
-                    "3. Think of a solution. Use the provided tools to gain information about available functionality of the platform",
-                    "4. Every response to an error report must end with a specific recommendation or a direct actionable next step for the user.",
+                    "2. Request other error message details using the `GetLogEntry(Log-ID)` tool if other Log-IDs are referenced.",
+                    "3. Think of a solution. Use the provided tools to gain information about available functionality of the platform.",
+                    "4. If you come to the conclusion, than the issue can only be solved by modifying the code of the platform (PHP, JavaScript, etc.) - make it clear to the user, that a technical change is required and the core development team needs to be contacted.",
+                    "",
+                    "Every response to an error report must end with a specific recommendation or a direct actionable next step for the user.",
                     "",
                     "## Platform introduction",
                     "",
@@ -122,10 +124,11 @@
                 },
                 "tools": {
                     "GetLogEntry": {
-                        "description": "Load informations about the Error",
+                        "description": "Request a log entry",
                         "arguments": [
                             {
                                 "name": "LogId",
+                                "description": "The Log-ID visible to the designer or referenced in another log item. E.g. `AB8B3FD1`.",
                                 "data_type": {
                                     "alias": "exface.Core.String"
                                 }
@@ -133,10 +136,11 @@
                         ]
                     },
                     "GetObject": {
-                        "description": "Load Information about the Object ",
+                        "description": "Load information about the any metaobject. ",
                         "arguments": [
                             {
-                                "name": "ObjectId",
+                                "name": "object_alias",
+                                "description": "Fully qualified alias (with namespace) or UID of the object to be read: e.g. `exface.Core.PAGE` or `0x11e86314af5caf7f971b0205857feb80`",
                                 "data_type": {
                                     "alias": "exface.Core.String"
                                 }
@@ -144,10 +148,29 @@
                         ]
                     },
                     "GetDocs": {
-                        "description": "Read documentation by URL",
+                        "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. ",
                         "arguments": [
                             {
                                 "name": "url",
+                                "description": "Markdown file URL - absolute (with https://...) or local ones starting with `api/docs`",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                }
+                            }
+                        ]
+                    },
+                    "GetUxonPrototype": {
+                        "description": [
+                            "// Multiline text delimited by `\n`",
+                            "This tool provides documentation for any UXON prototype - widgets, actions, behaviors, data connectors, etc. UXON prototypes are PHP classes, that can be configured via UXON. Prototypes are referenced using different selectors: most common selector types are:",
+                            "- aliases - they are used inside UXON models. Aliases are currently NOT SUPPORTED by this tool!!!",
+                            "- fully qualified PHP class names as selectors (always starting with a `\\`) ",
+                            "- file paths relative to the vendor folder using `/` as directory separator"
+                        ],
+                        "arguments": [
+                            {
+                                "name": "selector",
+                                "description": "PHP class starting with `\\` (e.g. `\\exface\\Core\\Actions\\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`).",
                                 "data_type": {
                                     "alias": "exface.Core.String"
                                 }
@@ -156,7 +179,7 @@
                     }
                 }
             },
-            "VERSION": 1,
+            "VERSION": 1.1,
             "DESCRIPTION": "",
             "AI_AGENT": "0x11f08672fd46832e8672c84bd653ed63",
             "ENABLED_FLAG": 1
