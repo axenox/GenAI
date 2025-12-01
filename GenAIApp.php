@@ -27,7 +27,7 @@ class GenAIApp extends App
         $schema_installer = new $installerClass($this->getSelector());
         if ($schema_installer instanceof AbstractSqlDatabaseInstaller) {
             $schema_installer
-            ->setFoldersWithMigrations(['Migrations'])
+            ->setFoldersWithMigrations(['InitDB','Migrations'])
             ->setDataConnection($modelDataSource)
             ->setFoldersWithStaticSql(['Views'])
             ->setMigrationsTableName('_migrations_genai');
