@@ -381,30 +381,32 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function addTool(AiToolInterface $tool) : OpenAiApiDataQuery 
     {
         $arguments = [];
-        $requireds = [];
+        $requiredArgNames = [];
         foreach($tool->getArguments() as $argument)
         {
-            $arguments[$argument->getName()] = [  
-                "type" => strtolower($argument->getDataType()->getName()),
-                "description" => $argument->getDescription()
-            ];
-            $requireds[] = $argument->getName();
+            $argSchema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
+            $argSchema['description'] = $argument->getDescription();
+            $arguments[$argument->getName()] = $argSchema;
+            $requiredArgNames[] = $argument->getName();
         }
         
-        array_push($this->tools,  [
-                                    "type" => "function",
-                                    "function" => [
-                                        "name" => $tool->getName(),
-                                        "description" => $tool->getDescription(),
-                                        "parameters" => [
-                                            "type" => "object",
-                                            "properties" => $arguments,
-                                            "required" => $requireds,
-                                            "additionalProperties" => false
-                                        ],
-                                        "strict" => true
-                                    ]
-                                ]);
+        array_push(
+            $this->tools,  
+            [
+                "type" => "function",
+                "function" => [
+                    "name" => $tool->getName(),
+                    "description" => $tool->getDescription(),
+                    "parameters" => [
+                        "type" => "object",
+                        "properties" => $arguments,
+                        "required" => $requiredArgNames,
+                        "additionalProperties" => false
+                    ],
+                    "strict" => true
+                ]
+            ]
+        );
         
         return $this;
     }

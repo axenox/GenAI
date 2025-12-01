@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\UrlDataType;
 use exface\Core\Facades\DocsFacade;
@@ -47,6 +48,17 @@ use exface\Core\Interfaces\WorkbenchInterface;
  */
 class GetDocsTool extends AbstractAiTool
 {
+    public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
+    {
+        parent::__construct($workbench, $uxon);
+
+        // TODO also allow absolute URLs starting with https:// here
+        $this->addSecurityCheck([
+            ['startsWith' => 'api/docs']
+        ])
+        ->setSecurityFailureMessage('Bad URL! Local URLs MUST start with `api/docs`');
+    }
+
     /**
      * E.g. 
      * - exface/Core/Docs/Tutorials/BookClub_walkthrough/index.md
@@ -57,15 +69,14 @@ class GetDocsTool extends AbstractAiTool
 
     public function invoke(array $arguments): string
     {
-        $this->setSecurityCheck([
-            ['startsWith' => 'api/docs']
-        ])
-        ->setSecurityFailureMessage('This Link is currently not avaible.');
-        
         list($url) = $arguments;
-        if(!$this->checkSecurity($url)){
+        $url = str_replace('\\/', '/', $url);
+        $url = ltrim($url, '/');
+        
+        if(! $this->checkSecurity($url)){
             return $this->getSecurityFailurMessage();
         }
+        
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
@@ -74,17 +85,17 @@ class GetDocsTool extends AbstractAiTool
                     $filePath = StringDataType::substringAfter($url, '/Docs/');
                     break;
                     // Full HTTP URL to the api/docs
-                case stripos($url, $docsFacade->buildUrlToFacade(true)):
+                case mb_stripos($url, $docsFacade->buildUrlToFacade(true)) !== false:
                     $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
                     break;
                     // Relative URL
                 default:
-                // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                list(, , $vendor, $appAlias, $pathWithinApp) = explode('/', $url, 5);
-                $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
-                $appPath = $app->getDirectoryAbsolutePath();
-                $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
-                break;
+                    // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
+                    list(, , $vendor, $appAlias, $pathWithinApp) = explode('/', $url, 5);
+                    $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
+                    $appPath = $app->getDirectoryAbsolutePath();
+                    $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
+                    break;
                         
             }
             $md = $docsFacade->getDocsMarkdown($url);
