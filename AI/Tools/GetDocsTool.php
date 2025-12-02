@@ -80,26 +80,7 @@ class GetDocsTool extends AbstractAiTool
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
-            switch (true) {
-                case UrlDataType::isAbsolute($url):
-                    $filePath = StringDataType::substringAfter($url, '/Docs/');
-                    break;
-                    // Full HTTP URL to the api/docs
-                case mb_stripos($url, $docsFacade->buildUrlToFacade(true)) !== false:
-                    $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
-                    break;
-                    // Relative URL
-                default:
-                    // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                    list(, , $vendor, $appAlias, $pathWithinApp) = explode('/', $url, 5);
-                    $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
-                    $appPath = $app->getDirectoryAbsolutePath();
-                    $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
-                    break;
-                        
-            }
             $md = $docsFacade->getDocsMarkdown($url);
-
             return $md;
         }
         catch(\Throwable $e){
