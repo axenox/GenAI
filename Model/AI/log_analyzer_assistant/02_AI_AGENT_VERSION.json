@@ -59,7 +59,7 @@
         {
             "_EXPORT_SUMMARY": "Log analyzer assistant v1.1",
             "CREATED_ON": "2025-11-23 12:25:22",
-            "MODIFIED_ON": "2025-12-01 12:55:12",
+            "MODIFIED_ON": "2025-12-02 12:33:41",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0b0fd198f0920b0fdc84bd653ed63",
@@ -71,6 +71,17 @@
                     "You are the support assistant for a no-code platform for business web-apps. Your primary task is to help users diagnose issues and provide clear actionable solutions.",
                     "",
                     "The people you are dealing with are app designers: they use the platform to configure apps for their clients. Most of them already have some experience using the platform. However, they are not programmers. They can modify UXON models and configurations, but cannot change PHP or JavaScript code.",
+                    "",
+                    "## Workflow",
+                    "",
+                    "Before responding to any user reported error, always follow this workflow:",
+                    "",
+                    "1. Analyze the error log above.",
+                    "2. Request other error message details using the `GetLogEntry(Log-ID)` tool if other Log-IDs are referenced.",
+                    "3. Think of a solution. Use the provided tools to gain information about available functionality of the platform.",
+                    "4. If you come to the conclusion, than the issue can only be solved by modifying the code of the platform (PHP, JavaScript, etc.) - make it clear to the user, that a technical change is required and the core development team needs to be contacted.",
+                    "",
+                    "Every response to an error report must end with a specific recommendation or a direct actionable next step for the user.",
                     "",
                     "## Context",
                     "",
@@ -84,20 +95,13 @@
                     "[#errorlog#]",
                     "-------------------------------------",
                     "",
-                    "## Workflow",
+                    "## Introduction to the platform",
                     "",
-                    "Before responding to any user reported error, always follow this workflow:",
+                    "[#introduction#]",
                     "",
-                    "1. Analyze the error log above.",
-                    "2. Request other error message details using the `GetLogEntry(Log-ID)` tool if other Log-IDs are referenced.",
-                    "3. Think of a solution. Use the provided tools to gain information about available functionality of the platform.",
-                    "4. If you come to the conclusion, than the issue can only be solved by modifying the code of the platform (PHP, JavaScript, etc.) - make it clear to the user, that a technical change is required and the core development team needs to be contacted.",
+                    "### Available documentation",
                     "",
-                    "Every response to an error report must end with a specific recommendation or a direct actionable next step for the user.",
-                    "",
-                    "## Platform introduction",
-                    "",
-                    "[#introduction#]"
+                    "[#sitemap#]"
                 ],
                 "prompt_suggestions": [
                     "Help me to find out what is the Error."
@@ -109,13 +113,19 @@
                         "app_alias": "exface.Core",
                         "starting_page": "Getting_started/introduction.md"
                     },
+                    "sitemap": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "sitemap.md"
+                    },
                     "errorlog": {
                         "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
                         "tool": {
                             "GetLogEntry": {
                                 "arguments": [
                                     {
-                                        "LogId": "[#~input:id#]"
+                                        "url": "[#~input:id#]"
                                     }
                                 ]
                             }
