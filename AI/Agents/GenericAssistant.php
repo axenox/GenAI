@@ -16,8 +16,8 @@ use axenox\GenAI\Factories\AiFactory;
 use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\StringDataType;
-use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -305,8 +305,8 @@ class GenericAssistant implements AiAgentInterface
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                'MESSAGE'=> json_encode($query->getToolCalls(), JSON_PRETTY_PRINT),
-                'DATA' => json_encode($query->getResponseMessage(), JSON_PRETTY_PRINT),
+                'MESSAGE'=> JsonDataType::escapeCodeBlock(json_encode($query->getToolCalls(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+                'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
