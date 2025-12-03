@@ -16,7 +16,7 @@ use axenox\GenAI\Factories\AiFactory;
 use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -305,7 +305,7 @@ class GenericAssistant implements AiAgentInterface
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                'MESSAGE'=> JsonDataType::escapeCodeBlock(json_encode($query->getToolCalls(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+                'MESSAGE'=> MarkdownDataType::escapeCodeBlock(json_encode($query->getToolCalls(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
                 'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
@@ -380,8 +380,8 @@ class GenericAssistant implements AiAgentInterface
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::TOOL,
-                'DATA' => json_encode($responses, JSON_PRETTY_PRINT),
-                'MESSAGE' => json_encode($responses, JSON_PRETTY_PRINT),
+                'DATA' => UxonObject::fromArray($responses)->toJson(true),
+                'MESSAGE' =>  arkdownDataType::escapeCodeBlock(json_encode($responses, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
 
