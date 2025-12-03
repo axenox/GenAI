@@ -67,7 +67,7 @@
         {
             "_EXPORT_SUMMARY": "AI test rating",
             "CREATED_ON": "2025-09-17 12:09:01",
-            "MODIFIED_ON": "2025-09-17 12:12:32",
+            "MODIFIED_ON": "2025-12-03 15:29:14",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f08738553abe6e8738025041000001",
@@ -76,17 +76,17 @@
             "PROTOTYPE": "exface/Core/DataTypes/NumberEnumDataType.php",
             "CONFIG_UXON": {
                 "values": {
-                    "1": "Bad",
-                    "2": "Poor",
-                    "3": "Intermediate",
+                    "1": "Wrong",
+                    "2": "Useless",
+                    "3": "Not helpful",
                     "4": "OK",
                     "5": "Excellent"
                 },
                 "value_hints": {
-                    "1": "AI did not understand the matter",
-                    "2": "AI understood, but produced a wrong answer",
-                    "3": "Result is technically OK, but not what the user intended",
-                    "4": "Result is usable, but with some corrections by user",
+                    "1": "AI did not understand the matter / critical errors",
+                    "2": "AI understood, but the answer is wrong or errors occurred",
+                    "3": "Response does not help the user, but is technically OK",
+                    "4": "Result is usable, but not precise",
                     "5": "Result fits without changes"
                 },
                 "precision_max": 0
