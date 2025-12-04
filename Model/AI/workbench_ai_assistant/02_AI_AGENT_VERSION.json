@@ -57,49 +57,105 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Workbench AI Assistant v1",
+            "_EXPORT_SUMMARY": "Admin AI Assistant v1.1",
             "CREATED_ON": "2025-04-14 11:38:28",
-            "MODIFIED_ON": "2025-09-11 17:29:47",
+            "MODIFIED_ON": "2025-12-04 10:14:34",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f09c3c3860f7dc9c3c025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "instructions": [
                     "// Multiline text delimited by `\n`",
-                    "You are a helpful assistant, who will answer questions about the use of a no-code platform for business web apps.",
-                    "",
-                    "[#introduction#]",
+                    "You are the support assistant for a no-code platform for business web-apps. Administrators and app designer, who use the platform to build apps for their clients can ask questions about the platform or ask you to help build something.",
                     "",
                     "## Global rules",
                     "",
                     "- Answer using the following locale [#=User('LOCALE')#]",
-                    "- If asked about an error, make sure the sure the user provides a Log-ID. This will let you fetch detailed information about the error using GetLogEntry tool. If the user did not provide a Log-ID, ask for it. It is always didsplayed next to the error message."
+                    "- Use the `GetDocs()` tool to request pages from the documentation. ",
+                    "- If asked about an error, tell the user user to provide a Log-ID. This will let you fetch detailed information about the error using GetLogEntry tool. The Log-ID is always displayed next to every error message.",
+                    "",
+                    "## Introduction to the platform",
+                    "",
+                    "[#introduction#]",
+                    "",
+                    "## Index of the available documentation",
+                    "",
+                    "[#sitemap#]"
                 ],
+                "concepts": {
+                    "introduction": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "Getting_started/introduction.md"
+                    },
+                    "sitemap": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "sitemap.md"
+                    }
+                },
                 "tools": {
                     "GetLogEntry": {
-                        "description": "Log-ID from the error",
+                        "description": "Read the log",
                         "arguments": [
                             {
-                                "name": "Log-ID",
+                                "name": "LogId",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "The Log-ID visible to the designer or referenced in another log item. E.g. `AB8B3FD1`."
+                            }
+                        ]
+                    },
+                    "GetObject": {
+                        "description": "Load information about the any metaobject. ",
+                        "arguments": [
+                            {
+                                "name": "object_alias",
+                                "description": "Fully qualified alias (with namespace) or UID of the object to be read: e.g. `exface.Core.PAGE` or `0x11e86314af5caf7f971b0205857feb80`",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                }
+                            }
+                        ]
+                    },
+                    "GetDocs": {
+                        "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. ",
+                        "arguments": [
+                            {
+                                "name": "url",
+                                "description": "Markdown file URL - absolute (with https://...) or local ones starting with `api/docs`",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                }
+                            }
+                        ]
+                    },
+                    "GetUxonPrototype": {
+                        "description": [
+                            "// Multiline text delimited by `\n`",
+                            "This tool provides documentation for any UXON prototype - widgets, actions, behaviors, data connectors, etc. UXON prototypes are PHP classes, that can be configured via UXON. Prototypes are referenced using different selectors: most common selector types are:",
+                            "- aliases - they are used inside UXON models. Aliases are currently NOT SUPPORTED by this tool!!!",
+                            "- fully qualified PHP class names as selectors (always starting with a `\\`) ",
+                            "- file paths relative to the vendor folder using `/` as directory separator"
+                        ],
+                        "arguments": [
+                            {
+                                "name": "selector",
+                                "description": "PHP class starting with `\\` (e.g. `\\exface\\Core\\Actions\\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`).",
                                 "data_type": {
                                     "alias": "exface.Core.String"
                                 }
                             }
                         ]
                     }
-                },
-                "concepts": {
-                    "introduction": {
-                        "class": "\\exface\\Core\\AI\\Concepts\\AppDocsConcept",
-                        "app_alias": "exface.Core",
-                        "starting_page": "Getting_started/Introduction.md",
-                        "depth": 0
-                    }
                 }
             },
-            "VERSION": 1,
+            "VERSION": 1.1,
             "DESCRIPTION": "",
             "AI_AGENT": "0x11f09c3c3860f7dc9c3c025041000001",
             "ENABLED_FLAG": 1
