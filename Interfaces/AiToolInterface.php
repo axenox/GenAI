@@ -1,5 +1,6 @@
 <?php
 namespace axenox\GenAI\Interfaces;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
 
@@ -34,4 +35,6 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
      * @return string
      */
     public function getDescription() : string;
+    
+    public function getReturnDataType() : DataTypeInterface;
 }

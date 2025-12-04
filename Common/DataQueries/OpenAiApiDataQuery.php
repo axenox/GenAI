@@ -418,7 +418,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::hasToolCalls()
      */
     public function hasToolCalls() : bool
     {
@@ -427,7 +427,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getToolCalls()
      */
     public function getToolCalls() : array
     {

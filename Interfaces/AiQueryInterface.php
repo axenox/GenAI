@@ -100,7 +100,7 @@ interface AiQueryInterface extends DataQueryInterface
     /**
      * Requested Tool Calls
      * 
-     * @return array
+     * @return AiToolCallInterface[]
      */
     public function getToolCalls() : array;
 }

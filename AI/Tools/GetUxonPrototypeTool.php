@@ -4,7 +4,10 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\UxonPrototypeMarkdownPrinter;
+use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 class GetUxonPrototypeTool extends AbstractAiTool
@@ -37,5 +40,14 @@ class GetUxonPrototypeTool extends AbstractAiTool
                 ->setName(self::ARG_OBJECT_SELECTOR)
                 ->setDescription('PHP class starting with `\` (e.g. `\exface\Core\Actions\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`).')
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getReturnDataType()
+     */
+    public function getReturnDataType(): DataTypeInterface
+    {
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 }
