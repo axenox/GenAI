@@ -45,14 +45,14 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Workbench AI Assistant",
+            "_EXPORT_SUMMARY": "Admin AI Assistant",
             "CREATED_ON": "2025-04-14 11:38:28",
-            "MODIFIED_ON": "2025-09-11 17:29:49",
+            "MODIFIED_ON": "2025-12-04 10:30:17",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f09c3c3860f7dc9c3c025041000001",
-            "NAME": "Workbench AI Assistant",
-            "DESCRIPTION": "",
+            "NAME": "Admin AI Assistant",
+            "DESCRIPTION": "General-purpose chat in the main administration menu",
             "ALIAS": "workbench_ai_assistant",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63"
         }
