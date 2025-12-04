@@ -8,7 +8,7 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiToolCallInterface
+interface AiToolCallInterface extends \Stringable
 {
     public function getToolName() : string;
 

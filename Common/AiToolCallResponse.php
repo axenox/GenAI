@@ -1,6 +1,8 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use JsonSerializable;
 
 /**
@@ -9,19 +11,18 @@ use JsonSerializable;
 class AiToolCallResponse implements JsonSerializable
 {
     private $toolName = null;
-
     private $callId = null;
-
     private $arguments = [];
-
     private $toolResponse = null;
+    private $dataTypeAlias = null;
 
-    public function __construct(string $toolName, string $callId, array $arguments, string $toolResponse)
+    public function __construct(string $toolName, string $callId, array $arguments, string $toolResponse, string $dataTypeAlias)
     {
         $this->toolName = $toolName;
         $this->callId = $callId;
         $this->arguments = $arguments;
         $this->toolResponse = $toolResponse;
+        $this->dataTypeAlias = $dataTypeAlias;
     }
 
     public function jsonSerialize() {
@@ -58,5 +59,10 @@ class AiToolCallResponse implements JsonSerializable
 
     public function getToolResponse(): string {
         return $this->toolResponse;
+    }
+    
+    public function getDataTypeAlias(): string 
+    {
+        return $this->dataTypeAlias;    
     }
 }
