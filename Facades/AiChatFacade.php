@@ -87,6 +87,7 @@ class AiChatFacade extends AbstractHttpFacade
             return new Response(($responseCode ?? 404), $headers, Utils::streamFor($body ?? ''));
         }
         catch(\Throwable $e){
+            $this->getWorkbench()->getLogger()->logException($e);
             return $this->createResponseFromError($e, $request);
         } 
     }
