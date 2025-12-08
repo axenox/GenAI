@@ -42,10 +42,10 @@ class AIChat extends InputCustom implements iFillEntireContainer
     protected function init()
     {
         $this->setHideCaption(true);
-        $this->setHtmlHeadTags([
-            '<script type="module" src="vendor/npm-asset/deep-chat/dist/deepChat.bundle.js"></script>'
-        ]);
+        
+        $this->setIncludeJsModules(['vendor/npm-asset/deep-chat/dist/deepChat.bundle.js']);
         $this->setCssClass('exf-aichat');
+        
         $this->setScriptToResize(<<<JS
         
             setTimeout(function(jqSelf){
@@ -72,6 +72,9 @@ JS);
 
     protected function buildHtmlDeepChat() : string
     {
+        $top = $this->getButtonsHTML('top');
+        $botton = $this->getButtonsHTML('botton');
+
         if ($this->isBoundToAttribute()) {
             $requestDataJs = <<<JS
                 requestDetails.body.data = {
@@ -82,17 +85,11 @@ JS);
                 }
     JS;
 
-     
+
         }
 
         $suggestionsHtml = $this->getSuggestionsHTML();
-        $top = $this->getButtonsHTML('top');
-        $botton = $this->getButtonsHTML('botton');
         $introMessage = $this->getIntroMessage();
-
-
-        //Mögliches To Do https://deepchat.dev/docs/messages/styles && https://deepchat.dev/examples/design 
-        //Möglichkeit geben den Style der bubble anzupassen?
         
         return <<<HTML
 
@@ -158,12 +155,21 @@ JS);
 
             
         </div>
+    HTML;
+    }
+    
+    protected function buildJsDeepChatInit() : string
+    {        
+        return <<<JS
 
-        <script>
-        
             (function () {
-                        
-                const chat = document.getElementById('{$this->getId()}');
+                      console.log('chat');  
+                const chat = document.getElementById('{$this->getId()}');                
+                if (!chat) {
+                  console.error("AIChat element not found in DOM");
+                  return;
+                }
+                
                 chat.historyInitDone = false;
             
                 chat.addEventListener('render', () => {
@@ -203,13 +209,7 @@ JS);
                     star.addEventListener("click", () => setRating(i + 1));
                 });
             
-            })();
-
-            
-            // TODO this "chat" is a global variable! This will cause a lot of propblems with multipe
-            // chat widgets. There were already lots of JS errors when opening and closing jEasyUI
-            // dialogs with AiChat widgets in them!
-            
+            })();        
 
 
             /*
@@ -247,9 +247,8 @@ JS);
             
             
             */
-            
-        </script>
-    HTML;
+JS;
+
     }
 
     protected function getSuggestionsHTML() : string 
@@ -513,7 +512,15 @@ JS);
      */
     public function getHtml() : ?string
     {
-        $test = $this->buildHtmlDeepChat();
         return $this->buildHtmlDeepChat();
+    }
+
+    /**
+     *
+     * @see InputCustom::getScriptToInit()
+     */
+    public function getScriptToInit() : ?string
+    {
+        return $this->buildJsDeepChatInit() . parent::getScriptToInit();
     }
 }
