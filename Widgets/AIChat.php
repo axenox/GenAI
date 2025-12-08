@@ -138,6 +138,7 @@ JS);
                 }'
 
                 introMessage='{$introMessage}'
+                chatStyle='{"background": "transparent", "border": "none"}'
                 messageStyles='{
                     "default": {
                       "shared": {
