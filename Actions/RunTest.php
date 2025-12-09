@@ -93,6 +93,7 @@ class RunTest extends AbstractActionDeferred
         try{
             $result = $agent->handle($prompt);
         }catch(\Throwable $e){
+            $this->getWorkbench()->getLogger()->logException($e);
             $errorMessage = $e->getMessage();
             $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
             $result = new AiResponse($prompt, '', $e->getConversationId());
