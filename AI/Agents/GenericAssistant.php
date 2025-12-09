@@ -5,6 +5,7 @@ use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiToolInterface;
@@ -37,7 +38,6 @@ use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
-use exface\Core\Widgets\Markdown;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -674,6 +674,11 @@ class GenericAssistant implements AiAgentInterface
             ]);
             $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getAliasWithNamespace(), ComparatorDataType::EQUALS);
             $sheet->dataRead();
+            switch ($sheet->countRows()) {
+                case 0: throw new AiAgentNotFoundError('AI agent "' . $this->getSelector()->__toString() . '" not found!');
+                case 1: break;
+                default: throw new AiAgentNotFoundError('Multiple AI agents found for "' . $this->getSelector()->__toString() . '"!');
+            }
             $this->agentDataSheet = $sheet;
         }
         return $this->agentDataSheet;
