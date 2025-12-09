@@ -251,4 +251,20 @@ abstract class AbstractAiTool implements AiToolInterface
     {
         return AiConceptUxonSchema::class;
     }
+
+    /**
+     * PHP class of the tool
+     * 
+     * @uxon-property class
+     * @uxon-type string
+     * @uxon-template \axenox\GenAI\AI\Tools\GetDocsTool
+     * 
+     * @param string $class
+     * @return AiToolInterface
+     */
+    protected function setClass(string $class) : AiToolInterface
+    {
+        // Do nothing - this is just to make importUxon() work
+        return $this;
+    }
 }

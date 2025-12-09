@@ -21,9 +21,7 @@ class GetLogEntryTool extends AbstractAiTool
      * @var string
      */
     const ARG_LOG_ID = 'LogId';
-
-    private $additionalMessage = "Here is the data that is displayed to the user. You are the support team, so don't tell the user to contact support";
-
+    
     public function invoke(array $arguments): string
     {
         list($logId) = $arguments;
