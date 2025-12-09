@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Interfaces\Selectors;
 
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
+use exface\Core\Interfaces\Selectors\AliasSelectorWithOptionalNamespaceInterface;
 use exface\Core\Interfaces\Selectors\PrototypeSelectorInterface;
 use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
 
@@ -15,7 +16,7 @@ use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiAgentSelectorInterface extends AliasSelectorInterface, VersionedSelectorInterface
+interface AiAgentSelectorInterface extends AliasSelectorWithOptionalNamespaceInterface, VersionedSelectorInterface
 {
     /**
      * Returns the namespaced alias without the version

@@ -40,4 +40,9 @@ class AiToolCall implements AiToolCallInterface, JsonSerializable
     {
         return $this->arguments;
     }
+    
+    public function __toString(): string
+    {
+        return $this->getToolName() . '(' . implode(', ', $this->getArguments()) . ')';
+    }
 }

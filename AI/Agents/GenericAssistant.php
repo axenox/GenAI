@@ -5,6 +5,7 @@ use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiToolInterface;
@@ -17,12 +18,14 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
@@ -187,7 +190,8 @@ class GenericAssistant implements AiAgentInterface
                     $call->getToolName(),
                     $callId,
                     $call->getArguments(),
-                    $resultOfTool
+                    $resultOfTool,
+                    $tool->getReturnDataType()->getAliasWithNamespace()
                 );
 
                 $this->toolCalls[] = $toolCallResponses[$callId];
@@ -195,7 +199,7 @@ class GenericAssistant implements AiAgentInterface
                 $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;  
             }            
-            $toolCallResponses = $this->saveConversationToolCalls($prompt, $query, $toolCallResponses);
+            $toolCallResponses = $this->saveConversationToolResponses($prompt, $performedQuery, $toolCallResponses);
             // $toolCallResponses = null;
             $performedQuery = $this->getConnection()->query($query);
             $numberOfCalls++;
@@ -251,11 +255,18 @@ class GenericAssistant implements AiAgentInterface
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
 
+                $dataUxon = new UxonObject([
+                    'tools' => []
+                ]);
+                foreach ($this->getTools() as $tool) {
+                    $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
+                }
                 $message->addRow([
                     'AI_CONVERSATION' => $conversationId,
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE'=> AiMessageTypeDataType::SYSTEM,
                     'MESSAGE'=> $this->systemPrompt,
+                    'DATA' => $dataUxon->toJson(true),
                     'SEQUENCE_NUMBER' => $this->sequenceNumber++
                 ]);
             }
@@ -299,13 +310,18 @@ class GenericAssistant implements AiAgentInterface
         $transaction = $this->workbench->data()->startTransaction();
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $toolCalls = $query->getToolCalls();
+        $markdown = count($toolCalls) . " tool calls:\n\n";
+        foreach ($toolCalls as $toolCall) {
+            $markdown .= '- `' . $toolCall->__toString() . "`\n";
+        }
         try {
 
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                'MESSAGE'=> JsonDataType::escapeCodeBlock(json_encode($query->getToolCalls(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+                'MESSAGE'=> $markdown,
                 'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
@@ -367,21 +383,40 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
      * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @param array $responses
+     * @param AiToolCallResponse[] $responses
      * @return void
      */
-    protected function saveConversationToolCalls(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) : ?array 
+    protected function saveConversationToolResponses(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) : ?array 
     {
         $transaction = $this->workbench->data()->startTransaction();
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $toolCalls = $query->getToolCalls();
+        $markdown = '> ' . count($toolCalls) . " tool calls:\n";
+        foreach ($toolCalls as $toolCall) {
+            $markdown .= '> - `' . $toolCall->__toString() . "`\n";
+        }
+        foreach ($responses as $response) {
+            $type = DataTypeFactory::createFromString($this->workbench, $response->getDataTypeAlias());
+            switch (true) {
+                case $type instanceof MarkdownDataType:
+                    $markdown .= $response->getToolResponse();
+                    break;
+                case $type instanceof JsonDataType:
+                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResponse());
+                    break;
+                default:
+                    $markdown .= $response->getToolResponse();
+            }
+            $markdown .= MarkdownDataType::makeHorizontalLine();
+        }
         try {
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::TOOL,
-                'DATA' => json_encode($responses, JSON_PRETTY_PRINT),
-                'MESSAGE' => json_encode($responses, JSON_PRETTY_PRINT),
+                'DATA' => UxonObject::fromArray($responses)->toJson(true),
+                'MESSAGE' => $markdown,
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
 
@@ -639,6 +674,11 @@ class GenericAssistant implements AiAgentInterface
             ]);
             $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getAliasWithNamespace(), ComparatorDataType::EQUALS);
             $sheet->dataRead();
+            switch ($sheet->countRows()) {
+                case 0: throw new AiAgentNotFoundError('AI agent "' . $this->getSelector()->__toString() . '" not found!');
+                case 1: break;
+                default: throw new AiAgentNotFoundError('Multiple AI agents found for "' . $this->getSelector()->__toString() . '"!');
+            }
             $this->agentDataSheet = $sheet;
         }
         return $this->agentDataSheet;

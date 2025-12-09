@@ -5,10 +5,13 @@ use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\DataTypes\UrlDataType;
 use exface\Core\Facades\DocsFacade;
+use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\FacadeFactory;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -86,26 +89,7 @@ class GetDocsTool extends AbstractAiTool
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
-            switch (true) {
-                case UrlDataType::isAbsolute($url):
-                    $filePath = StringDataType::substringAfter($url, '/Docs/');
-                    break;
-                    // Full HTTP URL to the api/docs
-                case mb_stripos($url, $docsFacade->buildUrlToFacade(true)) !== false:
-                    $filePath = StringDataType::substringAfter($url, $docsFacade->buildUrlToFacade(true));
-                    break;
-                    // Relative URL
-                default:
-                    // exface | Core | Docs/Tutorials/BookClub_walkthrough/index.md
-                    list(, , $vendor, $appAlias, $pathWithinApp) = explode('/', $url, 5);
-                    $app = $this->getWorkbench()->getApp($vendor . '.' . $appAlias);
-                    $appPath = $app->getDirectoryAbsolutePath();
-                    $filePath = $appPath . DIRECTORY_SEPARATOR . $pathWithinApp;
-                    break;
-                        
-            }
             $md = $docsFacade->getDocsMarkdown($url);
-
             return $md;
         }
         catch(\Throwable $e){
@@ -126,5 +110,14 @@ class GetDocsTool extends AbstractAiTool
                 ->setName(self::ARG_URI)
                 ->setDescription('Markdown file URL - absolute (with https://...) or relative to api/docs on this server')
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getReturnDataType()
+     */
+    public function getReturnDataType(): DataTypeInterface
+    {
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 }

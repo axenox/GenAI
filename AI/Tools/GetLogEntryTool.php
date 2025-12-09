@@ -4,8 +4,11 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\LogEntryMarkdownPrinter;
 use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -18,9 +21,7 @@ class GetLogEntryTool extends AbstractAiTool
      * @var string
      */
     const ARG_LOG_ID = 'LogId';
-
-    private $additionalMessage = "Here is the data that is displayed to the user. You are the support team, so don't tell the user to contact support";
-
+    
     public function invoke(array $arguments): string
     {
         list($logId) = $arguments;
@@ -43,5 +44,13 @@ class GetLogEntryTool extends AbstractAiTool
                 ->setDescription('Log-ID pointing to the log entry to get details for')
         ];
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getReturnDataType()
+     */
+    public function getReturnDataType(): DataTypeInterface
+    {
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
+    }
 }
