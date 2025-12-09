@@ -58,16 +58,21 @@ class AIChat extends InputCustom implements iFillEntireContainer
                 if (iWidthP > 0) {
                     jqSelf.width(iWidthP);
                 }
-            }, 100, $('#{$this->getId()}'));
+            }, 100, $('#{$this->getIdOfDeepChat()}'));
 JS);
         
         // Get/set value
-        $this->setScriptToSetValue("$('#{$this->getId()}').data('exf-value', [#~mValue#])");
-        $this->setScriptToGetValue("$('#{$this->getId()}').data('exf-value')");
+        $this->setScriptToSetValue("$('#{$this->getIdOfDeepChat()}').data('exf-value', [#~mValue#])");
+        $this->setScriptToGetValue("$('#{$this->getIdOfDeepChat()}').data('exf-value')");
 
         // Disable/enable
-        $this->setScriptToDisable("$('#{$this->getId()}')[0].disableSubmitButton()");
-        $this->setScriptToEnable("$('#{$this->getId()}')[0].disableSubmitButton(false)");
+        $this->setScriptToDisable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton()})($('#{$this->getIdOfDeepChat()}')[0]);");
+        $this->setScriptToEnable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton(false)})($('#{$this->getIdOfDeepChat()}')[0]);");
+    }
+    
+    protected function getIdOfDeepChat() : string
+    {
+        return $this->getId() . '_deepchat';
     }
 
     protected function buildHtmlDeepChat() : string
@@ -80,16 +85,13 @@ JS);
                 requestDetails.body.data = {
                     oId: "{$this->getMetaObject()->getId()}", 
                     rows: [
-                        { {$this->getAttributeAlias()}: $("#{$this->getId()}").data("exf-value") }
+                        { {$this->getAttributeAlias()}: $("#{$this->getIdOfDeepChat()}").data("exf-value") }
                     ]
                 }
     JS;
 
 
         }
-
-        $suggestionsHtml = $this->getSuggestionsHTML();
-        $introMessage = $this->getIntroMessage();
         
         return <<<HTML
 
@@ -100,7 +102,7 @@ JS);
                 {$top}
             </div>
             <deep-chat 
-                id='{$this->getId()}'
+                id='{$this->getIdOfDeepChat()}'
                 class='exf-aichat'
                 connect='{
                     "url": "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/deepchat",
@@ -112,7 +114,7 @@ JS);
                     }
                 }'
                 responseInterceptor  = 'function (message) {
-                    var domEl = document.getElementById("{$this->getId()}");
+                    var domEl = document.getElementById("{$this->getIdOfDeepChat()}");
 
                     if (message.errorMessage && !message.error) {
                         message.error = message.errorMessage;
@@ -122,7 +124,7 @@ JS);
                     return message; 
                 }'
                 requestInterceptor = 'function (requestDetails) {
-                    var domEl = document.getElementById("{$this->getId()}");
+                    var domEl = document.getElementById("{$this->getIdOfDeepChat()}");
                     requestDetails.body.conversation = domEl.conversationId;
                     {$requestDataJs};
                     return requestDetails;
@@ -137,7 +139,7 @@ JS);
                     }
                 }'
 
-                introMessage='{$introMessage}'
+                introMessage='{$this->getIntroMessage()}'
                 chatStyle='{"background": "transparent", "border": "none"}'
                 messageStyles='{
                     "default": {
@@ -160,12 +162,14 @@ JS);
     }
     
     protected function buildJsDeepChatInit() : string
-    {        
+    {
+        $suggestionsHtml = $this->getSuggestionsHTML();
+        $introMessage = $this->getIntroMessage();
+        
         return <<<JS
 
-            (function () {
-                      console.log('chat');  
-                const chat = document.getElementById('{$this->getId()}');                
+            (function () { 
+                const chat = document.getElementById('{$this->getIdOfDeepChat()}');                
                 if (!chat) {
                   console.error("AIChat element not found in DOM");
                   return;
@@ -383,7 +387,7 @@ JS;
 
         if ($this->canUseButton($this->resetButton, $position)) {
             return <<<HTML
-                    <button style="order : {$order}" type="button" onclick="resetDeepChat('{$this->getId()}')">Reset</button>
+                    <button style="order : {$order}" type="button" onclick="resetDeepChat('{$this->getIdOfDeepChat()}')">Reset</button>
                     HTML;
                         }
 
