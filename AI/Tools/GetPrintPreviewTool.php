@@ -5,11 +5,8 @@ use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Exceptions\AiToolConfigurationError;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\HtmlDataType;
-use exface\Core\DataTypes\MarkdownDataType;
-use exface\Core\Exceptions\RuntimeException;
-use exface\Core\Facades\DocsFacade\MarkdownPrinters\LogEntryMarkdownPrinter;
+use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\ActionFactory;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
@@ -43,7 +40,15 @@ class GetPrintPreviewTool extends AbstractAiTool
         $prints = $action->renderPreviewHTML($printData);
         $preview = reset($prints);
         
-        $preview = str_replace(['<html>', '</html>'], '', $preview);
+        // Remove anything outside the HTML body - the AI does not need that
+        $preview = StringDataType::substringAfter($preview, "<body>", $preview);
+        $preview = StringDataType::substringBefore($preview, "</body>", $preview);
+        
+        // Remove spaces and tabs at the beginning of lines to ensure, they are never recognized as (indented) code
+        // by markdown renderers
+        $lines = StringDataType::splitLines($preview);
+        $lines = array_map('trim', $lines);
+        $preview = implode("\n", $lines);
         
         return $preview;
     }
