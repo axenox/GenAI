@@ -2,106 +2,123 @@
 
 namespace axenox\GenAI\AI\Concepts;
 
-use axenox\GenAI\AI\Agents\GenericAssistant;
 use axenox\GenAI\Common\AbstractConcept;
-use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Exceptions\AiConceptConfigurationError;
 use axenox\GenAI\Factories\AiFactory;
-use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\UxonObject;
 
 class ToolCallConcept extends AbstractConcept
 {
-    
-    private ?AiToolInterface $tool = null;
+    private ?string $toolName = null;
+    private ?UxonObject $toolDef = null;
     
     private array $arguments = [];
 
     public function resolve(array $placeholders) : array
     {
         $phVals = [];
-        $phVals[$this->getPlaceholder()] =  $this->tool->invoke($this->arguments);;
+        $phVals[$this->getPlaceholder()] =  $this->getTool()->invoke($this->getArguments());
         return $phVals;
     }
 
+    protected function getTool() : AiToolInterface
+    {
+        if ($this->toolDef !== null) {
+            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->getToolName(), $this->toolDef);
+        } else {
+            throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
+        }
+        return $tool;
+    }
 
     /**
-     * Tools (function calls)
+     * @param string|UxonObject $stringOrUxon
+     * @return $this
+     */
+    protected function setTool(string|UxonObject $stringOrUxon) : ToolCallConcept
+    {
+        if ($stringOrUxon instanceof UxonObject) {
+            $this->parseLegacySyntax($stringOrUxon);
+        } else {
+            $this->toolName = $stringOrUxon;
+        }
+        return $this;
+    }
+    
+    protected function getToolName() : string
+    {
+        return $this->toolName ?? $this->getPlaceholder();
+    }
+
+    /**
+     * @return string[]
+     */
+    protected function getArguments() : array
+    {
+        return $this->arguments;
+    }
+
+    /**
+     * Arguments to be used in the tool call
+     * 
+     * @uxon-property arguments
+     * @uxon-type array
+     * @uxon-template [""]
+     * 
+     * @param UxonObject $arguments
+     * @return $this
+     */
+    protected function setArguments(UxonObject $arguments) : ToolCallConcept
+    {
+        $this->arguments = $arguments->toArray();
+        return $this;
+    }
+
+    /**
+     * Define a tool right here instead of referencing an existing tool in this agent
      *
      * ```
      *   {
      *      "tool": {
-     *          "GetDocs": {
-     *              "arguments": [
-     *                      {
-     *                          "uri": "api\/docs\/axenox\/genai\/Docs\/AI_Testing\/index.md"
-     *                      }
-     *                  }
-     *              ]
-     *          }
+     *          "class": "\axenox\GenAI\AI\Tools\GetDocsTool"
      *      }
      *  }
      *
      * ```
-     * @uxon-property tool
+     * @uxon-property tool_definition
      * @uxon-type \axenox\GenAI\Common\AbstractAiTool
-     * @uxon-template {"": {"arguments": [{"name": "", "data_type": {"alias": ""}}]}}
+     * @uxon-template {"class": ""}
      *
      * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
      * @return ToolCallConcept
      */
-    protected function setTool(UxonObject $objectWithToolDefs) : ToolCallConcept
+    protected function setToolDefinition(UxonObject $objectWithToolDefs) : ToolCallConcept
+    {
+        $this->toolDef = $objectWithToolDefs;
+        return $this;
+    }
+    
+    protected function parseLegacySyntax(UxonObject $objectWithToolDefs) : ToolCallConcept
     {
         $props     = $objectWithToolDefs->getPropertiesAll();
         $toolName  = array_key_first($props);
-        $toolDef   = $props[$toolName]->getPropertiesAll();
-        $arguments = $toolDef['arguments'] ?? [];
-
-
-        $this->arguments = [];
-
-       
-        $argumentDefs = [];
+        $toolDef   = $props[$toolName]->copy();
+        $arguments = $toolDef->getProperty('arguments') ?? [];
+        $toolDef->unsetProperty('arguments');
+        $toolDef->setProperty('name', $toolName);
+        $argVals = [];
 
         foreach ($arguments as $argument) {
-            $argProps = $argument->getPropertiesAll(); 
-
-            foreach ($argProps as $key => $value) {
-               
-                $this->arguments[] = $value;
-
-                
+            $argProps = $argument->getPropertiesAll();
+            foreach ($argProps as $value) {
+                $argVals[] = $value;
             }
         }
-
-        $this->tool = $this->buildools($toolName, $this->arguments);
-
+        $this->setArguments(new UxonObject($argVals));
+        
+        $this->setToolDefinition($toolDef);
+        $this->setTool($toolName);
         return $this;
     }
-
-
-
-
-    public function buildools(string $name, array $argumentsList) : AiToolInterface
-    {
-        $arguements = [];
-        foreach ($argumentsList as $key) {
-            $arguements[] = [
-                'name' => $key
-            ];
-            
-        }
-        $toolUxon = new UxonObject(
-            [
-                'name'=> $name,
-                'arguments'=> $arguements
-                
-            ]
-        );
-        $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $name, $toolUxon);
-
-        return $tool;
-    }
-
-    
 }
