@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\StringDataType;
@@ -75,6 +76,11 @@ class GetDocsTool extends AbstractAiTool
         
         if(! $this->checkSecurity($url)){
             return $this->getSecurityFailurMessage();
+        }
+        
+        if(StringDataType::endsWith($url,"php")){
+            $phpPrinter = new CodeMarkdownPrinter($this->getWorkbench(), $url);
+            return $phpPrinter->getMarkdown();
         }
         
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
