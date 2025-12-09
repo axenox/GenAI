@@ -146,6 +146,14 @@ JS);
                       "shared": {
                         "bubble": { "maxWidth": "90%" }
                       }
+                    },
+                    "html": {
+                        "shared": {
+                            "bubble": {
+                                "backgroundColor": "unset", 
+                                "padding": "0px"
+                            }
+                        }
                     }
                   }'
             ></deep-chat>
@@ -163,7 +171,10 @@ JS);
     
     protected function buildJsDeepChatInit() : string
     {
-        $suggestionsHtml = $this->getSuggestionsHTML();
+        $suggestions = '';
+        foreach ($this->getPromptSuggestions() as $s){
+            $suggestions .= ($suggestions ? ', ' : '') . "{ html: `<button class=\"deep-chat-button deep-chat-suggestion-button\" style=\"border-style: dashed\">{$s}</button>`, role: 'ai' }";
+        }
         $introMessage = $this->getIntroMessage();
         
         return <<<JS
@@ -176,13 +187,12 @@ JS);
                 }
                 
                 chat.historyInitDone = false;
-            
                 chat.addEventListener('render', () => {
                     if (chat.historyInitDone) return;
                     chat.historyInitDone = true;
             
                     chat.history = [
-                        { html: `$suggestionsHtml`, role: 'user' }
+                        {$suggestions}
                     ];
                 });
             
@@ -192,7 +202,7 @@ JS);
                         domEl.conversationId = null;
                         domEl.messages = [];
                         domEl.history = [
-                            { html: `$suggestionsHtml`, role: 'user' }
+                            {$suggestions}
                         ];
                         domEl.setAttribute('introMessage', '$introMessage');
                     }
@@ -254,19 +264,6 @@ JS);
             */
 JS;
 
-    }
-
-    protected function getSuggestionsHTML() : string 
-    {
-        $suggestions = $this->getPromptSuggestions();
-        if(! empty($suggestions)){
-            $buttons = [];
-            foreach ($suggestions as $i => $s){
-                $buttons [] = ' <button class="deep-chat-button deep-chat-suggestion-button" style="margin-top:5px">'.$s.'</button>';
-            }
-            return '<div class=\"deep-chat-temporary-message\">' . implode("\n", $buttons) . '</div>';
-        }
-        return '';
     }
 
     protected function getButtonsHTML(string $position) : string 
