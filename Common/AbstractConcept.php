@@ -17,6 +17,8 @@ abstract class AbstractConcept implements AiConceptInterface
     private $placeholder = null;
 
     private $prompt = Null;
+    
+    private $output = null;
 
     public function __construct(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon = null)
     {
@@ -27,6 +29,29 @@ abstract class AbstractConcept implements AiConceptInterface
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
+    }
+
+    /**
+     * Resolves the placeholder value for this renderer.
+     *
+     * Classes that inherit from this one must define the output that will be returned here.
+     * If a custom output was already set for example for testing through runTest
+     * this method returns that string instead of generating a new result.
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface::resolve()
+     */
+
+    public function resolve(array $placeholders) : array
+    {
+        $phVals = [];
+        if($this->hasPrescribedOutput()){
+            $phVals[$this->getPlaceholder()] = $this->output;
+        }else{
+            $phVals[$this->getPlaceholder()] = $this->getOutput();
+        }
+
+        return $phVals;
     }
 
     public function getWorkbench() : WorkbenchInterface
@@ -71,4 +96,22 @@ abstract class AbstractConcept implements AiConceptInterface
     {
         return [];
     }
+    
+    public function setOutput(string $output) : AiConceptInterface
+    {
+        $this->output = $output;
+        return $this;
+    }
+
+    
+    public function hasPrescribedOutput() : bool
+    {
+        if ($this->output === null) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    
+    abstract public function getOutput() : string;
 }

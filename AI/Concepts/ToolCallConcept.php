@@ -17,13 +17,17 @@ class ToolCallConcept extends AbstractConcept
     
     private array $arguments = [];
 
-    public function resolve(array $placeholders) : array
+    
+    public function getOutput(): string
     {
-        $phVals = [];
-        $phVals[$this->getPlaceholder()] =  $this->tool->invoke($this->arguments);;
-        return $phVals;
+        try{
+            return $this->tool->invoke($this->arguments);
+        }catch (\Exception $e){
+            $this->getWorkbench()->getLogger()->logException($e);
+            return "";
+        }
+        
     }
-
 
     /**
      * Tools (function calls)
