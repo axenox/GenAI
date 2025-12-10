@@ -48,7 +48,10 @@ use Psr\SimpleCache\CacheInterface;
  * 
  * If you do not have a UID or you want to print multiple objects using filters, you can define a custom
  * `print_data` and use your own arguments as placeholders there.
- *
+ * 
+ * NOTE: if you use the tool inside a `ToolCallConcept`, use `[#~input:#]` placeholders instead of argument
+ * placeholders because there are no arguments actually being passed from outside in this case.
+ * 
  * ```
  *  {
  *     "tools": {
