@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
@@ -17,16 +18,14 @@ use exface\Core\Interfaces\WorkbenchInterface;
 class GetLogEntryTool extends AbstractAiTool
 {
     /**
-     * 
-     * @var string
+     * {@inheritDoc}
+     * @see AiToolInterface::invoke()
      */
-    const ARG_LOG_ID = 'LogId';
-    
     public function invoke(array $arguments): string
     {
-        list($logId) = $arguments;
+        list($logId, $logFilePath) = $arguments;
         
-        $printer = new LogEntryMarkdownPrinter($this->workbench,$logId);
+        $printer = new LogEntryMarkdownPrinter($this->workbench, $logId, $logFilePath);
 
         return $printer->getMarkdown();
     }
@@ -40,8 +39,12 @@ class GetLogEntryTool extends AbstractAiTool
         $self = new self($workbench);
         return [
             (new ServiceParameter($self))
-                ->setName(self::ARG_LOG_ID)
-                ->setDescription('Log-ID pointing to the log entry to get details for')
+                ->setName('LogId')
+                ->setDescription('Log-ID pointing to the log entry to get details for'),
+            (new ServiceParameter($self))
+                ->setName('LogFilePath')
+                ->setDescription('Path to the log file to search relative to the installation folder')
+                ->setRequired(false)
         ];
     }
 
