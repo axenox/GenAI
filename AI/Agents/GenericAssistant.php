@@ -77,6 +77,8 @@ class GenericAssistant implements AiAgentInterface
     private $workbench = null;
 
     private $systemPrompt = null;
+    
+    private $sampleSystemPrompt = null;
 
     private $systemPromptRendered = null;
 
@@ -134,8 +136,13 @@ class GenericAssistant implements AiAgentInterface
     {
         $userPromt = $prompt->getUserPrompt();
         try {
-            $systemPrompt = $this->getSystemPrompt($prompt);
-            $this->setInstructions($systemPrompt);
+            if($this->sampleSystemPrompt){
+                $this->setInstructions($this->sampleSystemPrompt);
+            }else{
+                $systemPrompt = $this->getSystemPrompt($prompt);
+                $this->setInstructions($systemPrompt );
+            }
+            
         } catch (AiConceptIncompleteError $e) {
             throw $e;
             /* TODO handle different errors differently
@@ -450,6 +457,15 @@ class GenericAssistant implements AiAgentInterface
         return $this;
     }
 
+    public function getRawConcepts() : ?UxonObject
+    {
+        if ($this->conceptConfig instanceof UxonObject) {
+            return $this->conceptConfig;
+        }
+        return null;
+    }
+
+
     /**
      * 
      * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
@@ -484,6 +500,12 @@ class GenericAssistant implements AiAgentInterface
     protected function setInstructions(string $text) : AiAgentInterface
     {
         $this->systemPrompt = $text;
+        return $this;
+    }
+    
+    protected function setSampleSystemPrompt(string $text) : AiAgentInterface
+    {
+        $this->sampleSystemPrompt = $text;
         return $this;
     }
 

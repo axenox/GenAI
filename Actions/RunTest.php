@@ -4,6 +4,7 @@ namespace axenox\GenAI\Actions;
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiTestRating;
+use axenox\GenAI\Common\TestingContext;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -284,6 +285,13 @@ class RunTest extends AbstractActionDeferred
             $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
             $agent->setDevmode(true);
             $this->agent = $agent;
+
+            $testingContext = $this->getTestingContext($caseSheet);
+            
+            $testingContext
+                ->enrichWithSampleConcept($agent)
+                ->enrichWithSampleSystemPrompt($agent);
+
         }
 
         return $this->agent;
@@ -298,20 +306,10 @@ class RunTest extends AbstractActionDeferred
         if($this->prompt === null)
         {
             $prompt = new AiPrompt($this->getWorkbench());
-            $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
-
-            $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
-
-            // Decode and ensure array structure and enrich page_alias
-            $decoded = json_decode($uxonJson, true);
-            if (!is_array($decoded)) {
-                $decoded = [];
-            }
-            $decoded['page_alias'] = 'axenox.genai.testing';
-            $uxonJson = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-
-            $prompt->importUxonObject(UxonObject::fromJson($uxonJson));
+            
+            $testingContext = $this->getTestingContext($caseSheet);
+            
+            $prompt->importUxonObject($testingContext->getSamplePromptUxon());
 
             $promptText = $caseSheet->getCellValue('PROMPT',0);
             $prompt->setPrompt($promptText);
@@ -319,6 +317,15 @@ class RunTest extends AbstractActionDeferred
         }
 
         return $this->prompt;
+    }
+    
+    protected function getTestingContext(DataSheetInterface $caseSheet) :  TestingContext
+    {
+
+        $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
+        
+        
+        return new TestingContext($this->getWorkbench(), UxonObject::fromJson($uxonJson));
     }
 
 

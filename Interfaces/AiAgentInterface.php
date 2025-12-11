@@ -1,5 +1,6 @@
 <?php
 namespace axenox\GenAI\Interfaces;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 /**
@@ -14,4 +15,11 @@ interface AiAgentInterface extends iCanBeConvertedToUxon
     public function setDevmode(bool $trueOrFalse): AiAgentInterface;
 
     public function getPromptSuggestions(): array;
+
+    /**
+     * Returns the UxonObject containing the concepts
+     *
+     * @return array UxonObject
+     */
+    public function getRawConcepts() : ?UxonObject;
 }
