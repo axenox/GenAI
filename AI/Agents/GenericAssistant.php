@@ -136,13 +136,8 @@ class GenericAssistant implements AiAgentInterface
     {
         $userPromt = $prompt->getUserPrompt();
         try {
-            if($this->sampleSystemPrompt){
-                $this->setInstructions($this->sampleSystemPrompt);
-            }else{
                 $systemPrompt = $this->getSystemPrompt($prompt);
-                $this->setInstructions($systemPrompt );
-            }
-            
+                $this->setInstructions($systemPrompt );            
         } catch (AiConceptIncompleteError $e) {
             throw $e;
             /* TODO handle different errors differently
@@ -536,7 +531,13 @@ class GenericAssistant implements AiAgentInterface
             }
             
             try {
-                $this->systemPromptRendered = $renderer->render($this->systemPrompt ?? '');
+                
+                if($this->sampleSystemPrompt){
+                    $systemPrompt = $this->sampleSystemPrompt;
+                } else {
+                    $systemPrompt = $this->systemPrompt;
+                }
+                $this->systemPromptRendered = $renderer->render($systemPrompt ?? '');
             } catch (\Throwable $e) {
                 throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
             }
