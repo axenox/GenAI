@@ -19,12 +19,23 @@ class ToolCallConcept extends AbstractConcept
     public function getOutput(): string
     {
         try{
-            return $this->tool->invoke($this->arguments);
+            return $this->getTool()->invoke($this->arguments);
         }catch (\Exception $e){
             $this->getWorkbench()->getLogger()->logException($e);
             return "";
         }
         
+    }
+
+    protected function getTool() : AiToolInterface
+    {
+        if ($this->toolDef !== null) {
+            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->getToolName(), $this->toolDef);
+        } else {
+            throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
+        }
+        
+        return $tool;
     }
 
 
