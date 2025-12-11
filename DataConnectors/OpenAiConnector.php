@@ -373,7 +373,7 @@ class OpenAiConnector extends AbstractDataConnector
         ];
         $debugJsonStr = json_encode($debug, JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_SLASHES);
 
-        $contentJson = json_encode($this->dryrunResponse,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $contentJson = json_encode($this->dryrunResponse ?? 'Dummy response - AI connector is in dry-run mode',JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 
         $json = <<<JSON
