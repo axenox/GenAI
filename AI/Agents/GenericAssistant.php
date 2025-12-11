@@ -139,6 +139,8 @@ class GenericAssistant implements AiAgentInterface
                 $systemPrompt = $this->getSystemPrompt($prompt);
                 $this->setInstructions($systemPrompt );            
         } catch (AiConceptIncompleteError $e) {
+            //TODO Improve
+            $this->saveConversationError($prompt,$e);
             throw $e;
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
@@ -162,50 +164,56 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $this->saveConversation($prompt, $query);
         $prompt->setConversationUid($conversationId);
 
-        $performedQuery = $this->getConnection()->query($query);
-        $numberOfCalls = 0;
-        while ($performedQuery->hasToolCalls()) {
-            $this->saveConversationToolCallRequest($prompt, $performedQuery);
-           
-            $requestedCalls = $performedQuery->getToolCalls();
-            $existingCall = false;
-
-            foreach($requestedCalls as $call){
-
-                foreach ($this->getTools() as $tool){
-                    if ($tool->getName() === $call->getToolName()){
-                        break;
-                    }
-                    $tool = null;
-                }
-                if ($tool === null){
-                    throw (new AiToolNotFoundError("Requested tool not found"))
-                            ->setConversationId($conversationId);
-                }
-
-                $resultOfTool = $this->maxNumberOfCalls > $numberOfCalls ? $tool->invoke(array_values($call->getArguments())): "Maximum number of calls have been reached.";
-
-                //to prevent duplication on calls
-                $callId = $call->getCallId();
-                
-                $toolCallResponses[$callId] = new AiToolCallResponse(
-                    $call->getToolName(),
-                    $callId,
-                    $call->getArguments(),
-                    $resultOfTool,
-                    $tool->getReturnDataType()->getAliasWithNamespace()
-                );
-
-                $this->toolCalls[] = $toolCallResponses[$callId];
-                
-                $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
-                $existingCall = true;  
-            }            
-            $toolCallResponses = $this->saveConversationToolResponses($prompt, $performedQuery, $toolCallResponses);
-            // $toolCallResponses = null;
+        try{
             $performedQuery = $this->getConnection()->query($query);
-            $numberOfCalls++;
-            //$query->clearPreviousToolCalls();
+            $numberOfCalls = 0;
+            while ($performedQuery->hasToolCalls()) {
+                $this->saveConversationToolCallRequest($prompt, $performedQuery);
+               
+                $requestedCalls = $performedQuery->getToolCalls();
+                $existingCall = false;
+    
+                foreach($requestedCalls as $call){
+    
+                    foreach ($this->getTools() as $tool){
+                        if ($tool->getName() === $call->getToolName()){
+                            break;
+                        }
+                        $tool = null;
+                    }
+                    if ($tool === null){
+                        throw (new AiToolNotFoundError("Requested tool not found"))
+                                ->setConversationId($conversationId);
+                    }
+    
+                    $resultOfTool = $this->maxNumberOfCalls > $numberOfCalls ? $tool->invoke(array_values($call->getArguments())): "Maximum number of calls have been reached.";
+    
+                    //to prevent duplication on calls
+                    $callId = $call->getCallId();
+                    
+                    $toolCallResponses[$callId] = new AiToolCallResponse(
+                        $call->getToolName(),
+                        $callId,
+                        $call->getArguments(),
+                        $resultOfTool,
+                        $tool->getReturnDataType()->getAliasWithNamespace()
+                    );
+    
+                    $this->toolCalls[] = $toolCallResponses[$callId];
+                    
+                    $query->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
+                    $existingCall = true;  
+                }            
+                $toolCallResponses = $this->saveConversationToolResponses($prompt, $performedQuery, $toolCallResponses);
+                // $toolCallResponses = null;
+                $performedQuery = $this->getConnection()->query($query);
+                $numberOfCalls++;
+                //$query->clearPreviousToolCalls();
+            }
+        }catch (\Throwable $e){
+            //TODO improve
+            $this->saveConversationError($prompt,$e);
+            throw $e;
         }
         $this->saveConversationResponse($prompt, $performedQuery);
 
@@ -431,6 +439,58 @@ class GenericAssistant implements AiAgentInterface
             return $responses;
         }
     }
+
+    /**
+     * saves an error that occurred during the conversation
+     *
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param \Throwable $error
+     * @return ?\Throwable returns the error if persisting failed, otherwise null
+     */
+    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : ?\Throwable
+    {
+        //TODO handle with log ID
+        $transaction     = $this->workbench->data()->startTransaction();
+        $conversationId  = $prompt->getConversationUid();
+        $message         = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+
+        $markdown  = "> Error during tool handling:\n";
+        $markdown .= ">\n";
+        $markdown .= "> `" . get_class($error) . "`\n";
+        $markdown .= ">\n";
+        $markdown .= "> " . MarkdownDataType::escapeCodeBlock($error->getMessage()) . "\n";
+        $markdown .= MarkdownDataType::makeHorizontalLine();
+
+        // compact error payload for DATA column
+        $errorPayload = [
+            'class'   => get_class($error),
+            'message' => $error->getMessage(),
+            'code'    => $error->getCode(),
+            'file'    => $error->getFile(),
+            'line'    => $error->getLine(),
+        ];
+
+        try {
+            $message->addRow([
+                'AI_CONVERSATION' => $conversationId,
+                'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'ROLE'            => AiMessageTypeDataType::ERROR, // fallback to ::SYSTEM or ::TOOL if ERROR is not available
+                'DATA'            => UxonObject::fromArray($errorPayload)->toJson(true),
+                'MESSAGE'         => $markdown,
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++
+            ]);
+
+            $message->dataCreate(false, $transaction);
+            $transaction->commit();
+            return null;
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
+            // original error is returned so caller can still handle it
+            return $error;
+        }
+    }
+
 
     /**
      * AI concepts to be used in the system prompt
