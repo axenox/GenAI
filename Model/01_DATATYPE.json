@@ -73,7 +73,7 @@
             "UID": "0x11f08738553abe6e8738025041000001",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "NAME": "AI test rating",
-            "PROTOTYPE": "exface/Core/DataTypes/NumberEnumDataType.php",
+            "PROTOTYPE": "exface/core/DataTypes/NumberEnumDataType.php",
             "CONFIG_UXON": {
                 "values": {
                     "1": "Wrong",
