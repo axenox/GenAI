@@ -16,7 +16,9 @@ abstract class AbstractConcept implements AiConceptInterface
 
     private $placeholder = null;
 
-    private $prompt = Null;
+    private $prompt = null;
+
+    private $uxon = null;
     
     private $output = null;
 
@@ -25,6 +27,7 @@ abstract class AbstractConcept implements AiConceptInterface
         $this->workbench = $workbench;
         $this->placeholder = $placeholder;
         $this->prompt = $prompt;
+        $this->uxon = $uxon;
         
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
@@ -53,13 +56,13 @@ abstract class AbstractConcept implements AiConceptInterface
 
         return $phVals;
     }
-
+        
     public function getWorkbench() : WorkbenchInterface
     {
         return $this->workbench;
     }
 
-    protected function getPlaceholder() : string
+    public function getPlaceholder() : string
     {
         return $this->placeholder;
     }
@@ -75,10 +78,18 @@ abstract class AbstractConcept implements AiConceptInterface
      */
     public function exportUxonObject()
     {
-        $uxon = new UxonObject([
-            'class' => '\\' . __CLASS__
-        ]);
-        // TODO
+        
+        $uxon = $this->uxon;
+        if(!$uxon->hasProperty("output")){
+            $uxon->setProperty(
+                "output",
+                $this->getOutput()
+            );
+            //cache output
+            $this->setOutput($this->getOutput());
+            
+        }
+        
         return $uxon;
     }
 

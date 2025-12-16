@@ -10,4 +10,5 @@ use exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface;
  */
 interface AiConceptInterface extends PlaceholderResolverInterface, iCanBeConvertedToUxon
 {
+    public function getPlaceholder(): string;
 }

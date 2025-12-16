@@ -38,6 +38,7 @@ use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
+use Respect\Validation\Rules\Length;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -265,12 +266,32 @@ class GenericAssistant implements AiAgentInterface
                 $conversation->dataCreate(false,$transaction);
                 $conversationId = $conversation->getUidColumn()->getValue(0);
 
+                // create dataUxon for the message
+                // JSON structure:
+                // {
+                //   "tools": [ toolUxon, ... ],
+                //   "concepts": {
+                //     "placeholderName": conceptUxon,
+                //     ...
+                //   }
+                // }
                 $dataUxon = new UxonObject([
                     'tools' => []
                 ]);
                 foreach ($this->getTools() as $tool) {
                     $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
                 }
+
+                // collect concepts mapped by their placeholder
+                $concepts = [];
+                foreach($this->getConcepts($prompt, new BracketHashStringTemplateRenderer($this->workbench)) as $concept) {
+                    $concepts[$concept->getPlaceholder()] = $concept->exportUxonObject()->toArray();
+                }
+                // add concepts section only if at least one concept exists
+                if(!empty($concepts)) {
+                    $dataUxon->setProperty('concepts', new UxonObject($concepts));
+                }
+                
                 $message->addRow([
                     'AI_CONVERSATION' => $conversationId,
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -530,7 +551,17 @@ class GenericAssistant implements AiAgentInterface
         $concepts = [];
         foreach ($this->conceptConfig as $placeholder => $uxon) {
             $json = $uxon->toJson();
-            $json = $configRenderer->render($json);
+            
+            $temp = json_decode($json, true);
+            
+            if(!is_array($temp)) {
+                //TODO Throw Error
+            }
+            
+            if(!array_key_exists('output', $temp)) {
+                $json = $configRenderer->render($json);
+            }
+            
             $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, UxonObject::fromJson($json));
         }
         return $concepts;
