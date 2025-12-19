@@ -4,8 +4,11 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\ObjectMarkdownPrinter;
+use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 class GetCodeTool extends AbstractAiTool
@@ -35,5 +38,14 @@ class GetCodeTool extends AbstractAiTool
                 ->setName(self::ARG_CODE_Path)
                 ->setDescription('Path pointing to the Code File itself to get details for')
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getReturnDataType()
+     */
+    public function getReturnDataType(): DataTypeInterface
+    {
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 }

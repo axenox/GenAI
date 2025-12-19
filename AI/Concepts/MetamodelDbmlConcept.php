@@ -378,16 +378,9 @@ class MetamodelDbmlConcept extends AbstractConcept
         return $uxon;
     }
 
-    /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface::resolve()
-     */ 
-    public function resolve(array $placeholders) : array
+    public function getOutput(): string
     {
-        $phVals = [];
-        $phVals[$this->getPlaceholder()] = $this->buildDBML();
-        return $phVals;
+        return $this->buildDBML();
     }
 
     protected function includesObject(MetaObjectInterface $obj) : bool

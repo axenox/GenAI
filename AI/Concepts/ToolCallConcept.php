@@ -15,11 +15,16 @@ class ToolCallConcept extends AbstractConcept
     
     private array $arguments = [];
 
-    public function resolve(array $placeholders) : array
+    
+    public function getOutput(): string
     {
-        $phVals = [];
-        $phVals[$this->getPlaceholder()] =  $this->getTool()->invoke($this->getArguments());
-        return $phVals;
+        try{
+            return $this->getTool()->invoke($this->arguments);
+        }catch (\Exception $e){
+            $this->getWorkbench()->getLogger()->logException($e);
+            return "";
+        }
+        
     }
 
     protected function getTool() : AiToolInterface
@@ -29,8 +34,10 @@ class ToolCallConcept extends AbstractConcept
         } else {
             throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
         }
+        
         return $tool;
     }
+
 
     /**
      * @param string|UxonObject $stringOrUxon
