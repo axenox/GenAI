@@ -7,6 +7,7 @@ use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
@@ -141,7 +142,7 @@ class GenericAssistant implements AiAgentInterface
                 $this->setInstructions($systemPrompt );            
         } catch (AiConceptIncompleteError $e) {
             //TODO Improve
-            $this->saveConversationError($prompt,$e);
+            $e = $this->saveConversationError($prompt,$e);
             throw $e;
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
@@ -213,7 +214,7 @@ class GenericAssistant implements AiAgentInterface
             }
         }catch (\Throwable $e){
             //TODO improve
-            $this->saveConversationError($prompt,$e);
+            $e = $this->saveConversationError($prompt,$e);
             throw $e;
         }
         $this->saveConversationResponse($prompt, $performedQuery);
@@ -468,12 +469,12 @@ class GenericAssistant implements AiAgentInterface
      * @param \Throwable $error
      * @return ?\Throwable returns the error if persisting failed, otherwise null
      */
-    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : ?\Throwable
+    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : \Throwable
     {
         //TODO handle with log ID
         $transaction     = $this->workbench->data()->startTransaction();
         $conversationId  = $prompt->getConversationUid();
-        $message         = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $messageData     = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
 
         $markdown  = "> Error during tool handling:\n";
         $markdown .= ">\n";
@@ -483,6 +484,17 @@ class GenericAssistant implements AiAgentInterface
         $markdown .= MarkdownDataType::makeHorizontalLine();
 
         // compact error payload for DATA column
+        // TODO Save the SAME data here as in the case of a successful message!
+        // Solution:
+        // - Make sure we only save AI exception here
+        // - All the error information will be saved by the logger when logging the exception
+        // - We will have a button in the conversation to show the error details - see `Administratino > BG processing`
+        // or `Administration > Data Flows > dblclick a flow run` for examples
+        
+        if (! $error instanceof AiPromptError) {
+            $error = new AiPromptError($this, $prompt, 'AI prompt failed. ' . $error->getMessage(), null, $error);
+        }
+        
         $errorPayload = [
             'class'   => get_class($error),
             'message' => $error->getMessage(),
@@ -492,24 +504,25 @@ class GenericAssistant implements AiAgentInterface
         ];
 
         try {
-            $message->addRow([
+            $messageData->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'            => AiMessageTypeDataType::ERROR, // fallback to ::SYSTEM or ::TOOL if ERROR is not available
                 'DATA'            => UxonObject::fromArray($errorPayload)->toJson(true),
                 'MESSAGE'         => $markdown,
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++,
+                // TODO add LOG_ID column to DB and model
+                //'ERROR_LOG_ID'    => $error->getId()
             ]);
 
-            $message->dataCreate(false, $transaction);
+            $messageData->dataCreate(false, $transaction);
             $transaction->commit();
-            return null;
         } catch (\Throwable $e) {
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
             // original error is returned so caller can still handle it
-            return $error;
         }
+        return $error;
     }
 
 
