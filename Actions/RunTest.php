@@ -9,7 +9,6 @@ use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
-use axenox\GenAI\Interfaces\AiTestMetricInterface;
 use exface\Core\CommonLogic\AbstractActionDeferred;
 use exface\Core\CommonLogic\DataSheets\DataCollector;
 use exface\Core\CommonLogic\UxonObject;
@@ -32,6 +31,8 @@ class RunTest extends AbstractActionDeferred
 {
     /** @var string Message shown when the test run finishes */
     private $finishMessage = 'Testcase erfolgreich ausgeführt';
+    
+    private $repetitions = 1;
 
     private $userFeedback = [];
 
@@ -72,8 +73,18 @@ class RunTest extends AbstractActionDeferred
         $this->setInputSheet($task?->getInputData());
         
         $caseSheet = $this->getCaseSheet();
-        foreach ($caseSheet->getRows() as $i => $row) {
-            $this->runTestCase($caseSheet, $i);
+
+        for ($r = 0; $r < $this->repetitions; $r++) {
+
+            foreach ($caseSheet->getRows() as $i => $row) {
+                $this->runTestCase($caseSheet, $i);
+            }
+
+            if ($r < $this->repetitions - 1) {
+                sleep(60);
+            }
+            
+
         }
         
         yield $this->finishMessage;
@@ -274,48 +285,52 @@ class RunTest extends AbstractActionDeferred
     }
 
     /**
-     * Resolves and caches the AI agent from the case sheet
-     * Also enables developer mode on the agent
+     * Resolves the AI agent from the case sheet.
+     * Also enables developer mode on the agent.
+     *
+     * Important: Do not use caching to avoid reference issues.
+     * Otherwise the same Conversation instance would be reused across multiple runs,
+     * causing subsequent executions to not start with a fresh conversation.
      */
     protected function getAgent(DataSheetInterface $caseSheet) : AiAgentInterface
     {
-        if($this->agent === null){
-            // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
-            $agentAlias = $caseSheet->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
-            $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
-            $agent->setDevmode(true);
-            $this->agent = $agent;
+        
+        // axenox.GenAI.SqlAssistant or with version axenox.GenAI.SqlAssistant:1.1
+        $agentAlias = $caseSheet->getCellvalue('AI_AGENT__ALIAS_WITH_NS', 0);
+        $agent = AiFactory::createAgentFromString($this->getWorkbench(), $agentAlias);
+        $agent->setDevmode(true);
+        $this->agent = $agent;
 
-            $testingContext = $this->getTestingContext($caseSheet);
-            
-            $testingContext
-                ->enrichWithSampleConcept($agent)
-                ->enrichWithSampleSystemPrompt($agent);
-
-        }
+        $testingContext = $this->getTestingContext($caseSheet);
+        
+        $testingContext
+            ->enrichWithSampleConcept($agent)
+            ->enrichWithSampleSystemPrompt($agent);
 
         return $this->agent;
     }
 
     /**
-     * Builds and caches the AiPrompt from case sheet values
+     * Builds the AiPrompt from case sheet values
      * Parses CONTEXT as JSON and injects a page_alias
+     * 
+     * Important: Do not use caching to avoid reference issues.
+     * Otherwise the same Conversation instance would be reused across multiple runs,
+     * causing subsequent executions to not start with a fresh conversation.
      */
     protected function getPrompt(DataSheetInterface $caseSheet) : AiPrompt
     {
-        if($this->prompt === null)
-        {
-            $prompt = new AiPrompt($this->getWorkbench());
-            
-            $testingContext = $this->getTestingContext($caseSheet);
-            
-            $prompt->importUxonObject($testingContext->getSamplePromptUxon());
 
-            $promptText = $caseSheet->getCellValue('PROMPT',0);
-            $prompt->setPrompt($promptText);
-            $this->prompt = $prompt;
-        }
+        $prompt = new AiPrompt($this->getWorkbench());
+        
+        $testingContext = $this->getTestingContext($caseSheet);
+        
+        $prompt->importUxonObject($testingContext->getSamplePromptUxon());
 
+        $promptText = $caseSheet->getCellValue('PROMPT',0);
+        $prompt->setPrompt($promptText);
+        $this->prompt = $prompt;
+        
         return $this->prompt;
     }
     
@@ -376,6 +391,39 @@ class RunTest extends AbstractActionDeferred
             return $result->getMessage();
         }
         
+    }
+
+    /**
+     * The message that appears when the test case has been completed successfully without any problems.
+     *`
+     *
+     * @uxon-property finish_message
+     * @uxon-type string
+     * @uxon-template Testcase erfolgreich ausgeführt
+     *
+     * @param string $text
+     * @return \axenox\GenAI\Actions\RunTest
+     */
+    protected function setFinishMessage(string $text) : RunTest
+    {
+        $this->finishMessage = $text;
+        return $this;
+    }
+    /**
+     * Specifies how many test runs are to be performed.
+     *`
+     *
+     * @uxon-property repetitions
+     * @uxon-type int
+     * @uxon-template 1
+     *
+     * @param int $text
+     * @return \axenox\GenAI\Actions\RunTest
+     */
+    protected function setRepetitions(int $count) : RunTest
+    {
+        $this->repetitions = $count;
+        return $this;
     }
     
   
