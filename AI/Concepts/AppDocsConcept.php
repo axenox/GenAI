@@ -19,16 +19,10 @@ class AppDocsConcept extends AbstractConcept
 
     private $startingPage = null;
 
-    /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface::resolve()
-     */ 
-    public function resolve(array $placeholders) : array
+
+    public function getOutput(): string
     {
-        $phVals = [];
-        $phVals[$this->getPlaceholder()] = $this->buildMarkdownDocs();
-        return $phVals;
+        return $this->buildMarkdownDocs();
     }
 
     /**

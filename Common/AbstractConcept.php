@@ -16,25 +16,53 @@ abstract class AbstractConcept implements AiConceptInterface
 
     private $placeholder = null;
 
-    private $prompt = Null;
+    private $prompt = null;
+
+    private $uxon = null;
+    
+    private $output = null;
 
     public function __construct(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon = null)
     {
         $this->workbench = $workbench;
         $this->placeholder = $placeholder;
         $this->prompt = $prompt;
+        $this->uxon = $uxon;
         
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
     }
 
+    /**
+     * Resolves the placeholder value for this renderer.
+     *
+     * Classes that inherit from this one must define the output that will be returned here.
+     * If a custom output was already set for example for testing through runTest
+     * this method returns that string instead of generating a new result.
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface::resolve()
+     */
+
+    public function resolve(array $placeholders) : array
+    {
+        $phVals = [];
+        if($this->hasPrescribedOutput()){
+            $phVals[$this->getPlaceholder()] = $this->output;
+        }else{
+            $phVals[$this->getPlaceholder()] = $this->getOutput();
+        }
+
+        return $phVals;
+    }
+        
     public function getWorkbench() : WorkbenchInterface
     {
         return $this->workbench;
     }
 
-    protected function getPlaceholder() : string
+    public function getPlaceholder() : string
     {
         return $this->placeholder;
     }
@@ -50,10 +78,18 @@ abstract class AbstractConcept implements AiConceptInterface
      */
     public function exportUxonObject()
     {
-        $uxon = new UxonObject([
-            'class' => '\\' . __CLASS__
-        ]);
-        // TODO
+        
+        $uxon = $this->uxon;
+        if(!$uxon->hasProperty("output")){
+            $uxon->setProperty(
+                "output",
+                $this->getOutput()
+            );
+            //cache output
+            $this->setOutput($this->getOutput());
+            
+        }
+        
         return $uxon;
     }
 
@@ -71,4 +107,22 @@ abstract class AbstractConcept implements AiConceptInterface
     {
         return [];
     }
+    
+    public function setOutput(string $output) : AiConceptInterface
+    {
+        $this->output = $output;
+        return $this;
+    }
+
+    
+    public function hasPrescribedOutput() : bool
+    {
+        if ($this->output === null) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    
+    abstract public function getOutput() : string;
 }
