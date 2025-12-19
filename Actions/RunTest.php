@@ -5,6 +5,7 @@ use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiTestRating;
 use axenox\GenAI\Common\TestingContext;
+use axenox\GenAI\Common\TestingContext;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -105,6 +106,7 @@ class RunTest extends AbstractActionDeferred
         try{
             $result = $agent->handle($prompt);
         }catch(\Throwable $e){
+            $this->getWorkbench()->getLogger()->logException($e);
             $this->getWorkbench()->getLogger()->logException($e);
             $errorMessage = $e->getMessage();
             $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
@@ -332,6 +334,15 @@ class RunTest extends AbstractActionDeferred
         $this->prompt = $prompt;
         
         return $this->prompt;
+    }
+    
+    protected function getTestingContext(DataSheetInterface $caseSheet) :  TestingContext
+    {
+
+        $uxonJson = $caseSheet->getCellValue('CONTEXT', 0);
+        
+        
+        return new TestingContext($this->getWorkbench(), UxonObject::fromJson($uxonJson));
     }
     
     protected function getTestingContext(DataSheetInterface $caseSheet) :  TestingContext
