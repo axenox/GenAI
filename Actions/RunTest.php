@@ -354,7 +354,6 @@ class RunTest extends AbstractActionDeferred
         return new TestingContext($this->getWorkbench(), UxonObject::fromJson($uxonJson));
     }
 
-
     /**
      * Loads and caches all criteria for the current test case
      * Adds minimal columns and filters by the current case UID
