@@ -42,6 +42,12 @@ interface AiQueryInterface extends DataQueryInterface
     public function getCostPerMTokens() : ?float;
 
     /**
+     *
+     * @return float|null
+     */
+    public function getCosts() : ?float;
+
+    /**
      * 
      * @return int
      */

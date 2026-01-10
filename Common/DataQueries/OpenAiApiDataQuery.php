@@ -43,7 +43,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     private $responseData = null;
 
-    private $costPerMTokens = null;
+    private $costs = null;
     
     private $jsonSchema = null;
 
@@ -222,11 +222,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      * @param \Psr\Http\Message\ResponseInterface $response
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
      */
-    public function withResponse(ResponseInterface $response, float $costPerMTokens = null) : OpenAiApiDataQuery
+    public function withResponse(ResponseInterface $response, float $costs = null) : OpenAiApiDataQuery
     {
         $clone = clone $this;
         $clone->response = $response;
-        $clone->costPerMTokens = $costPerMTokens;
+        $clone->costs = $costs;
         return $clone;
     }
 
@@ -270,7 +270,16 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getCostPerMTokens() : ?float
     {
-        return $this->costPerMTokens;
+        return 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     */
+    public function getCosts() : ?float
+    {
+        return $this->costs;
     }
 
     /**
