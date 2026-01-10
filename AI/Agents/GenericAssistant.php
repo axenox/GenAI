@@ -349,6 +349,10 @@ class GenericAssistant implements AiAgentInterface
         }
         try {
 
+            //TODO Remove COst per M tokens
+            
+            $cost = $query->getCosts();
+            
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -359,7 +363,7 @@ class GenericAssistant implements AiAgentInterface
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
-                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001,
+                'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);         
 
@@ -386,6 +390,8 @@ class GenericAssistant implements AiAgentInterface
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         try {
 
+            $cost = $query->getCosts();
+
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -397,7 +403,7 @@ class GenericAssistant implements AiAgentInterface
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
-                'COST' => ($query->getTokensInPrompt() + $query->getTokensInAnswer()) * $query->getCostPerMTokens() * 0.000001,
+                'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);            
 
