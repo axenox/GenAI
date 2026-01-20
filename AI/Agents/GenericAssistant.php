@@ -108,7 +108,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
-    private $tools = [];
+    private ?array $tools = null;
+    private ?UxonObject $toolsUxon = null;
 
     private $sequenceNumber = null;
 
@@ -159,7 +160,7 @@ class GenericAssistant implements AiAgentInterface
         if($this->hasJsonSchema())
             $query->setResponseJsonSchema($this->getResponseJsonSchema());
 
-        foreach ($this->getTools() as $tool) {
+        foreach ($this->getTools($prompt) as $tool) {
             $query->addTool($tool);
         }
 
@@ -177,7 +178,7 @@ class GenericAssistant implements AiAgentInterface
     
                 foreach($requestedCalls as $call){
     
-                    foreach ($this->getTools() as $tool){
+                    foreach ($this->getTools($prompt) as $tool){
                         if ($tool->getName() === $call->getToolName()){
                             break;
                         }
@@ -279,15 +280,18 @@ class GenericAssistant implements AiAgentInterface
                 $dataUxon = new UxonObject([
                     'tools' => []
                 ]);
-                foreach ($this->getTools() as $tool) {
+                foreach ($this->getTools($prompt) as $tool) {
                     $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
                 }
 
                 // collect concepts mapped by their placeholder
                 $concepts = [];
+                // TODO this causes exceptions if placeholders require input data because the rendere is not created
+                // here correctly - see getSystemPrompt()
+                /*
                 foreach($this->getConcepts($prompt, new BracketHashStringTemplateRenderer($this->workbench)) as $concept) {
                     $concepts[$concept->getPlaceholder()] = $concept->exportUxonObject()->toArray();
-                }
+                }*/
                 // add concepts section only if at least one concept exists
                 if(!empty($concepts)) {
                     $dataUxon->setProperty('concepts', new UxonObject($concepts));
@@ -324,8 +328,8 @@ class GenericAssistant implements AiAgentInterface
 
             $transaction->commit();
         } catch(\Throwable $e){
-            $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
+            $transaction->rollback();
         }
         return $conversationId;
     }
@@ -444,7 +448,7 @@ class GenericAssistant implements AiAgentInterface
                     $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResponse());
                     break;
                 default:
-                    $markdown .= $response->getToolResponse();
+                    $markdown .= "\n" . $response->getToolResponse();
             }
             $markdown .= MarkdownDataType::makeHorizontalLine();
         }
@@ -568,17 +572,9 @@ class GenericAssistant implements AiAgentInterface
     protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
     {
         $concepts = [];
-        foreach ($this->conceptConfig as $placeholder => $uxon) {
-            $json = $uxon->toJson();
-            
-            $temp = json_decode($json, true);
-            
-            if(!is_array($temp)) {
-                //TODO Throw Error
-            }
-            
-            if(!array_key_exists('output', $temp)) {
-                $json = $configRenderer->render($json);
+        foreach ($this->conceptConfig as $placeholder => $uxon) {            
+            if(! $uxon->hasProperty('output')) {
+                $json = $configRenderer->render($uxon->toJson());
             }
             
             $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, UxonObject::fromJson($json));
@@ -627,10 +623,10 @@ class GenericAssistant implements AiAgentInterface
             $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
             if (null !== $app = $this->getApp($prompt)) {
                 $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
-            }     
+            }
             if ($prompt->hasInputData()) {
                 $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
-            }            
+            }
             foreach ($this->getConcepts($prompt, $renderer) as $concept) {
                 $renderer->addPlaceholder($concept);
                 if(is_a($concept, \axenox\GenAI\Interfaces\AiConceptInterface::class)){
@@ -1002,10 +998,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setTools(UxonObject $objectWithToolDefs) : AiAgentInterface
     {
-        foreach ($objectWithToolDefs as $tool => $uxon) {
-            $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
-            $this->addTool($tool);
-        }
+        $this->toolsUxon = $objectWithToolDefs;
         return $this;
     }
 
@@ -1013,9 +1006,33 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return AiToolInterface[]
      */
-    protected function getTools() : array
+    protected function getTools(AiPromptInterface $prompt) : array
     {
+        if ($this->tools === null) {
+            if ($this->toolsUxon === null) {
+                $this->tools = [];
+            } else {
+                foreach ($this->initTools($this->toolsUxon, $prompt) as $tool) {
+                    $this->addTool($tool);
+                }
+            }
+        }
         return $this->tools;
+    }
+    
+    protected function initTools(UxonObject $toolsUxon, AiPromptInterface $prompt) : array
+    {
+        $result = [];
+        foreach ($toolsUxon as $tool => $uxon) {
+            $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
+            $result[] = $tool;
+        }
+        return $result;
+    }
+    
+    protected function getToolsUxon() : ?UxonObject
+    {
+        return $this->toolsUxon;
     }
 
     protected function addTool(AiToolInterface $tool)
@@ -1052,5 +1069,10 @@ class GenericAssistant implements AiAgentInterface
     public function getPromptSuggestions(): array
     {
         return $this->promptSuggestions;
+    }
+    
+    public function getWorkbench()
+    {
+        return $this->workbench;
     }
 }
