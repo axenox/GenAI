@@ -61,9 +61,9 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Ai chat in log detaisl",
+            "_EXPORT_SUMMARY": "AI chat in log details dialog",
             "CREATED_ON": "2025-11-21 13:20:42",
-            "MODIFIED_ON": "2025-11-23 21:07:26",
+            "MODIFIED_ON": "2025-12-11 13:56:17",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f091187f9c7bf89118025041000001",
@@ -94,7 +94,7 @@
             },
             "OBJECT": "0x11e72bfabc4cc8e7a3bee4b318306b9a",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
-            "NAME": "Ai chat in log detaisl",
+            "NAME": "AI chat in log details dialog",
             "DESCRIPTION": "",
             "DISABLED_FLAG": 0,
             "PRIORITY": null
