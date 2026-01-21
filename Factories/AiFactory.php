@@ -116,11 +116,21 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      */
     public static function createToolFromUxon(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : AiToolInterface
     {
+        $class = static::findToolClass($workbench, $functionName, $uxon);
+        
+        if (! $uxon->hasProperty('name')) {
+            $uxon->setProperty('name', $functionName);
+        }
+
+        $tool = new $class($workbench, $uxon);
+
+        return $tool;
+    }
+    
+    public static function findToolClass(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : string
+    {
         if ($uxon->hasProperty('class')) {
             $class = $uxon->getProperty('class');
-            if (! $uxon->hasProperty('name')) {
-                $uxon->setProperty('name', $functionName);
-            }
         } else {
             $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
             $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
@@ -134,17 +144,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
                 throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
             }
             $row = $ds->getRow(0);
-    
+
             $path = $row['PATHNAME_ABSOLUTE'];
             $class = PhpFilePathDataType::findClassInFile($path, 1000);
-            if (! $uxon->hasProperty('name')) {
-                $uxon->setProperty('name', $functionName);
-            }
         }
-
-        $tool = new $class($workbench, $uxon);
-
-        return $tool;
+        return $class;
     }
 
     /**
