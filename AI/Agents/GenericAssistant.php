@@ -140,7 +140,7 @@ class GenericAssistant implements AiAgentInterface
         $userPromt = $prompt->getUserPrompt();
         try {
                 $systemPrompt = $this->getSystemPrompt($prompt);
-                $this->setInstructions($systemPrompt );            
+                $this->setInstructions($systemPrompt );
         } catch (AiConceptIncompleteError $e) {
             //TODO Improve
             $e = $this->saveConversationError($prompt,$e);
@@ -406,7 +406,6 @@ class GenericAssistant implements AiAgentInterface
                 'SEQUENCE_NUMBER' => $this->sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);            
