@@ -354,8 +354,6 @@ class GenericAssistant implements AiAgentInterface
             $markdown .= '- `' . $toolCall->__toString() . "`\n";
         }
         try {
-
-            //TODO Remove COst per M tokens
             
             $cost = $query->getCosts();
             
@@ -368,7 +366,6 @@ class GenericAssistant implements AiAgentInterface
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);         
