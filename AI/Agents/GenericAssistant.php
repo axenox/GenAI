@@ -21,6 +21,7 @@ use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\InternalError;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -168,6 +169,7 @@ class GenericAssistant implements AiAgentInterface
         $prompt->setConversationUid($conversationId);
 
         try{
+            $this->skn();
             $performedQuery = $this->getConnection()->query($query);
             $numberOfCalls = 0;
             while ($performedQuery->hasToolCalls()) {
@@ -500,7 +502,7 @@ class GenericAssistant implements AiAgentInterface
         // - We will have a button in the conversation to show the error details - see `Administratino > BG processing`
         // or `Administration > Data Flows > dblclick a flow run` for examples
         
-        if (! $error instanceof AiPromptError) {
+        if (! $error instanceof InternalError) {
             $error = new AiPromptError($this, $prompt, 'AI prompt failed. ' . $error->getMessage(), null, $error);
         }
         
@@ -511,6 +513,8 @@ class GenericAssistant implements AiAgentInterface
             'file'    => $error->getFile(),
             'line'    => $error->getLine(),
         ];
+        
+        $logId = $error->getId();
 
         try {
             $messageData->addRow([
@@ -521,7 +525,7 @@ class GenericAssistant implements AiAgentInterface
                 'MESSAGE'         => $markdown,
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 // TODO add LOG_ID column to DB and model
-                //'ERROR_LOG_ID'    => $error->getId()
+                'ERROR_LOG_ID'    => $error->getId()
             ]);
 
             $messageData->dataCreate(false, $transaction);
