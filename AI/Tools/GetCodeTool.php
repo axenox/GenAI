@@ -18,7 +18,7 @@ class GetCodeTool extends AbstractAiTool
      *
      * @var string
      */
-    const ARG_CODE_PATCH = 'CodePath';
+    const ARG_CODE_PATH = 'CodePath';
 
     
 
@@ -35,7 +35,7 @@ class GetCodeTool extends AbstractAiTool
         $self = new self($workbench);
         return [
             (new ServiceParameter($self))
-                ->setName(self::ARG_CODE_Path)
+                ->setName(self::ARG_CODE_PATH)
                 ->setDescription('Path pointing to the Code File itself to get details for')
         ];
     }
