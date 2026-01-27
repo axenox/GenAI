@@ -21,6 +21,7 @@ use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\InternalError;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -140,10 +141,10 @@ class GenericAssistant implements AiAgentInterface
         $userPromt = $prompt->getUserPrompt();
         try {
                 $systemPrompt = $this->getSystemPrompt($prompt);
-                $this->setInstructions($systemPrompt );            
-        } catch (AiConceptIncompleteError $e) {
-            //TODO Improve
-            $e = $this->saveConversationError($prompt,$e);
+                $this->setInstructions($systemPrompt );
+        } catch (\Throwable $e) {
+            //TODO Improve AiConceptIncompleteError 
+            $e = $this->saveConversationError($prompt,$e, "Error during setInstructions");
             throw $e;
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
@@ -224,6 +225,65 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
+     * creates a new conversation and return conversationId
+     * 
+     * @return string conversationId
+     */
+    protected function createConversation(AiPromptInterface $prompt, ?AiQueryInterface $query): string
+    {
+        
+        $conversationId = $prompt->getConversationUid();
+
+        if($conversationId === null) {
+            $transaction = $this->workbench->data()->startTransaction();
+            $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+            
+            $modelName    = null;
+            $connectionId = null;
+
+            try {
+                $connection   = $this->getConnection();
+                $connectionId = $connection->getId();
+
+                if ($query !== null) {
+                    $modelName = $connection->getModelName($query);
+                }
+            } catch (\Throwable $e) {
+                // TODO possible Errorhandling
+            }
+
+            $title = $query !== null
+                ? $this->getTitle($query)
+                : 'Standard generated title';
+
+            $row = [
+                'AI_AGENT' => $this->getUid(),
+                'AI_AGENT_VERSION_NO' => $this->getVersion(),
+                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'TITLE' => $title,
+                'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
+                'DEVMODE' => $this->getDevmode() ? 1 : 0,
+                'MODEL' => $modelName,
+                'CONNECTION' => $connectionId
+            ];
+            if ($prompt->hasMetaObject()) {
+                $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
+            }
+            if ($prompt->isTriggeredOnPage()) {
+                $row['PAGE'] = $prompt->getPageTriggeredOn()->getUid();
+            }
+            $conversation->addRow($row);
+            $conversation->dataCreate(false,$transaction);
+            $conversationId = $conversation->getUidColumn()->getValue(0);
+            $transaction->commit();
+            
+        }
+        
+        return $conversationId;
+        
+    }
+    
+    /**
      * Saves the first system message and the user messages and returns conversationId
      * 
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
@@ -239,72 +299,42 @@ class GenericAssistant implements AiAgentInterface
             $conversationId = $prompt->getConversationUid();
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
             if($conversationId === null) {
-                $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-                try {
-                    $connection = $this->getConnection();
-                    $modelName = $connection->getModelName($query);
-                    $connectionId = $connection->getId();
-                } catch (\Throwable $e) {
-                    $modelName = null;
-                    $connectionId = null;
-                }
-                $row = [
-                    'AI_AGENT' => $this->getUid(),
-                    'AI_AGENT_VERSION_NO' => $this->getVersion(),
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'TITLE' => $this->getTitle($query),
-                    'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
-                    'DEVMODE' => $this->getDevmode() ? 1 : 0,
-                    'MODEL' => $modelName,
-                    'CONNECTION' => $connectionId
-                ];
-                if ($prompt->hasMetaObject()) {
-                    $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
-                }
-                if ($prompt->isTriggeredOnPage()) {
-                    $row['PAGE'] = $prompt->getPageTriggeredOn()->getUid();
-                }
-                $conversation->addRow($row);
-                $conversation->dataCreate(false,$transaction);
-                $conversationId = $conversation->getUidColumn()->getValue(0);
 
-                // create dataUxon for the message
-                // JSON structure:
-                // {
-                //   "tools": [ toolUxon, ... ],
-                //   "concepts": {
-                //     "placeholderName": conceptUxon,
-                //     ...
-                //   }
-                // }
-                $dataUxon = new UxonObject([
-                    'tools' => []
-                ]);
-                foreach ($this->getTools($prompt) as $tool) {
-                    $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
-                }
-
-                // collect concepts mapped by their placeholder
-                $concepts = [];
-                // TODO this causes exceptions if placeholders require input data because the rendere is not created
-                // here correctly - see getSystemPrompt()
-                /*
-                foreach($this->getConcepts($prompt, new BracketHashStringTemplateRenderer($this->workbench)) as $concept) {
-                    $concepts[$concept->getPlaceholder()] = $concept->exportUxonObject()->toArray();
-                }*/
-                // add concepts section only if at least one concept exists
-                if(!empty($concepts)) {
-                    $dataUxon->setProperty('concepts', new UxonObject($concepts));
-                }
+            $conversationId = $this->createConversation($prompt, $query);    
                 
-                $message->addRow([
-                    'AI_CONVERSATION' => $conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE'=> AiMessageTypeDataType::SYSTEM,
-                    'MESSAGE'=> $this->systemPrompt,
-                    'DATA' => $dataUxon->toJson(true),
-                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
-                ]);
+            // create dataUxon for the message
+            // JSON structure:
+            // {
+            //   "tools": [ toolUxon, ... ],
+            //   "concepts": {
+            //     "placeholderName": conceptUxon,
+            //     ...
+            //   }
+            // }
+            $dataUxon = new UxonObject();
+            $this->enrichUxonWithTools($prompt, $dataUxon);
+
+            // collect concepts mapped by their placeholder
+            $concepts = [];
+            // TODO this causes exceptions if placeholders require input data because the rendere is not created
+            // here correctly - see getSystemPrompt()
+            /*
+            foreach($this->getConcepts($prompt, new BracketHashStringTemplateRenderer($this->workbench)) as $concept) {
+                $concepts[$concept->getPlaceholder()] = $concept->exportUxonObject()->toArray();
+            }*/
+            // add concepts section only if at least one concept exists
+            if(!empty($concepts)) {
+                $dataUxon->setProperty('concepts', new UxonObject($concepts));
+            }    
+                
+            $message->addRow([
+                'AI_CONVERSATION' => $conversationId,
+                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'ROLE'=> AiMessageTypeDataType::SYSTEM,
+                'MESSAGE'=> $this->systemPrompt,
+                'DATA' => $dataUxon->toJson(true),
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++
+            ]);
             }
             else {
                 $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
@@ -352,8 +382,6 @@ class GenericAssistant implements AiAgentInterface
             $markdown .= '- `' . $toolCall->__toString() . "`\n";
         }
         try {
-
-            //TODO Remove COst per M tokens
             
             $cost = $query->getCosts();
             
@@ -366,7 +394,6 @@ class GenericAssistant implements AiAgentInterface
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);         
@@ -406,7 +433,6 @@ class GenericAssistant implements AiAgentInterface
                 'SEQUENCE_NUMBER' => $this->sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST_PER_M_TOKENS'=> $query->getCostPerMTokens(),
                 'COST' => $cost,
                 'FINISH_REASON' => $query->getFinishReason()
             ]);            
@@ -479,14 +505,15 @@ class GenericAssistant implements AiAgentInterface
      * @param \Throwable $error
      * @return ?\Throwable returns the error if persisting failed, otherwise null
      */
-    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : \Throwable
+    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error, string $content = "Error during tool handling:") : string
     {
-        //TODO handle with log ID
-        $transaction     = $this->workbench->data()->startTransaction();
-        $conversationId  = $prompt->getConversationUid();
-        $messageData     = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $transaction = $this->workbench->data()->startTransaction();
 
-        $markdown  = "> Error during tool handling:\n";
+        $conversationId  = $prompt->getConversationUid();
+        
+        $messageData  = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+
+        $markdown  = "> " . $content . "\n";
         $markdown .= ">\n";
         $markdown .= "> `" . get_class($error) . "`\n";
         $markdown .= ">\n";
@@ -501,10 +528,12 @@ class GenericAssistant implements AiAgentInterface
         // - We will have a button in the conversation to show the error details - see `Administratino > BG processing`
         // or `Administration > Data Flows > dblclick a flow run` for examples
         
-        if (! $error instanceof AiPromptError) {
+        if (! $error instanceof InternalError) {
             $error = new AiPromptError($this, $prompt, 'AI prompt failed. ' . $error->getMessage(), null, $error);
         }
         
+        $errorID = $error->getId();
+
         $errorPayload = [
             'class'   => get_class($error),
             'message' => $error->getMessage(),
@@ -512,17 +541,35 @@ class GenericAssistant implements AiAgentInterface
             'file'    => $error->getFile(),
             'line'    => $error->getLine(),
         ];
+        $dataUxon = UxonObject::fromArray($errorPayload);
+        
+        $dataUxon->setProperty('ID', $errorID );
+        
+        if($conversationId === null) {
+            $query = new OpenAiApiDataQuery($this->workbench);
+            $query->appendMessage($content);
+            $conversationId =  $this->createConversation($prompt, $query);
+            $this->enrichUxonWithTools($prompt, $dataUxon);
+            $dataUxon->setProperty('User Prompt', $prompt->getUserPrompt());
+            try {
+                $dataUxon->setProperty('System Prompt', $this->systemPrompt);
+            }catch(\Throwable $e){
+                $this->workbench->getLogger()->logException($e);
+                $dataUxon->setProperty('System Prompt causes an error', true);
+            }
+            
+            
+        }
 
         try {
             $messageData->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE'            => AiMessageTypeDataType::ERROR, // fallback to ::SYSTEM or ::TOOL if ERROR is not available
-                'DATA'            => UxonObject::fromArray($errorPayload)->toJson(true),
+                'DATA'            => $dataUxon->toJson(true),
                 'MESSAGE'         => $markdown,
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
-                // TODO add LOG_ID column to DB and model
-                //'ERROR_LOG_ID'    => $error->getId()
+                'ERROR_LOG_ID'    => $errorID
             ]);
 
             $messageData->dataCreate(false, $transaction);
@@ -532,7 +579,24 @@ class GenericAssistant implements AiAgentInterface
             $this->workbench->getLogger()->logException($e);
             // original error is returned so caller can still handle it
         }
-        return $error;
+        return $conversationId;
+    }
+    
+    protected function enrichUxonWithTools(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
+    {
+        if($uxon === null) {
+            $dataUxon = new UxonObject([
+                'tools' => []
+            ]);
+        }else {
+            $dataUxon = $uxon;
+            $dataUxon->setProperty('tools', []);
+        }
+        foreach ($this->getTools($prompt) as $tool) {
+            $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
+        }
+        
+        return $dataUxon;
     }
 
 

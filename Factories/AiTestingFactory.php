@@ -30,6 +30,8 @@ class AiTestingFactory extends AbstractStaticFactory
                 break;
             // Alias - e.g. axenox.GenAI.TextMatch
             default:
+                //TODO repair 
+                
                 // E.g. axenox.GenAI
                 $appSelector = $selector->getAppSelector();
                 $app = $selector->getWorkbench()->getApp($appSelector);
