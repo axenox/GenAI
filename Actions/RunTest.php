@@ -109,6 +109,7 @@ class RunTest extends AbstractActionDeferred
             $this->getWorkbench()->getLogger()->logException($e);
             $errorMessage = $e->getMessage();
             $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
+            //TODO Errorhandling (some errors dont have a conversation ID)
             $result = new AiResponse($prompt, '', $e->getConversationId());
             $this->userFeedback = ['USER_RATING' => 1, 'USER_FEEDBACK' => $errorMessage];
         }
