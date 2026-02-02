@@ -71,8 +71,6 @@ class OpenAiConnector extends AbstractDataConnector
                 $query = $query->withRequest($request);
                 
                 $response = $this->sendRequest($request);
-                $body = (string) $response->getBody();
-                $decoded = json_decode($body, true);
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
                     $query = $query->withResponse($response);
@@ -80,6 +78,7 @@ class OpenAiConnector extends AbstractDataConnector
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);
             }
         }
+        // Return a copy of the DataQuery with the LLM response in it
         return $query->withResponse($response, $this->getCosts($response));
     }
 
