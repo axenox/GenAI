@@ -226,6 +226,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         $clone = clone $this;
         $clone->response = $response;
+        $clone->responseData = null;
         $clone->costs = $costs;
         return $clone;
     }
