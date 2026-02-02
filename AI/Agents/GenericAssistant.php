@@ -44,7 +44,6 @@ use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\Markdown;
-use Respect\Validation\Rules\Length;
 
 /**
  * Generic chat assistant with configurable system prompt
