@@ -110,6 +110,37 @@
             },
             "ALIAS": "TestRating",
             "SHORT_DESCRIPTION": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "AI message role",
+            "CREATED_ON": "2026-02-02 20:36:05",
+            "MODIFIED_ON": "2026-02-02 20:38:10",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f190076aa330069007025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "NAME": "AI message role",
+            "PROTOTYPE": "axenox/genai/DataTypes/AiMessageTypeDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "system": "lightgray",
+                    "user": "lightgreen",
+                    "assistant": "orange",
+                    "tool calling": "lightblue",
+                    "tool": "skyblue",
+                    "error": "~ERROR"
+                }
+            },
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
+            "ALIAS": "AiMessageRole",
+            "SHORT_DESCRIPTION": ""
         }
     ],
     "totals_rows": [],

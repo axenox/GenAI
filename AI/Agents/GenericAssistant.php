@@ -44,7 +44,6 @@ use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\Markdown;
-use Respect\Validation\Rules\Length;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -118,7 +117,7 @@ class GenericAssistant implements AiAgentInterface
 
     private $sequenceNumber = null;
 
-    private $maxNumberOfCalls = 3;
+    private $maxNumberOfCalls = 5;
 
     /** @var AiToolCallResponse[] */
     private array $toolCalls = [];
@@ -194,9 +193,17 @@ class GenericAssistant implements AiAgentInterface
     
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery) : AiQueryInterface
     {
-        $numberOfCalls = 0;
+        $numberOfCallResponses = 0;
+        // Check if the LLM has put some tool calls in its response
         while ($performedQuery->hasToolCalls()) {
+            $numberOfCallResponses++;
             $this->saveConversationToolCallRequest($prompt, $performedQuery);
+
+            if ($numberOfCallResponses > $this->maxNumberOfCalls) {
+                // Add an AiQueryError that will accept the $performedQuery too, so that we see the actual
+                // HTTP messages in the logs
+                throw new AiPromptError($this, $prompt, 'Too many recursive tool call responses from LLM: ' . $numberOfCallResponses . ' one after another!');
+            }
 
             $requestedCalls = $performedQuery->getToolCalls();
             $existingCall = false;
@@ -214,7 +221,12 @@ class GenericAssistant implements AiAgentInterface
                         ->setConversationId($prompt->getConversationUid());
                 }
 
-                $resultOfTool = $this->maxNumberOfCalls > $numberOfCalls ? $tool->invoke(array_values($call->getArguments())): "Maximum number of calls have been reached.";
+                if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
+                    $resultOfTool = $tool->invoke(array_values($call->getArguments()));
+                } else {
+                    $resultOfTool = "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.";
+                    // TODO is this actually an error? Should we log an exception here?
+                } 
 
                 //to prevent duplication on calls
                 $callId = $call->getCallId();
@@ -235,7 +247,6 @@ class GenericAssistant implements AiAgentInterface
             $toolCallResponses = $this->saveConversationToolResponses($prompt, $performedQuery, $toolCallResponses);
             // $toolCallResponses = null;
             $performedQuery = $this->getConnection()->query($performedQuery);
-            $numberOfCalls++;
             //$query->clearPreviousToolCalls();
         }
         return $performedQuery;
