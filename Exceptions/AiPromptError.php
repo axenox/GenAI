@@ -13,10 +13,10 @@ class AiPromptError extends RuntimeException
     private AiAgentInterface $agent;
     private AiPromptInterface $prompt;
     
-    public function __construct(AiAgentInterface $agent, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
+    public function __construct(AiAgentInterface $query, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
     {
         parent::__construct($message, $alias, $previous);
-        $this->agent = $agent;
+        $this->agent = $query;
         $this->prompt = $prompt;
     }
     

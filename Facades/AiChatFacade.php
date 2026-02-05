@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Facades;
 
 use axenox\GenAI\Common\AiPrompt;
+use axenox\GenAI\Exceptions\AiPromptError;
 use exface\Core\Exceptions\Facades\FacadeRoutingError;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\DataUrlParamReader;
@@ -100,6 +101,23 @@ class AiChatFacade extends AbstractHttpFacade
     {
         $response = parent::createResponseFromError($exception, $request);
         if ($response->getStatusCode() !== 401 && $request !== null && stripos($request->getUri()->getPath(), '/deepchat') !== false) {
+            switch (true) {
+                // Get the prompt from the exception
+                case $exception instanceof AiPromptError:
+                    $prompt = $exception->getPrompt();
+                    break;
+                // Get the prompt from the request (if already processed by the TaskReader middleware
+                case $request !== null && null !== $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK, null):
+                    break;
+                default:
+                    $prompt = null;
+            }
+            // TODO What if we did not save the conversation? Make GenericAssistant::createConversation() public?
+            // Create a class AiConversation, that will take care of saving conversations. Extract saveXXX() methods
+            // from GenericAssistant and move them to this new class. We could create/laod conversation independently
+            // from the assistant classes.
+            
+            
             // @see https://deepchat.dev/docs/connect#Response
             $json = [
                 'error' => $exception->getMessage()
