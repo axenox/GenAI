@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\DataConnectors;
 
+use axenox\GenAI\Exceptions\AiQueryError;
 use exface\Core\CommonLogic\AbstractDataConnector;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use exface\Core\CommonLogic\UxonObject;
@@ -61,15 +62,18 @@ class OpenAiConnector extends AbstractDataConnector
         if (! $query instanceof OpenAiApiDataQuery) {
             throw new DataQueryFailedError($query, 'Invalid query type for connection ' . $this->getAliasWithNamespace() . ': expecting instance of OpenAiApiDataQuery');
         }
-
+        
         $json = $this->buildJsonChatCompletionCreate($query);
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+        $request = new Request('POST', $this->getUrl(), $headers, json_encode($json));
+        
         if ($this->isDryrun()) {
                 $response = $this->getDryrunResponse($json);
         } else {
             try {
-                $request = new Request('POST', $this->getUrl(), [], json_encode($json));
                 $query = $query->withRequest($request);
-                
                 $response = $this->sendRequest($request);
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
