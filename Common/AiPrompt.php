@@ -2,6 +2,12 @@
 namespace axenox\GenAI\Common;
 use exface\Core\CommonLogic\Tasks\HttpTask;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\CommonLogic\Workbench;
+use exface\Core\Factories\WidgetFactory;
+use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
+use exface\Core\Interfaces\UserInterface;
+use exface\Core\Widgets\DebugMessage;
 
 class AiPrompt extends HttpTask implements AiPromptInterface
 {
@@ -81,5 +87,49 @@ class AiPrompt extends HttpTask implements AiPromptInterface
         ]];
         $this->setParameter('messages', $msgs);
         return $this;
+    }
+
+    /**
+     * @param DebugMessage $debugWidget
+     * @return DebugMessage
+     */
+    public function createDebugWidget(DebugMessage $debugWidget)
+    {
+        // Request
+        $promptTab = $debugWidget->createTab();
+        $promptTab->setCaption('AI Prompt');
+        $promptTab->setWidgets(new UxonObject([[
+            'widget_type' => 'Markdown',
+            'width' => '100%',
+            'height' => '100%',
+            'hide_caption' => true,
+            'value' => $this->toMarkdown(),
+        ]]));
+        $debugWidget->addTab($promptTab);
+        return $debugWidget;
+    }
+
+    /**
+     * @return string
+     */
+    protected function toMarkdown() : string
+    {
+        return <<<MD
+
+Username: `{$this->getUser()->getUsername()}`
+
+## User prompt
+
+{$this->getUserPrompt()}
+MD;
+
+    }
+
+    /**
+     * @return UserInterface
+     */
+    protected function getUser() : UserInterface
+    {
+        return $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
     }
 }

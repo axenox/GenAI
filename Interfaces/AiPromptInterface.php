@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Interfaces;
 
 use exface\Core\Interfaces\Actions\ActionInterface;
+use exface\Core\Interfaces\iCanGenerateDebugWidgets;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
@@ -9,7 +10,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiPromptInterface extends TaskInterface
+interface AiPromptInterface extends TaskInterface, iCanGenerateDebugWidgets
 {
     /**
      * 
