@@ -3,13 +3,14 @@ namespace axenox\GenAI\Interfaces;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\AliasInterface;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
+use exface\Core\Interfaces\iCanGenerateDebugWidgets;
 
 /**
  * 
  * @author Andrej Kabachnik
  *
  */
-interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface
+interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGenerateDebugWidgets
 {
     public function handle(AiPromptInterface $prompt) : AiResponseInterface;
 

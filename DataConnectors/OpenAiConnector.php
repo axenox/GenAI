@@ -68,7 +68,7 @@ class OpenAiConnector extends AbstractDataConnector
             'Content-Type' => 'application/json',
         ];
         $request = new Request('POST', $this->getUrl(), $headers, json_encode($json));
-        
+
         if ($this->isDryrun()) {
                 $response = $this->getDryrunResponse($json);
         } else {

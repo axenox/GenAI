@@ -13,10 +13,10 @@ class AiPromptError extends RuntimeException
     private AiAgentInterface $agent;
     private AiPromptInterface $prompt;
     
-    public function __construct(AiAgentInterface $query, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
+    public function __construct(AiAgentInterface $agent, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
     {
         parent::__construct($message, $alias, $previous);
-        $this->agent = $query;
+        $this->agent = $agent;
         $this->prompt = $prompt;
     }
     
@@ -34,11 +34,12 @@ class AiPromptError extends RuntimeException
      * {@inheritDoc}
      * @see ExceptionTrait::createDebugWidget()
      */
-    public function createDebugWidget(DebugMessage $debug_widget)
+    public function createDebugWidget(DebugMessage $debugWidget)
     {
-        $debug_widget = parent::createDebugWidget($debug_widget);
-        // TODO add useful tabs for the AI agent
-        return $debug_widget;
+        $debugWidget = parent::createDebugWidget($debugWidget);
+        $debugWidget = $this->getAgent()->createDebugWidget($debugWidget);
+        $debugWidget = $this->getPrompt()->createDebugWidget($debugWidget);
+        return $debugWidget;
     }
 
     /**
