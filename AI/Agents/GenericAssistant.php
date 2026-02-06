@@ -13,6 +13,7 @@ use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
@@ -43,6 +44,7 @@ use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
+use exface\Core\Widgets\DebugMessage;
 use exface\Core\Widgets\Markdown;
 
 /**
@@ -76,7 +78,7 @@ use exface\Core\Widgets\Markdown;
  */
 class GenericAssistant implements AiAgentInterface
 {
-    use ImportUxonObjectTrait;
+    use ICanBeConvertedToUxonTrait;
 
     use AliasTrait;
 
@@ -757,17 +759,6 @@ class GenericAssistant implements AiAgentInterface
         // TODO determine the app from input data?
         return $app;
     }
-
-    /**
-     * 
-     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
-     */
-    public function exportUxonObject()
-    {
-        $uxon = new UxonObject();
-        // TODO
-        return $uxon;
-    } 
     
     /**
      *
@@ -1171,5 +1162,30 @@ class GenericAssistant implements AiAgentInterface
     public function getWorkbench()
     {
         return $this->workbench;
+    }
+
+    /**
+     * @param DebugMessage $debugWidget
+     * @return void
+     */
+    public function createDebugWidget(DebugMessage $debugWidget)
+    {
+        foreach ($debugWidget->getTabs() as $tab) {
+            if ($tab->getCaption() === 'AI Agent') {
+                return $debugWidget;
+            }
+        }
+        $tab = $debugWidget->createTab();
+        $tab->setCaption('AI Agent');
+        $tab->setWidgets(new UxonObject([[
+            'widget_type' => 'InputUxon',
+            'disabled' => true,
+            'width' => '100%',
+            'height' => '100%',
+            'hide_caption' => true,
+            'value' => $this->exportUxonObject()->toJson(),
+        ]]));
+        $debugWidget->addTab($tab);
+        return $debugWidget;
     }
 }
