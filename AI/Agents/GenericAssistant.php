@@ -537,7 +537,7 @@ class GenericAssistant implements AiAgentInterface
      * @param \Throwable $error
      * @return ?\Throwable returns the error if persisting failed, otherwise null
      */
-    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : ExceptionInterface
+    public function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : ExceptionInterface
     {
         $transaction = $this->workbench->data()->startTransaction();
 
@@ -1105,7 +1105,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getTools(AiPromptInterface $prompt) : array
     {
-        if ($this->tools === null) {
+        if ($this->tools === null && $this->toolsUxon === null) {
             if ($this->toolsUxon === null) {
                 $this->tools = [];
             } else {
@@ -1134,7 +1134,8 @@ class GenericAssistant implements AiAgentInterface
 
     protected function addTool(AiToolInterface $tool)
     {
-        $this->tools[] = $tool;
+        //TODO throw Error if the same tool is added
+        $this->tools[$tool->getName()] = $tool;
     }
 
 
