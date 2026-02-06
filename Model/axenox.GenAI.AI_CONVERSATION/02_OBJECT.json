@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-09-24 23:20:35",
+            "MODIFIED_ON": "2026-02-05 14:03:43",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -170,6 +170,9 @@
                                             },
                                             {
                                                 "calculation": "=Left(MESSAGE, 100)"
+                                            },
+                                            {
+                                                "attribute_alias": "ERROR_LOG_ID"
                                             }
                                         ],
                                         "buttons": [
@@ -179,6 +182,19 @@
                                                 "action": {
                                                     "alias": "exface.core.ShowObjectInfoDialog",
                                                     "disable_buttons": false
+                                                }
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiMessageErrorDetailsDialog",
+                                                "disabled_if": {
+                                                    "operator": "AND",
+                                                    "conditions": [
+                                                        {
+                                                            "value_left": "=~input!ERROR_LOG_ID",
+                                                            "comparator": "==",
+                                                            "value_right": ""
+                                                        }
+                                                    ]
                                                 }
                                             },
                                             {
