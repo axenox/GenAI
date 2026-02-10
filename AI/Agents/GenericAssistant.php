@@ -1096,14 +1096,19 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getTools(AiPromptInterface $prompt) : array
     {
+        
         if ($this->tools === null && $this->toolsUxon === null) {
-            if ($this->toolsUxon === null) {
-                $this->tools = [];
-            } else {
+            $this->tools = [];
+        } else {
+            if($this->toolsUxon !== null){
                 foreach ($this->initTools($this->toolsUxon, $prompt) as $tool) {
                     $this->addTool($tool);
                 }
             }
+            
+        }
+        if($this->tools === null){
+            $this->tools = [];
         }
         return $this->tools;
     }
