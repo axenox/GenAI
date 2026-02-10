@@ -22,6 +22,7 @@ use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\SelectorInterface;
 use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
+use Respect\Validation\Rules\Length;
 
 /**
  * Produces AI framework components: agents, concepts, etc.
@@ -80,9 +81,43 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         if($ds->isEmpty()){
             throw new AiAgentNotFoundError("Ai Agent '$aliasWithVersion' not found");
         }
-        $versions = $ds->getColumn('VERSION')->getValues();
-        $bestFit = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
-        $row = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
+        $dataConnection = null;
+        $versions = [];
+        $row = [];
+        $lowRow = [];
+        while($dataConnection === null){
+            if(count($versions) === 0){
+                $versions = $ds->getColumn('VERSION')->getValues();
+            }
+            
+            $bestFit = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
+            if(count($row) === 0){
+                $row = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
+            }
+            if(count($lowRow) === 0){
+                $lowRow = $row;
+            }else {
+                $lowRow = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
+            }
+            
+            if($dataConnection === null){
+                $dataConnection = $lowRow['DATA_CONNECTION'];
+            }
+            if($lowRow['DATA_CONNECTION'] === null &&$dataConnection !== null){
+                $row['DATA_CONNECTION'] = $dataConnection;
+            }
+
+            $key = array_search($bestFit, $versions, true);
+
+            if ($key !== false) {
+                unset($versions[$key]);
+            }
+
+            if(count($versions) === 0){
+                throw new AiAgentNotFoundError("Ai Agent '$aliasWithVersion' not found");
+            }
+        }
+
 
         $uxon = UxonObject::fromAnything($row['CONFIG_UXON']);
         // Required props
