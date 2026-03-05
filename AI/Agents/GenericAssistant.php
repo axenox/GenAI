@@ -1112,6 +1112,20 @@ class GenericAssistant implements AiAgentInterface
         }
         return $this->tools;
     }
+
+    /**
+     * @param string $name
+     * @param AiPromptInterface $prompt
+     * @return AiToolInterface
+     */
+    protected function getTool(string $name, AiPromptInterface $prompt) : AiToolInterface
+    {
+        foreach ($this->getTools($prompt) as $tool) {
+            if ($tool->getName() === $name) {
+                return $tool;
+            }
+        }
+    }
     
     protected function initTools(UxonObject $toolsUxon, AiPromptInterface $prompt) : array
     {
