@@ -3,7 +3,6 @@ namespace axenox\GenAI\Exceptions;
 
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
-use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Widgets\DebugMessage;
 

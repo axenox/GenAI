@@ -1,9 +1,8 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
-use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
+use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
@@ -47,7 +46,7 @@ class AiQueryError extends RuntimeException
     public function createDebugWidget(DebugMessage $debug_widget)
     {
         if (null !== $request = $this->getHttpRequest()) {
-            $renderer = new HttpMessageDebugWidgetRenderer($request, $this->getHttpResponse(), 'LLM request', 'LLM response');
+            $renderer = new HttpMessageDebugger($request, $this->getHttpResponse(), 'LLM request', 'LLM response');
             $debug_widget = $renderer->createDebugWidget($debug_widget);
         }
 
