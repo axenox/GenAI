@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
+use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
@@ -114,7 +115,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             }
 
             if(count($versions) === 0){
-                throw new AiAgentNotFoundError("Ai Agent '$aliasWithVersion' not found");
+                throw new AiConnectionNotFoundError('No connection could be found for the Ki agent ( '.$row['AI_AGENT__NAME'].' ).');
             }
         }
 
