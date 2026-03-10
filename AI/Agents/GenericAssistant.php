@@ -494,10 +494,16 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
+        
+        // Summary of tool calls
         $markdown = '> ' . count($toolCalls) . " tool calls:\n";
         foreach ($toolCalls as $toolCall) {
             $markdown .= '> - `' . $toolCall->__toString() . "`\n";
         }
+        // Extra line break to make sure the first line of the response is not rendered as part of the block quote
+        $markdown .= "\n";
+        
+        // Tool responses
         foreach ($responses as $response) {
             $type = DataTypeFactory::createFromString($this->workbench, $response->getDataTypeAlias());
             switch (true) {
@@ -512,6 +518,8 @@ class GenericAssistant implements AiAgentInterface
             }
             $markdown .= MarkdownDataType::makeHorizontalLine();
         }
+        
+        // Save the message with the tool responses
         try {
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
