@@ -2,14 +2,17 @@
 namespace axenox\GenAI\Facades;
 
 use axenox\GenAI\Common\AiPrompt;
+use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\Exceptions\Facades\FacadeRoutingError;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\DataUrlParamReader;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\JsonBodyParser;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\TaskReader;
 use axenox\GenAI\Factories\AiFactory;
+use exface\Core\Factories\DataSheetFactory;
 use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -144,7 +147,8 @@ class AiChatFacade extends AbstractHttpFacade
             // from GenericAssistant and move them to this new class. We could create/laod conversation independently
             // from the assistant classes.
             
-           
+           $this->setFeedbackToConversation($conversationID);
+            
             $json = [
                 'error' => $exception->getMessage(),
                 'conversation' => $conversationID
@@ -153,6 +157,30 @@ class AiChatFacade extends AbstractHttpFacade
             return $response->withBody(Utils::streamFor($body))->withHeader('content-type','application/json');
         }
         return parent::createResponseFromError($exception, $request);
+    }
+    
+    protected function setFeedbackToConversation(string $conversationID) : AiChatFacade
+    {
+        $transaction = $this->getWorkbench()->data()->startTransaction();
+        
+        $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.GenAI.AI_CONVERSATION');
+        $conversation->getFilters()->addConditionFromAttribute($conversation->getMetaObject()->getUidAttribute(), $conversationID, ComparatorDataType::EQUALS);
+        $conversation->getColumns()->addFromAttributeGroup($conversation->getMetaObject()->getAttributes());
+        $conversation->dataRead();
+        if($conversation->isEmpty()){
+            throw new AiConversationNotFoundError("Ai Conversation '$conversationID' not found");
+        }
+        
+        $row = $conversation->getRow();
+        
+        $conversation->setCellValue('RATING', 0, 1);
+        $conversation->setCellValue('RATING_FEEDBACK', 0, 'An error has occurred!');
+
+        $conversation->dataUpdate(false, $transaction);
+        $transaction->commit();
+        
+        
+        return $this;
     }
 
 
