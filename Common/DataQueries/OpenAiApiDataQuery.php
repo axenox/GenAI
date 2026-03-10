@@ -3,7 +3,7 @@ namespace axenox\GenAI\Common\DataQueries;
 
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
-use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
+use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
@@ -291,7 +291,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function createDebugWidget(DebugMessage $debug_widget)
     {
         if (null !== $request = $this->getRequest()) {
-            $renderer = new HttpMessageDebugWidgetRenderer($request, ($this->hasResponse() ? $this->getResponse() : null), 'Data request', 'Data response');
+            $renderer = new HttpMessageDebugger($request, ($this->hasResponse() ? $this->getResponse() : null), 'Data request', 'Data response');
             $debug_widget = $renderer->createDebugWidget($debug_widget);
         }
         
