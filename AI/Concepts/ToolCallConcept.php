@@ -10,8 +10,11 @@ use exface\Core\CommonLogic\UxonObject;
 
 class ToolCallConcept extends AbstractConcept
 {
+    
+    private ?AiToolInterface $tool = null;
     private ?string $toolName = null;
     private ?UxonObject $toolDef = null;
+    private ?string $toolClass = null;
     
     private array $arguments = [];
 
@@ -26,16 +29,32 @@ class ToolCallConcept extends AbstractConcept
         }
         
     }
+    
+    public function getToolClass(): string
+    {
+        if($this->toolClass === null){
+            $this->toolClass = AiFactory::findToolClass($this->getWorkbench(), $this->toolName, $this->toolDef);
+        }
+        return $this->toolClass;
+    }
 
     protected function getTool() : AiToolInterface
     {
-        if ($this->toolDef !== null) {
-            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->getToolName(), $this->toolDef);
-        } else {
-            throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
+        if($this->tool === null){
+            if ($this->toolDef !== null) {
+                $this->tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->getToolName(), $this->toolDef);
+            } else {
+                throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
+            }
         }
         
-        return $tool;
+        
+        return $this->tool;
+    }
+    
+    public function getToolUxon() : UxonObject
+    {
+        return $this->toolDef;
     }
 
 
@@ -43,17 +62,21 @@ class ToolCallConcept extends AbstractConcept
      * @param string|UxonObject $stringOrUxon
      * @return $this
      */
-    protected function setTool(string|UxonObject $stringOrUxon) : ToolCallConcept
+    public function setTool(string|UxonObject | AiToolInterface $stringOrUxonOrTool) : ToolCallConcept
     {
-        if ($stringOrUxon instanceof UxonObject) {
-            $this->parseLegacySyntax($stringOrUxon);
+        if($stringOrUxonOrTool instanceof AiToolInterface){
+            $this->tool = $stringOrUxonOrTool;
+            return $this;
+        }
+        if ($stringOrUxonOrTool instanceof UxonObject) {
+            $this->parseLegacySyntax($stringOrUxonOrTool);
         } else {
-            $this->toolName = $stringOrUxon;
+            $this->toolName = $stringOrUxonOrTool;
         }
         return $this;
     }
     
-    protected function getToolName() : string
+    public function getToolName() : string
     {
         return $this->toolName ?? $this->getPlaceholder();
     }
