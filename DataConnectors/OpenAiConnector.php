@@ -237,12 +237,35 @@ class OpenAiConnector extends AbstractDataConnector
         $this->costPerMTokens = $number;
         return $this;
     }
-    
+
     /**
-     * Cost per million tokens
+     * Formula to calculate costs from the usage stats in the LLM response.
      *
+     * A response from an LLM will typically contain a "usage" section with information about how many tokens were
+     * used for the prompt and the completion.
+     *
+     * ```
+     * {
+     *      "usage": {
+     *          "input_tokens": 100,
+     *          "completion_tokens": 20,
+     *          "total_tokens": 120
+     *      }
+     * }
+     * 
+     * ```
+     *
+     * Knowing the structure of this "usage" object, you can use the `costs_calculation` property to define a formula
+     * to calculate the costs of the LLM request based on the usage stats:
+     *
+     * ```
+     * ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000)
+     * 
+     * ```
+     * 
      * @uxon-property costs_calculation
      * @xuon-type string
+     * @uxon-template [#$.completion_tokens#] * 8.4984 / 1000000
      *
      * @param float $number
      * @return \axenox\GenAI\DataConnectors\OpenAiConnector
@@ -252,7 +275,11 @@ class OpenAiConnector extends AbstractDataConnector
         $this->costsCalculation = $value;
         return $this;
     }
-    
+
+    /**
+     *  
+     * @return string
+     */
     public function getCostsCalcuation() : string
     {
         if(!$this->costsCalculation) return '';
