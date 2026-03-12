@@ -1,14 +1,20 @@
 <?php
 namespace axenox\GenAI\DataConnectors;
 
-use axenox\GenAI\Exceptions\AiQueryError;
+use axenox\GenAI\Common\ApiAdapters\CompletionsApiRequestAdapter;
+use axenox\GenAI\Common\ApiAdapters\CompletionsApiResponseAdapter;
+use axenox\GenAI\Common\ApiAdapters\ResponsesApiRequestAdapter;
+use axenox\GenAI\Common\ApiAdapters\ResponsesApiResponseAdapter;
+use axenox\GenAI\Interfaces\AiConnectorInterface;
+use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
+use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\AbstractDataConnector;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataConnectors\Traits\IDoNotSupportTransactionsTrait;
 use exface\Core\DataTypes\ArrayDataType;
-use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\DataSources\DataConnectionConfigurationError;
 use exface\Core\Factories\FormulaFactory;
 use exface\Core\Interfaces\DataSources\DataQueryInterface;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
@@ -18,23 +24,29 @@ use exface\Core\Interfaces\Selectors\UserSelectorInterface;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Client;
 use exface\Core\Exceptions\DataSources\DataConnectionFailedError;
 
 /**
+ * Connects to an OpenAI-compatible completions API or responses API endpoint .
  * 
+ * API types:
+ * 
+ * - Completions API = legacy, text-only, single-shot generation
+ * - Responses API = modern, unified, multi‑modal, stateful, tool‑aware
  * 
  * @author Andrej Kabachnik
  *        
  */
-class OpenAiConnector extends AbstractDataConnector
+class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterface
 {
     use IDoNotSupportTransactionsTrait;
 
     private $client = null;
+    
+    private ?string $apiType = null;
 
     private $modelName = null;
 
@@ -63,27 +75,30 @@ class OpenAiConnector extends AbstractDataConnector
             throw new DataQueryFailedError($query, 'Invalid query type for connection ' . $this->getAliasWithNamespace() . ': expecting instance of OpenAiApiDataQuery');
         }
         
-        $json = $this->buildJsonChatCompletionCreate($query);
+        $requestAdapter = $this->getRequestAdapter();
+        $json = $requestAdapter->buildBody($query);
         $headers = [
             'Content-Type' => 'application/json',
         ];
-        $request = new Request('POST', $this->getUrl(), $headers, json_encode($json));
+        $request = new Request('POST', $this->getUrl(), $headers, $json);
 
         if ($this->isDryrun()) {
-                $response = $this->getDryrunResponse($json);
+                $response = $requestAdapter->getDryrunResponse(json_decode($json, true));
         } else {
             try {
                 $query = $query->withRequest($request);
                 $response = $this->sendRequest($request);
+                $responseAdapter = $this->getResponseAdapter($response);
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
-                    $query = $query->withResponse($response);
+                    $responseAdapter = $this->getResponseAdapter($response);
+                    $query = $query->withResponse($response, $responseAdapter);
                 }
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);
             }
         }
         // Return a copy of the DataQuery with the LLM response in it
-        return $query->withResponse($response, $this->getCosts($response));
+        return $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter));
     }
 
     protected function sendRequest(RequestInterface $request) : ResponseInterface
@@ -92,35 +107,61 @@ class OpenAiConnector extends AbstractDataConnector
         $response = $client->send($request);
         return $response;
     }
-
-    protected function buildJsonChatCompletionCreate(OpenAiApiDataQuery $query) : array
+    
+    protected function getApiType() : string
     {
-        $json = [
-            'model' => $this->getModelName($query),
-            'messages' => $query->getMessages(true)
-        ];
-
-        if(null !== $schema = $query->getResponseJsonSchema())
-        {
-            $json['response_format'] = [
-                'type'=>'json_schema',
-                'json_schema' => [
-                    'name' => 'powerUi',
-                    'schema'=> $schema,
-                    'strict' => true
-                ]
-            ];
-        } 
-        // if(null !== $tools = $query->getTools())
-        // {
-            $json['tools'] = $query->getTools();
-        // }
-
-        if (null !== $val = $this->getTemperature($query)) {
-            $json['temperature'] = $val;
+        switch (true) {
+            case $this->apiType !== null:
+                return $this->apiType;
+            case stripos($this->getUrl(), 'completions') !== false:
+                return 'completions';
+            case stripos($this->getUrl(), 'responses') !== false:
+                return 'responses';
+            default:
+                throw new DataConnectionConfigurationError($this, 'Cannot determine API type for URL ' . $this->getUrl());
         }
+    }
 
-        return $json;
+    /**
+     * Set the API type to use. Supported values are "completions" and "responses". 
+     * 
+     * If not set, the connector will try to determine the API type from the URL 
+     * (if it contains "completions" or "responses").
+     * 
+     * @uxon-property api_type
+     * @uxon-type [completions,responses]
+     * 
+     * @param string $apiType
+     * @return $this
+     */
+    protected function setApiType(string $apiType) : OpenAiConnector
+    {
+        $this->apiType = $apiType;
+        return $this;
+    }
+    
+    protected function getRequestAdapter() : HttpRequestAdapterInterface
+    {
+        switch ($this->getApiType()) {
+            case 'completions':
+                return new CompletionsApiRequestAdapter($this);
+            case 'responses':
+                return new ResponsesApiRequestAdapter($this);
+            default:
+                throw new DataConnectionConfigurationError($this, 'Unsupported API type: ' . $this->getApiType());
+        }
+    }
+    
+    protected function getResponseAdapter(ResponseInterface $response) : HttpResponseAdapterInterface
+    {
+        switch ($this->getApiType()) {
+            case 'completions':
+                return new CompletionsApiResponseAdapter($response);
+            case 'responses':
+                return new ResponsesApiResponseAdapter($response);
+            default:
+                throw new DataConnectionConfigurationError($this, 'Unsupported API type: ' . $this->getApiType());
+        }
     }
 
     /**
@@ -159,8 +200,7 @@ class OpenAiConnector extends AbstractDataConnector
 
     /**
      * 
-     * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
-     * @return float|null
+     * @see AiConnectorInterface::getTemperature()
      */
     public function getTemperature(OpenAiApiDataQuery $query) : ?float
     {
@@ -189,17 +229,12 @@ class OpenAiConnector extends AbstractDataConnector
 
     /**
      * 
-     * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
-     * @return string
+     * {@inheritDoc}
+     * @see AiConnectorInterface::getModelName()
      */
-    public function getModelName(OpenAiApiDataQuery $query) : string
+    public function getModelName() : string
     {
         return $this->modelName;
-    }
-
-    protected function getModelNameDefault() : string
-    {
-        return 'gpt-4o-mini';
     }
 
     /**
@@ -218,23 +253,15 @@ class OpenAiConnector extends AbstractDataConnector
         return $this;
     }
 
-    public function getCostPerMTokens() : ?float
-    {
-        return $this->costPerMTokens;
-    }
-
     /**
-     * Cost per million tokens
-     * 
-     * @uxon-property cost_per_m_tokens
-     * @xuon-type number
+     * @deprecated use `costs_calculation` 
      * 
      * @param float $number
      * @return \axenox\GenAI\DataConnectors\OpenAiConnector
      */
     protected function setCostPerMTokens(float $number) : OpenAiConnector
     {
-        $this->costPerMTokens = $number;
+        $this->costsCalculation = '([#$.completion_tokens#] * ' . $number . ' / 1000000)';
         return $this;
     }
 
@@ -280,14 +307,13 @@ class OpenAiConnector extends AbstractDataConnector
      *  
      * @return string
      */
-    public function getCostsCalcuation() : string
+    protected function getCostsCalcuation() : string
     {
         if(!$this->costsCalculation) return '';
         return $this->costsCalculation;
     }
 
-
-    public function getCosts(ResponseInterface $response) : ?float
+    protected function getCosts(HttpResponseAdapterInterface $adapter) : ?float
     {
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000)
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000) * GetConfig('axenox.GenAI', 'DISCOUNT')
@@ -296,10 +322,7 @@ class OpenAiConnector extends AbstractDataConnector
             return 0;
         }
 
-        $json = JsonDataType::decodeJson($response->getBody()->__toString(), true);
-
-        // TODO this should be a separate method
-        $usage = $json['usage'];
+        $usage = $adapter->getUsage();
 
         // Algorithm:
         // 1) Replace placeholders - this will produce a static formula
@@ -459,92 +482,5 @@ class OpenAiConnector extends AbstractDataConnector
     {
         $this->dryrunResponse = $value;
         return $this;
-    }
-
-    protected function getDryrunResponse(array $requestJson) : ResponseInterface
-    {
-        $debug = [
-            'request' => $requestJson
-        ];
-        $debugJsonStr = json_encode($debug, JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_SLASHES);
-
-        $contentJson = json_encode($this->dryrunResponse ?? 'Dummy response - AI connector is in dry-run mode',JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-
-        $json = <<<JSON
-      {
-    "choices": [
-        {
-            "content_filter_results": {
-                "hate": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "self_harm": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "sexual": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "violence": {
-                    "filtered": false,
-                    "severity": "safe"
-                }
-            },
-            "finish_reason": "stop",
-            "index": 0,
-            "logprobs": null,
-            "message": {
-                "content": {$contentJson},
-                "role": "assistant"
-            }
-        }
-    ],
-    "created": 1726608704,
-    "id": "chatcmpl-A8a5Q1jUobKy5hhtxR9r1acmuNTi9",
-    "model": "gpt-35-turbo",
-    "object": "chat.completion",
-    "prompt_filter_results": [
-        {
-            "prompt_index": 0,
-            "content_filter_results": {
-                "hate": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "jailbreak": {
-                    "filtered": false,
-                    "detected": false
-                },
-                "self_harm": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "sexual": {
-                    "filtered": false,
-                    "severity": "safe"
-                },
-                "violence": {
-                    "filtered": false,
-                    "severity": "safe"
-                }
-            }
-        }
-    ],
-    "system_fingerprint": null,
-    "usage": {
-        "completion_tokens": 30,
-        "prompt_tokens": 3004,
-        "total_tokens": 3034
-    },
-    "debug": {$debugJsonStr}
-}  
-JSON;
-
-        
-
-        return new Response(200, [], $json);
     }
 }
