@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Common\DataQueries;
 
 use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\DataTypes\JsonDataType;
@@ -40,8 +41,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $request = null;
 
     private $response = null;
-
-    private $responseData = null;
+    private ?HttpResponseAdapterInterface $responseAdapter = null;
 
     private $costs = null;
     
@@ -222,30 +222,13 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      * @param \Psr\Http\Message\ResponseInterface $response
      * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
      */
-    public function withResponse(ResponseInterface $response, float $costs = null) : OpenAiApiDataQuery
+    public function withResponse(ResponseInterface $response, HttpResponseAdapterInterface $adapter, float $costs = null) : OpenAiApiDataQuery
     {
         $clone = clone $this;
         $clone->response = $response;
-        $clone->responseData = null;
+        $clone->responseAdapter = $adapter;
         $clone->costs = $costs;
         return $clone;
-    }
-
-    /**
-     * 
-     * @return array
-     */
-    public function getResponseData() : array
-    {
-        if ($this->responseData === null) {
-            try {
-                $json = JsonDataType::decodeJson($this->getResponse()->getBody()->__toString(), true);
-                $this->responseData = $json;
-            } catch (\Throwable $e) {
-                throw new DataQueryFailedError($this, 'Cannot parse LLM response. ' . $e->getMessage(), null, $e);
-            }
-        }
-        return $this->responseData;
     }
 
     /**
@@ -263,15 +246,6 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
             throw new DataQueryFailedError($this, 'Cannot access LLM response before the query was sent!');
         }
         return $this->response;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
-     */
-    public function getCostPerMTokens() : ?float
-    {
-        return 0;
     }
 
     /**
@@ -304,8 +278,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getFullAnswer() : string
     {
-        $fullAnswer = $this->getResponseData()['choices'][0]['message']['content'];
-        return $fullAnswer;
+        return $this->responseAdapter->getFullAnswer();
     }
 
     /**
@@ -314,7 +287,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getAnswerJson() : ?array
     {
-        return json_decode($this->getFullAnswer(), true);
+        return $this->responseAdapter->getAnswerJson();
     }
     
     /**
@@ -323,7 +296,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function isFinished() : bool
     {
-        return $this->getResponseData()['choices'][0]['finish_reason'] === 'stop';
+        return $this->responseAdapter->isFinished();
     }
 
     /**
@@ -332,7 +305,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getTokensInPrompt() : int
     {
-        return $this->getResponseData()['usage']['prompt_tokens'];
+        return $this->responseAdapter->getTokensInPrompt();
     }
 
     /**
@@ -341,7 +314,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getTokensInAnswer() : int
     {
-        return $this->getResponseData()['usage']['completion_tokens'];
+        return $this->responseAdapter->getTokensInAnswer();
     }
 
     /**
@@ -385,43 +358,19 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getFinishReason() : string
     {
-        return $this->getResponseData()['choices'][0]['finish_reason'];
+        return $this->responseAdapter->getFinishReason();
     }
 
     public function addTool(AiToolInterface $tool) : OpenAiApiDataQuery 
     {
-        $arguments = [];
-        $requiredArgNames = [];
-        foreach($tool->getArguments() as $argument)
-        {
-            $argSchema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
-            $argSchema['description'] = $argument->getDescription();
-            $arguments[$argument->getName()] = $argSchema;
-            $requiredArgNames[] = $argument->getName();
-        }
-        
-        array_push(
-            $this->tools,  
-            [
-                "type" => "function",
-                "function" => [
-                    "name" => $tool->getName(),
-                    "description" => $tool->getDescription(),
-                    "parameters" => [
-                        "type" => "object",
-                        "properties" => $arguments,
-                        "required" => $requiredArgNames,
-                        "additionalProperties" => false
-                    ],
-                    "strict" => true
-                ]
-            ]
-        );
-        
+        $this->tools[] = $tool;
         return $this;
     }
 
-    public function getTools() : ?array
+    /**
+     * @return AiToolInterface[]
+     */
+    public function getTools() : array
     {
         return $this->tools;
     }
@@ -432,7 +381,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function hasToolCalls() : bool
     {
-        return $this->getResponseData()['choices'][0]['finish_reason'] === 'tool_calls';
+        return $this->responseAdapter->hasToolCalls();
     }
 
     /**
@@ -441,12 +390,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getToolCalls() : array
     {
-        $result = [];
-        foreach($this->getResponseData()['choices'][0]['message']['tool_calls'] as $call) {
-            $function = $call['function'];
-            $result[] = new AiToolCall($function['name'], $call['id'], json_decode($function['arguments'], true));
-        }
-        return $result;
+        return $this->responseAdapter->getToolCalls();
     }
 
     /**
@@ -455,7 +399,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getResponseMessage() : array
     {
-        return $this->getResponseData()['choices'][0]['message'];
+        return $this->responseAdapter->getResponseMessage();
     }
 
 }
