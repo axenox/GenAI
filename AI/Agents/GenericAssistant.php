@@ -6,6 +6,7 @@ use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
+use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
@@ -166,7 +167,7 @@ class GenericAssistant implements AiAgentInterface
         if($this->hasJsonSchema())
             $query->setResponseJsonSchema($this->getResponseJsonSchema());
 
-        foreach ($this->getTools($prompt) as $tool) {
+        foreach ($this->getTools() as $tool) {
             $query->addTool($tool);
         }
 
@@ -212,7 +213,7 @@ class GenericAssistant implements AiAgentInterface
 
             foreach($requestedCalls as $call){
 
-                foreach ($this->getTools($prompt) as $tool){
+                foreach ($this->getTools() as $tool){
                     if ($tool->getName() === $call->getToolName()){
                         break;
                     }
@@ -224,7 +225,7 @@ class GenericAssistant implements AiAgentInterface
                 }
 
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    $resultOfTool = $tool->invoke(array_values($call->getArguments()));
+                    $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
                 } else {
                     $resultOfTool = "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.";
                     // TODO is this actually an error? Should we log an exception here?
@@ -635,7 +636,7 @@ class GenericAssistant implements AiAgentInterface
             $dataUxon = $uxon;
             $dataUxon->setProperty('tools', []);
         }
-        foreach ($this->getTools($prompt) as $tool) {
+        foreach ($this->getTools() as $tool) {
             $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
         }
         
@@ -684,7 +685,7 @@ class GenericAssistant implements AiAgentInterface
                 $json = $configRenderer->render($uxon->toJson());
             }
             
-            $concepts[] = AiFactory::createConceptFromUxon($this->workbench,$placeholder, $prompt, UxonObject::fromJson($json));
+            $concepts[] = AiFactory::createConceptFromUxon($this, $prompt, $placeholder, UxonObject::fromJson($json));
         }
         return $concepts;
     }
@@ -1102,13 +1103,14 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return AiToolInterface[]
      */
-    protected function getTools(AiPromptInterface $prompt) : array
+    protected function getTools() : array
     {
         if ($this->tools === null) {
             if ($this->toolsUxon === null) {
                 $this->tools = [];
             } else {
-                foreach ($this->initTools($this->toolsUxon, $prompt) as $tool) {
+                foreach ($this->toolsUxon as $tool => $uxon) {
+                    $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
                     $this->addTool($tool);
                 }
             }
@@ -1118,38 +1120,22 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * @param string $name
-     * @param AiPromptInterface $prompt
      * @return AiToolInterface
      */
-    protected function getTool(string $name, AiPromptInterface $prompt) : AiToolInterface
+    protected function getTool(string $name) : AiToolInterface
     {
-        foreach ($this->getTools($prompt) as $tool) {
+        foreach ($this->getTools() as $tool) {
             if ($tool->getName() === $name) {
                 return $tool;
             }
         }
-    }
-    
-    protected function initTools(UxonObject $toolsUxon, AiPromptInterface $prompt) : array
-    {
-        $result = [];
-        foreach ($toolsUxon as $tool => $uxon) {
-            $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
-            $result[] = $tool;
-        }
-        return $result;
-    }
-    
-    protected function getToolsUxon() : ?UxonObject
-    {
-        return $this->toolsUxon;
+        throw new AiAgentRuntimeError($this, 'Tool "' . $name . '" not found!');
     }
 
     protected function addTool(AiToolInterface $tool)
     {
         $this->tools[] = $tool;        
     }
-
 
     /**
      * defines examples of suggestions for the Prompt

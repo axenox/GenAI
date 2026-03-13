@@ -2,6 +2,8 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
@@ -59,7 +61,7 @@ class GetWidgetTool extends AbstractAiTool
      */
     const ARG_PATH = 'path';
 
-    public function invoke(array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
     {
         list($url) = $arguments;
         

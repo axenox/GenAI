@@ -2,16 +2,16 @@
 
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\AI\Concepts\MockConcept;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
-use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 class TestingContext implements iCanBeConvertedToUxon
 {
-    use ImportUxonObjectTrait;
+    use ICanBeConvertedToUxonTrait;
 
     private WorkbenchInterface $workbench;
 
@@ -69,32 +69,41 @@ class TestingContext implements iCanBeConvertedToUxon
         return new UxonObject($data);
     }
     
-    public function enrichWithSampleSystemPrompt(AiAgentInterface $agent) : TestingContext
+    public function apply(AiAgentInterface $agent) : AiAgentInterface
     {
-        if($this->sampleSystemPrompt){
-            $uxon = new UxonObject(['sample_system_prompt'=>$this->sampleSystemPrompt]);
-            $agent->importUxonObject($uxon);
-        }
-        return $this;
+        $uxon = $agent->exportUxonObject();
+        
+        $uxon = enrichWithSampleConcept($uxon);
+        $uxon = enrichWithSampleSystemPrompt($uxon);
+        
+        $agent->importUxonObject($uxon);
+        return $agent;
     }
     
-    public function enrichWithSampleConcept(AiAgentInterface $agent) : TestingContext
+    protected function enrichWithSampleSystemPrompt(UxonObject $agentUxon) : TestingContext
     {
-        
-        
-        
-        
-        if($this->sampleConcepts){
-            $data = $agent->getRawConcepts();
-            foreach ($data as $key => $concept) {
+        if($this->sampleSystemPrompt){
+            $agentUxon->setProperty('instructions', $this->sampleSystemPrompt);
+        }
+        return $agentUxon;
+    }
+    
+    protected function enrichWithSampleConcept(UxonObject $agentUxon) : UxonObject
+    {
+        if($this->sampleConcepts && $agentUxon->hasProperty('concepts')) {
+            $conceptsUxon = $agentUxon->getProperty('concepts');
+            foreach ($conceptsUxon as $key => $concept) {
                 /** @var UxonObject $concept */
                 if($this->sampleConcepts[$key]){
-                    $concept->setProperty('output', $this->sampleConcepts[$key]);
+                    $conceptsUxon->setProperty($key, [
+                        'class' => '\\' . MockConcept::class,
+                        'value' => $this->sampleConcepts[$key]
+                    ]);
                 }
             }
-            $agent->importUxonObject(UxonObject::fromArray(['concepts' => $data]));
+            $agentUxon->setProperty('concepts', $conceptsUxon);
         }
-        return $this;
+        return $agentUxon;
     }
     
 
@@ -182,9 +191,7 @@ class TestingContext implements iCanBeConvertedToUxon
      * Example concepts that can be used in the sample system prompt
      *
      * @uxon-property sample_concepts
-     * @uxon-template {
-     *   "introduction": ""
-     * }
+     * @uxon-template {"introduction": ""}
      *
      * @param \exface\Core\CommonLogic\UxonObject $concepts
      * @return \axenox\GenAI\Common\TestingContext
@@ -193,39 +200,5 @@ class TestingContext implements iCanBeConvertedToUxon
     {
         $this->sampleConcepts = $concepts->getPropertiesAll();
         return $this;
-    }
-
-    
-
-    /**
-     * Export current testing configuration to Uxon
-     *
-     * @return \exface\Core\CommonLogic\UxonObject
-     */
-    public function exportUxonObject()
-    {
-        $uxon = new UxonObject();
-
-        if ($this->objectAlias !== null) {
-            $uxon->setProperty('object_alias', $this->objectAlias);
-        }
-
-        if ($this->actionAlias !== null) {
-            $uxon->setProperty('action_alias', $this->actionAlias);
-        }
-
-        if ($this->inputData !== null) {
-            $uxon->setProperty('input_data', $this->inputData);
-        }
-
-        if ($this->sampleSystemPrompt !== null) {
-            $uxon->setProperty('sample_system_prompt', $this->sampleSystemPrompt);
-        }
-
-        if (!empty($this->sampleConcepts)) {
-            $uxon->setProperty('sample_concepts', UxonObject::fromArray($this->sampleConcepts));
-        }
-
-        return $uxon;
     }
 }

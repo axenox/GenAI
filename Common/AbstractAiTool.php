@@ -236,7 +236,7 @@ abstract class AbstractAiTool implements AiToolInterface
     {
         $uxon = new UxonObject();
         $uxon->setProperty('description', '');
-        foreach (self::getArgumentsTemplates($workbench) as $param) {
+        foreach (static::getArgumentsTemplates($workbench) as $param) {
             $uxon->appendToProperty('arguments', $param->exportUxonObject());
         }
         return $uxon;

@@ -49,15 +49,15 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * @throws \exface\Core\Exceptions\UxonParserError
      * @return \axenox\GenAI\Interfaces\AiConceptInterface
      */
-    public static function createConceptFromUxon(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon) : AiConceptInterface
+    public static function createConceptFromUxon(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
     {
         if ($uxon->hasProperty('class')) {
-            $selector = new AiConceptSelector($workbench, $uxon->getProperty('class'));
+            $selector = new AiConceptSelector($agent->getWorkbench(), $uxon->getProperty('class'));
             $uxon->unsetProperty('class');
         } else {
-            throw new UxonParserError($uxon, 'Cannot instatiate AI concept: no class property found in UXON model');
+            throw new UxonParserError($uxon, 'Cannot instantiate AI concept: no class property found in UXON model');
         }
-        return static::createFromSelector($selector, [$workbench, $placeholder, $prompt, $uxon]);
+        return static::createFromSelector($selector, [$agent, $prompt, $placeholder, $uxon]);
     }
 
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface

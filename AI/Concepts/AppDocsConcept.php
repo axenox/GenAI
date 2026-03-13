@@ -20,7 +20,7 @@ class AppDocsConcept extends AbstractConcept
     private $startingPage = null;
 
 
-    public function getOutput(): string
+    protected function getOutput(): string
     {
         return $this->buildMarkdownDocs();
     }

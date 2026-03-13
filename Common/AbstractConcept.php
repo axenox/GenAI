@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Uxon\AiConceptUxonSchema;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
@@ -12,19 +13,18 @@ abstract class AbstractConcept implements AiConceptInterface
 {
     use ImportUxonObjectTrait;
 
-    private $workbench = null;
-
+    private AiAgentInterface $agent;
+    private AiPromptInterface $prompt;
+    private $workbench;
     private $placeholder = null;
-
-    private $prompt = null;
-
     private $uxon = null;
     
     private $output = null;
 
-    public function __construct(WorkbenchInterface $workbench, string $placeholder, AiPromptInterface $prompt, UxonObject $uxon = null)
+    public function __construct(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon = null)
     {
-        $this->workbench = $workbench;
+        $this->agent = $agent;
+        $this->workbench = $agent->getWorkbench();
         $this->placeholder = $placeholder;
         $this->prompt = $prompt;
         $this->uxon = $uxon;
@@ -44,7 +44,6 @@ abstract class AbstractConcept implements AiConceptInterface
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface::resolve()
      */
-
     public function resolve(array $placeholders) : array
     {
         $phVals = [];
@@ -124,5 +123,10 @@ abstract class AbstractConcept implements AiConceptInterface
         }
     }
     
-    abstract public function getOutput() : string;
+    protected function getAgent() : AiAgentInterface
+    {
+        return $this->agent;
+    }
+    
+    abstract protected function getOutput() : string;
 }
