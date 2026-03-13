@@ -2,12 +2,13 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
-use exface\Core\DataTypes\UrlDataType;
 use exface\Core\Facades\DocsFacade;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\FacadeFactory;
@@ -71,7 +72,7 @@ class GetDocsTool extends AbstractAiTool
      */
     const ARG_URI = 'uri';
 
-    public function invoke(array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
     {
         list($url) = $arguments;
         $url = str_replace('\\/', '/', $url);

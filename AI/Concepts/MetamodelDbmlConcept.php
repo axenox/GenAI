@@ -378,7 +378,7 @@ class MetamodelDbmlConcept extends AbstractConcept
         return $uxon;
     }
 
-    public function getOutput(): string
+    protected function getOutput(): string
     {
         return $this->buildDBML();
     }

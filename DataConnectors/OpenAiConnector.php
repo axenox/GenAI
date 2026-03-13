@@ -84,6 +84,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
 
         if ($this->isDryrun()) {
                 $response = $requestAdapter->getDryrunResponse(json_decode($json, true));
+                $responseAdapter = $this->getResponseAdapter($response);
         } else {
             try {
                 $query = $query->withRequest($request);

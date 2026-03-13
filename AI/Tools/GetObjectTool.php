@@ -3,6 +3,8 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\ObjectMarkdownPrinter;
@@ -18,7 +20,7 @@ class GetObjectTool extends AbstractAiTool
      */
     const ARG_OBJECT_SELECTOR = 'object_alias';    
 
-    public function invoke(array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
     {
         list($objectId) = $arguments;
 

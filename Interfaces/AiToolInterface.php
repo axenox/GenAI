@@ -5,6 +5,12 @@ use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
 
 /**
+ * A tool is a function, that the LLM can call to interact with our system.
+ * 
+ * A tool has a name and an `invoke()` method, which receives arguments provided by the LLM and
+ * some context information - namely the agent and the AI prompt object. Tools can basically do
+ * anything, but they must derive all required information from the input of `invoke()`. Thus,
+ * tools are stateless!
  * 
  * @author Andrej Kabachnik
  *
@@ -12,11 +18,13 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
 interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInterface
 {
     /**
-     * 
+     *
+     * @param AiAgentInterface $agent
+     * @param AiPromptInterface $prompt
      * @param array $arguments
-     * @return void
+     * @return string
      */
-    public function invoke(array $arguments) : string;
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments) : string;
 
     /**
      * Summary of getArguments
@@ -35,6 +43,9 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
      * @return string
      */
     public function getDescription() : string;
-    
+
+    /**
+     * @return DataTypeInterface
+     */
     public function getReturnDataType() : DataTypeInterface;
 }

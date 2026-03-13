@@ -304,11 +304,8 @@ class RunTest extends AbstractActionDeferred
         $this->agent = $agent;
 
         $testingContext = $this->getTestingContext($caseSheet);
+        $testingContext->apply($agent);
         
-        $testingContext
-            ->enrichWithSampleConcept($agent)
-            ->enrichWithSampleSystemPrompt($agent);
-
         return $this->agent;
     }
 
