@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
 class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
@@ -177,9 +178,7 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
     "debug": {$debugJsonStr}
 }  
 JSON;
-
-
-
+        
         return new Response(200, [], $json);
     }
 }
