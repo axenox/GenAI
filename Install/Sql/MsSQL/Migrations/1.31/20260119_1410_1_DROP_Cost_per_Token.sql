@@ -1,6 +1,4 @@
---UP
-
---Down
+-- UP
 
 IF EXISTS (
     SELECT 1
@@ -12,3 +10,8 @@ BEGIN
     ALTER TABLE dbo.exf_ai_message
     DROP COLUMN cost_per_m_tokens;
 END
+
+-- DOWN
+
+ALTER TABLE dbo.exf_ai_message
+    ADD cost_per_m_tokens FLOAT NULL;
