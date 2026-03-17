@@ -8,6 +8,7 @@ use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
@@ -144,6 +145,7 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
+        
         $userPromt = $prompt->getUserPrompt();
         try {
                 $systemPrompt = $this->getSystemPrompt($prompt);
@@ -786,6 +788,9 @@ class GenericAssistant implements AiAgentInterface
     protected function getConnection() : DataConnectionInterface
     {
         if ($this->dataConnection === null) {
+            if($this->dataConnectionAlias !== null) {
+                throw new AiConnectionNotFoundError($this,"No Connection for Agent" . $this->getName() . " found!");
+            }
             $this->dataConnection = DataConnectionFactory::createFromModel($this->workbench, $this->dataConnectionAlias);
         }
         return $this->dataConnection;

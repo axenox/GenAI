@@ -114,7 +114,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             }
 
             if(count($versions) === 0){
-                throw new AiConnectionNotFoundError('No connection could be found for the Ki agent ( '.$row['AI_AGENT__NAME'].' ).');
+                break;
             }
         }
 
