@@ -78,6 +78,7 @@ class TestingContext implements iCanBeConvertedToUxon
         
         $uxon = $this->enrichWithSampleConcept($uxon);
         $uxon = $this->enrichWithSampleSystemPrompt($uxon);
+        $uxon = $this->enrichWithSampleTool($uxon);
         
         $agent->importUxonObject($uxon);
         return $agent;
