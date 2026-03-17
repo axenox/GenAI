@@ -43,7 +43,7 @@ class TestingContext implements iCanBeConvertedToUxon
     
     private array $sampleTools = [];
     
-    
+    private ?string $connectionAlias = null;
 
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
@@ -81,6 +81,7 @@ class TestingContext implements iCanBeConvertedToUxon
         $uxon = $this->enrichWithSampleConcept($uxon);
         $uxon = $this->enrichWithSampleSystemPrompt($uxon);
         $uxon = $this->enrichWithSampleTool($uxon);
+        $uxon = $this->enrichWithDataConnection($uxon);
         
         $agent->importUxonObject($uxon);
         return $agent;
@@ -176,7 +177,25 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agentUxon;
     }
     
-    
+    /**
+     * Enriches the agent UXON with an overridden data connection alias if one is defined
+     * in this context.
+     * 
+     * If a `connection_alias` is configured and the agent UXON already contains a
+     * `data_connection_alias` property, the property is replaced with the context value
+     * for the duration of the test. If no connection alias is set, or the agent does not
+     * declare one, the agent UXON is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
+    protected function enrichWithDataConnection(UxonObject $agentUxon) : UxonObject
+    {
+        if($this->connectionAlias && $agentUxon->hasProperty('data_connection_alias')) {
+            $agentUxon->setProperty('data_connection_alias', $this->connectionAlias);
+        }
+        return $agentUxon;
+    }
     
 
     /**
@@ -281,6 +300,22 @@ class TestingContext implements iCanBeConvertedToUxon
     protected function setSampleTools(UxonObject $tools) : TestingContext
     {
         $this->sampleTools = $tools->getPropertiesAll();
+        return $this;
+    }
+
+    /**
+     * Here, the connection can be overwritten by the agents.
+     * 
+     * @uxon-proeprty connection_alias
+     * @uxon-type string
+     * @uxon-tempalte "chatgpt_4o__power_ui_demo_azure"
+     * 
+     * @param string $connectionAlias
+     * @return $this
+     */
+    protected function setConnectionAlias(string $connectionAlias) : TestingContext
+    {
+        $this->connectionAlias = $connectionAlias;
         return $this;
     }
     
