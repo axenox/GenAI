@@ -42,6 +42,8 @@ class TestingContext implements iCanBeConvertedToUxon
     private array $sampleConcepts = [];
     
     private array $sampleTools = [];
+    
+    
 
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
@@ -84,6 +86,16 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agent;
     }
     
+    /**
+     * Enriches the agent UXON with a sample system prompt if one is defined in this context.
+     * 
+     * If a `sample_system_prompt` is configured, it overwrites the agent's `instructions`
+     * property for the duration of the test. If no sample prompt is set, the agent UXON
+     * is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
     protected function enrichWithSampleSystemPrompt(UxonObject $agentUxon) : UxonObject
     {
         if($this->sampleSystemPrompt){
@@ -92,6 +104,19 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agentUxon;
     }
     
+    /**
+     * Enriches the agent UXON by replacing configured concepts with mock equivalents if
+     * sample concept values are defined in this context.
+     * 
+     * For each concept already declared in the agent UXON, if a matching sample value
+     * exists under the same key in `sample_concepts`, the concept's class is replaced
+     * with `MockConcept` and its value is set to the provided sample text. Concepts
+     * without a corresponding sample entry are left unchanged. If no sample concepts
+     * are configured, the agent UXON is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
     protected function enrichWithSampleConcept(UxonObject $agentUxon) : UxonObject
     {
         if($this->sampleConcepts && $agentUxon->hasProperty('concepts')) {
@@ -110,26 +135,48 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agentUxon;
     }
     
+    /**
+     * Enriches the agent UXON by replacing configured tools with mock equivalents if
+     * sample tool data is defined in this context.
+     * 
+     * For each tool already declared in the agent UXON, if a matching sample entry
+     * exists under the same key in `sample_tools`, the tool is replaced with a `MockTool`
+     * whose `description` and `arguments` are carried over from the original tool
+     * definition so that the agent contract stays intact. Tools without a corresponding
+     * sample entry are kept as-is. If no sample tools are configured, the agent UXON
+     * is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
     protected function enrichWithSampleTool(UxonObject $agentUxon) : UxonObject
     {
         if($this->sampleTools && $agentUxon->hasProperty('tools')) {
+            $newToolsUxon = new UxonObject();
             $toolsUxon = $agentUxon->getProperty('tools');
             foreach ($toolsUxon as $key => $tool) {
                 /** @var UxonObject $tool */
-                if($this->sampleTools[$key]){
-                    if($tool->hasProperty('arguments')) {
-                        $this->sampleTools[$key]['arguments'] = $tool->getProperty('arguments');
+                if($this->sampleTools[$key]) {
+                    //$this->sampleTools[$key]['name'] =$key;
+                    if($tool->hasProperty('description')){
+                        $this->sampleTools[$key]->setProperty('description', $tool->getProperty('description'));
                     }
-                    $toolsUxon->setProperty($key, [
-                        'class' => '\\' . MockTool::class,
-                        'value' => $this->sampleTools[$key]
-                    ]);
+                    if ($tool->hasProperty('arguments')) {
+                        $this->sampleTools[$key]->setProperty('arguments', $tool->getProperty('arguments'));
+                    }
+                    $newToolsUxon->setProperty("Mock", $this->sampleTools[$key]);
+                    
+                    
+                } else{
+                    $newToolsUxon->setProperty($key, $tool);
                 }
             }
-            $agentUxon->setProperty('tools', $toolsUxon);
+            $agentUxon->setProperty('tools', $newToolsUxon);
         }
         return $agentUxon;
     }
+    
+    
     
 
     /**
@@ -225,7 +272,7 @@ class TestingContext implements iCanBeConvertedToUxon
      *
      * @uxon-property sample_tools
      * @uxon-type \axenox\GenAI\Tools\MockTool[]
-     * @uxon-template {"GetLogEntryTool": {"request_response_pairs": {"Log-1234": "Response Log-1234","1234": "Response Log-1234"}, "sample_Response": "No Data for this Log"}}
+     * @uxon-template {"GetLogEntryTool":{"request_response_pairs":[{"request": "Log-ID1234", "response": "Answer Log-ID1223"}]}}
      *
       * @param \exface\Core\CommonLogic\UxonObject $tools
       * @return \axenox\GenAI\Common\TestingContext
