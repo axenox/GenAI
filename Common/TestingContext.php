@@ -3,6 +3,7 @@
 namespace axenox\GenAI\Common;
 
 use axenox\GenAI\AI\Concepts\MockConcept;
+use axenox\GenAI\AI\Tools\MockTool;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -39,6 +40,8 @@ class TestingContext implements iCanBeConvertedToUxon
      * Example concepts for the sample system prompt
      */
     private array $sampleConcepts = [];
+    
+    private array $sampleTools = [];
 
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
@@ -106,6 +109,27 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agentUxon;
     }
     
+    protected function enrichWithSampleTool(UxonObject $agentUxon) : UxonObject
+    {
+        if($this->sampleTools && $agentUxon->hasProperty('tools')) {
+            $toolsUxon = $agentUxon->getProperty('tools');
+            foreach ($toolsUxon as $key => $tool) {
+                /** @var UxonObject $tool */
+                if($this->sampleTools[$key]){
+                    if($tool->hasProperty('arguments')) {
+                        $this->sampleTools[$key]['arguments'] = $tool->getProperty('arguments');
+                    }
+                    $toolsUxon->setProperty($key, [
+                        'class' => '\\' . MockTool::class,
+                        'value' => $this->sampleTools[$key]
+                    ]);
+                }
+            }
+            $agentUxon->setProperty('tools', $toolsUxon);
+        }
+        return $agentUxon;
+    }
+    
 
     /**
      * Object alias for the sample request
@@ -150,14 +174,7 @@ class TestingContext implements iCanBeConvertedToUxon
      *
      *
      * @uxon-property input_data
-     * @uxon-template {
-     *   "object_alias": "exface.Core.CONNECTION",
-     *   "rows": [
-     *     {
-     *       "UID": "0x11ea72c00f0fadeca3480205857feb80"
-     *     }
-     *   ]
-     * }
+     * @uxon-template {"object_alias": "exface.Core.CONNECTION","rows": [{"UID": "0x11ea72c00f0fadeca3480205857feb80"}]}
      *
      * @param \exface\Core\CommonLogic\UxonObject $inputData
      * @return \axenox\GenAI\Common\TestingContext
@@ -201,4 +218,22 @@ class TestingContext implements iCanBeConvertedToUxon
         $this->sampleConcepts = $concepts->getPropertiesAll();
         return $this;
     }
+
+    /**
+     * Example tools that can be used in the agent
+     *
+     * @uxon-property sample_tools
+     * @uxon-type \axenox\GenAI\Tools\MockTool[]
+     * @uxon-template {"GetLogEntryTool": {"request_response_pairs": {"Log-1234": "Response Log-1234","1234": "Response Log-1234"}, "sample_Response": "No Data for this Log"}}
+     *
+      * @param \exface\Core\CommonLogic\UxonObject $tools
+      * @return \axenox\GenAI\Common\TestingContext
+     * 
+     */
+    protected function setSampleTools(UxonObject $tools) : TestingContext
+    {
+        $this->sampleTools = $tools->getPropertiesAll();
+        return $this;
+    }
+    
 }
