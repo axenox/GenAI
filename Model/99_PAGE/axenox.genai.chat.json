@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-03-16 18:33:33",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-03-16 18:34:48",
+    "modified_on": "2026-03-17 08:14:09",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AGENT",
@@ -26,7 +26,14 @@
                         "id": "agents_table",
                         "filters": [
                             {
-                                "attribute_alias": "AI_AGENT"
+                                "attribute_alias": "ENABLED_FLAG",
+                                "value": true
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__NAME"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__ALIAS"
                             },
                             {
                                 "attribute_alias": "AI_AGENT__APP"
@@ -97,7 +104,7 @@
                 ]
             },
             {
-                "caption": "Chat",
+                "caption": "Chat with selected agent",
                 "widgets": [
                     {
                         "widget_type": "axenox.GenAI.AIChat",
