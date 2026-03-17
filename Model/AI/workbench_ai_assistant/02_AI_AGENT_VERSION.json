@@ -59,7 +59,7 @@
         {
             "_EXPORT_SUMMARY": "Admin AI Assistant v1.1",
             "CREATED_ON": "2025-04-14 11:38:28",
-            "MODIFIED_ON": "2025-12-04 10:14:34",
+            "MODIFIED_ON": "2026-03-10 11:07:10",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f09c3c3860f7dc9c3c025041000001",
@@ -73,7 +73,7 @@
                     "## Global rules",
                     "",
                     "- Answer using the following locale [#=User('LOCALE')#]",
-                    "- Use the `GetDocs()` tool to request pages from the documentation. ",
+                    "- Look for suitable documentation in the index below. Use the `GetDocs()` tool to request pages from the documentation. ",
                     "- If asked about an error, tell the user user to provide a Log-ID. This will let you fetch detailed information about the error using GetLogEntry tool. The Log-ID is always displayed next to every error message.",
                     "",
                     "## Introduction to the platform",
