@@ -15,6 +15,8 @@ class RequestResponsePairs implements iCanBeConvertedToUxon
     
     private string $request;
     
+    private array $requests =[];
+    
     private string $response;
 
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
@@ -42,6 +44,22 @@ class RequestResponsePairs implements iCanBeConvertedToUxon
     }
 
     /**
+     * If multiple requests produce the same result, you can define multiple requests here at once that all have the same output.
+     * 
+     * @uxon-proeprty requets
+     * @uxon-type string[]
+     * @uxon-template [""]
+     * 
+     * @param array $requests
+     * @return $this
+     */
+    protected function setRequests(array $requests): RequestResponsePairs
+    {
+        $this->requests = $requests;
+        return $this;
+    }
+
+    /**
      * What should the tool respond with to this request?
      * 
      * @uxon-proeprty response
@@ -59,6 +77,11 @@ class RequestResponsePairs implements iCanBeConvertedToUxon
     
     public function isMatch(string $request): bool
     {
+        if($this->requests !== []){
+            if (in_array($request, $this->requests, true)) {
+                return true;
+            }
+        }
         return $this->request === $request;
     }
     
