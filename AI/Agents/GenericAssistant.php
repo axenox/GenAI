@@ -348,6 +348,7 @@ class GenericAssistant implements AiAgentInterface
             // }
             $dataUxon = new UxonObject();
             $this->enrichUxonWithTools($prompt, $dataUxon);
+            $this->enrichUxonWithRawSystemPrompt($prompt, $dataUxon);
 
             // collect concepts mapped by their placeholder
             $concepts = [];
@@ -641,6 +642,21 @@ class GenericAssistant implements AiAgentInterface
         }
         
         return $dataUxon;
+    }
+    
+    protected function enrichUxonWithRawSystemPrompt(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
+    {
+        $rawSystemPrompt = $this->getSystemPrompt($prompt);
+        if($uxon === null) {
+            $dataUxon = new UxonObject([
+                'RawSystemPrompt' => $rawSystemPrompt,
+            ]);
+        }else{
+            $dataUxon = $uxon;
+            $dataUxon->setProperty('concepts', $rawSystemPrompt);
+            
+        }
+        return $dataUxon;  
     }
 
 
