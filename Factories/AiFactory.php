@@ -61,75 +61,112 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return static::createFromSelector($selector, [$agent, $prompt, $placeholder, $uxon]);
     }
 
-    public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface
+    public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion): AiAgentInterface
     {
-        list($alias, $versionConstraint) = explode(':', $aliasWithVersion);
+        $COLUMN_CONFIG_UXON = 'CONFIG_UXON';
+        $COLUMN_DATA_CONNECTION = 'DATA_CONNECTION';
+        $COLUMN_DATA_CONNECTION_DEFAULT = 'DATA_CONNECTION_DEFAULT';
+        $COLUMN_AGENT_NAME = 'AI_AGENT__NAME';
+        $COLUMN_AGENT_ALIAS = 'AI_AGENT__ALIAS';
+        $COLUMN_AGENT_ALIAS_WITH_NS = 'AI_AGENT__ALIAS_WITH_NS';
+        $COLUMN_VERSION = 'VERSION';
+        $COLUMN_PROTOTYPE_CLASS = 'PROTOTYPE_CLASS';
+
+        [$alias, $versionConstraint] = array_pad(explode(':', $aliasWithVersion, 2), 2, null);
         $versionConstraint = $versionConstraint ?? '*';
-        
+
         $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_AGENT_VERSION');
-        $ds->getFilters()->addConditionFromString('AI_AGENT__ALIAS_WITH_NS', $alias, ComparatorDataType::EQUALS);
+        $ds->getFilters()->addConditionFromString($COLUMN_AGENT_ALIAS_WITH_NS, $alias, ComparatorDataType::EQUALS);
         $ds->getColumns()->addMultiple([
-            'CONFIG_UXON',
-            'DATA_CONNECTION',
-            'AI_AGENT__NAME',
-            'AI_AGENT__ALIAS',
-            'VERSION',
-            'PROTOTYPE_CLASS',
+            $COLUMN_CONFIG_UXON,
+            $COLUMN_DATA_CONNECTION,
+            $COLUMN_DATA_CONNECTION_DEFAULT,
+            $COLUMN_AGENT_NAME,
+            $COLUMN_AGENT_ALIAS,
+            $COLUMN_VERSION,
+            $COLUMN_PROTOTYPE_CLASS,
             'ENABLED_FLAG'
         ]);
+
+        $outputSheet = $ds->copy();
         $ds->dataRead();
-        if($ds->isEmpty()){
+
+        if ($ds->isEmpty()) {
             throw new AiAgentNotFoundError("Ai Agent '$aliasWithVersion' not found");
         }
+
         $dataConnection = null;
-        $versions = [];
         $row = [];
         $lowRow = [];
-        while($dataConnection === null){
-            if(count($versions) === 0){
-                $versions = $ds->getColumn('VERSION')->getValues();
-            }
+        $bestFit = null;
 
+        $versions = $ds->getColumn($COLUMN_VERSION)->getValues();
+        $versionColumn = $ds->getColumn($COLUMN_VERSION);
+
+        for (; count($versions) > 0; ) {
             $bestFit = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
-            if(count($row) === 0){
-                $row = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
-            }
-            if(count($lowRow) === 0){
-                $lowRow = $row;
-            }else {
-                $lowRow = $ds->getRow($ds->getColumn('VERSION')->findRowByValue($bestFit));
+            if ($bestFit === null) {
+                break;
             }
 
-            if($dataConnection === null){
-                $dataConnection = $lowRow['DATA_CONNECTION'];
+            $bestFitIndex = $versionColumn->findRowByValue($bestFit);
+            if ($bestFitIndex === false || $bestFitIndex === null) {
+                break;
             }
-            if($lowRow['DATA_CONNECTION'] === null &&$dataConnection !== null){
-                $row['DATA_CONNECTION'] = $dataConnection;
+
+            if (count($row) === 0) {
+                $row = $ds->getRow($bestFitIndex);
+            }
+
+            if (count($lowRow) === 0) {
+                $lowRow = $row;
+            } else {
+                $lowRow = $ds->getRow($bestFitIndex);
+            }
+
+            if ($dataConnection === null) {
+                $dataConnection = $lowRow[$COLUMN_DATA_CONNECTION];
+            }
+
+            if ($row[$COLUMN_DATA_CONNECTION] === null && $dataConnection !== null) {
+                $row[$COLUMN_DATA_CONNECTION] = $dataConnection;
+                $row[$COLUMN_DATA_CONNECTION_DEFAULT] = $dataConnection;
+
+                // Override Data Connection in Data Sheet
+                $outputSheet->addRow($row);
+                $outputSheet->dataSave();
+                break;
             }
 
             $key = array_search($bestFit, $versions, true);
-
             if ($key !== false) {
                 unset($versions[$key]);
             }
-
-            if(count($versions) === 0){
-                break;
-            }
         }
 
-        $uxon = UxonObject::fromAnything($row['CONFIG_UXON']);
+        $uxon = UxonObject::fromAnything($row[$COLUMN_CONFIG_UXON]);
+
         // Required props
-        $uxon->setProperty('name', $row['AI_AGENT__NAME']);
-        $uxon->setProperty('alias', $row['AI_AGENT__ALIAS']);
+        $uxon->setProperty('name', $row[$COLUMN_AGENT_NAME]);
+        $uxon->setProperty('alias', $row[$COLUMN_AGENT_ALIAS]);
+
         // Optional props
-        if (null !== $val = $row['DATA_CONNECTION']) {
+        if (null !== $val = $row[$COLUMN_DATA_CONNECTION]) {
             $uxon->setProperty('data_connection_alias', $val);
         }
 
         // Create a new selector with the exact version
-        $exactSelector = new AiAgentSelector($workbench, $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFit);
-        $prototypeClass = PhpFilePathDataType::findClassInFile($workbench->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $row['PROTOTYPE_CLASS']);
+        $exactSelector = new AiAgentSelector(
+            $workbench,
+            $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFit
+        );
+
+        $prototypeClass = PhpFilePathDataType::findClassInFile(
+            $workbench->filemanager()->getPathToVendorFolder()
+            . DIRECTORY_SEPARATOR
+            . $row[$COLUMN_PROTOTYPE_CLASS]
+        );
+
         $agent = new $prototypeClass($exactSelector, $uxon);
 
         return $agent;
