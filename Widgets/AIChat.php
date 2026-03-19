@@ -460,7 +460,7 @@ JS;
         return $this;
     }
 
-    protected function getPromptSuggestionAgent() : array 
+    protected function getPromptSuggestionsFromAgent() : array 
     {
         if(! $this->agent){
             $this->agent = AiFactory::createAgentFromString($this->getWorkbench(), $this->getAgentAlias());
@@ -472,7 +472,7 @@ JS;
     {
         $all = array_merge(
         $this->promptSuggestionsWidget ?? [],
-        $this->getPromptSuggestionAgent() ?? []
+            $this->getPromptSuggestionsFromAgent() ?? []
         );
 
         return $all;

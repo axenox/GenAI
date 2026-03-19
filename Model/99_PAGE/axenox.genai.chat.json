@@ -1,0 +1,124 @@
+{
+    "uid": "0x11f1961d41c5a824961d025041000001",
+    "alias_with_namespace": "axenox.genai.chat",
+    "menu_parent_page_selector": "0x11efb71bcc0c07e2b71b025041000001",
+    "menu_index": 2,
+    "menu_visible": true,
+    "name": "Chat",
+    "description": "Chat with any agent",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2026-03-16 18:33:33",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2026-03-17 08:14:09",
+    "contents": {
+        "widget_type": "SplitHorizontal",
+        "object_alias": "axenox.GenAI.AI_AGENT",
+        "panels": [
+            {
+                "caption": "Agents",
+                "width": "50%",
+                "widgets": [
+                    {
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                        "id": "agents_table",
+                        "filters": [
+                            {
+                                "attribute_alias": "ENABLED_FLAG",
+                                "value": true
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__NAME"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__ALIAS"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__APP"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__ALIAS"
+                            },
+                            {
+                                "attribute_alias": "CONFIG_UXON"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "ENABLED_FLAG",
+                                "caption": "On"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__NAME"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__APP__ALIAS"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__ALIAS"
+                            },
+                            {
+                                "attribute_alias": "VERSION"
+                            },
+                            {
+                                "attribute_alias": "DATA_CONNECTION__LABEL",
+                                "caption": "Connection"
+                            },
+                            {
+                                "attribute_alias": "DESCRIPTION"
+                            },
+                            {
+                                "attribute_alias": "ALIAS_WITH_VERSION",
+                                "hidden": true
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "AI_AGENT__NAME",
+                                "direction": "asc"
+                            },
+                            {
+                                "attribute_alias": "VERSION",
+                                "direction": "desc"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                            },
+                            {
+                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                "bind_to_double_click": true
+                            },
+                            {
+                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                            },
+                            {
+                                "action_alias": "exface.Core.DeleteObject",
+                                "visibility": "optional"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "caption": "Chat with selected agent",
+                "widgets": [
+                    {
+                        "widget_type": "axenox.GenAI.AIChat",
+                        "object_alias": "exface.Core.DUMMY",
+                        "agent_alias": "axenox.GenAI.workbench_ai_assistant",
+                        "live_references": [
+                            {
+                                "widget_link": "=agents_table!ALIAS_WITH_VERSION",
+                                "on_change_script": "document.getElementById('[#~id#]_deepchat').connect.url = 'api/aichat/' + [#~value#] + '/deepchat'"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
