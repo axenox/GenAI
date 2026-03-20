@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-03-16 18:33:33",
-    "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-03-17 08:14:09",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2026-03-19 15:36:32",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AGENT",
@@ -113,7 +113,7 @@
                         "live_references": [
                             {
                                 "widget_link": "=agents_table!ALIAS_WITH_VERSION",
-                                "on_change_script": "document.getElementById('[#~id#]_deepchat').connect.url = 'api/aichat/' + [#~value#] + '/deepchat'"
+                                "on_change_script": "document.getElementById('[#~id#]_deepchat').connect.url = 'api/aichat/' + [#~value#] + '/deepchat'; \nresetDeepChat('[#~id#]_deepchat');"
                             }
                         ]
                     }

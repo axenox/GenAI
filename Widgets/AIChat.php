@@ -180,6 +180,7 @@ JS);
         return <<<JS
 
         (function () { 
+            window.resetDeepChat = resetDeepChat;
             const chat = document.getElementById('{$this->getIdOfDeepChat()}');                
             if (!chat) {
               console.error("AIChat element not found in DOM");
@@ -197,7 +198,7 @@ JS);
 
                 initPreCopyObserver(chat);
             });
-        
+            
             function resetDeepChat(chatId) {
                 const domEl = document.getElementById(chatId);
                 if (domEl) {
