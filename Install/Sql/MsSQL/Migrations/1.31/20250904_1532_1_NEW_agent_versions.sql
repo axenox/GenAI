@@ -2,7 +2,7 @@
     
 /* New table for agent versions */
 IF OBJECT_ID ('dbo.exf_ai_agent_version', N'U') IS NULL
-CREATE TABLE exf_ai_agent_version (
+CREATE TABLE dbo.exf_ai_agent_version (
     oid binary(16) NOT NULL,
     created_on datetime NOT NULL,
     modified_on datetime NOT NULL,
@@ -27,7 +27,7 @@ CREATE INDEX IX_exf_ai_agent_version_agent
     ON exf_ai_agent_version (ai_agent_oid);
 
 /* Save agent version number in conversations */
-ALTER TABLE exf_ai_conversation
+ALTER TABLE dbo.exf_ai_conversation
     ADD ai_agent_version_no nvarchar(50) NOT NULL DEFAULT '1.0';
     
 /* Create initial versions */
@@ -62,7 +62,7 @@ FROM
 UPDATE  exf_customizing SET table_name = 'exf_ai_agent_version' WHERE table_name = 'exf_ai_agent';
 
 /* Remove moved columns */
-ALTER TABLE exf_ai_agent
+ALTER TABLE dbo.exf_ai_agent
     DROP COLUMN prototype_class,
                 config_uxon;
 
