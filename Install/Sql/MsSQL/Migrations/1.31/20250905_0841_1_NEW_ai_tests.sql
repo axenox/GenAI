@@ -28,7 +28,7 @@ GO
 
 IF OBJECT_ID ('dbo.exf_ai_test_criterion', N'U') IS NULL
 BEGIN
-    CREATE TABLE exf_ai_test_criterion (
+    CREATE TABLE dbo.exf_ai_test_criterion (
          oid binary(16) NOT NULL,
          created_on datetime NOT NULL,
          modified_on datetime NOT NULL,
@@ -51,7 +51,7 @@ GO
 
 IF OBJECT_ID ('dbo.exf_ai_test_run', N'U') IS NULL
 BEGIN
-    CREATE TABLE exf_ai_test_run (
+    CREATE TABLE dbo.exf_ai_test_run (
         oid binary(16) NOT NULL,
         created_on datetime NOT NULL,
         modified_on datetime NOT NULL,
@@ -74,7 +74,7 @@ GO
 
 IF OBJECT_ID ('dbo.exf_ai_test_result', N'U') IS NULL
 BEGIN
-    CREATE TABLE exf_ai_test_result (
+    CREATE TABLE dbo.exf_ai_test_result (
         oid binary(16) NOT NULL,
         created_on datetime NOT NULL,
         modified_on datetime NOT NULL,
@@ -98,7 +98,7 @@ GO
 
 IF OBJECT_ID ('dbo.exf_ai_test_result_rating', N'U') IS NULL
 BEGIN
-    CREATE TABLE exf_ai_test_result_rating (
+    CREATE TABLE dbo.exf_ai_test_result_rating (
         oid binary(16) NOT NULL,
         created_on datetime NOT NULL,
         modified_on datetime NOT NULL,
