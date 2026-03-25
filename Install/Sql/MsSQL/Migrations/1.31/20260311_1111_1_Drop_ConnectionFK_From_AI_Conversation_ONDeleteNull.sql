@@ -23,11 +23,11 @@ WHERE t_parent.name = 'exf_ai_conversation'
 
 IF @fk_name IS NOT NULL
 BEGIN
-    SET @sql = N'ALTER TABLE exf_ai_conversation DROP CONSTRAINT [' + @fk_name + N']';
+    SET @sql = N'ALTER TABLE dbo.exf_ai_conversation DROP CONSTRAINT [' + @fk_name + N']';
 EXEC sp_executesql @sql;
 END;
 
-ALTER TABLE exf_ai_conversation
+ALTER TABLE dbo.exf_ai_conversation
 ALTER COLUMN connection_oid BINARY(16) NULL;
 
 /* Verwaiste Referenzen bereinigen */
@@ -45,7 +45,7 @@ IF NOT EXISTS (
     WHERE name = 'fk_exf_ai_conversation_connection_oid'
 )
 BEGIN
-ALTER TABLE exf_ai_conversation
+ALTER TABLE dbo.exf_ai_conversation
     ADD CONSTRAINT fk_exf_ai_conversation_connection_oid
         FOREIGN KEY (connection_oid)
             REFERENCES exf_data_connection(oid)
@@ -77,6 +77,6 @@ WHERE t_parent.name = 'exf_ai_conversation'
 
 IF @fk_name_down IS NOT NULL
 BEGIN
-    SET @sql_down = N'ALTER TABLE exf_ai_conversation DROP CONSTRAINT [' + @fk_name_down + N']';
+    SET @sql_down = N'ALTER TABLE dbo.exf_ai_conversation DROP CONSTRAINT [' + @fk_name_down + N']';
 EXEC sp_executesql @sql_down;
 END;
