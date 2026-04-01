@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI test case [axenox.GenAI.AI_TEST_CASE]",
             "CREATED_ON": "2025-09-05 11:08:56",
-            "MODIFIED_ON": "2025-09-30 12:29:04",
+            "MODIFIED_ON": "2026-03-17 11:03:03",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0b0e7f3d68ae2b0e7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -220,7 +220,7 @@
                                         "width": "100%",
                                         "hide_caption": true,
                                         "widget_type": "InputUxon",
-                                        "root_prototype": "\\axenox\\GenAI\\Common\\AiPrompt"
+                                        "root_prototype": "\\axenox\\GenAI\\Common\\TestingContext"
                                     }
                                 ]
                             }

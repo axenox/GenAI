@@ -25,7 +25,13 @@ class GetObjectTool extends AbstractAiTool
         list($objectId) = $arguments;
 
         $printer = new ObjectMarkdownPrinter($this->workbench, $objectId);
-        return $printer->getMarkdown();
+        $markdwon = "No Data found";
+        try{
+            $markdwon = $printer->getMarkdown();
+        } catch (\Exception $ex) {
+            // TODO What happend with the error?
+        }
+        return $markdwon;
     }
 
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
