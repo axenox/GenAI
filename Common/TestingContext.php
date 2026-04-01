@@ -3,6 +3,7 @@
 namespace axenox\GenAI\Common;
 
 use axenox\GenAI\AI\Concepts\MockConcept;
+use axenox\GenAI\AI\Tools\MockTool;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -39,6 +40,10 @@ class TestingContext implements iCanBeConvertedToUxon
      * Example concepts for the sample system prompt
      */
     private array $sampleConcepts = [];
+    
+    private array $sampleTools = [];
+    
+    private ?string $connectionAlias = null;
 
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
@@ -73,14 +78,26 @@ class TestingContext implements iCanBeConvertedToUxon
     {
         $uxon = $agent->exportUxonObject();
         
-        $uxon = enrichWithSampleConcept($uxon);
-        $uxon = enrichWithSampleSystemPrompt($uxon);
+        $uxon = $this->enrichWithSampleConcept($uxon);
+        $uxon = $this->enrichWithSampleSystemPrompt($uxon);
+        $uxon = $this->enrichWithSampleTool($uxon);
+        $uxon = $this->enrichWithDataConnection($uxon);
         
         $agent->importUxonObject($uxon);
         return $agent;
     }
     
-    protected function enrichWithSampleSystemPrompt(UxonObject $agentUxon) : TestingContext
+    /**
+     * Enriches the agent UXON with a sample system prompt if one is defined in this context.
+     * 
+     * If a `sample_system_prompt` is configured, it overwrites the agent's `instructions`
+     * property for the duration of the test. If no sample prompt is set, the agent UXON
+     * is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
+    protected function enrichWithSampleSystemPrompt(UxonObject $agentUxon) : UxonObject
     {
         if($this->sampleSystemPrompt){
             $agentUxon->setProperty('instructions', $this->sampleSystemPrompt);
@@ -88,6 +105,19 @@ class TestingContext implements iCanBeConvertedToUxon
         return $agentUxon;
     }
     
+    /**
+     * Enriches the agent UXON by replacing configured concepts with mock equivalents if
+     * sample concept values are defined in this context.
+     * 
+     * For each concept already declared in the agent UXON, if a matching sample value
+     * exists under the same key in `sample_concepts`, the concept's class is replaced
+     * with `MockConcept` and its value is set to the provided sample text. Concepts
+     * without a corresponding sample entry are left unchanged. If no sample concepts
+     * are configured, the agent UXON is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
     protected function enrichWithSampleConcept(UxonObject $agentUxon) : UxonObject
     {
         if($this->sampleConcepts && $agentUxon->hasProperty('concepts')) {
@@ -102,6 +132,67 @@ class TestingContext implements iCanBeConvertedToUxon
                 }
             }
             $agentUxon->setProperty('concepts', $conceptsUxon);
+        }
+        return $agentUxon;
+    }
+    
+    /**
+     * Enriches the agent UXON by replacing configured tools with mock equivalents if
+     * sample tool data is defined in this context.
+     * 
+     * For each tool already declared in the agent UXON, if a matching sample entry
+     * exists under the same key in `sample_tools`, the tool is replaced with a `MockTool`
+     * whose `description` and `arguments` are carried over from the original tool
+     * definition so that the agent contract stays intact. Tools without a corresponding
+     * sample entry are kept as-is. If no sample tools are configured, the agent UXON
+     * is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
+    protected function enrichWithSampleTool(UxonObject $agentUxon) : UxonObject
+    {
+        if($this->sampleTools && $agentUxon->hasProperty('tools')) {
+            $newToolsUxon = new UxonObject();
+            $toolsUxon = $agentUxon->getProperty('tools');
+            foreach ($toolsUxon as $key => $tool) {
+                /** @var UxonObject $tool */
+                if($this->sampleTools[$key]) {
+                    //$this->sampleTools[$key]['name'] =$key;
+                    if($tool->hasProperty('description')){
+                        $this->sampleTools[$key]->setProperty('description', $tool->getProperty('description'));
+                    }
+                    if ($tool->hasProperty('arguments')) {
+                        $this->sampleTools[$key]->setProperty('arguments', $tool->getProperty('arguments'));
+                    }
+                    $newToolsUxon->setProperty("Mock", $this->sampleTools[$key]);
+                    
+                    
+                } else{
+                    $newToolsUxon->setProperty($key, $tool);
+                }
+            }
+            $agentUxon->setProperty('tools', $newToolsUxon);
+        }
+        return $agentUxon;
+    }
+    
+    /**
+     * Enriches the agent UXON with an overridden data connection alias if one is defined
+     * in this context.
+     * 
+     * If a `connection_alias` is configured and the agent UXON already contains a
+     * `data_connection_alias` property, the property is replaced with the context value
+     * for the duration of the test. If no connection alias is set, or the agent does not
+     * declare one, the agent UXON is returned unchanged.
+     * 
+     * @param UxonObject $agentUxon
+     * @return UxonObject
+     */
+    protected function enrichWithDataConnection(UxonObject $agentUxon) : UxonObject
+    {
+        if($this->connectionAlias && $agentUxon->hasProperty('data_connection_alias')) {
+            $agentUxon->setProperty('data_connection_alias', $this->connectionAlias);
         }
         return $agentUxon;
     }
@@ -150,14 +241,7 @@ class TestingContext implements iCanBeConvertedToUxon
      *
      *
      * @uxon-property input_data
-     * @uxon-template {
-     *   "object_alias": "exface.Core.CONNECTION",
-     *   "rows": [
-     *     {
-     *       "UID": "0x11ea72c00f0fadeca3480205857feb80"
-     *     }
-     *   ]
-     * }
+     * @uxon-template {"object_alias": "exface.Core.CONNECTION","rows": [{"UID": "0x11ea72c00f0fadeca3480205857feb80"}]}
      *
      * @param \exface\Core\CommonLogic\UxonObject $inputData
      * @return \axenox\GenAI\Common\TestingContext
@@ -201,4 +285,38 @@ class TestingContext implements iCanBeConvertedToUxon
         $this->sampleConcepts = $concepts->getPropertiesAll();
         return $this;
     }
+
+    /**
+     * Example tools that can be used in the agent
+     *
+     * @uxon-property sample_tools
+     * @uxon-type \axenox\GenAI\Tools\MockTool[]
+     * @uxon-template {"GetLogEntryTool":{"request_response_pairs":[{"request": "Log-ID1234", "response": "Answer Log-ID1223"}]}}
+     *
+      * @param \exface\Core\CommonLogic\UxonObject $tools
+      * @return \axenox\GenAI\Common\TestingContext
+     * 
+     */
+    protected function setSampleTools(UxonObject $tools) : TestingContext
+    {
+        $this->sampleTools = $tools->getPropertiesAll();
+        return $this;
+    }
+
+    /**
+     * Here, the connection can be overwritten by the agents.
+     * 
+     * @uxon-proeprty connection_alias
+     * @uxon-type string
+     * @uxon-tempalte "chatgpt_4o__power_ui_demo_azure"
+     * 
+     * @param string $connectionAlias
+     * @return $this
+     */
+    protected function setConnectionAlias(string $connectionAlias) : TestingContext
+    {
+        $this->connectionAlias = $connectionAlias;
+        return $this;
+    }
+    
 }
