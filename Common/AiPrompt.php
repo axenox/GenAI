@@ -12,6 +12,8 @@ use exface\Core\Widgets\DebugMessage;
 class AiPrompt extends HttpTask implements AiPromptInterface
 {
     private $conversationId = null;
+    
+    private $files = [];
 
     public function getMessages() : array
     {
@@ -131,5 +133,16 @@ MD;
     protected function getUser() : UserInterface
     {
         return $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
+    }
+    
+    public function getFiles() : array
+    {
+        return $this->files;
+    }
+    
+    public function setFiles(array $files) : AiPromptInterface
+    {
+        $this->files = $files;
+        return $this;
     }
 }

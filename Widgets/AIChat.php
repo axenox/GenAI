@@ -102,6 +102,7 @@ JS);
                 {$top}
             </div>
             <deep-chat 
+                mixedFiles='true'
                 id='{$this->getIdOfDeepChat()}'
                 class='exf-aichat'
                 connect='{
