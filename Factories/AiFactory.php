@@ -2,7 +2,6 @@
 namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
-use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
@@ -13,6 +12,7 @@ use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\PhpClassDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\DataTypes\SemanticVersionDataType;
+use exface\Core\DataTypes\SortingDirectionsDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\UxonParserError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -20,13 +20,14 @@ use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Factories\AbstractSelectableComponentFactory;
 use exface\Core\Factories\DataSheetFactory;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Selectors\SelectorInterface;
 use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * Produces AI framework components: agents, concepts, etc.
- * 
+ *
  * @author Andrej Kabachnik
  *
  */
@@ -34,15 +35,15 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 {
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)
     {
-        switch (true) { 
+        switch (true) {
             case ($selector instanceof AiAgentSelectorInterface):
                 return static::createAgentFromString($selector->getWorkbench(), $selector->toString());
-    
+
         }
         return parent::createFromSelector($selector, $constructorArguments);
     }
     /**
-     * 
+     *
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param string $placeholder
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
@@ -61,124 +62,99 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return static::createFromSelector($selector, [$agent, $prompt, $placeholder, $uxon]);
     }
 
-    public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion): AiAgentInterface
+    public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface
     {
-        $COLUMN_CONFIG_UXON = 'CONFIG_UXON';
-        $COLUMN_DATA_CONNECTION = 'DATA_CONNECTION';
-        $COLUMN_DATA_CONNECTION_DEFAULT = 'DATA_CONNECTION_DEFAULT';
-        $COLUMN_AGENT_NAME = 'AI_AGENT__NAME';
-        $COLUMN_AGENT_ALIAS = 'AI_AGENT__ALIAS';
-        $COLUMN_AGENT_ALIAS_WITH_NS = 'AI_AGENT__ALIAS_WITH_NS';
-        $COLUMN_VERSION = 'VERSION';
-        $COLUMN_PROTOTYPE_CLASS = 'PROTOTYPE_CLASS';
-
-        [$alias, $versionConstraint] = array_pad(explode(':', $aliasWithVersion, 2), 2, null);
+        list($alias, $versionConstraint) = explode(':', $aliasWithVersion);
         $versionConstraint = $versionConstraint ?? '*';
 
         $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_AGENT_VERSION');
-        $ds->getFilters()->addConditionFromString($COLUMN_AGENT_ALIAS_WITH_NS, $alias, ComparatorDataType::EQUALS);
+        $ds->getFilters()->addConditionFromString('AI_AGENT__ALIAS_WITH_NS', $alias, ComparatorDataType::EQUALS);
         $ds->getColumns()->addMultiple([
-            $COLUMN_CONFIG_UXON,
-            $COLUMN_DATA_CONNECTION,
-            $COLUMN_DATA_CONNECTION_DEFAULT,
-            $COLUMN_AGENT_NAME,
-            $COLUMN_AGENT_ALIAS,
-            $COLUMN_VERSION,
-            $COLUMN_PROTOTYPE_CLASS,
+            'CONFIG_UXON',
+            'DATA_CONNECTION',
+            'AI_AGENT__NAME',
+            'AI_AGENT__ALIAS',
+            'VERSION',
+            'PROTOTYPE_CLASS',
             'ENABLED_FLAG'
         ]);
-
-        $outputSheet = $ds->copy();
+        // Sort by version descending - that will place most probably version in the front!
+        $ds->getSorters()->addFromString('VERSION', SortingDirectionsDataType::DESC);
         $ds->dataRead();
-
-        if ($ds->isEmpty()) {
+        if($ds->isEmpty()){
             throw new AiAgentNotFoundError("Ai Agent '$aliasWithVersion' not found");
         }
+        
+        // Find the best fitting version for the given semantic version constraint
+        $versionCol = $ds->getColumn('VERSION');
+        $versions = $versionCol->getValues();
+        $bestFitVersion = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
+        $agentRow = $ds->getRow($versionCol->findRowByValue($bestFitVersion));
 
-        $dataConnection = null;
-        $row = [];
-        $lowRow = [];
-        $bestFit = null;
-
-        $versions = $ds->getColumn($COLUMN_VERSION)->getValues();
-        $versionColumn = $ds->getColumn($COLUMN_VERSION);
-
-        for (; count($versions) > 0; ) {
-            $bestFit = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
-            if ($bestFit === null) {
-                break;
-            }
-
-            $bestFitIndex = $versionColumn->findRowByValue($bestFit);
-            if ($bestFitIndex === false || $bestFitIndex === null) {
-                break;
-            }
-
-            if (count($row) === 0) {
-                $row = $ds->getRow($bestFitIndex);
-            }
-
-            if (count($lowRow) === 0) {
-                $lowRow = $row;
-            } else {
-                $lowRow = $ds->getRow($bestFitIndex);
-            }
-
-            if ($dataConnection === null) {
-                $dataConnection = $lowRow[$COLUMN_DATA_CONNECTION];
-            }
-
-            if ($row[$COLUMN_DATA_CONNECTION] === null && $dataConnection !== null) {
-                $row[$COLUMN_DATA_CONNECTION] = $dataConnection;
-                $row[$COLUMN_DATA_CONNECTION_DEFAULT] = $dataConnection;
-
-                // Override Data Connection in Data Sheet
-                $outputSheet->addRow($row);
-                $outputSheet->dataSave();
-                break;
-            }
-
-            $key = array_search($bestFit, $versions, true);
-            if ($key !== false) {
-                unset($versions[$key]);
-            }
-        }
-
-        $uxon = UxonObject::fromAnything($row[$COLUMN_CONFIG_UXON]);
-
-        // Required props
-        $uxon->setProperty('name', $row[$COLUMN_AGENT_NAME]);
-        $uxon->setProperty('alias', $row[$COLUMN_AGENT_ALIAS]);
-
-        // Optional props
-        if (null !== $val = $row[$COLUMN_DATA_CONNECTION]) {
+        // Prepare the agent UXON
+        $uxon = UxonObject::fromAnything($agentRow['CONFIG_UXON']);
+        
+        // Add required props from the data row
+        $uxon->setProperty('name', $agentRow['AI_AGENT__NAME']);
+        $uxon->setProperty('alias', $agentRow['AI_AGENT__ALIAS']);
+        
+        // Make sure, there is an LLM connection. If there is one defined, use it regularly. If not,
+        // see if the previous version had one and inherit it.
+        if (null !== $val = $agentRow['DATA_CONNECTION']) {
             $uxon->setProperty('data_connection_alias', $val);
+        } else {
+            $val = self::findAgentConnection($bestFitVersion, $ds);
+            if ($val !== null) {
+                // If a previous connection is found, use it and save a customizing record - just like
+                // an admin would do when setting the local connection.
+                $customizingDs = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.Core.CUSTOMIZING');
+                $customizingDs->addRow([
+                    'TABLE_NAME' => 'exf_ai_agent_version',
+                    'COLUMN_NAME' => 'data_connection_oid',
+                    'ROW_UID' => $agentRow['UID'],
+                    'VALUE' => $val,
+                ]);
+                $uxon->setProperty('data_connection_alias', $val);
+                $customizingDs->dataCreate(false);
+            } else {
+                // If we did not find a previously used connection either, leave it blank - the agent will
+                // be instantiated, but will probably not be usable. Still, this will allow to render 
+                // chats and will only issue an error if they are really used.
+            }
         }
 
         // Create a new selector with the exact version
-        $exactSelector = new AiAgentSelector(
-            $workbench,
-            $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFit
-        );
-
-        $prototypeClass = PhpFilePathDataType::findClassInFile(
-            $workbench->filemanager()->getPathToVendorFolder()
-            . DIRECTORY_SEPARATOR
-            . $row[$COLUMN_PROTOTYPE_CLASS]
-        );
-
-        $agent = new $prototypeClass($exactSelector, $uxon);
+        $selectorWithVersion = new AiAgentSelector($workbench, $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFitVersion);
+        $prototypeClass = PhpFilePathDataType::findClassInFile($workbench->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $agentRow['PROTOTYPE_CLASS']);
+        $agent = new $prototypeClass($selectorWithVersion, $uxon);
 
         return $agent;
+    }
+    
+    protected static function findAgentConnection(string $currentVersion, DataSheetInterface $allVersions) : ?string
+    {
+        $versionCol = $allVersions->getColumns()->get('VERSION');
+        $connectionCol = $allVersions->getColumns()->get('DATA_CONNECTION');
+        $versionsLeft = $versionCol->getValues();
+        $nextVersion = $currentVersion;
+        while (count($versionsLeft) > 0) {
+            $connectionUid = $connectionCol->getValue($versionCol->findRowByValue($nextVersion));
+            if ($connectionUid !== null) {
+                return $connectionUid;
+            }
+            unset ($versionsLeft[array_search($nextVersion, $versionsLeft)]);
+            $nextVersion = SemanticVersionDataType::findVersionBest('*', $versionsLeft);
+        }
+        return null;
     }
 
     /**
      * Instantiates an AI tool from a function name
-     * 
+     *
      * Examples:
-     * 
+     *
      * - `createToolFromUxon($this->getWorkbench(), 'GetDocs')`
-     * 
+     *
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param string $functionName
      * @param \exface\Core\CommonLogic\UxonObject $uxon
@@ -188,7 +164,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     public static function createToolFromUxon(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : AiToolInterface
     {
         $class = static::findToolClass($workbench, $functionName, $uxon);
-        
+
         if (! $uxon->hasProperty('name')) {
             $uxon->setProperty('name', $functionName);
         }
@@ -197,7 +173,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
         return $tool;
     }
-    
+
     public static function findToolClass(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : string
     {
         if ($uxon->hasProperty('class')) {
@@ -224,11 +200,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Instantiates an AI tool from a selector
-     * 
+     *
      * Examples:
-     * 
+     *
      * - `createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class))`
-     * 
+     *
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param \axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface $selector
      * @param \exface\Core\CommonLogic\UxonObject $uxon
