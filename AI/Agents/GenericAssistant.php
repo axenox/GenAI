@@ -804,8 +804,8 @@ class GenericAssistant implements AiAgentInterface
     protected function getConnection() : DataConnectionInterface
     {
         if ($this->dataConnection === null) {
-            if($this->dataConnectionAlias !== null) {
-                throw new AiConnectionNotFoundError($this,"No Connection for Agent" . $this->getName() . " found!");
+            if($this->dataConnectionAlias === null) {
+                throw new AiConnectionNotFoundError($this,"No Connection for agent " . $this->getName() . " found!");
             }
             $this->dataConnection = DataConnectionFactory::createFromModel($this->workbench, $this->dataConnectionAlias);
         }
