@@ -1,11 +1,10 @@
 <?php
 namespace axenox\GenAI\Common;
-use exface\Core\CommonLogic\Tasks\ResultMessage;
+use exface\Core\CommonLogic\Tasks\ResultData;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
-use axenox\GenAI\Common\AiToolCallResponse;
 
-class AiResponse extends ResultMessage implements AiResponseInterface
+class AiResponse extends ResultData implements AiResponseInterface
 {
     private $message = null;
     private $conversationId = null;
