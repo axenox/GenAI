@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 
-use exface\Core\Interfaces\Tasks\ResultInterface;
+use exface\Core\Interfaces\Tasks\ResultDataInterface;
 use axenox\GenAI\Common\AiToolCallResponse;
 
 /**
@@ -9,7 +9,7 @@ use axenox\GenAI\Common\AiToolCallResponse;
  * @author Andrej Kabachnik
  *
  */
-interface AiResponseInterface extends ResultInterface
+interface AiResponseInterface extends ResultDataInterface
 {
     public function toArray() : array;
     public function getConversationId() : string ;
