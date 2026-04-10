@@ -327,8 +327,14 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
-            if($row['role'] === AiMessageTypeDataType::USER)
-                return $row['content'];
+            if($row['role'] === AiMessageTypeDataType::USER){
+                $userPrompt = $row['content'];
+                if (!isset($userPrompt) || trim($userPrompt) === "") {
+                    $userPrompt = " ";
+                }
+                return $userPrompt;
+            }
+                
         }
         throw new DataQueryFailedError($this, 'User message cannot be found');
     }
