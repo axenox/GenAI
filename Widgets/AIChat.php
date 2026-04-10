@@ -38,6 +38,10 @@ class AIChat extends InputCustom implements iFillEntireContainer
 
     private ?UxonObject $messageStyles = null;
 
+    private bool $uploadEnabled = false;
+
+    private array $allowedFileExtensions = [];
+
 
     protected function init()
     {
@@ -102,7 +106,7 @@ JS);
                 {$top}
             </div>
             <deep-chat 
-                mixedFiles='true'
+                mixedFiles='{$this->getMixedFilesAttributeValue()}'
                 id='{$this->getIdOfDeepChat()}'
                 class='exf-aichat'
                 connect='{
@@ -591,6 +595,97 @@ JS;
         $this->introMessage = $var;
         
         return $this;
+    }
+
+    /**
+     * Enable or disable uploads.
+     *
+     * @uxon-property upload_enabled
+     * @uxon-type boolean
+     * @uxon-default true
+     *
+     * @param bool $value
+     * @return AIChat
+     */
+    public function setUploadEnabled(bool $value) : AIChat
+    {
+        $this->uploadEnabled = $value;
+        return $this;
+    }
+
+    /**
+     * Configure allowed upload file extensions.
+     *
+     * @uxon-property allowed_file_extensions
+     * @uxon-type array
+     * @uxon-required false
+     * @uxon-template [".pdf"]
+     *
+     * @param array $value
+     * @return AIChat
+     */
+    protected function setAllowedFileExtensions(array $value) : AIChat
+    {
+        $this->allowedFileExtensions = $this->normalizeAllowedFileExtensions($value);
+        return $this;
+    }
+
+    /**
+     * Normalize allowed file extensions to .ext lowercase strings without duplicates.
+     *
+     * @param mixed $formats
+     * @return array
+     */
+    private function normalizeAllowedFileExtensions($formats) : array
+    {
+        if (is_string($formats)) {
+            $formats = preg_split('/[\s,;]+/', $formats) ?: [];
+        }
+
+        if (! is_array($formats)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($formats as $format) {
+            if (! is_string($format)) {
+                continue;
+            }
+
+            $ext = trim(strtolower($format));
+            if ($ext === '') {
+                continue;
+            }
+            if ($ext[0] !== '.') {
+                $ext = '.' . $ext;
+            }
+            if (! preg_match('/^\.[a-z0-9]+$/', $ext)) {
+                continue;
+            }
+
+            $normalized[$ext] = true;
+        }
+
+        return array_keys($normalized);
+    }
+
+    protected function getMixedFilesAttributeValue() : string
+    {
+        if (! $this->uploadEnabled) {
+            return 'false';
+        }
+
+        if (empty($this->allowedFileExtensions)) {
+            return 'true';
+        }
+
+        $config = [
+            'files' => [
+                'acceptedFormats' => implode(',', $this->allowedFileExtensions)
+            ]
+        ];
+
+        return json_encode($config, JSON_UNESCAPED_SLASHES) ?: 'true';
     }
 
     protected function getIntroMessage() : string
