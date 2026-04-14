@@ -10,6 +10,7 @@ use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\Filesystem\FileInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
@@ -48,6 +49,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $jsonSchema = null;
 
     private $tools = [];
+    
+    private $files = [];
 
     public function __construct(WorkbenchInterface $workbench)
     {
@@ -324,8 +327,14 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getUserPrompt() : string
     {
         foreach ($this->messages as $row) {
-            if($row['role'] === AiMessageTypeDataType::USER)
-                return $row['content'];
+            if($row['role'] === AiMessageTypeDataType::USER){
+                $userPrompt = $row['content'];
+                if (!isset($userPrompt) || trim($userPrompt) === "") {
+                    $userPrompt = " ";
+                }
+                return $userPrompt;
+            }
+                
         }
         throw new DataQueryFailedError($this, 'User message cannot be found');
     }
@@ -392,7 +401,26 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     {
         return $this->responseAdapter->getToolCalls();
     }
+    
+    public function setFiles(array $files): OpenAiApiDataQuery
+    {
+        $this->files = $files;
+        return $this;
+    }
+    
+    public function hasFiles() : bool
+    {
+        return !empty($this->files);
+    }
 
+    /**
+     * @return FileInterface[]
+     */
+    public function getFiles() : array
+    {
+        return $this->files;
+    }
+    
     /**
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiQueryInterface

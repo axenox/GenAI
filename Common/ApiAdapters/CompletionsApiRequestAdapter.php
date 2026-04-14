@@ -17,31 +17,34 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
     {
         $this->connector = $connector;    
     }
-    
+
     public function buildBody(OpenAiApiDataQuery $query): string
     {
+        if ($query->hasFiles()) {
+            throw new \LogicException(
+                'Files are not supported by this Type of AI. Please use a newer version'
+            );
+        }
+        
+        //TODO Überlegen ob man Textdateien in die Message mit einbauen könnte. Das würde zumindest die Möglichkeit bieten, Dateien zu übergeben, auch wenn sie nicht direkt von der KI verarbeitet werden können. Oder man stellt im AiChat ein das Files nicht verwendet werden dürfen
+
         $json = [
             'model' => $this->connector->getModelName(),
             'messages' => $this->buildJsonMessages($query)
         ];
 
-        if(null !== $schema = $query->getResponseJsonSchema())
-        {
+        if (null !== $schema = $query->getResponseJsonSchema()) {
             $json['response_format'] = [
-                'type'=>'json_schema',
+                'type' => 'json_schema',
                 'json_schema' => [
                     'name' => 'powerUi',
-                    'schema'=> $schema,
+                    'schema' => $schema,
                     'strict' => true
                 ]
             ];
         }
-        // if(null !== $tools = $query->getTools())
-        // {
-        // TODO move conversion of tools to array to the adapter class. The $query is our own understanding
-        // of an AI query - it does not depend on the API used!
+
         $json['tools'] = $this->buildJsonTools($query->getTools());
-        // }
 
         if (null !== $val = $this->connector->getTemperature($query)) {
             $json['temperature'] = $val;

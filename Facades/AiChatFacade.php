@@ -4,7 +4,9 @@ namespace axenox\GenAI\Facades;
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\CommonLogic\Filesystem\InMemoryFile;
 use exface\Core\Exceptions\Facades\FacadeRoutingError;
+use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\DataUrlParamReader;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\JsonBodyParser;
@@ -49,19 +51,29 @@ class AiChatFacade extends AbstractHttpFacade
         $uri = $request->getUri();
         $path = $uri->getPath();
         $headers = $this->buildHeadersCommon();
-        
+        $files = $request->getUploadedFiles();
+        $inMemoryFiles =[];
+        foreach ($files as $key => $file) {
+            $inMemoryFiles[] = new InMemoryFile($file->getStream()->getContents(), $file->getClientFilename(), $file->getClientMediaType());
+        }
         // api/aichat/exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent/completions
         $pathInFacade = StringDataType::substringAfter($path, $this->getUrlRouteDefault() . '/');
         // exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent, completions
         list($agentSelector, $pathInFacade) = explode('/', $pathInFacade, 2);
         $pathInFacade = mb_strtolower($pathInFacade);
-        try{                
+        
+        
+        try{
+            $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
+            if(!$prompt instanceof AiPromptInterface){
+                throw new UnexpectedValueException("Request not delivered a AI Prompt");
+            }
+            $prompt->setFiles($inMemoryFiles);
+            $agent = $this->findAgent($agentSelector);
+            $response = $agent->handle($prompt);
         // Do the routing here
             switch (true) {     
                 case $pathInFacade === 'completions':
-                    $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
-                    $agent = $this->findAgent($agentSelector);
-                    $response = $agent->handle($prompt);
 
                     $responseCode = 200;
                     $headers['content-type'] = 'application/json';
@@ -69,10 +81,6 @@ class AiChatFacade extends AbstractHttpFacade
                     break;
                 // Deepchat format - see https://deepchat.dev/docs/connect#Response
                 case $pathInFacade === 'deepchat':
-                    
-                    $prompt = $request->getAttribute(self::REQUEST_ATTR_TASK);
-                    $agent = $this->findAgent($agentSelector);
-                    $response = $agent->handle($prompt);
 
                     $responseCode = 200;
                     $headers['content-type'] = 'application/json';

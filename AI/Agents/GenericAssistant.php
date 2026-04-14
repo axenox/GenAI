@@ -172,6 +172,8 @@ class GenericAssistant implements AiAgentInterface
         foreach ($this->getTools() as $tool) {
             $query->addTool($tool);
         }
+        
+        $query->setFiles($prompt->getFiles());
 
         $conversationId = $this->saveConversation($prompt, $query);
         $prompt->setConversationUid($conversationId);
