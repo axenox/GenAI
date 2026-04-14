@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Interfaces;
 
 use exface\Core\Interfaces\Actions\ActionInterface;
+use exface\Core\Interfaces\Filesystem\FileInterface;
 use exface\Core\Interfaces\iCanGenerateDebugWidgets;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 
@@ -37,4 +38,9 @@ interface AiPromptInterface extends TaskInterface, iCanGenerateDebugWidgets
      * @return AiPromptInterface
      */
     public function setPrompt(string $text) : AiPromptInterface;
+
+    /**
+     * @return FileInterface[]
+     */
+    public function getFiles(): array;
 }

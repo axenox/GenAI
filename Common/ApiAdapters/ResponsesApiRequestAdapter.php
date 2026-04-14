@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
@@ -107,6 +108,8 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
      *
      * @return array
      */
+   
+
     protected function buildJsonInput(OpenAiApiDataQuery $query): array
     {
         $messages = $query->getMessages(true);
@@ -115,12 +118,10 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         foreach ($messages as $message) {
             $role = $message['role'] ?? 'user';
 
-            // system / developer are mapped to "instructions", not to "input"
             if ($role === 'system' || $role === 'developer') {
                 continue;
             }
 
-            // Old tool message -> Responses function_call_output item
             if ($role === 'tool') {
                 $input[] = [
                     'type' => 'function_call_output',
@@ -130,7 +131,6 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
                 continue;
             }
 
-            // Old assistant message with tool_calls -> function_call items
             if ($role === 'assistant' && !empty($message['tool_calls']) && is_array($message['tool_calls'])) {
                 $assistantText = $this->normalizeMessageText($message['content'] ?? '');
                 if ($assistantText !== '') {
@@ -167,7 +167,56 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             ];
         }
 
+        foreach ($query->getFiles() as $file) {
+            $input[] = [
+                'type' => 'message',
+                'role' => 'user',
+                'content' => [
+                    $this->makeInputFileBlock($file),
+                ],
+            ];
+        }
+
         return $input;
+    }
+
+    protected function makeInputFileBlock(FileInterface $file): array
+    {
+        $fileInfo = $file->getFileInfo();
+
+        $filename = method_exists($fileInfo, 'getFilename')
+            ? $fileInfo->getFilename()
+            : 'upload.bin';
+
+        $mimeType = method_exists($fileInfo, 'getMimeType') && $fileInfo->getMimeType()
+            ? $fileInfo->getMimeType()
+            : $this->guessMimeTypeFromFilename($filename);
+
+        $base64 = base64_encode($file->read());
+
+        return [
+            'type' => 'input_file',
+            'filename' => $filename,
+            'file_data' => 'data:' . $mimeType . ';base64,' . $base64,
+        ];
+    }
+
+    protected function guessMimeTypeFromFilename(string $filename): string
+    {
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        switch ($ext) {
+            case 'pdf':
+                return 'application/pdf';
+            case 'txt':
+                return 'text/plain';
+            case 'csv':
+                return 'text/csv';
+            case 'json':
+                return 'application/json';
+            default:
+                return 'application/octet-stream';
+        }
     }
 
     /**
