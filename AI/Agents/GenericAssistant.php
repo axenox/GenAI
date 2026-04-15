@@ -466,6 +466,12 @@ class GenericAssistant implements AiAgentInterface
 
             $cost = $query->getCosts();
 
+            $dataUxon = new UxonObject();
+            
+            if($this->hasJsonSchema()){
+                $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
+            }
+            
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -477,7 +483,8 @@ class GenericAssistant implements AiAgentInterface
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason()
+                'FINISH_REASON' => $query->getFinishReason(),
+                'DATA' => $dataUxon->toJson(true)
             ]);            
 
             $message->dataCreate(false, $transaction);
