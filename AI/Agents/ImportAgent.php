@@ -378,7 +378,7 @@ class ImportAgent extends GenericAssistant
     /**
      * If `true`, only `$.message` is shown as answer output. If `false`, the full JSON is shown.
      *
-     * @uxon-property showMessageOnly
+     * @uxon-property show_message_only
      * @uxon-type bool
      * @uxon-default true
      *
