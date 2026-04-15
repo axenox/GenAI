@@ -354,7 +354,8 @@ class GenericAssistant implements AiAgentInterface
             //   }
             // }
             $dataUxon = new UxonObject();
-            $this->enrichUxonWithTools($prompt, $dataUxon);
+            $this->enrichUxonWithTools( $dataUxon);
+            $this->enrichUxonWithJsonSchema($dataUxon);
 
             // collect concepts mapped by their placeholder
             $concepts = [];
@@ -633,7 +634,7 @@ class GenericAssistant implements AiAgentInterface
         return $error;
     }
     
-    protected function enrichUxonWithTools(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
+    protected function enrichUxonWithTools( ?UxonObject $uxon) : UxonObject
     {
         if($uxon === null) {
             $dataUxon = new UxonObject([
@@ -648,6 +649,21 @@ class GenericAssistant implements AiAgentInterface
         }
         
         return $dataUxon;
+    }
+    
+    protected function enrichUxonWithJsonSchema(?UxonObject $uxon) : UxonObject
+    {
+        
+        if($uxon === null) {
+            $dataUxon = new UxonObject();
+        }else {
+            $dataUxon = $uxon;
+        }
+        if ($this->hasJsonSchema()) {
+            $dataUxon->setProperty('responseJsonSchema', $this->getResponseJsonSchema());
+        }
+        return $dataUxon;
+        
     }
     
 
