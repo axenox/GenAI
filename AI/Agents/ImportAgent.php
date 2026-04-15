@@ -59,24 +59,29 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
  */
 class ImportAgent extends GenericAssistant
 {
-    private bool $autosaveData = true;
+    private bool $autosaveData = false;
 
     private ?UxonObject $saveAsUxon = null;
 
     private ?DataSheetSchema $dataSchema = null;
     
     private ?DataSheetInterface $dataSheet = null;
+
+    private string $messageSchemaDescription = 'Message returned by the AI. This may contain confirmation, missing information, follow-up questions, or other user-facing text.';
+
+    private string $readyToSaveSchemaDescription = 'Indicates whether the AI considers the data complete enough to be saved.';
     
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $jsonSchema = $this->getDataSchema()->generateJsonSchema();
+        $jsonSchema = $this->enrichJsonSchemaWithStandartVariabels($this->getDataSchema()->generateJsonSchema());
         
         $this->setResponseJsonSchema(new UxonObject($jsonSchema));
 
         $response = parent::handle($prompt);
-        // Since $json complies with our JSONschema, we know, that it is a valid data sheet.
+        // Since $json complies with our JSON schema, we know that at least the data payload is valid.
         $json = $response->getJson();
-        $this->dataSave(new UxonObject($json));
+        $payload = $json['data'] ?? $json;
+        $this->dataSave(new UxonObject($payload));
         $response->setData($this->getDataSheet());
         return $response;
     }
@@ -330,6 +335,56 @@ class ImportAgent extends GenericAssistant
      */
     protected function getJsonSchema(MetaObjectInterface $object) : \stdClass
     {
-        return json_decode(json_encode($this->getDataSchema()->generateJsonSchema()));
+        return json_decode(json_encode($this->enrichJsonSchemaWithStandartVariabels($this->getDataSchema()->generateJsonSchema())));
+    }
+
+    /**
+     * Description for response property `message` in the generated JSON schema.
+     *
+     * @uxon-property message_description
+     * @uxon-type string
+     *
+     * @param string $description
+     * @return ImportAgent
+     */
+    protected function setMessageDescription(string $description) : ImportAgent
+    {
+        $this->messageSchemaDescription = $description;
+        return $this;
+    }
+
+    /**
+     * Description for response property `ready_to_save` in the generated JSON schema.
+     *
+     * @uxon-property ready_to_save_description
+     * @uxon-type string
+     *
+     * @param string $description
+     * @return ImportAgent
+     */
+    protected function setReadyToSaveDescription(string $description) : ImportAgent
+    {
+        $this->readyToSaveSchemaDescription = $description;
+        return $this;
+    }
+
+    protected function enrichJsonSchemaWithStandartVariabels(array $dataSchema) : array
+    {
+        return [
+            'type' => 'object',
+            'required' => ['data', 'message', 'ready_to_save'],
+            'additionalProperties' => false,
+            'properties' => [
+                'data' => $dataSchema,
+                'message' => [
+                    'type' => 'string',
+                    'description' => $this->messageSchemaDescription
+                ],
+                'ready_to_save' => [
+                    'type' => 'boolean',
+                    'description' => $this->readyToSaveSchemaDescription
+                ]
+            ]
+        ];
     }
 }
