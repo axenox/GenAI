@@ -294,13 +294,15 @@ class GenericAssistant implements AiAgentInterface
         $title = $query !== null
             ? $this->getTitle($query)
             : 'Standard generated title';
+        
+        $dataUxon = $prompt->getInputData()->exportUxonObject();
 
         $row = [
             'AI_AGENT' => $this->getUid(),
             'AI_AGENT_VERSION_NO' => $this->getVersion(),
             'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
             'TITLE' => $title,
-            'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
+            'DATA' => $dataUxon->toJson(),
             'DEVMODE' => $this->getDevmode() ? 1 : 0,
             'MODEL' => $modelName,
             'CONNECTION' => $connectionId
@@ -353,7 +355,6 @@ class GenericAssistant implements AiAgentInterface
             // }
             $dataUxon = new UxonObject();
             $this->enrichUxonWithTools($prompt, $dataUxon);
-            $this->enrichUxonWithRawSystemPrompt($prompt, $dataUxon);
 
             // collect concepts mapped by their placeholder
             $concepts = [];
@@ -649,20 +650,7 @@ class GenericAssistant implements AiAgentInterface
         return $dataUxon;
     }
     
-    protected function enrichUxonWithRawSystemPrompt(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
-    {
-        $rawSystemPrompt = $this->getSystemPrompt($prompt);
-        if($uxon === null) {
-            $dataUxon = new UxonObject([
-                'RawSystemPrompt' => $rawSystemPrompt,
-            ]);
-        }else{
-            $dataUxon = $uxon;
-            $dataUxon->setProperty('concepts', $rawSystemPrompt);
-            
-        }
-        return $dataUxon;  
-    }
+
 
 
     /**
