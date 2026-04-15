@@ -865,7 +865,7 @@ class GenericAssistant implements AiAgentInterface
             $json = $query->getAnswerJson();
 
             if ($this->getResponseAnswerPath() !== null) {
-                $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0] ?? null;
+                return ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
             } else {
                 $answer = $json;
             }

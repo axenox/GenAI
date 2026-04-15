@@ -72,6 +72,8 @@ class ImportAgent extends GenericAssistant
     private string $messageSchemaDescription = 'Message returned by the AI. This may contain confirmation, missing information, follow-up questions, or other user-facing text.';
 
     private string $readyToSaveSchemaDescription = 'Indicates whether the AI considers the data complete enough to be saved.';
+
+    private bool $showMessageOnly = true;
     
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
@@ -373,8 +375,33 @@ class ImportAgent extends GenericAssistant
         return $this;
     }
 
+    /**
+     * If `true`, only `$.message` is shown as answer output. If `false`, the full JSON is shown.
+     *
+     * @uxon-property showMessageOnly
+     * @uxon-type bool
+     * @uxon-default true
+     *
+     * @param bool $trueOrFalse
+     * @return ImportAgent
+     */
+    protected function setShowMessageOnly(bool $trueOrFalse) : ImportAgent
+    {
+        $this->showMessageOnly = $trueOrFalse;
+        return $this;
+    }
+
+
     protected function enrichJsonSchemaWithStandartVariabels(array $dataSchema) : array
     {
+        if ($this->showMessageOnly === true) {
+            $this->importUxonObject(new UxonObject([
+                'response_answer_path' => '$.message',
+                'response_title_path' => '$.message'
+            ]));
+            
+        }
+
         return [
             'type' => 'object',
             'required' => ['data', 'message', 'ready_to_save'],
