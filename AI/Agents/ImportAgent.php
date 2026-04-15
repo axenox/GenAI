@@ -60,6 +60,8 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
 class ImportAgent extends GenericAssistant
 {
     private bool $autosaveData = false;
+    
+    private bool $readyToSave = false;
 
     private ?UxonObject $saveAsUxon = null;
 
@@ -81,6 +83,9 @@ class ImportAgent extends GenericAssistant
         // Since $json complies with our JSON schema, we know that at least the data payload is valid.
         $json = $response->getJson();
         $payload = $json['data'] ?? $json;
+
+        $this->readyToSave = (bool) ($json['ready_to_save'] ?? false);
+        
         $this->dataSave(new UxonObject($payload));
         $response->setData($this->getDataSheet());
         return $response;
@@ -256,7 +261,7 @@ class ImportAgent extends GenericAssistant
     
     protected function willSaveData() : bool
     {
-        return $this->autosaveData;
+        return $this->autosaveData  &&  $this->readyToSave;
     }
     
     /**
