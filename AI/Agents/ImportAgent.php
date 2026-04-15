@@ -59,6 +59,9 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
  */
 class ImportAgent extends GenericAssistant
 {
+    
+    private bool $silenced = false;
+    
     private bool $autosaveData = false;
     
     private bool $readyToSave = false;
@@ -346,6 +349,23 @@ class ImportAgent extends GenericAssistant
     }
 
     /**
+     * If set to true, this enables silent mode, which does not return any messages but only the requested JSON, and the AI does not ask whether to save the data.
+     *
+     * @uxon-property silenced
+     * @uxon-type bool
+     * @uxon-default false
+     *
+     * @param bool $trueOrFalse
+     * @return ImportAgent
+     */
+    protected function setSilenced(bool $trueOrFalse) : ImportAgent
+    {
+        $this->silenced = $trueOrFalse;
+        return $this;
+    }
+    
+
+    /**
      * Description for response property `message` in the generated JSON schema.
      *
      * @uxon-property message_description
@@ -392,31 +412,124 @@ class ImportAgent extends GenericAssistant
     }
 
 
-    protected function enrichJsonSchemaWithStandartVariabels(array $dataSchema) : array
+    /**
+     * Enriches a given JSON Schema with standardized wrapper fields used by the system.
+     *
+     * This method takes an existing schema (intended to describe the structure of the
+     * `data` payload) and wraps it into a higher-level response schema. Depending on
+     * the configuration (`$this->silenced`, `$this->showMessageOnly`), additional
+     * metadata fields are injected.
+     *
+     * Behavior:
+     * - Always wraps the provided schema under the root property `data`
+     * - Optionally adds:
+     *   - `message` (string): Human-readable response message
+     *   - `ready_to_save` (boolean): Indicates whether the payload is considered complete
+     * - Dynamically adjusts the `required` fields accordingly
+     * - Disables any unknown properties via `additionalProperties = false`
+     * - If `showMessageOnly` is enabled, internal response paths are redirected to `$.message`
+     *
+     * ---
+     * BEFORE (input schema):
+     *
+     * {
+     *   "type": "object",
+     *   "properties": {
+     *     "name": { "type": "string" },
+     *     "age":  { "type": "number" }
+     *   },
+     *   "required": ["name"]
+     * }
+     *
+     * ---
+     * AFTER (enriched schema, silenced = false):
+     *
+     * {
+     *   "type": "object",
+     *   "required": ["data", "message", "ready_to_save"],
+     *   "additionalProperties": false,
+     *   "properties": {
+     *     "data": {
+     *       "type": "object",
+     *       "properties": {
+     *         "name": { "type": "string" },
+     *         "age":  { "type": "number" }
+     *       },
+     *       "required": ["name"]
+     *     },
+     *     "message": {
+     *       "type": "string",
+     *       "description": "..."
+     *     },
+     *     "ready_to_save": {
+     *       "type": "boolean",
+     *       "description": "..."
+     *     }
+     *   }
+     * }
+     *
+     * ---
+     * AFTER (enriched schema, silenced = true):
+     *
+     * {
+     *   "type": "object",
+     *   "required": ["data"],
+     *   "additionalProperties": false,
+     *   "properties": {
+     *     "data": {
+     *       "type": "object",
+     *       "properties": {
+     *         "name": { "type": "string" },
+     *         "age":  { "type": "number" }
+     *       },
+     *       "required": ["name"]
+     *     }
+     *   }
+     * }
+     *
+     * Summary:
+     * This method standardizes API/AI responses by enforcing a consistent envelope
+     * structure while preserving the original data schema.
+     */
+    protected function enrichJsonSchemaWithStandartVariabels(array $dataSchema): array
     {
-        if ($this->showMessageOnly === true) {
+        $dataKey        = 'data';
+        $messageKey     = 'message';
+        $readyToSaveKey = 'ready_to_save';
+
+        if ($this->showMessageOnly === true && ! $this->silenced) {
             $this->importUxonObject(new UxonObject([
-                'response_answer_path' => '$.message',
-                'response_title_path' => '$.message'
+                'response_answer_path' => '$.' . $messageKey,
+                'response_title_path'  => '$.' . $messageKey,
             ]));
-            
+        }
+
+        $properties = [
+            $dataKey => $dataSchema,
+        ];
+
+        $required = [$dataKey];
+
+        if (! $this->silenced) {
+            $properties[$messageKey] = [
+                'type' => 'string',
+                'description' => $this->messageSchemaDescription,
+            ];
+
+            $properties[$readyToSaveKey] = [
+                'type' => 'boolean',
+                'description' => $this->readyToSaveSchemaDescription,
+            ];
+
+            $required[] = $messageKey;
+            $required[] = $readyToSaveKey;
         }
 
         return [
             'type' => 'object',
-            'required' => ['data', 'message', 'ready_to_save'],
+            'required' => $required,
             'additionalProperties' => false,
-            'properties' => [
-                'data' => $dataSchema,
-                'message' => [
-                    'type' => 'string',
-                    'description' => $this->messageSchemaDescription
-                ],
-                'ready_to_save' => [
-                    'type' => 'boolean',
-                    'description' => $this->readyToSaveSchemaDescription
-                ]
-            ]
+            'properties' => $properties,
         ];
     }
 }
