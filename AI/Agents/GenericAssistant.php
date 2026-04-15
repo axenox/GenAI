@@ -48,6 +48,7 @@ use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\DebugMessage;
 use exface\Core\Widgets\Markdown;
+use function Respect\Stringifier\stringify;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -833,7 +834,11 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        if($this->hasJsonSchema()){
+            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId, $query->getAnswerJson());
+        }else {
+            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        }
         $response->setToolCalls($this->toolCalls);
         return $response;
     }
@@ -847,11 +852,22 @@ class GenericAssistant implements AiAgentInterface
     {
         if ($this->hasJsonSchema()) {
             $json = $query->getAnswerJson();
-            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
-        } else {
-            $answer = $query->getFullAnswer();
+
+            if ($this->getResponseAnswerPath() !== null) {
+                $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0] ?? null;
+            } else {
+                $answer = $json;
+            }
+
+            if (!is_string($answer)) {
+                $answer = json_encode($answer, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            }
+
+            // Codeblock for the AIChat (?)
+            return "```json\n" . $answer . "\n```";
         }
-        return $answer;
+
+        return $query->getFullAnswer();
     }
 
     /**
@@ -861,7 +877,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getTitle(AiQueryInterface $query) : string
     {
-        if ($this->hasJsonSchema() && $query->hasResponse()) {
+        if ($this->hasJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
             $json = $query->getAnswerJson();
             $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
         } else {

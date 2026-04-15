@@ -12,6 +12,8 @@ use axenox\GenAI\Common\AiToolCallResponse;
 interface AiResponseInterface extends ResultDataInterface
 {
     public function toArray() : array;
+    
+    public function getJson(): array;
     public function getConversationId() : string ;
 
     //ToolResponse
