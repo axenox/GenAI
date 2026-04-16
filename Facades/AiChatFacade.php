@@ -86,7 +86,8 @@ class AiChatFacade extends AbstractHttpFacade
                     $headers['content-type'] = 'application/json';
                     $body = json_encode([
                             'text' => $response->getMessage(),
-                            'conversation'=> $response->getConversationId()
+                            'conversation'=> $response->getConversationId(),
+                            'additionalMessages' => $response->getStatusMessages()
                         ]
                         , JSON_UNESCAPED_UNICODE
                     );

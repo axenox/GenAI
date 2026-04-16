@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\AI\Concepts\MetamodelDbmlConcept;
+use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataSheetSchema;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\CommonLogic\UxonObject;
@@ -59,6 +60,7 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
  */
 class ImportAgent extends GenericAssistant
 {
+    private array $additionalMessages = [];
     
     private bool $silenced = false;
     
@@ -93,6 +95,13 @@ class ImportAgent extends GenericAssistant
         
         $this->dataSave(new UxonObject($payload));
         $response->setData($this->getDataSheet());
+
+        if($this->willSaveData()){
+            $response->addOKStatusMessage('Data saved successfully.');
+        }else{
+            $response->addErrorStatusMessage('Data not saved.');
+        }
+        
         return $response;
     }
     
@@ -191,13 +200,14 @@ class ImportAgent extends GenericAssistant
                 
                 
             }
-        }
+        } 
         
         
         
         
         return $this->getDataSheet();
     }
+
     
     protected function getReadyUxonForImport(UxonObject $uxon) : UxonObject
     {
@@ -364,8 +374,7 @@ class ImportAgent extends GenericAssistant
         return $this;
     }
 
-
-        /**
+    /**
      * If set to true, imported data is saved automatically (still requires a approval from AI).
      *
      * @uxon-property auto_save
