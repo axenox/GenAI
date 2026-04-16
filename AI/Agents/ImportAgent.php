@@ -363,6 +363,23 @@ class ImportAgent extends GenericAssistant
         $this->silenced = $trueOrFalse;
         return $this;
     }
+
+
+        /**
+     * If set to true, imported data is saved automatically (still requires a approval from AI).
+     *
+     * @uxon-property auto_save
+     * @uxon-type bool
+     * @uxon-default false
+     *
+     * @param bool $trueOrFalse
+     * @return ImportAgent
+     */
+    protected function setAutoSave(bool $trueOrFalse) : ImportAgent
+    {
+        $this->autosaveData = $trueOrFalse;
+        return $this;
+    }
     
 
     /**
