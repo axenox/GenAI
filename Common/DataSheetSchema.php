@@ -1,0 +1,730 @@
+<?php
+
+namespace axenox\GenAI\Common;
+
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\MetaObjectFactory;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
+use exface\Core\Interfaces\Model\MetaAttributeInterface;
+use exface\Core\Interfaces\Model\MetaObjectInterface;
+use exface\Core\Interfaces\Model\MetaRelationInterface;
+use exface\Core\Interfaces\WorkbenchInterface;
+
+class DataSheetSchema implements ICanBeConvertedToUxon
+{
+    use ICanBeConvertedToUxonTrait;
+
+    private WorkbenchInterface $workbench;
+
+    private ?string $objectAlias = null;
+
+    /**
+     * Property name under which this schema is embedded as subsheet in a parent schema.
+     */
+    private ?string $name = null;
+
+    /**
+     * @var string[]
+     */
+    private array $requiredAttributes = [];
+
+    /**
+     * @var DataSheetSchema[]|null
+     */
+    private ?array $subsheets = null;
+
+    private ?UxonObject $subsheetsUxon = null;
+
+    private ?MetaObjectInterface $metaObject = null;
+
+    public function __construct(WorkbenchInterface $workbench, ?UxonObject $uxon = null)
+    {
+        $this->workbench = $workbench;
+
+        if ($uxon !== null) {
+            $this->importUxonObject($uxon);
+        }
+    }
+
+    public function getObjectAlias(): ?string
+    {
+        return $this->objectAlias;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name ?? $this->getMetaObject()->getAlias();
+    }
+
+    public function getEmptyDataSheet(): DataSheetInterface
+    {
+        return DataSheetFactory::createFromObjectIdOrAlias($this->workbench, $this->getObjectAlias());
+    }
+    
+
+    /**
+     * @return string[]
+     */
+    public function getRequiredAttributes(): array
+    {
+        return $this->requiredAttributes;
+    }
+
+    /**
+     * @return DataSheetSchema[]
+     */
+    public function getSubsheets(): array
+    {
+        if ($this->subsheets === null) {
+            $this->subsheets = [];
+
+            if ($this->subsheetsUxon !== null) {
+                foreach ($this->subsheetsUxon as $subsheetName => $subsheetUxon) {
+                    if (! $subsheetUxon instanceof UxonObject) {
+                        throw new \InvalidArgumentException(
+                            'Invalid subsheet definition for "' . $subsheetName . '" in DataSheetSchema.'
+                        );
+                    }
+
+                    $subsheet = new self($this->workbench, $subsheetUxon);
+
+                    if ($subsheet->getName() === null || trim((string) $subsheet->getName()) === '') {
+                        $subsheet->setName((string) $subsheetName);
+                    }
+
+                    $this->subsheets[] = $subsheet;
+                }
+            }
+        }
+
+        return $this->subsheets;
+    }
+
+    public function getMetaObject(): MetaObjectInterface
+    {
+        if ($this->metaObject === null) {
+            if ($this->objectAlias === null || $this->objectAlias === '') {
+                throw new \RuntimeException('DataSheetSchema requires a valid "object_alias".');
+            }
+
+            $this->metaObject = MetaObjectFactory::createFromString($this->workbench, $this->objectAlias);
+        }
+
+        return $this->metaObject;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getAttributes(): array
+    {
+        $list = [];
+
+        foreach ($this->getMetaObject()->getAttributes() as $attribute) {
+            if (! $attribute instanceof MetaAttributeInterface) {
+                continue;
+            }
+
+            if (! $this->shouldIncludeAttribute($attribute)) {
+                continue;
+            }
+
+            $list[] = $attribute->getAlias();
+        }
+
+        return $list;
+    }
+
+    /**
+     * Returns all attributes of the current schema object that represent a relation.
+     *
+     * If $rightObject is provided, only attributes whose relation points to that target object
+     * are returned.
+     *
+     * @param MetaObjectInterface|null $rightObject
+     * @return MetaAttributeInterface[]
+     */
+    public function getAttributesWithRelation(?MetaObjectInterface $rightObject = null): array
+    {
+        $attributes = [];
+        $rightObjectAlias = $rightObject?->getAlias();
+
+        foreach ($this->getMetaObject()->getAttributes() as $attribute) {
+            if (! $attribute instanceof MetaAttributeInterface) {
+                continue;
+            }
+
+            if (! $attribute->isRelation()) {
+                continue;
+            }
+
+            $relation = $attribute->getRelation();
+            if (! $relation instanceof MetaRelationInterface) {
+                continue;
+            }
+
+            if ($rightObjectAlias !== null) {
+                $targetAlias = $relation->getRightObject()->getAlias();
+
+                if (strcasecmp($targetAlias, $rightObjectAlias) !== 0) {
+                    continue;
+                }
+            }
+
+            $attributes[] = $attribute;
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Returns a single relation attribute of the current schema object.
+     *
+     * If $rightObject is provided, only attributes whose relation points to that target object
+     * are considered.
+     *
+     * @param MetaObjectInterface|null $rightObject
+     * @return MetaAttributeInterface
+     */
+    public function getAttributeWithRelation(?MetaObjectInterface $rightObject = null): MetaAttributeInterface
+    {
+        $attributes = $this->getAttributesWithRelation($rightObject);
+
+        if (empty($attributes)) {
+            throw new \RuntimeException(
+                'No relation attribute found'
+                . ($rightObject ? ' for target object "' . $rightObject->getAlias() . '"' : '')
+                . '.'
+            );
+        }
+
+        return $attributes[0];
+    }
+
+    /**
+     * Returns all relations of the current schema object.
+     *
+     * If $rightObject is provided, only relations pointing to that target object
+     * are returned.
+     *
+     * Multiple attributes may theoretically reference the same relation, therefore
+     * duplicate relations are removed.
+     *
+     * @param MetaObjectInterface|null $rightObject
+     * @return MetaRelationInterface[]
+     */
+    public function getRelations(?MetaObjectInterface $rightObject = null): array
+    {
+        $relations = [];
+        $seen = [];
+
+        foreach ($this->getAttributesWithRelation($rightObject) as $attribute) {
+            $relation = $attribute->getRelation();
+
+            if (! $relation instanceof MetaRelationInterface) {
+                continue;
+            }
+
+            $key = $relation->getLeftObject()->getAlias() . '::' . $relation->getAliasWithModifier();
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $relations[] = $relation;
+        }
+
+        return $relations;
+    }
+
+    /**
+     * Returns a single relation of the current schema object.
+     *
+     * If $rightObject is provided, only relations pointing to that target object
+     * are considered.
+     *
+     * @param MetaObjectInterface|null $rightObject
+     * @return MetaRelationInterface
+     */
+    public function getRelation(?MetaObjectInterface $rightObject = null): MetaRelationInterface
+    {
+        $relations = $this->getRelations($rightObject);
+
+        if (empty($relations)) {
+            throw new \RuntimeException(
+                'No relation found'
+                . ($rightObject ? ' for target object "' . $rightObject->getAlias() . '"' : '')
+                . '.'
+            );
+        }
+
+        return $relations[0];
+    }
+
+
+    /**
+     * Returns TRUE if this schema should be rendered as an array when embedded
+     * under the given parent object.
+     *
+     * Rules:
+     * - If no relation to the given parent object exists, FALSE is returned.
+     * - If at least one relation exists and the reversed relation is a reverse relation,
+     *   this schema is multi-valued from the parent perspective and must be rendered as an array.
+     * - Otherwise it is rendered as a single object.
+     *
+     * @param MetaObjectInterface $parentObject
+     * @return bool
+     */
+    public function isArrayForObject(MetaObjectInterface $parentObject): bool
+    {
+        $relations = $this->getRelations($parentObject);
+
+        if ($relations === []) {
+            return false;
+        }
+
+        foreach ($relations as $relation) {
+            $reversedRelation = $relation->getReversedRelation();
+
+            if ($reversedRelation->isReverseRelation()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getUidObject(): MetaAttributeInterface
+    {
+        foreach ($this->getMetaObject()->getAttributes() as $attribute) {
+            if (! $attribute instanceof MetaAttributeInterface) {
+                continue;
+            }
+
+            if ($attribute->isUidForObject()) {
+                return $attribute;
+            }
+        }
+
+        throw new \RuntimeException(
+            'No UID attribute found for object "' . ($this->getObjectAlias() ?? 'unknown') . '".'
+        );
+    }
+
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function generateJsonSchema(): array
+    {
+        return $this->generateObjectSchema();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function generateObjectSchema(): array
+    {
+        $properties = $this->generatePropertiesSchema();
+
+        return [
+            'type' => 'object',
+            'required' => array_keys($properties),
+            'additionalProperties' => false,
+            'properties' => $properties,
+        ];
+    }
+
+    /**
+     * Generates all properties for this schema, including nested subsheets.
+     *
+     * For subsheets, the relation of the parent object determines whether the
+     * property is generated as a single nested object or as an array of objects.
+     *
+     * @return array<string, mixed>
+     */
+    protected function generatePropertiesSchema(): array
+    {
+        $properties = [];
+
+        foreach ($this->getMetaObject()->getAttributes() as $attribute) {
+            if (! $attribute instanceof MetaAttributeInterface) {
+                continue;
+            }
+
+            if (! $this->shouldIncludeAttribute($attribute)) {
+                continue;
+            }
+
+            $alias = $attribute->getAlias();
+
+            try {
+                $dataType = $attribute->getDataType();
+                $rawSchema = JsonDataType::convertDataTypeToJsonSchemaType($dataType);
+                $properties[$alias] = $this->sanitizeSchemaForStructuredOutputs($rawSchema, $attribute);
+            } catch (\Throwable $e) {
+                $properties[$alias] = [
+                    'type' => 'string',
+                    'description' => 'Text value.',
+                ];
+            }
+        }
+
+        foreach ($this->getSubsheets() as $subsheet) {
+            $propertyName = $subsheet->getName();
+
+            if (array_key_exists($propertyName, $properties)) {
+                throw new \RuntimeException(
+                    'Subsheet property name "' . $propertyName . '" conflicts with an existing attribute in object "' .
+                    ($this->getObjectAlias() ?? 'unknown') . '".'
+                );
+            }
+
+            $subsheetObjectSchema = $subsheet->generateObjectSchema();
+
+            if ($subsheet->isArrayForObject($this->getMetaObject())) {
+                $properties[$propertyName] = [
+                    'type' => 'array',
+                    'items' => $subsheetObjectSchema,
+                    'description' => 'List of related "' . $subsheet->getObjectAlias() . '" entries.',
+                ];
+            } else {
+                $properties[$propertyName] = $subsheetObjectSchema;
+            }
+        }
+
+        return $properties;
+    }
+
+    /**
+     * @return string[]
+     */
+    protected function resolveRequiredAttributes(): array
+    {
+        $required = $this->getRequiredAttributes();
+
+        if (! empty($required)) {
+            $required = array_values(array_unique(array_map('strval', $required)));
+            $availableAttributes = array_flip($this->getAttributes());
+            $invalid = [];
+
+            foreach ($required as $alias) {
+                if (! array_key_exists($alias, $availableAttributes)) {
+                    $invalid[] = $alias;
+                }
+            }
+
+            if (! empty($invalid)) {
+                throw new \InvalidArgumentException(
+                    'Unknown required attribute(s) in DataSheetSchema for object "' .
+                    ($this->getObjectAlias() ?? 'unknown') .
+                    '": ' . implode(', ', $invalid)
+                );
+            }
+
+            return $required;
+        }
+
+        return $this->getAttributes();
+    }
+
+    protected function shouldIncludeAttribute(MetaAttributeInterface $attribute): bool
+    {
+        if ($attribute->isUidForObject()) {
+            return false;
+        }
+
+        if ($attribute->isSystem()) {
+            return false;
+        }
+
+        if (! $attribute->isWritable()) {
+            return false;
+        }
+
+        if (! $attribute->isEditable()) {
+            return false;
+        }
+
+        if ($attribute->hasCalculation()) {
+            return false;
+        }
+
+        if ($attribute->hasFixedValue()) {
+            return false;
+        }
+
+        if ($attribute->isHidden()) {
+            return false;
+        }
+
+        // Relation attributes are excluded from the flat property schema.
+        // Related objects must be modeled explicitly as subsheets.
+        if ($attribute->isRelation() || $attribute->isRelated()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Normalizes and sanitizes a JSON schema for usage with LLM structured outputs.
+     *
+     * This method reduces an arbitrary JSON schema to a strict, OpenAI-compatible subset by:
+     * - Filtering unsupported or irrelevant schema keys
+     * - Recursively sanitizing nested structures
+     * - Enforcing required defaults
+     * - Making object schemas strict
+     * - Ensuring arrays always define an items schema
+     * - Augmenting descriptions with human-readable type hints
+     *
+     * @param array<string, mixed> $schema
+     * @param MetaAttributeInterface|null $attribute
+     * @return array<string, mixed>
+     */
+    protected function sanitizeSchemaForStructuredOutputs(array $schema, ?MetaAttributeInterface $attribute = null): array
+    {
+        $allowedKeys = [
+            'type',
+            'properties',
+            'items',
+            'required',
+            'enum',
+            'anyOf',
+            'description',
+            'additionalProperties',
+        ];
+
+        $clean = [];
+
+        foreach ($schema as $key => $value) {
+            if (! in_array($key, $allowedKeys, true)) {
+                continue;
+            }
+
+            if ($key === 'properties' && is_array($value)) {
+                $clean[$key] = [];
+                foreach ($value as $propName => $propSchema) {
+                    if (is_array($propSchema)) {
+                        $clean[$key][$propName] = $this->sanitizeSchemaForStructuredOutputs($propSchema);
+                    }
+                }
+                continue;
+            }
+
+            if ($key === 'items' && is_array($value)) {
+                $clean[$key] = $this->sanitizeSchemaForStructuredOutputs($value);
+                continue;
+            }
+
+            if ($key === 'anyOf' && is_array($value)) {
+                $clean[$key] = [];
+                foreach ($value as $part) {
+                    if (is_array($part)) {
+                        $clean[$key][] = $this->sanitizeSchemaForStructuredOutputs($part);
+                    }
+                }
+                continue;
+            }
+
+            $clean[$key] = $value;
+        }
+
+        if (! isset($clean['type'])) {
+            $clean['type'] = 'string';
+        }
+
+        if (($clean['type'] ?? null) === 'object') {
+            $clean['additionalProperties'] = false;
+            $clean['properties'] = $clean['properties'] ?? [];
+            $clean['required'] = $clean['required'] ?? array_keys($clean['properties']);
+        }
+
+        if (($clean['type'] ?? null) === 'array' && (! isset($clean['items']) || ! is_array($clean['items']))) {
+            $clean['items'] = ['type' => 'string'];
+        }
+
+        $hint = $this->buildHumanReadableTypeHint($schema, $attribute);
+        if ($hint !== null && $hint !== '') {
+            $existing = isset($clean['description']) && is_string($clean['description'])
+                ? trim($clean['description'])
+                : '';
+
+            $clean['description'] = $existing !== ''
+                ? $existing . ' ' . $hint
+                : $hint;
+        }
+
+        return $clean;
+    }
+
+    protected function buildHumanReadableTypeHint(array $originalSchema, ?MetaAttributeInterface $attribute = null): ?string
+    {
+        $type = $originalSchema['type'] ?? null;
+        $format = $originalSchema['format'] ?? null;
+
+        if ($format === 'date-time' || $format === 'datetime') {
+            return 'Expected format: ISO 8601 date-time, e.g. 2026-04-07T14:30:00Z.';
+        }
+
+        if ($format === 'date') {
+            return 'Expected format: date as YYYY-MM-DD, e.g. 2026-04-07.';
+        }
+
+        if ($format === 'email') {
+            return 'Expected format: valid email address, e.g. max@example.com.';
+        }
+
+        if ($format === 'uri' || $format === 'url') {
+            return 'Expected format: absolute URL, e.g. https://example.com/path.';
+        }
+
+        if (isset($originalSchema['enum']) && is_array($originalSchema['enum']) && ! empty($originalSchema['enum'])) {
+            return 'Allowed values: ' . implode(', ', array_map('strval', $originalSchema['enum'])) . '.';
+        }
+
+        if ($type === 'integer') {
+            return 'Expected value: whole number.';
+        }
+
+        if ($type === 'number') {
+            return 'Expected value: numeric value.';
+        }
+
+        if ($type === 'boolean') {
+            return 'Expected value: true or false.';
+        }
+
+        if ($type === 'array') {
+            return 'Expected value: list of entries.';
+        }
+
+        if ($type === 'object') {
+            return 'Expected value: nested object.';
+        }
+
+        if ($attribute !== null) {
+            try {
+                $dataType = $attribute->getDataType();
+                $class = is_object($dataType) ? get_class($dataType) : (string) $dataType;
+                $classUpper = strtoupper($class);
+
+                if (str_contains($classUpper, 'DATETIME')) {
+                    return 'Expected format: ISO 8601 date-time, e.g. 2026-04-07T14:30:00Z.';
+                }
+
+                if (str_contains($classUpper, 'DATE') && ! str_contains($classUpper, 'DATETIME')) {
+                    return 'Expected format: date as YYYY-MM-DD, e.g. 2026-04-07.';
+                }
+
+                if (str_contains($classUpper, 'EMAIL')) {
+                    return 'Expected format: valid email address, e.g. max@example.com.';
+                }
+
+                if (str_contains($classUpper, 'HEXADECIMAL')) {
+                    return 'Expected format: hexadecimal string, e.g. 1A2B3C or ff00aa.';
+                }
+
+                if (str_contains($classUpper, 'BOOLEAN')) {
+                    return 'Expected value: true or false.';
+                }
+
+                if (str_contains($classUpper, 'INTEGER')) {
+                    return 'Expected value: whole number.';
+                }
+
+                if (str_contains($classUpper, 'NUMBER') || str_contains($classUpper, 'DECIMAL') || str_contains($classUpper, 'FLOAT')) {
+                    return 'Expected value: numeric value.';
+                }
+
+                if (str_contains($classUpper, 'STRING')) {
+                    return 'Expected value: plain text.';
+                }
+            } catch (\Throwable $e) {
+                // TODO Error handling if needed
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @uxon-property object_alias
+     * @uxon-type metamodel:object
+     * @uxon-template "my.App.REPORT"
+     */
+    protected function setObjectAlias(string $objectAlias): DataSheetSchema
+    {
+        $this->objectAlias = $objectAlias;
+        $this->metaObject = null;
+
+        return $this;
+    }
+
+    /**
+     * @uxon-property name
+     * @uxon-type string
+     * @uxon-template "address"
+     */
+    protected function setName(string $name): DataSheetSchema
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            throw new \InvalidArgumentException('DataSheetSchema "name" must not be empty.');
+        }
+
+        $this->name = $name;
+
+        return $this;
+    }
+
+    /**
+     * @uxon-property require_attributes
+     * @uxon-type string[]
+     * @uxon-template ["email", "name"]
+     *
+     * @param UxonObject|array<string|int, mixed>|mixed $requiredAttributes
+     */
+    protected function setRequireAttributes($requiredAttributes): DataSheetSchema
+    {
+        if ($requiredAttributes instanceof UxonObject) {
+            $requiredAttributes = $requiredAttributes->getPropertiesAll();
+        }
+
+        if (! is_array($requiredAttributes)) {
+            $requiredAttributes = [$requiredAttributes];
+        }
+
+        $this->requiredAttributes = array_values(
+            array_unique(
+                array_filter(
+                    array_map('strval', $requiredAttributes),
+                    static fn(string $value): bool => trim($value) !== ''
+                )
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * Nested schema definitions added as nested properties to this schema.
+     *
+     * @uxon-property subsheets
+     * @uxon-type \axenox\GenAI\Common\DataSheetSchema[]
+     * @uxon-template {"address": {"object_alias": "my.App.ADDRESS"}}
+     */
+    protected function setSubsheets(UxonObject $subsheets): DataSheetSchema
+    {
+        $this->subsheetsUxon = $subsheets;
+        $this->subsheets = null;
+
+        return $this;
+    }
+}
