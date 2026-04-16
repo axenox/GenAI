@@ -12,6 +12,8 @@ use axenox\GenAI\Common\AiToolCallResponse;
 interface AiResponseInterface extends ResultDataInterface
 {
     public function toArray() : array;
+    
+    public function getJson(): array;
     public function getConversationId() : string ;
 
     //ToolResponse
@@ -20,4 +22,15 @@ interface AiResponseInterface extends ResultDataInterface
      * @return AiToolCallResponse[]
      */
     public function getToolCallResponses(): array;
+    
+    public function addOKStatusMessage(string $message) : AiResponseInterface;
+    
+    public function addErrorStatusMessage(string $message) : AiResponseInterface;
+
+    /**
+     * return a html part for deepchat
+     * 
+     * @return array 
+     */
+    public function getStatusMessages() : array;
 }

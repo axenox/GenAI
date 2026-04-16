@@ -125,8 +125,16 @@ JS);
                         message.error = message.errorMessage;
                     }else{
                         domEl.conversationId = message.conversation;
-                    }   
-                    return message; 
+                    }
+                    
+                    
+                    const messages = [message];
+
+                    if (Array.isArray(message.additionalMessages)) {
+                        messages.push(...message.additionalMessages);
+                    }
+                
+                    return messages;   
                 }'
                 requestInterceptor = 'function (requestDetails) {
                     var domEl = document.getElementById("{$this->getIdOfDeepChat()}");

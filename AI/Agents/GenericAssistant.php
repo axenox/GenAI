@@ -48,6 +48,7 @@ use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\DebugMessage;
 use exface\Core\Widgets\Markdown;
+use function Respect\Stringifier\stringify;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -293,13 +294,15 @@ class GenericAssistant implements AiAgentInterface
         $title = $query !== null
             ? $this->getTitle($query)
             : 'Standard generated title';
+        
+        $dataUxon = $prompt->getInputData()->exportUxonObject();
 
         $row = [
             'AI_AGENT' => $this->getUid(),
             'AI_AGENT_VERSION_NO' => $this->getVersion(),
             'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
             'TITLE' => $title,
-            'DATA' => $prompt->getInputData()->exportUxonObject()->toJson(),
+            'DATA' => $dataUxon->toJson(),
             'DEVMODE' => $this->getDevmode() ? 1 : 0,
             'MODEL' => $modelName,
             'CONNECTION' => $connectionId
@@ -351,8 +354,8 @@ class GenericAssistant implements AiAgentInterface
             //   }
             // }
             $dataUxon = new UxonObject();
-            $this->enrichUxonWithTools($prompt, $dataUxon);
-            $this->enrichUxonWithRawSystemPrompt($prompt, $dataUxon);
+            $this->enrichUxonWithTools( $dataUxon);
+            $this->enrichUxonWithJsonSchema($dataUxon);
 
             // collect concepts mapped by their placeholder
             $concepts = [];
@@ -463,6 +466,12 @@ class GenericAssistant implements AiAgentInterface
 
             $cost = $query->getCosts();
 
+            $dataUxon = new UxonObject();
+            
+            if($this->hasJsonSchema()){
+                $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
+            }
+            
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -474,7 +483,8 @@ class GenericAssistant implements AiAgentInterface
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason()
+                'FINISH_REASON' => $query->getFinishReason(),
+                'DATA' => $dataUxon->toJson(true)
             ]);            
 
             $message->dataCreate(false, $transaction);
@@ -631,7 +641,7 @@ class GenericAssistant implements AiAgentInterface
         return $error;
     }
     
-    protected function enrichUxonWithTools(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
+    protected function enrichUxonWithTools( ?UxonObject $uxon) : UxonObject
     {
         if($uxon === null) {
             $dataUxon = new UxonObject([
@@ -648,20 +658,22 @@ class GenericAssistant implements AiAgentInterface
         return $dataUxon;
     }
     
-    protected function enrichUxonWithRawSystemPrompt(AiPromptInterface $prompt, ?UxonObject $uxon) : UxonObject
+    protected function enrichUxonWithJsonSchema(?UxonObject $uxon) : UxonObject
     {
-        $rawSystemPrompt = $this->getSystemPrompt($prompt);
+        
         if($uxon === null) {
-            $dataUxon = new UxonObject([
-                'RawSystemPrompt' => $rawSystemPrompt,
-            ]);
-        }else{
+            $dataUxon = new UxonObject();
+        }else {
             $dataUxon = $uxon;
-            $dataUxon->setProperty('concepts', $rawSystemPrompt);
-            
         }
-        return $dataUxon;  
+        if ($this->hasJsonSchema()) {
+            $dataUxon->setProperty('responseJsonSchema', $this->getResponseJsonSchema());
+        }
+        return $dataUxon;
+        
     }
+    
+
 
 
     /**
@@ -833,7 +845,11 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        if($this->hasJsonSchema()){
+            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId, $query->getAnswerJson());
+        }else {
+            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        }
         $response->setToolCalls($this->toolCalls);
         return $response;
     }
@@ -847,11 +863,22 @@ class GenericAssistant implements AiAgentInterface
     {
         if ($this->hasJsonSchema()) {
             $json = $query->getAnswerJson();
-            $answer = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
-        } else {
-            $answer = $query->getFullAnswer();
+
+            if ($this->getResponseAnswerPath() !== null) {
+                return ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
+            } else {
+                $answer = $json;
+            }
+
+            if (!is_string($answer)) {
+                $answer = json_encode($answer, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            }
+
+            // Codeblock for the AIChat (?)
+            return "```json\n" . $answer . "\n```";
         }
-        return $answer;
+
+        return $query->getFullAnswer();
     }
 
     /**
@@ -861,7 +888,7 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getTitle(AiQueryInterface $query) : string
     {
-        if ($this->hasJsonSchema() && $query->hasResponse()) {
+        if ($this->hasJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
             $json = $query->getAnswerJson();
             $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
         } else {
