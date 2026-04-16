@@ -276,7 +276,7 @@ class ImportAgent extends GenericAssistant
     
     protected function willSaveData() : bool
     {
-        return $this->autosaveData  &&  $this->readyToSave;
+        return $this->autosaveData  &&  $this->readyToSave || $this->autosaveData && $this->silenced;
     }
     
     /**
