@@ -31,6 +31,8 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      * @var string[]
      */
     private array $requiredAttributes = [];
+    
+    private bool $requiredAll = true;
 
     /**
      * @var DataSheetSchema[]|null
@@ -351,6 +353,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
     protected function generatePropertiesSchema(): array
     {
         $properties = [];
+        $requiredLookup = array_flip($this->resolveRequiredAttributes());
 
         foreach ($this->getMetaObject()->getAttributes() as $attribute) {
             if (! $attribute instanceof MetaAttributeInterface) {
@@ -372,6 +375,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
                     'type' => 'string',
                     'description' => 'Text value.',
                 ];
+            }
+
+            if (! $this->isPropertyRequired($alias, $requiredLookup)) {
+                $properties[$alias] = $this->makeSchemaNullable($properties[$alias]);
             }
         }
 
@@ -396,6 +403,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
             } else {
                 $properties[$propertyName] = $subsheetObjectSchema;
             }
+
+            if (! $this->isPropertyRequired($propertyName, $requiredLookup)) {
+                $properties[$propertyName] = $this->makeSchemaNullable($properties[$propertyName]);
+            }
         }
 
         return $properties;
@@ -406,6 +417,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      */
     protected function resolveRequiredAttributes(): array
     {
+        if ($this->requiredAll) {
+            return $this->getAttributes();
+        }
+
         $required = $this->getRequiredAttributes();
 
         if (! empty($required)) {
@@ -430,7 +445,97 @@ class DataSheetSchema implements ICanBeConvertedToUxon
             return $required;
         }
 
-        return $this->getAttributes();
+        return [];
+    }
+
+    /**
+     * Resolves which generated property names must appear in the top-level `required` list.
+     *
+     * Why: The object schema may include both regular attributes and subsheet properties.
+     * This method maps the configured required attributes (`required_all` or
+     * `require_attributes`) to the actually generated property set, so the final JSON
+     * schema stays consistent with what is emitted in `properties`.
+     *
+     * @param array<string, mixed> $properties
+     * @return string[]
+     */
+    protected function resolveRequiredPropertyNames(array $properties): array
+    {
+        if ($this->requiredAll) {
+            return array_keys($properties);
+        }
+
+        $requiredLookup = array_flip($this->resolveRequiredAttributes());
+
+        return array_values(
+            array_filter(
+                array_keys($properties),
+                static fn(string $propertyName): bool => array_key_exists($propertyName, $requiredLookup)
+            )
+        );
+    }
+
+    /**
+     * Checks whether a single property should be treated as required for this schema.
+     *
+     * Why: `generatePropertiesSchema()` needs a fast, centralized decision to determine
+     * whether a property may be nullable. Keeping the decision in one helper avoids
+     * duplicating requiredness rules across attribute and subsheet handling.
+     *
+     * @param array<string, bool|int> $requiredLookup
+     */
+    protected function isPropertyRequired(string $propertyName, array $requiredLookup): bool
+    {
+        if ($this->requiredAll) {
+            return true;
+        }
+
+        return array_key_exists($propertyName, $requiredLookup);
+    }
+
+    /**
+     * Ensures a property schema also accepts `null` in addition to its original type.
+     *
+     * Why: Non-required properties should explicitly allow null values so callers can
+     * provide an empty value while still conforming to strict structured-output schemas.
+     * The method preserves existing schema shape (`anyOf`, scalar `type`, or type arrays)
+     * and only adds `null` when missing.
+     *
+     * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    protected function makeSchemaNullable(array $schema): array
+    {
+        if (isset($schema['anyOf']) && is_array($schema['anyOf'])) {
+            foreach ($schema['anyOf'] as $variant) {
+                if (is_array($variant) && ($variant['type'] ?? null) === 'null') {
+                    return $schema;
+                }
+            }
+
+            $schema['anyOf'][] = ['type' => 'null'];
+            return $schema;
+        }
+
+        if (isset($schema['type']) && is_string($schema['type'])) {
+            if ($schema['type'] !== 'null') {
+                $schema['type'] = [$schema['type'], 'null'];
+            }
+
+            return $schema;
+        }
+
+        if (isset($schema['type']) && is_array($schema['type'])) {
+            if (! in_array('null', $schema['type'], true)) {
+                $schema['type'][] = 'null';
+            }
+
+            return $schema;
+        }
+
+        $schema['type'] = ['string', 'null'];
+
+        return $schema;
     }
 
     protected function shouldIncludeAttribute(MetaAttributeInterface $attribute): bool
@@ -685,6 +790,22 @@ class DataSheetSchema implements ICanBeConvertedToUxon
     }
 
     /**
+     * @uxon-property required_all
+     * @uxon-type boolean
+     * @uxon-default true
+     */
+    protected function setRequiredAll(bool $requiredAll): DataSheetSchema
+    {
+        $this->requiredAll = $requiredAll;
+
+        if ($requiredAll) {
+            $this->requiredAttributes = [];
+        }
+
+        return $this;
+    }
+
+    /**
      * @uxon-property require_attributes
      * @uxon-type string[]
      * @uxon-template ["email", "name"]
@@ -693,6 +814,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      */
     protected function setRequireAttributes($requiredAttributes): DataSheetSchema
     {
+        $this->requiredAll = false;
         if ($requiredAttributes instanceof UxonObject) {
             $requiredAttributes = $requiredAttributes->getPropertiesAll();
         }
