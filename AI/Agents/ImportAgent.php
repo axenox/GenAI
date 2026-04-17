@@ -1,21 +1,18 @@
 <?php
 namespace axenox\GenAI\AI\Agents;
 
-use axenox\GenAI\AI\Concepts\MetamodelDbmlConcept;
-use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\DataSheetSchema;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\RuntimeException;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Factories\ResultFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
-use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
-use exface\Core\Interfaces\Model\MetaRelationInterface;
-use exface\Core\Templates\Placeholders\ArrayPlaceholders;
-use exface\Core\Templates\BracketHashStringTemplateRenderer;
+use exface\Core\Interfaces\WidgetInterface;
+use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
+use exface\Core\Interfaces\Widgets\iHaveColumns;
+use exface\Core\Interfaces\Widgets\iShowData;
 
 /**
  * Asks the AI to transform some data (even files) into data sheets.
@@ -31,7 +28,7 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
  * {
  *     "instructions": "",
  *     "silent": true,
- *     "save_as": { // helper object \axenox\GenAI\Common\Prompt\DataSheetSchema
+ *     "data_schemas": [{ // helper object \axenox\GenAI\Common\Prompt\DataSheetSchema
  *         "object_alias": "my.App.REPORT",
  *         "require_attributes": ["NO", "DATE", "TITLE"], //Not Possible
  *         "subsheets": [
@@ -40,7 +37,7 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
  *                  "subsheets": []
  *              }
  *         ]
- *     }
+ *     }]
  * }
  * 
  * ```
@@ -71,8 +68,6 @@ class ImportAgent extends GenericAssistant
     private ?UxonObject $saveAsUxon = null;
 
     private ?DataSheetSchema $dataSchema = null;
-    
-    private ?DataSheetInterface $dataSheet = null;
 
     private string $messageSchemaDescription = 'Message returned by the AI. This may contain confirmation, missing information, follow-up questions, or other user-facing text.';
 
@@ -82,7 +77,9 @@ class ImportAgent extends GenericAssistant
     
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $jsonSchema = $this->enrichJsonSchemaWithStandartVariabels($this->getDataSchema()->generateJsonSchema());
+        $jsonSchema = $this->enrichJsonSchemaWithStandartVariabels(
+            $this->getDataSchema($prompt)->generateJsonSchema()
+        );
         
         $this->setResponseJsonSchema(new UxonObject($jsonSchema));
 
@@ -93,8 +90,8 @@ class ImportAgent extends GenericAssistant
 
         $this->readyToSave = (bool) ($json['ready_to_save'] ?? false);
         
-        $this->dataSave(new UxonObject($payload));
-        $response->setData($this->getDataSheet());
+        $importedSheet = $this->dataSave(new UxonObject($payload));
+        $response->setData($importedSheet);
 
         if($this->willSaveData()){
             $response->addOKStatusMessage('Data saved successfully.');
@@ -105,107 +102,16 @@ class ImportAgent extends GenericAssistant
         return $response;
     }
     
-    public function getDataSheet() : DataSheetInterface
-    {
-        if($this->dataSheet === null){
-            $this->dataSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), $this->getDataSchema()->getObjectAlias());
-        }
-        return $this->dataSheet;
-    }
-    
     protected function dataSave(UxonObject $uxon, ?DataSheetSchema $dataSheetSchema = null) : DataSheetInterface
     {
-
-        $dataSheet = null;
-
-        if ($dataSheetSchema !== null) {
-            $dataSheet = $dataSheetSchema->getEmptyDataSheet();
-        }
-
-        if ($dataSheet === null) {
-            $dataSheet = $this->getDataSheet();
-
-            if ($dataSheetSchema === null ) {
-                $dataSheetSchema = $this->dataSchema;
-            }
-        }
-        $subsheetArray = [];
-        
-        if($uxon->isArray()){
-            foreach ($uxon as $item) {
-                if($item instanceof UxonObject){
-                    $this->dataSave($item, $dataSheetSchema);
-                }
-            }
-            return $this->dataSheet;
-        }
-        
-        foreach($dataSheetSchema->getSubsheets() as $subsheetSchema){
-
-            $subSheetUxon = $uxon->getProperty($subsheetSchema->getName());
-            $uxon->unsetProperty($subsheetSchema->getName());
-
-            
-
-            $subsheetArray[$subsheetSchema->getName()] = ["dataSheetSchema" => $subsheetSchema, "uxon" => $subSheetUxon]; 
-            
-            
-        }
-        
-        $dataSheet->importUxonObject($this->getReadyUxonForImport($uxon));
-        
+        $dataSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $uxon);
         
         if($this->willSaveData()){
             //TODO
             //IDEE wenn ein Fehler passiert die KI erneut aufrufen mit zurückgeben des Fehlers. So könnte die KI selbstständig versuchen Fehler zu korrigieren
             $dataSheet->dataSave();
-            //ID would be generated
-            $row = $dataSheet->getRow(0);
-            $uidObject = $dataSheetSchema->getUidObject();
-            $alias = $uidObject->getAlias();
-            
-            foreach ($dataSheetSchema->getSubsheets() as $subsheetSchema){
-                    $relations = $subsheetSchema->getAttributesWithRelation($dataSheetSchema->getMetaObject());
-                    foreach ($relations as  $attribute){
-                        if(!$attribute instanceof MetaAttributeInterface){
-                            continue;
-                        }
-                        $subSheetUxon = $subsheetArray[$subsheetSchema->getName()]['uxon'];
-                        if(!$subSheetUxon instanceof UxonObject){
-                            continue;
-                        }
-                        if ($subSheetUxon->isArray()) {
-                            $newItems = [];
-
-                            foreach ($subSheetUxon as $item) {
-                                if ($item instanceof UxonObject) {
-                                    $item->setProperty($attribute->getAlias(), $row[$alias]);
-                                    $newItems[] = $item->toArray();
-                                } else {
-                                    $newItems[] = $item;
-                                }
-                            }
-
-                            $subSheetUxon->replace($newItems);
-                        }else {
-                            $subSheetUxon->setProperty($attribute->getAlias(), $row[$alias]);
-                        }
-                        
-
-                        
-                        
-
-                    }
-                    $this->dataSave($subsheetArray[$subsheetSchema->getName()]['uxon'], $subsheetArray[$subsheetSchema->getName()]['dataSheetSchema']);
-                
-                
-            }
         } 
-        
-        
-        
-        
-        return $this->getDataSheet();
+        return $dataSheet;
     }
 
     
@@ -227,19 +133,95 @@ class ImportAgent extends GenericAssistant
         $this->dataSchema = null;
         return $this;
     }
-    
-    protected function getDataSchema() : DataSheetSchema
+
+    /**
+     * TODO allow multiple schemas - e.g. for master data pages with a split and multiple tables
+     * Evtl. muss dafür auch die Config save_as anders sein: z.B. als array of auch umbenannt in data_schemas
+     * 
+     * ```
+     * {
+     *     "data_schemas":  [
+     *          {
+     *              "object_alias": "Obj1"
+     *          },
+     *          {
+     *              "object_alias": "obj2
+     *          }
+     *      ]
+     * }
+     * ```
+     * 
+     * @param AiPromptInterface $prompt
+     * @return DataSheetSchema
+     */
+    protected function getDataSchema(AiPromptInterface $prompt) : DataSheetSchema
     {
         if ($this->dataSchema === null) {
             if ($this->saveAsUxon === null) {
-                throw new RuntimeException('ImportAgent requires UXON property "save_as" with at least "object_alias".');
+                switch (true) {
+                    case $prompt->isTriggeredOnPage():
+                        $page = $prompt->getPageTriggeredOn();
+                        $rootWidget = $page->getWidgetRoot();
+                        if ($rootWidget) {
+                            $schemas = $this->findSchemasInWidget($rootWidget);
+                            $this->dataSchema = $schemas[0];
+                        }
+                        break;
+                    default:
+                        throw new RuntimeException('ImportAgent requires UXON property "save_as" with at least "object_alias".');
+                }
+            } else {
+                $this->dataSchema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
+                $this->validateSchemaNode($this->dataSchema, '$.save_as');
             }
-
-            $this->dataSchema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
-            $this->validateSchemaNode($this->dataSchema, '$.save_as');
         }
 
         return $this->dataSchema;
+    }
+
+    /**
+     * TODO add all required attributes even if they are not in the data widget. See similar problem in ShowDataImportDialog
+     *  
+     * @param WidgetInterface $widget
+     * @return array
+     */
+    protected function findSchemasInWidget(WidgetInterface $widget) : array
+    {
+        $schemas = [];
+        switch (true) {
+            case $widget instanceof iHaveColumns:
+                $schema = new DataSheetSchema($this->getWorkbench(), new UxonObject([
+                    'object_alias' => $widget->getMetaObject()->getAliasWithNamespace(),
+                ]));
+                $schemaAttrAliases = [];
+                foreach ($widget->getColumns() as $col) {
+                    if ($col->isBoundToAttribute()) {
+                        $attr = $col->getAttribute();
+                        if ($attr->isRelated()) {
+                            $firstRel = $attr->getRelationPath()->getRelationFirst();
+                            if (! $firstRel->isForwardRelation()) {
+                                continue;
+                            }
+                            if (! in_array($firstRel->getAlias(), $schemaAttrAliases)) {
+                                $attr = $firstRel->getLeftKeyAttribute();
+                            }
+                        }
+                        if (! $attr->isWritable()) {
+                            continue;
+                        }
+                        $schemaAttrAliases[] = $attr->getAlias();
+                    }
+                }
+                $schema->setRequireAttributes($schemaAttrAliases);
+                $schemas[] = $schema;
+                break;
+            case $widget instanceof iContainOtherWidgets:
+                foreach ($widget->getWidgets() as $child) {
+                    $schemas = array_merge($schemas, $this->findSchemasInWidget($child));
+                }
+                break;
+        }
+        return $schemas;
     }
 
     protected function validateSchemaNode(DataSheetSchema $schema, string $path) : void
