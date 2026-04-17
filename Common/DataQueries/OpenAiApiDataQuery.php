@@ -5,7 +5,7 @@ use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
-use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use exface\Core\Factories\DataSheetFactory;
@@ -169,6 +169,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
                 'ROLE'
             ]);
             $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationUid());
+            $sheet->getFilters()->addConditionFromString('ROLE', AiMessageTypeDataType::ERROR, ComparatorDataType::EQUALS_NOT);
             $sheet->getSorters()->addFromString('SEQUENCE_NUMBER','ASC');
             $sheet->dataRead();
             $this->conversationData = $sheet;
