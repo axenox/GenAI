@@ -5,6 +5,7 @@ namespace axenox\GenAI\Common;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\MetaObjectFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
@@ -14,6 +15,15 @@ use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\Model\MetaRelationInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
+/**
+ * UXON model to define the structure of a single data sheet
+ * 
+ * This can be used to force the AI to produce a valid DataSheet UXON.
+ * 
+ * TODO probably need a read-mode in addition to the current write mode. Will see, when we will start
+ * giving the AI the ability to read data sheets
+ * 
+ */
 class DataSheetSchema implements ICanBeConvertedToUxon
 {
     use ICanBeConvertedToUxonTrait;
@@ -110,7 +120,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
     {
         if ($this->metaObject === null) {
             if ($this->objectAlias === null || $this->objectAlias === '') {
-                throw new \RuntimeException('DataSheetSchema requires a valid "object_alias".');
+                throw new RuntimeException('DataSheetSchema requires a valid "object_alias".');
             }
 
             $this->metaObject = MetaObjectFactory::createFromString($this->workbench, $this->objectAlias);
@@ -324,10 +334,116 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      */
     public function generateJsonSchema(): array
     {
-        return $this->generateObjectSchema();
+        return $this->generateDataSheetShema();
     }
 
     /**
+     * Generates a JSON schema describing the UXON for the given DataSheet instance
+     * 
+     * ```
+     *   {
+     *       "object_alias": "my.App.REPORT",
+     *       "rows": [
+     *           {
+     *               "NO": "",
+     *               "DATE": "",
+     *               "TITLE": "",
+     *               "TOPIC": { // There is a relation from my.App.TOPIC to REPORT. So one report can contain multipl topics as subsheets
+     *                   {
+     *                       "object_alias": "my.App.TOPIC":
+     *                       "rows": [
+     *                           {"TITLE": "", "DESCRIPTION": ""} // Attributes of the topic object
+     *                       ]
+     *                   }
+     *               }
+     *           }
+     *       ]
+     *   }
+     *
+     * ```
+     *
+     * The JSON schema would be:
+     *
+     * ```
+     *  {
+     *   "$schema": "https://json-schema.org/draft/2020-12/schema",
+     *   "type": "object",
+     *   "required": ["object_alias", "rows"],
+     *   "additionalProperties": false,
+     *   "properties": {
+     *       "object_alias": { // allowed object aliases
+     *           "type": "enum",
+     *           "values": [
+     *               "my.App.MAIN_OBJ",
+     *               "my.App.OTHER_OBJ"
+     *           ]
+     *       },
+     *       "rows": {
+     *           "type": "array",
+     *           "items": {
+     *               "type": "object",
+     *               "required": ["NO", "DATE", "TITLE"], // All required attributes: $obj->getAttributes()->getRequired()
+     *               "additionalProperties": false,
+     *               "properties": { // All columns of the given data sheet
+     *                   "NO": {
+     *                       "type": "string" // see JsonDataType::convertDataTypeToJsonSchema()
+     *                   },
+     *                   "DATE": {
+     *                       "type": "string"
+     *                   },
+     *                   "TITLE": {
+     *                       "type": "string"
+     *                   },
+     *                   "TOPIC": { // Subsheet for topics
+     *                       "type": "object",
+     *                           "required": ["object_alias", "rows"],
+     *                           "additionalProperties": false,
+     *                           "properties": {},
+     *                           "rows": {}
+     *                       }
+     *                   }
+     *               }
+     *           }
+     *       }
+     *   }
+     *  }
+     * 
+     * ```
+     * 
+     * @return array
+     */
+    protected function generateDataSheetShema(): array
+    {
+        $properties = $this->generatePropertiesSchema();
+        return [
+            'type' => 'object',
+            'required' => [
+                'object_alias',
+                // 'columns',
+                'rows'
+            ],
+            'additionalProperties' => false,
+            'properties' => [
+                'object_alias' => [
+                    'type' => 'string',
+                    'const' => $this->getMetaObject()->getAliasWithNamespace()
+                ],
+                'rows' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'required' => array_keys($properties),
+                        'additionalProperties' => false,
+                        'properties' => $properties
+                    ]
+                ]
+            ],
+        ];
+    }
+
+    /**
+     * TODO remove in favor of generateDataSheetSchema()
+     * 
      * @return array<string, mixed>
      */
     protected function generateObjectSchema(): array
@@ -364,11 +480,15 @@ class DataSheetSchema implements ICanBeConvertedToUxon
                 continue;
             }
 
-            $alias = $attribute->getAlias();
-
+            $alias = $attribute->getAliasWithRelationPath();
+                
             try {
-                $dataType = $attribute->getDataType();
-                $rawSchema = JsonDataType::convertDataTypeToJsonSchemaType($dataType);
+                if ($attribute->isRelation()) {
+                    $rawSchema = $this->getRelationEnumType($attribute->getRelation());
+                } else {
+                    $dataType = $attribute->getDataType();
+                    $rawSchema = JsonDataType::convertDataTypeToJsonSchemaType($dataType);
+                }
                 $properties[$alias] = $this->sanitizeSchemaForStructuredOutputs($rawSchema, $attribute);
             } catch (\Throwable $e) {
                 $properties[$alias] = [
@@ -386,13 +506,13 @@ class DataSheetSchema implements ICanBeConvertedToUxon
             $propertyName = $subsheet->getName();
 
             if (array_key_exists($propertyName, $properties)) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     'Subsheet property name "' . $propertyName . '" conflicts with an existing attribute in object "' .
                     ($this->getObjectAlias() ?? 'unknown') . '".'
                 );
             }
 
-            $subsheetObjectSchema = $subsheet->generateObjectSchema();
+            $subsheetObjectSchema = $subsheet->generateDataSheetShema();
 
             if ($subsheet->isArrayForObject($this->getMetaObject())) {
                 $properties[$propertyName] = [
@@ -410,6 +530,33 @@ class DataSheetSchema implements ICanBeConvertedToUxon
         }
 
         return $properties;
+    }
+    
+    protected function getRelationEnumType(MetaRelationInterface $relation): array
+    {
+        $dataSheet = DataSheetFactory::createFromObject($relation->getRightObject());
+        $keyCol = $dataSheet->getColumns()->addFromAttribute($relation->getRightKeyAttribute());
+        if ($dataSheet->getMetaObject()->hasLabelAttribute()) {
+            $labelCol = $dataSheet->getColumns()->addFromLabelAttribute();
+        }
+        $dataSheet->dataRead(1000);
+        /* TODO
+        $type = JsonDataType::convertDataTypeToJsonSchemaType($keyCol->getDataType());
+        $type['enum'] = $keyCol->getValues();
+         */
+        $type = [
+            'type' => 'string',
+            'values' => $keyCol->getValues()
+        ];
+        if ($labelCol) {
+            $descr = 'Allowed values: ';
+            foreach ($dataSheet->getRows() as $i => $row) {
+                $descr .= $row[$keyCol->getName()] . ': ' . $row[$labelCol->getName()] . '; ';
+            }
+            $descr = rtrim($descr, '; ');
+            $type['description'] = $descr;
+        }
+        return $type;
     }
 
     /**
@@ -570,7 +717,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
 
         // Relation attributes are excluded from the flat property schema.
         // Related objects must be modeled explicitly as subsheets.
-        if ($attribute->isRelation() || $attribute->isRelated()) {
+        if ($attribute->isRelated()) {
             return false;
         }
 
@@ -594,6 +741,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      */
     protected function sanitizeSchemaForStructuredOutputs(array $schema, ?MetaAttributeInterface $attribute = null): array
     {
+        $clean = [];
         $allowedKeys = [
             'type',
             'properties',
@@ -604,8 +752,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
             'description',
             'additionalProperties',
         ];
-
-        $clean = [];
+        
+        if (! $schema['description']) {
+            $schema['description'] = $this->getattributeDescription($attribute);
+        }
 
         foreach ($schema as $key => $value) {
             if (! in_array($key, $allowedKeys, true)) {
@@ -666,6 +816,16 @@ class DataSheetSchema implements ICanBeConvertedToUxon
         }
 
         return $clean;
+    }
+    
+    protected function getattributeDescription(metaattributeInterface $attribute): string
+    {
+        $name = $attribute->getName();
+        $descr = $attribute->getShortDescription();
+        if ($descr && $descr !== $name) {
+            return $name . ': ' . $descr;
+        }
+        return $name;
     }
 
     protected function buildHumanReadableTypeHint(array $originalSchema, ?MetaAttributeInterface $attribute = null): ?string
@@ -812,7 +972,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      *
      * @param UxonObject|array<string|int, mixed>|mixed $requiredAttributes
      */
-    protected function setRequireAttributes($requiredAttributes): DataSheetSchema
+    public function setRequireAttributes($requiredAttributes): DataSheetSchema
     {
         $this->requiredAll = false;
         if ($requiredAttributes instanceof UxonObject) {
