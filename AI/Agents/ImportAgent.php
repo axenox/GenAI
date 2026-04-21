@@ -199,6 +199,13 @@ class ImportAgent extends GenericAssistant
                         $attr = $col->getAttribute();
                         if ($attr->isRelated()) {
                             $firstRel = $attr->getRelationPath()->getRelationFirst();
+                            if($firstRel->isReverseRelation()){
+                                $subSheet = new DataSheetSchema($this->getWorkbench(), new UxonObject([
+                                    'object_alias' => $firstRel->getRightObject()->getAliasWithNamespace(),
+                                ]), $schema);
+                                $schema->addSubsheet($subSheet);
+                            }
+                            
                             if (! $firstRel->isForwardRelation()) {
                                 continue;
                             }
