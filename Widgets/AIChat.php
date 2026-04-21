@@ -50,16 +50,23 @@ class AIChat extends InputCustom implements iFillEntireContainer
         $this->setIncludeJsModules(['vendor/npm-asset/deep-chat/dist/deepChat.bundle.js']);
         $this->setCssClass('exf-aichat');
         
+        // TODO why was this necessary although we used chatStyles below (they did not work in UI5)
+        $this->setCss(<<<CSS
+deep-chat {border: none !important;}
+CSS
+
+        );
+        
         $this->setScriptToResize(<<<JS
         
             setTimeout(function(jqSelf){
                 var jqParent = jqSelf.parent();
                 var iHeightP = jqParent.innerHeight();
                 var iWidthP = jqParent.innerWidth();
-                if (iHeightP > 0) {
+                if (iHeightP > 0 && iHeightP > jqSelf.height() + 10) {
                     jqSelf.height(iHeightP);
                 }
-                if (iWidthP > 0) {
+                if (iWidthP > 0 && iWidthP > jqSelf.height() + 10) {
                     jqSelf.width(iWidthP);
                 }
             }, 100, $('#{$this->getIdOfDeepChat()}'));
