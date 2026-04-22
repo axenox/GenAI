@@ -14,6 +14,7 @@ use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\Model\MetaRelationInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
+use InvalidArgumentException;
 
 /**
  * UXON model to define the structure of a single data sheet
@@ -48,17 +49,22 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      * @var DataSheetSchema[]|null
      */
     private ?array $subsheets = null;
+    
+    private ?DataSheetSchema $parentSheet = null;
 
     private ?UxonObject $subsheetsUxon = null;
 
     private ?MetaObjectInterface $metaObject = null;
 
-    public function __construct(WorkbenchInterface $workbench, ?UxonObject $uxon = null)
+    public function __construct(WorkbenchInterface $workbench, ?UxonObject $uxon = null, ?DataSheetSchema $parentSheet = null)
     {
         $this->workbench = $workbench;
 
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
+        }
+        if ($parentSheet !== null) {
+            $this->parentSheet = $parentSheet;
         }
     }
 
@@ -102,7 +108,7 @@ class DataSheetSchema implements ICanBeConvertedToUxon
                         );
                     }
 
-                    $subsheet = new self($this->workbench, $subsheetUxon);
+                    $subsheet = new self($this->workbench, $subsheetUxon, $this);
 
                     if ($subsheet->getName() === null || trim((string) $subsheet->getName()) === '') {
                         $subsheet->setName((string) $subsheetName);
@@ -484,6 +490,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
                 
             try {
                 if ($attribute->isRelation()) {
+                    if($this->isRelationToParent($attribute->getRelation())) {
+                        // This is a relation to the parent object. Don't include it as property, because the parent will include this schema as subsheet and handle the relation from that side.
+                        continue;
+                    }
                     $rawSchema = $this->getRelationEnumType($attribute->getRelation());
                 } else {
                     $dataType = $attribute->getDataType();
@@ -511,18 +521,9 @@ class DataSheetSchema implements ICanBeConvertedToUxon
                     ($this->getObjectAlias() ?? 'unknown') . '".'
                 );
             }
-
-            $subsheetObjectSchema = $subsheet->generateDataSheetShema();
-
-            if ($subsheet->isArrayForObject($this->getMetaObject())) {
-                $properties[$propertyName] = [
-                    'type' => 'array',
-                    'items' => $subsheetObjectSchema,
-                    'description' => 'List of related "' . $subsheet->getObjectAlias() . '" entries.',
-                ];
-            } else {
-                $properties[$propertyName] = $subsheetObjectSchema;
-            }
+            
+            $properties[$propertyName] = $subsheet->generateDataSheetShema();
+            
 
             if (! $this->isPropertyRequired($propertyName, $requiredLookup)) {
                 $properties[$propertyName] = $this->makeSchemaNullable($properties[$propertyName]);
@@ -530,6 +531,12 @@ class DataSheetSchema implements ICanBeConvertedToUxon
         }
 
         return $properties;
+    }
+    
+    protected function isRelationToParent(MetaRelationInterface $relation) : bool
+    {
+        if(!$this->parentSheet) return false;
+        return $relation->getRightObject() === $this->parentSheet->getMetaObject();
     }
     
     protected function getRelationEnumType(MetaRelationInterface $relation): array
@@ -1008,5 +1015,12 @@ class DataSheetSchema implements ICanBeConvertedToUxon
         $this->subsheets = null;
 
         return $this;
+    }
+    
+    public function addSubsheet(DataSheetSchema $subsheet): DataSheetSchema
+    {
+        $this->subsheets[] = $subsheet;
+        return $this;
+        
     }
 }
