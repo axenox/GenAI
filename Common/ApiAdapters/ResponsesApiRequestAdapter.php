@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -74,8 +75,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             $requiredArgNames = [];
 
             foreach ($tool->getArguments() as $argument) {
-                $argSchema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
-                $argSchema['description'] = $argument->getDescription();
+                $argSchema = $this->buildArgumentSchema($argument);
 
                 $arguments[$argument->getName()] = $argSchema;
                 $requiredArgNames[] = $argument->getName();
@@ -96,6 +96,31 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         }
 
         return $tools;
+    }
+
+    protected function buildArgumentSchema(ServiceParameterInterface $argument): array
+    {
+        $schema = null;
+        if (method_exists($argument, 'getCustomProperty')) {
+            $schemaJson = $argument->getCustomProperty('json_schema');
+            if (is_string($schemaJson) && trim($schemaJson) !== '') {
+                $decoded = json_decode($schemaJson, true);
+                if (is_array($decoded) && ! empty($decoded)) {
+                    $schema = $decoded;
+                }
+            }
+        }
+
+        if ($schema === null) {
+            $schema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
+        }
+
+        $description = $argument->getDescription();
+        if ($description !== '' && ! array_key_exists('description', $schema)) {
+            $schema['description'] = $description;
+        }
+
+        return $schema;
     }
 
     /**
