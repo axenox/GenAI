@@ -22,7 +22,7 @@ class ImportTool extends AbstractAiTool
 
     private ?UxonObject $saveAsUxon = null;
 
-    private ?UxonObject $saveTargetsUxon = null;
+    private ?UxonObject $dataSchemasUxon = null;
 
     private ?DataSheetSchema $dataSchema = null;
 
@@ -75,7 +75,7 @@ class ImportTool extends AbstractAiTool
     protected function setSaveAs(UxonObject $uxon): ImportTool
     {
         $this->saveAsUxon = $uxon;
-        $this->saveTargetsUxon = null;
+        $this->dataSchemasUxon = null;
         $this->dataSchema = null;
         $this->dataSchemas = null;
 
@@ -87,7 +87,7 @@ class ImportTool extends AbstractAiTool
     /**
      * Alternative to `save_as`: list of possible import target schemas.
      *
-     * @uxon-property save_data
+     * @uxon-property data_schemas
      * @uxon-type \axenox\GenAI\Common\DataSheetSchema[]
      * @uxon-template [
      *   {
@@ -100,7 +100,7 @@ class ImportTool extends AbstractAiTool
      *   }
      * ]
      */
-    protected function setSaveSchemas(UxonObject $uxon): ImportTool
+    protected function setDataSchemas(UxonObject $uxon): ImportTool
     {
         if (! $uxon->isArray()) {
             throw new RuntimeException('UXON property "save_targets" must be an array of schema objects (same shape as "save_as").');
@@ -110,7 +110,7 @@ class ImportTool extends AbstractAiTool
             throw new RuntimeException('UXON property "save_targets" cannot be empty.');
         }
 
-        $this->saveTargetsUxon = $uxon;
+        $this->dataSchemasUxon = $uxon;
         $this->saveAsUxon = null;
         $this->dataSchema = null;
         $this->dataSchemas = null;
@@ -170,12 +170,12 @@ class ImportTool extends AbstractAiTool
         if ($this->dataSchemas === null) {
             $this->dataSchemas = [];
 
-            if ($this->saveTargetsUxon !== null) {
-                if (! $this->saveTargetsUxon->isArray()) {
+            if ($this->dataSchemasUxon !== null) {
+                if (! $this->dataSchemasUxon->isArray()) {
                     throw new RuntimeException('UXON property "save_targets" must be an array of schema objects.');
                 }
 
-                foreach ($this->saveTargetsUxon as $idx => $targetUxon) {
+                foreach ($this->dataSchemasUxon as $idx => $targetUxon) {
                     if (! $targetUxon instanceof UxonObject) {
                         throw new RuntimeException('Invalid schema entry at $.save_targets[' . $idx . ']. Expected UXON object.');
                     }
@@ -227,7 +227,7 @@ class ImportTool extends AbstractAiTool
 
     protected function hasSchemaConfiguration(): bool
     {
-        return $this->saveAsUxon !== null || $this->saveTargetsUxon !== null;
+        return $this->saveAsUxon !== null || $this->dataSchemasUxon !== null;
     }
 
     protected function validateSchemaNode(DataSheetSchema $schema, string $path): void
