@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\MimeTypeDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
@@ -238,56 +239,10 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
     {
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-        switch ($ext) {
-            // Documents
-            case 'pdf':
-                return 'application/pdf';
-            case 'txt':
-                return 'text/plain';
-            case 'csv':
-                return 'text/csv';
-            case 'json':
-                return 'application/json';
-            case 'xml':
-                return 'application/xml';
-            case 'md':
-            case 'markdown':
-                return 'text/markdown';
-
-            // Microsoft Office
-            case 'xls':
-                return 'application/vnd.ms-excel';
-            case 'xlsx':
-                return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-            case 'doc':
-                return 'application/msword';
-            case 'docx':
-                return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-            case 'ppt':
-                return 'application/vnd.ms-powerpoint';
-            case 'pptx':
-                return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-
-            // Images
-            case 'png':
-                return 'image/png';
-            case 'jpg':
-            case 'jpeg':
-                return 'image/jpeg';
-            case 'webp':
-                return 'image/webp';
-            case 'gif':
-                return 'image/gif';
-            case 'svg':
-                return 'image/svg+xml';
-
-            // Archives
-            case 'zip':
-                return 'application/zip';
-
-            default:
-                return 'application/octet-stream';
-        }
+        return MimeTypeDataType::guessMimeTypeOfExtension(
+            $ext,
+            'application/octet-stream'
+        );
     }
 
     /**
