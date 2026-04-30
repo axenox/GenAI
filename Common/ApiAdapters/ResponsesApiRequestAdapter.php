@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -74,8 +75,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             $requiredArgNames = [];
 
             foreach ($tool->getArguments() as $argument) {
-                $argSchema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
-                $argSchema['description'] = $argument->getDescription();
+                $argSchema = $this->buildArgumentSchema($argument);
 
                 $arguments[$argument->getName()] = $argSchema;
                 $requiredArgNames[] = $argument->getName();
@@ -96,6 +96,31 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         }
 
         return $tools;
+    }
+
+    protected function buildArgumentSchema(ServiceParameterInterface $argument): array
+    {
+        $schema = null;
+        if (method_exists($argument, 'getCustomProperty')) {
+            $schemaJson = $argument->getCustomProperty('json_schema');
+            if (is_string($schemaJson) && trim($schemaJson) !== '') {
+                $decoded = json_decode($schemaJson, true);
+                if (is_array($decoded) && ! empty($decoded)) {
+                    $schema = $decoded;
+                }
+            }
+        }
+
+        if ($schema === null) {
+            $schema = JsonDataType::convertDataTypeToJsonSchemaType($argument->getDataType());
+        }
+
+        $description = $argument->getDescription();
+        if ($description !== '' && ! array_key_exists('description', $schema)) {
+            $schema['description'] = $description;
+        }
+
+        return $schema;
     }
 
     /**
@@ -193,11 +218,19 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             : $this->guessMimeTypeFromFilename($filename);
 
         $base64 = base64_encode($file->read());
+        $dataUrl = 'data:' . $mimeType . ';base64,' . $base64;
+
+        if (str_starts_with($mimeType, 'image/')) {
+            return [
+                'type' => 'input_image',
+                'image_url' => $dataUrl,
+            ];
+        }
 
         return [
             'type' => 'input_file',
             'filename' => $filename,
-            'file_data' => 'data:' . $mimeType . ';base64,' . $base64,
+            'file_data' => $dataUrl,
         ];
     }
 
@@ -206,6 +239,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
         switch ($ext) {
+            // Documents
             case 'pdf':
                 return 'application/pdf';
             case 'txt':
@@ -214,6 +248,43 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
                 return 'text/csv';
             case 'json':
                 return 'application/json';
+            case 'xml':
+                return 'application/xml';
+            case 'md':
+            case 'markdown':
+                return 'text/markdown';
+
+            // Microsoft Office
+            case 'xls':
+                return 'application/vnd.ms-excel';
+            case 'xlsx':
+                return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            case 'doc':
+                return 'application/msword';
+            case 'docx':
+                return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            case 'ppt':
+                return 'application/vnd.ms-powerpoint';
+            case 'pptx':
+                return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+            // Images
+            case 'png':
+                return 'image/png';
+            case 'jpg':
+            case 'jpeg':
+                return 'image/jpeg';
+            case 'webp':
+                return 'image/webp';
+            case 'gif':
+                return 'image/gif';
+            case 'svg':
+                return 'image/svg+xml';
+
+            // Archives
+            case 'zip':
+                return 'application/zip';
+
             default:
                 return 'application/octet-stream';
         }
