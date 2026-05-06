@@ -67,7 +67,14 @@ class ImportAgent extends GenericAssistant
 
     private ?UxonObject $saveAsUxon = null;
 
+    private ?UxonObject $dataSchemasUxon = null;
+
     private ?DataSheetSchema $dataSchema = null;
+
+    /**
+     * @var DataSheetSchema[]|null
+     */
+    private ?array $dataSchemas = null;
 
     private string $messageSchemaDescription = 'Message returned by the AI. This may contain confirmation, missing information, follow-up questions, or other user-facing text.';
 
@@ -78,7 +85,7 @@ class ImportAgent extends GenericAssistant
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
         $jsonSchema = $this->enrichJsonSchemaWithStandartVariabels(
-            $this->getDataSchema($prompt)->generateJsonSchema()
+            $this->getDataPayloadSchema($prompt)
         );
         
         $this->setResponseJsonSchema(new UxonObject($jsonSchema));
@@ -90,7 +97,7 @@ class ImportAgent extends GenericAssistant
 
         $this->readyToSave = (bool) ($json['ready_to_save'] ?? false);
         
-        $importedSheet = $this->dataSave(new UxonObject($payload));
+        $importedSheet = $this->dataSave(UxonObject::fromAnything($payload));
         $response->setData($importedSheet);
 
         if($this->willSaveData()){
@@ -104,6 +111,29 @@ class ImportAgent extends GenericAssistant
     
     protected function dataSave(UxonObject $uxon, ?DataSheetSchema $dataSheetSchema = null) : DataSheetInterface
     {
+        $importedSheet = null;
+
+        if ($this->isMultipleSchemaConfiguration() && $uxon->isArray()) {
+            foreach ($uxon as $item) {
+                if (! $item instanceof UxonObject) {
+                    continue;
+                }
+                $dataSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $item);
+                if ($this->willSaveData()) {
+                    //TODO
+                    //IDEE wenn ein Fehler passiert die KI erneut aufrufen mit zurückgeben des Fehlers. So könnte die KI selbstständig versuchen Fehler zu korrigieren
+                    $dataSheet->dataSave();
+                }
+                $importedSheet ??= $dataSheet;
+            }
+
+            if ($importedSheet === null) {
+                throw new RuntimeException('ImportAgent expected an array of UXON objects for "data_schemas" payload.');
+            }
+
+            return $importedSheet;
+        }
+
         $dataSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $uxon);
         
         if($this->willSaveData()){
@@ -130,13 +160,38 @@ class ImportAgent extends GenericAssistant
     protected function setSaveAs(UxonObject $uxon) : ImportAgent
     {
         $this->saveAsUxon = $uxon;
+        $this->dataSchemasUxon = null;
         $this->dataSchema = null;
+        $this->dataSchemas = null;
+        return $this;
+    }
+
+    /**
+     * Target object schemas used for import output.
+     *
+     * @uxon-property data_schemas
+     * @uxon-type \axenox\GenAI\Common\DataSheetSchema[]
+     * @uxon-template [{"object_alias":"my.App.REPORT","subsheets":[{"object_alias":"my.App.TOPIC","subsheets":[]}]}]
+     */
+    protected function setDataSchemas(UxonObject $uxon) : ImportAgent
+    {
+        if (! $uxon->isArray()) {
+            throw new RuntimeException('UXON property "data_schemas" must be an array of schema objects.');
+        }
+
+        if ($uxon->isEmpty()) {
+            throw new RuntimeException('UXON property "data_schemas" cannot be empty.');
+        }
+
+        $this->dataSchemasUxon = $uxon;
+        $this->saveAsUxon = null;
+        $this->dataSchema = null;
+        $this->dataSchemas = null;
         return $this;
     }
 
     /**
      * TODO allow multiple schemas - e.g. for master data pages with a split and multiple tables
-     * Evtl. muss dafür auch die Config save_as anders sein: z.B. als array of auch umbenannt in data_schemas
      * 
      * ```
      * {
@@ -154,29 +209,75 @@ class ImportAgent extends GenericAssistant
      * @param AiPromptInterface $prompt
      * @return DataSheetSchema
      */
-    protected function getDataSchema(AiPromptInterface $prompt) : DataSheetSchema
+    protected function getDataSchemas(AiPromptInterface $prompt) : array
     {
-        if ($this->dataSchema === null) {
-            if ($this->saveAsUxon === null) {
+        if ($this->dataSchemas === null) {
+            $this->dataSchemas = [];
+
+            if ($this->dataSchemasUxon !== null) {
+                foreach ($this->dataSchemasUxon as $idx => $schemaUxon) {
+                    if (! $schemaUxon instanceof UxonObject) {
+                        throw new RuntimeException('Invalid schema entry at $.data_schemas[' . $idx . ']. Expected UXON object.');
+                    }
+
+                    $schema = new DataSheetSchema($this->getWorkbench(), $schemaUxon);
+                    $this->validateSchemaNode($schema, '$.data_schemas[' . $idx . ']');
+                    $this->dataSchemas[] = $schema;
+                }
+            } elseif ($this->saveAsUxon !== null) {
+                $schema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
+                $this->validateSchemaNode($schema, '$.save_as');
+                $this->dataSchemas[] = $schema;
+            } else {
                 switch (true) {
                     case $prompt->isTriggeredOnPage():
                         $page = $prompt->getPageTriggeredOn();
                         $rootWidget = $page->getWidgetRoot();
                         if ($rootWidget) {
-                            $schemas = $this->findSchemasInWidget($rootWidget);
-                            $this->dataSchema = $schemas[0];
+                            $this->dataSchemas = $this->findSchemasInWidget($rootWidget);
                         }
                         break;
                     default:
-                        throw new RuntimeException('ImportAgent requires UXON property "save_as" with at least "object_alias".');
+                        throw new RuntimeException('ImportAgent requires UXON property "save_as" (object) or "data_schemas" (array), each with at least "object_alias".');
                 }
-            } else {
-                $this->dataSchema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
-                $this->validateSchemaNode($this->dataSchema, '$.save_as');
             }
+
+            if (empty($this->dataSchemas)) {
+                throw new RuntimeException('ImportAgent requires at least one data schema.');
+            }
+
+            $this->dataSchema = $this->dataSchemas[0];
+        }
+
+        return $this->dataSchemas;
+    }
+
+    protected function getDataSchema(AiPromptInterface $prompt) : DataSheetSchema
+    {
+        if ($this->dataSchema === null) {
+            $this->dataSchema = $this->getDataSchemas($prompt)[0];
         }
 
         return $this->dataSchema;
+    }
+
+    protected function getDataPayloadSchema(AiPromptInterface $prompt): array
+    {
+        $schemas = [];
+        foreach ($this->getDataSchemas($prompt) as $schema) {
+            $schemas[] = $schema->generateJsonSchema();
+        }
+
+        if (count($schemas) === 1) {
+            return $schemas[0];
+        }
+
+        return ["type" => "array", "items" => ["anyOf" => $schemas]];
+    }
+
+    protected function isMultipleSchemaConfiguration(): bool
+    {
+        return $this->dataSchemasUxon !== null;
     }
 
     /**
