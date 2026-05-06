@@ -6,6 +6,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\MimeTypeDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
@@ -218,11 +219,19 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             : $this->guessMimeTypeFromFilename($filename);
 
         $base64 = base64_encode($file->read());
+        $dataUrl = 'data:' . $mimeType . ';base64,' . $base64;
+
+        if (str_starts_with($mimeType, 'image/')) {
+            return [
+                'type' => 'input_image',
+                'image_url' => $dataUrl,
+            ];
+        }
 
         return [
             'type' => 'input_file',
             'filename' => $filename,
-            'file_data' => 'data:' . $mimeType . ';base64,' . $base64,
+            'file_data' => $dataUrl,
         ];
     }
 
@@ -230,18 +239,10 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
     {
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-        switch ($ext) {
-            case 'pdf':
-                return 'application/pdf';
-            case 'txt':
-                return 'text/plain';
-            case 'csv':
-                return 'text/csv';
-            case 'json':
-                return 'application/json';
-            default:
-                return 'application/octet-stream';
-        }
+        return MimeTypeDataType::guessMimeTypeOfExtension(
+            $ext,
+            'application/octet-stream'
+        );
     }
 
     /**
