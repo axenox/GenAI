@@ -7,7 +7,7 @@ use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiAgentRuntimeError;
-use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
@@ -149,10 +149,9 @@ class GenericAssistant implements AiAgentInterface
         
         $userPromt = $prompt->getUserPrompt();
         try {
-                $systemPrompt = $this->getSystemPrompt($prompt);
-                $this->setInstructions($systemPrompt );
+            $systemPrompt = $this->getSystemPrompt($prompt);
+            $this->setInstructions($systemPrompt );
         } catch (\Throwable $e) {
-            //TODO Improve AiConceptIncompleteError 
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
             throw $this->saveConversationError($prompt,$e);
             /* TODO handle different errors differently
@@ -785,7 +784,7 @@ class GenericAssistant implements AiAgentInterface
                 }
                 $this->systemPromptRendered = $renderer->render($systemPrompt ?? '');
             } catch (\Throwable $e) {
-                throw new AiConceptIncompleteError('Cannot apply AI concepts. ' . $e->getMessage(), null, $e);
+                throw new AiConceptRenderingError($renderer, 'Cannot apply AI concepts. ' . $e->getMessage(), null, $e, $systemPrompt);
             }
         }
         return $this->systemPromptRendered;

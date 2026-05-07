@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\Concepts;
 
-use axenox\GenAI\Exceptions\AiConceptIncompleteError;
+use axenox\GenAI\Exceptions\AiConceptConfigurationError;
 use exface\Core\DataConnectors\MariaDbSqlConnector;
 use exface\Core\DataConnectors\MsSqlConnector;
 use exface\Core\DataConnectors\MySqlConnector;
@@ -68,7 +68,7 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
     {
         $objects = parent::getObjects();
         if (empty($objects)) {
-            throw new AiConceptIncompleteError('No SQL-based meta objects found!');
+            throw new AiConceptConfigurationError($this, 'No SQL-based meta objects found!');
         }
         return $objects;
     }
