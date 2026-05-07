@@ -5,6 +5,11 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Exceptions\RuntimeException;
 
+/**
+ * Exception thrown if the UXON configuration for an AI concept is broken or incomplete
+ * 
+ * @author Andrej Kabachnik
+ */
 class AiConceptConfigurationError extends RuntimeException
 {
     private AiConceptInterface $concept;

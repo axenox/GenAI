@@ -6,6 +6,11 @@ use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Widgets\DebugMessage;
 
+/**
+ * Exception thrown if an AI concept cannot be rendered for the given prompt
+ * 
+ * @author Andrej Kabachnik
+ */
 class AiConceptRuntimeError extends RuntimeException
 {
     private AiConceptInterface $concept;
