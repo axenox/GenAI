@@ -1,0 +1,61 @@
+# AI tools
+
+## Summary
+
+AI agents running on our no-code platform can use tools. Designers define a 
+set of available tools for every agent in its UXON configuration. Each tool 
+is based on a UXON prototype class. The tool prototype implements the inner 
+logic (e.g. reading a file), while the configuration for a specific agent 
+will describe the tool in the context of that agents use case: e.g. what 
+files are for, from which folders they can be read, etc. As always, the 
+prototype defines, what configuration is possible.
+
+The main idea is to provide tool skeletons for app designers to us in their 
+agents for specific tasks.
+
+## Examples
+
+The agent below has a tool to get the DDL statement for a table in an SQL DB.
+
+```
+{
+  "instructions": "You help analyse and modify an SQL DB",
+  "tools": {
+    "get_sql_create_table": {
+      "description": "Returns the DDL statement to create the given table including foreign keys and constraints",
+      "arguments": [
+        {
+          "name": "table_name",
+          "description": "Name of the table without schema prefix",
+          "data_type": {
+            "alias": "exface.Core.String"
+          }
+        },
+        {
+          "name": "schema",
+          "data_type": {
+            "alias": "exface.Core.String"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## Implementation details
+
+AI tool prototypes must implement `axenox\genai\Interfaces\AI Tool 
+Interface`. Most of them extend `axenox\genai\Common\AbstractAiTool` to 
+share common structures.
+
+The main methods to implement are:
+
+- `invoke($arguments)` - actually run the tool
+- `getReturnDataType()` - important for good formatting/escaping of the result
+- `getArgumentsTemplates()`, which returns the generic JSON schema for all 
+  possible arguments. This is supposed to be refined in every agent using 
+  the tool.
+
+AI tool prototypes can be implemented in any app and should be placed in the 
+`AI/Tools` folder for easy autodiscovery. 
