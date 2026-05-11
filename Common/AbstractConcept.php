@@ -18,6 +18,7 @@ abstract class AbstractConcept implements AiConceptInterface
     private $workbench;
     private $placeholder = null;
     private $uxon = null;
+    private ?string $alias = null;
     
     private $output = null;
 
@@ -126,6 +127,27 @@ abstract class AbstractConcept implements AiConceptInterface
     protected function getAgent() : AiAgentInterface
     {
         return $this->agent;
+    }
+
+    /**
+     * Alias of the concept prototype with namespace
+     * 
+     * @uxon-property alias
+     * @uxon-type metamodel:axenox.GenAI.AI_CONCEPT_PROTOTYPE:ALIAS_WITH_NS
+     * @uxon-required true
+     * 
+     * @param string $aliasWithNamespace
+     * @return AiConceptInterface
+     */
+    protected function setAlias(string $aliasWithNamespace) : AiConceptInterface
+    {
+        $this->alias = $aliasWithNamespace;
+        return $this;
+    }
+    
+    public function getAliasWithNamespace() : string
+    {
+        return $this->alias;
     }
     
     abstract protected function getOutput() : string;

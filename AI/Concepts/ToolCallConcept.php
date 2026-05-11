@@ -39,7 +39,7 @@ class ToolCallConcept extends AbstractConcept
     protected function getTool() : AiToolInterface
     {
         if ($this->toolDef !== null) {
-            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->getToolName(), $this->toolDef);
+            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->toolDef, $this->getToolName());
         } else {
             throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
         }

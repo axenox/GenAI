@@ -2,8 +2,8 @@
 namespace axenox\GenAI\Common\Selectors;
 
 use exface\Core\CommonLogic\Selectors\AbstractSelector;
-use exface\Core\CommonLogic\Selectors\Traits\PrototypeSelectorTrait;
 use axenox\GenAI\Interfaces\Selectors\AiConceptSelectorInterface;
+use exface\Core\CommonLogic\Selectors\Traits\ResolvableNameSelectorTrait;
 
 /**
  * Generic implementation of the AiConceptSelectorInterface.
@@ -15,7 +15,7 @@ use axenox\GenAI\Interfaces\Selectors\AiConceptSelectorInterface;
  */
 class AiConceptSelector extends AbstractSelector implements AiConceptSelectorInterface
 {
-    use PrototypeSelectorTrait;
+    use ResolvableNameSelectorTrait;
     
     /**
      *

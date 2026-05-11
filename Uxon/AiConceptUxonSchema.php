@@ -2,6 +2,9 @@
 namespace axenox\GenAI\Uxon;
 
 use axenox\GenAI\Common\AbstractConcept;
+use axenox\GenAI\Common\Selectors\AiConceptSelector;
+use axenox\GenAI\Exceptions\AiConceptNotFoundError;
+use axenox\GenAI\Factories\AiFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Uxon\UxonSchema;
 
@@ -27,20 +30,35 @@ class AiConceptUxonSchema extends UxonSchema
      */
     public function getPrototypeClass(UxonObject $uxon, array $path, string $rootPrototypeClass = null) : string
     {
-        $name = $rootPrototypeClass ?? $this->getDefaultPrototypeClass();
+        $class = $rootPrototypeClass ?? $this->getDefaultPrototypeClass();
         
         foreach ($uxon as $key => $value) {
             if (strcasecmp($key, 'class') === 0) {
-                $name = $value;
+                $selector = new AiConceptSelector($this->getWorkbench(), $value);
+                break;
+            }
+            if (strcasecmp($key, 'alias') === 0) {
+                $selector = new AiConceptSelector($this->getWorkbench(), $value);
                 break;
             }
         }
         
-        if (count($path) > 1) {
-            return parent::getPrototypeClass($uxon, $path, $name);
+        if ($selector !== null) {
+            try {
+                $class = AiFactory::findConceptClass($selector);
+                if ($class !== null && trim($selector->toString()) !== '') {
+                    $class = '\\' . ltrim($class, '\\');
+                }
+            } catch (AiConceptNotFoundError $e) {
+                // If the concept class cannot be found, we will just use the default prototype class.
+            }
         }
         
-        return $name;
+        if (count($path) > 1) {
+            return parent::getPrototypeClass($uxon, $path, $class);
+        }
+        
+        return $class;
     }
     
     /**
