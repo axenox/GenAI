@@ -2,6 +2,10 @@
 namespace axenox\GenAI\Uxon;
 
 use axenox\GenAI\Common\AbstractTool;
+use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Exceptions\AiConceptNotFoundError;
+use axenox\GenAI\Exceptions\AiToolNotFoundError;
+use axenox\GenAI\Factories\AiFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Uxon\UxonSchema;
 
@@ -13,7 +17,7 @@ use exface\Core\Uxon\UxonSchema;
  * @author Andrej Kabachnik
  *
  */
-class AiConceptUxonSchema extends UxonSchema
+class AiToolUxonSchema extends UxonSchema
 {
     public static function getSchemaName() : string
     {
@@ -27,20 +31,35 @@ class AiConceptUxonSchema extends UxonSchema
      */
     public function getPrototypeClass(UxonObject $uxon, array $path, string $rootPrototypeClass = null) : string
     {
-        $name = $rootPrototypeClass ?? $this->getDefaultPrototypeClass();
-        
+        $class = $rootPrototypeClass ?? $this->getDefaultPrototypeClass();
+
         foreach ($uxon as $key => $value) {
             if (strcasecmp($key, 'class') === 0) {
-                $name = $value;
+                $selector = new AiToolSelector($this->getWorkbench(), $value);
+                break;
+            }
+            if (strcasecmp($key, 'alias') === 0) {
+                $selector = new AiToolSelector($this->getWorkbench(), $value);
                 break;
             }
         }
-        
-        if (count($path) > 1) {
-            return parent::getPrototypeClass($uxon, $path, $name);
+
+        if ($selector !== null && trim($selector->toString()) !== '') {
+            try {
+                $class = AiFactory::findToolClass($selector);
+                if ($class !== null) {
+                    $class = '\\' . ltrim($class, '\\');
+                }
+            } catch (AiToolNotFoundError $e) {
+                // If the concept class cannot be found, we will just use the default prototype class.
+            }
         }
-        
-        return $name;
+
+        if (count($path) > 1) {
+            return parent::getPrototypeClass($uxon, $path, $class);
+        }
+
+        return $class;
     }
     
     /**

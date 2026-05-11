@@ -1,15 +1,18 @@
 <?php
 namespace axenox\GenAI\Factories;
 
+use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
+use axenox\GenAI\Exceptions\AiConceptNotFoundError;
+use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
 use axenox\GenAI\Common\Selectors\AiConceptSelector;
+use axenox\GenAI\Interfaces\Selectors\AiConceptSelectorInterface;
 use axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\PhpClassDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\DataTypes\SemanticVersionDataType;
 use exface\Core\DataTypes\SortingDirectionsDataType;
@@ -21,6 +24,7 @@ use exface\Core\Factories\AbstractSelectableComponentFactory;
 use exface\Core\Factories\DataSheetFactory;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Interfaces\Selectors\SelectorInterface;
 use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -42,24 +46,63 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
         return parent::createFromSelector($selector, $constructorArguments);
     }
+
     /**
      *
-     * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
+     * @param AiAgentInterface $agent
+     * @param AiPromptInterface $prompt
      * @param string $placeholder
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \exface\Core\CommonLogic\UxonObject $uxon
-     * @throws \exface\Core\Exceptions\UxonParserError
-     * @return \axenox\GenAI\Interfaces\AiConceptInterface
+     * @param UxonObject $uxon
+     * @return AiConceptInterface
      */
     public static function createConceptFromUxon(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
     {
-        if ($uxon->hasProperty('class')) {
-            $selector = new AiConceptSelector($agent->getWorkbench(), $uxon->getProperty('class'));
-            $uxon->unsetProperty('class');
-        } else {
-            throw new UxonParserError($uxon, 'Cannot instantiate AI concept: no class property found in UXON model');
+        $selector = $uxon->getProperty('alias');
+        if ($selector === null) {
+            $selector = $uxon->getProperty('class');
+            if ($selector !== null) {
+                $uxon->unsetProperty('class');
+            } else {
+                throw new UxonParserError($uxon, 'Cannot instantiate AI concept: neither `alias` nor `class` property found in UXON model');
+            }
         }
-        return static::createFromSelector($selector, [$agent, $prompt, $placeholder, $uxon]);
+        $instance = static::createConceptFromSelector(new AiConceptSelector($agent->getWorkbench(), $selector), $agent, $prompt, $placeholder, $uxon);
+        return $instance;
+        
+    }
+
+    public static function createConceptFromSelector(AiConceptSelectorInterface $selector, AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
+    {
+        $class = static::findConceptClass($selector);
+        $instance = new $class($agent, $prompt, $placeholder, $uxon);
+        return $instance;
+    }
+    
+    public static function findConceptClass(AiConceptSelectorInterface $selector) : string
+    {
+        switch (true) {
+            case $selector->isAlias():
+                $appAlias = $selector->getAppAlias();
+                $conceptAlias = StringDataType::substringAfter($selector->toString(), AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, $selector->toString(), false, true);
+                $classPath = $selector->getWorkbench()->filemanager()->getPathToVendorFolder() 
+                    . DIRECTORY_SEPARATOR . str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, DIRECTORY_SEPARATOR, $appAlias) 
+                    . DIRECTORY_SEPARATOR . 'AI'
+                    . DIRECTORY_SEPARATOR . 'Concepts'
+                    . DIRECTORY_SEPARATOR . $conceptAlias . '.php';
+                try {
+                    $class = PhpFilePathDataType::findClassInFile($classPath);
+                } catch (\Throwable $e) {
+                    throw new AiConceptNotFoundError('Concept "' . $selector->toString() . '" not found', null, $e);
+                }
+                break;
+            case $selector->isClassname():
+                $class = $selector->toString();
+                break;
+            case $selector->isFilepath():
+                $class = PhpFilePathDataType::findClassInFile($selector->toString());
+                break;
+        }
+        return $class;
     }
 
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface
@@ -161,39 +204,76 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * @throws \axenox\GenAI\Exceptions\AiAgentNotFoundError
      * @return object
      */
-    public static function createToolFromUxon(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : AiToolInterface
+    public static function createToolFromUxon(WorkbenchInterface $workbench, UxonObject $uxon, string $functionName) : AiToolInterface
     {
-        $class = static::findToolClass($workbench, $functionName, $uxon);
+        $selector = $uxon->getProperty('alias');
+        if ($selector === null) {
+            $selector = $uxon->getProperty('class');
+            if ($selector !== null) {
+                $uxon->unsetProperty('class');
+            } else {
+                throw new UxonParserError($uxon, 'Cannot instantiate AI tool: neither `alias` nor `class` property found in UXON model');
+            }
+        }
+        $class = static::findToolClass(new AiToolSelector($workbench, $selector), $functionName);
 
         if (! $uxon->hasProperty('name')) {
             $uxon->setProperty('name', $functionName);
         }
 
-        $tool = new $class($workbench, $uxon);
-
-        return $tool;
+        $instance = new $class($workbench, $uxon);
+        return $instance;
     }
 
-    public static function findToolClass(WorkbenchInterface $workbench, string $functionName, UxonObject $uxon) : string
+    public static function findToolClass(AiToolSelectorInterface $selector, ?string $functionName = null) : string
     {
-        if ($uxon->hasProperty('class')) {
-            $class = $uxon->getProperty('class');
-        } else {
-            $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
-            $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
-            $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
-            $ds->getColumns()->addMultiple([
-                'PATHNAME_ABSOLUTE',
-                'FILENAME'
-            ]);
-            $ds->dataRead();
-            if($ds->isEmpty()){
-                throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
-            }
-            $row = $ds->getRow(0);
+        switch (true) {
+            case $selector->isAlias():
+                $appAlias = trim($selector->getAppAlias() ?? '');
+                if ($appAlias === '') {
+                    throw new AiToolNotFoundError('Tool "' . $selector->toString() . '" not found');
+                }
+                $toolAlias = trim(StringDataType::substringAfter($selector->toString(), AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, $selector->toString(), false, true));
+                if ($toolAlias === '') {
+                    throw new AiToolNotFoundError('Tool "' . $selector->toString() . '" not found');
+                }
+                $classPath = $selector->getWorkbench()->filemanager()->getPathToVendorFolder()
+                    . DIRECTORY_SEPARATOR . str_replace(AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER, DIRECTORY_SEPARATOR, $appAlias)
+                    . DIRECTORY_SEPARATOR . 'AI'
+                    . DIRECTORY_SEPARATOR . 'Tools'
+                    . DIRECTORY_SEPARATOR . $toolAlias . '.php';
 
-            $path = $row['PATHNAME_ABSOLUTE'];
-            $class = PhpFilePathDataType::findClassInFile($path, 1000);
+                try {
+                    $class = PhpFilePathDataType::findClassInFile($classPath);
+                } catch (\Throwable $e) {
+                    throw new AiToolNotFoundError('Tool "' . $selector->toString() . '" not found', null, $e);
+                }
+                break;
+            case $selector->isClassname():
+                $class = $selector->toString();
+                break;
+            case $selector->isFilepath():
+                $class = PhpFilePathDataType::findClassInFile($selector->toString());
+                break;
+            case $functionName !== null:
+                $ds = DataSheetFactory::createFromObjectIdOrAlias($selector->getWorkbench(), 'axenox.GenAI.AI_TOOL_PROTOTYPE');
+                $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
+                $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
+                $ds->getColumns()->addMultiple([
+                    'PATHNAME_ABSOLUTE',
+                    'FILENAME'
+                ]);
+                $ds->dataRead();
+                if($ds->isEmpty()){
+                    throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
+                }
+                $row = $ds->getRow(0);
+    
+                $path = $row['PATHNAME_ABSOLUTE'];
+                $class = PhpFilePathDataType::findClassInFile($path, 1000);
+                break;
+            default:
+                throw new AiToolNotFoundError("Ai tool `{$selector->toString()}` not found");
         }
         return $class;
     }
@@ -214,7 +294,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     {
         switch (true) {
             case $selector->isAlias():
-                return self::createToolFromUxon($selector->getWorkbench(), $selector->toString(), $uxon);
+                $class = static::findToolClass($selector);
+                break;
             case $selector->isClassname():
                 $class = $selector->toString();
                 break;

@@ -2,7 +2,7 @@
 namespace axenox\GenAI\Common;
 
 use axenox\GenAI\Interfaces\AiToolInterface;
-use axenox\GenAI\Uxon\AiConceptUxonSchema;
+use axenox\GenAI\Uxon\AiToolUxonSchema;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -15,7 +15,8 @@ abstract class AbstractAiTool implements AiToolInterface
 {
     use ImportUxonObjectTrait;
 
-    protected $workbench = null;
+    private $workbench = null;
+    private ?string $alias = null;
 
     private $uxon = null;
 
@@ -249,22 +250,27 @@ abstract class AbstractAiTool implements AiToolInterface
      */
     public static function getUxonSchemaClass() : ?string
     {
-        return AiConceptUxonSchema::class;
+        return AiToolUxonSchema::class;
     }
 
     /**
-     * PHP class of the tool
-     * 
-     * @uxon-property class
-     * @uxon-type string
-     * @uxon-template \axenox\GenAI\AI\Tools\GetDocsTool
-     * 
-     * @param string $class
+     * Alias of the tool prototype with namespace
+     *
+     * @uxon-property alias
+     * @uxon-type metamodel:axenox.GenAI.AI_TOOL_PROTOTYPE:ALIAS_WITH_NS
+     * @uxon-required true
+     *
+     * @param string $aliasWithNamespace
      * @return AiToolInterface
      */
-    protected function setClass(string $class) : AiToolInterface
+    protected function setAlias(string $aliasWithNamespace) : AiToolInterface
     {
-        // Do nothing - this is just to make importUxon() work
+        $this->alias = $aliasWithNamespace;
         return $this;
+    }
+
+    public function getAliasWithNamespace() : string
+    {
+        return $this->alias;
     }
 }

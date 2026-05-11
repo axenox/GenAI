@@ -607,7 +607,7 @@ class GenericAssistant implements AiAgentInterface
             $query = new OpenAiApiDataQuery($this->workbench);
             $query->appendMessage('Failed conversation: ' . $prompt->getUserPrompt());
             $conversationId =  $this->createConversation($prompt, $query);
-            $this->enrichUxonWithTools($prompt, $dataUxon);
+            $this->enrichUxonWithTools($dataUxon);
             $dataUxon->setProperty('User Prompt', $prompt->getUserPrompt());
             try {
                 $dataUxon->setProperty('System Prompt', $this->systemPrompt);
@@ -683,7 +683,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @uxon-property concepts
      * @uxon-type \axenox\GenAI\Common\AbstractConcept
-     * @uxon-template {"metamodel_bmdb": {"class": "\\exface\\Core\\AI\\Concepts\\MetamodelDbmlConcept"}}
+     * @uxon-template {"placeholder_name": {"alias": ""}}
      * 
      * @param \exface\Core\CommonLogic\UxonObject $arrayOfConcepts
      * @return \axenox\GenAI\Interfaces\AiAgentInterface
@@ -1159,7 +1159,7 @@ class GenericAssistant implements AiAgentInterface
                 $this->tools = [];
             } else {
                 foreach ($this->toolsUxon as $tool => $uxon) {
-                    $tool = AiFactory::createToolFromUxon($this->workbench, $tool, $uxon);
+                    $tool = AiFactory::createToolFromUxon($this->workbench, $uxon, $tool);
                     $this->addTool($tool);
                 }
             }
