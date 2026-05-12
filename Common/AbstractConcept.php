@@ -1,6 +1,9 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\Common\Selectors\AiConceptSelector;
+use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Uxon\AiConceptUxonSchema;
@@ -147,7 +150,7 @@ abstract class AbstractConcept implements AiConceptInterface
     
     public function getAliasWithNamespace() : string
     {
-        return $this->alias;
+        return $this->alias ?? AiFactory::findToolAlias(new AiConceptSelector($this->getWorkbench(), get_class($this)));
     }
     
     abstract protected function getOutput() : string;

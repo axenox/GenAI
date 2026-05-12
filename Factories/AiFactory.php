@@ -13,10 +13,13 @@ use axenox\GenAI\Interfaces\Selectors\AiConceptSelectorInterface;
 use axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\FilePathDataType;
+use exface\Core\DataTypes\PhpClassDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\DataTypes\SemanticVersionDataType;
 use exface\Core\DataTypes\SortingDirectionsDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Exceptions\UxonParserError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
@@ -25,6 +28,7 @@ use exface\Core\Factories\DataSheetFactory;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
+use exface\Core\Interfaces\Selectors\PrototypeSelectorInterface;
 use exface\Core\Interfaces\Selectors\SelectorInterface;
 use exface\Core\Interfaces\Selectors\VersionedSelectorInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -305,5 +309,44 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
         $tool = new $class($selector->getWorkbench(), $uxon);
         return $tool;
+    }
+
+    /**
+     * @param AiConceptSelectorInterface $selector
+     * @return string
+     */
+    public static function findConceptAlias(AiConceptSelectorInterface $selector) : string
+    {
+        return static::findAliasOfSelector($selector);
+    }
+
+    /**
+     * @param AiToolSelectorInterface $selector
+     * @return string
+     */
+    public static function findToolAlias(AiToolSelectorInterface $selector) : string 
+    {
+        return static::findAliasOfSelector($selector);
+    }
+
+    /**
+     * @param SelectorInterface $selector
+     * @return string
+     */
+    protected static function findAliasOfSelector(SelectorInterface $selector) : string
+    {
+        switch (true) {
+            case ($selector instanceof AliasSelectorInterface) && $selector->isAlias():
+                return $selector->toString();
+            case ($selector instanceof PrototypeSelectorInterface) && $selector->isClassname():
+                return $selector->getAppAlias()
+                    . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER
+                    . PhpClassDataType::findClassNameWithoutNamespace($selector->toString());
+            case ($selector instanceof PrototypeSelectorInterface) && $selector->isFilepath():
+                return $selector->getAppAlias()
+                    . AliasSelectorInterface::ALIAS_NAMESPACE_DELIMITER
+                    . FilePathDataType::findFileName($selector->toString(), false);
+        }
+        throw new InvalidArgumentException("Cannot find alias for selector " . $selector->toString());
     }
 }
