@@ -24,7 +24,7 @@ class GetObjectTool extends AbstractAiTool
     {
         list($objectId) = $arguments;
 
-        $printer = new ObjectMarkdownPrinter($this->workbench, $objectId);
+        $printer = new ObjectMarkdownPrinter($this->getWorkbench(), $objectId);
         $markdwon = "No Data found";
         try{
             $markdwon = $printer->getMarkdown();

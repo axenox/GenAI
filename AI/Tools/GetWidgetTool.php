@@ -121,7 +121,7 @@ class GetWidgetTool extends AbstractAiTool
             return $output;
         }
         catch(\Throwable $e){
-            $this->workbench->getLogger()->logException($e);
+            $this->getWorkbench()->getLogger()->logException($e);
             return 'ERROR: file not found!';
         }
     }

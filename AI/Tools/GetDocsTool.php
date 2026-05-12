@@ -94,7 +94,7 @@ class GetDocsTool extends AbstractAiTool
             return $md;
         }
         catch(\Throwable $e){
-            $this->workbench->getLogger()->logException($e);
+            $this->getWorkbench()->getLogger()->logException($e);
             return 'ERROR: file not found!';
         }
     }
