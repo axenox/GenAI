@@ -215,16 +215,18 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             $selector = $uxon->getProperty('class');
             if ($selector !== null) {
                 $uxon->unsetProperty('class');
-            } else {
-                throw new UxonParserError($uxon, 'Cannot instantiate AI tool: neither `alias` nor `class` property found in UXON model');
-            }
+            } 
         }
-        $class = static::findToolClass(new AiToolSelector($workbench, $selector), $functionName);
+        if ($selector !== null) {
+            $class = static::findToolClass(new AiToolSelector($workbench, $selector), $functionName);
+        } else {
+            $class = static::findToolClassForFunctionName($workbench, $functionName);
+        }
 
         if (! $uxon->hasProperty('name')) {
             $uxon->setProperty('name', $functionName);
         }
-
+        
         $instance = new $class($workbench, $uxon);
         return $instance;
     }
@@ -260,25 +262,31 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
                 $class = PhpFilePathDataType::findClassInFile($selector->toString());
                 break;
             case $functionName !== null:
-                $ds = DataSheetFactory::createFromObjectIdOrAlias($selector->getWorkbench(), 'axenox.GenAI.AI_TOOL_PROTOTYPE');
-                $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
-                $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
-                $ds->getColumns()->addMultiple([
-                    'PATHNAME_ABSOLUTE',
-                    'FILENAME'
-                ]);
-                $ds->dataRead();
-                if($ds->isEmpty()){
-                    throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
-                }
-                $row = $ds->getRow(0);
-    
-                $path = $row['PATHNAME_ABSOLUTE'];
-                $class = PhpFilePathDataType::findClassInFile($path, 1000);
+                $class = static::findToolClassForFunctionName($selector->getWorkbench(), $functionName);
                 break;
             default:
                 throw new AiToolNotFoundError("Ai tool `{$selector->toString()}` not found");
         }
+        return $class;
+    }
+    
+    protected static function findToolClassForFunctionName(WorkbenchInterface $workbench, string $functionName) : string
+    {
+        $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
+        $className = StringDataType::convertCaseUnderscoreToPascal($functionName) . 'Tool.php';
+        $ds->getFilters()->addConditionFromString('FILENAME', $className, ComparatorDataType::EQUALS);
+        $ds->getColumns()->addMultiple([
+            'PATHNAME_ABSOLUTE',
+            'FILENAME'
+        ]);
+        $ds->dataRead();
+        if($ds->isEmpty()){
+            throw new AiAgentNotFoundError("Ai tool '$functionName' not found");
+        }
+        $row = $ds->getRow(0);
+
+        $path = $row['PATHNAME_ABSOLUTE'];
+        $class = PhpFilePathDataType::findClassInFile($path, 1000);
         return $class;
     }
 
