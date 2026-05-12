@@ -273,4 +273,16 @@ abstract class AbstractAiTool implements AiToolInterface
     {
         return $this->alias;
     }
+    
+    public static function getTemplate(WorkbenchInterface $workbench) : array
+    {
+        $argsModels = [];
+        foreach (static::getArgumentsTemplates($workbench) as $param) {
+            $argsModels[] = $param->exportUxonObject()->toArray();
+        }
+        return [
+            'description' => '',
+            'arguments' => $argsModels,
+        ];
+    }
 }

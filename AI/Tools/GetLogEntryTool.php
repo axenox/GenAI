@@ -25,7 +25,7 @@ class GetLogEntryTool extends AbstractAiTool
     {
         list($logId, $logFilePath) = $arguments;
         
-        $printer = new LogEntryMarkdownPrinter($this->workbench, $logId, $logFilePath);
+        $printer = new LogEntryMarkdownPrinter($this->getWorkbench(), $logId, $logFilePath);
 
         return $printer->getMarkdown();
     }

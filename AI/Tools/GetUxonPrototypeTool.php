@@ -30,7 +30,7 @@ class GetUxonPrototypeTool extends AbstractAiTool
     {
         list($selector) = $arguments;
 
-        $printer = new UxonPrototypeMarkdownPrinter($this->workbench, $selector);
+        $printer = new UxonPrototypeMarkdownPrinter($this->getWorkbench(), $selector);
         return $printer->getMarkdown();
     }
 
