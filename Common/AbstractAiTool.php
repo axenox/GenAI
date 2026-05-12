@@ -1,6 +1,8 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiToolUxonSchema;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -271,7 +273,7 @@ abstract class AbstractAiTool implements AiToolInterface
 
     public function getAliasWithNamespace() : string
     {
-        return $this->alias;
+        return $this->alias ?? AiFactory::findToolAlias(new AiToolSelector($this->getWorkbench(), get_class($this)));
     }
     
     public static function getTemplate(WorkbenchInterface $workbench) : array
@@ -281,6 +283,7 @@ abstract class AbstractAiTool implements AiToolInterface
             $argsModels[] = $param->exportUxonObject()->toArray();
         }
         return [
+            'alias' => AiFactory::findToolAlias(new AiToolSelector($workbench, static::class)),
             'description' => '',
             'arguments' => $argsModels,
         ];
