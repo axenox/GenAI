@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Uxon;
 
+use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AbstractTool;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
@@ -110,6 +111,24 @@ class AiToolUxonSchema extends UxonSchema
             }
         }
         return $presets;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see UxonSchema::getPropertiesTemplates()
+     */
+    public function getPropertiesTemplates(string $prototypeClass, UxonObject $uxon, array $path) : array
+    {
+        $tpls = parent::getPropertiesTemplates($prototypeClass, $uxon, $path);
+        
+        if (
+            is_a($prototypeClass, AbstractAiTool::class, true) 
+            && ltrim($prototypeClass, '\\') !== AbstractAiTool::class
+        ) {
+            $tpls['arguments'] = json_encode($prototypeClass::getTemplate($this->getWorkbench())['arguments'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+        }
+
+        return $tpls;
     }
     
     /**
