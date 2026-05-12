@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\AI\Traits\FileAccessToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -58,36 +59,36 @@ class ReadFileTool extends AbstractAiTool
         $relativePath = (string) ($arguments[0] ?? '');
 
         if ($relativePath === '') {
-            return 'Invalid arguments: missing target file path.';
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target file path.', 'INVALID_ARGUMENTS');
         }
 
         if (FilePathDataType::isAbsolute($relativePath)) {
-            return 'Invalid path: only paths relative to the configured base path are allowed.';
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.', 'ABSOLUTE_PATH_NOT_ALLOWED');
         }
 
         $basePath = $this->getBasePathAbsolute();
         $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath, DIRECTORY_SEPARATOR);
 
         if (! $this->isInsideBasePath($absolutePath, $basePath)) {
-            return 'Invalid path: file must stay inside the configured base path.';
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: file must stay inside the configured base path.', 'PATH_OUT_OF_BOUNDS');
         }
 
         $pathForPatternCheck = $this->makeRelativePath($absolutePath, $basePath);
         if (! $this->isAllowedPath($pathForPatternCheck)) {
-            return 'Invalid path: file path does not match any allowed_paths pattern.';
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: file path does not match any allowed_paths pattern.', 'PATH_NOT_ALLOWED');
         }
 
         if (! is_file($absolutePath)) {
-            return 'Invalid path: target file does not exist.';
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target file does not exist.', 'FILE_NOT_FOUND');
         }
 
         if (! is_readable($absolutePath)) {
-            return 'Access denied: target file is not readable.';
+            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target file is not readable.', 'FILE_NOT_READABLE');
         }
 
         $content = file_get_contents($absolutePath);
         if ($content === false) {
-            return 'Failed to read file: ' . $pathForPatternCheck;
+            throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $pathForPatternCheck, 'FILE_READ_FAILED');
         }
 
         return $content;
