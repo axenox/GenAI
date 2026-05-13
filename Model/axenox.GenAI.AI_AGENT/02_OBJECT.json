@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2025-11-28 11:32:13",
+            "MODIFIED_ON": "2026-05-13 23:37:41",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -110,6 +110,11 @@
                         "width": "max",
                         "columns_in_grid": 2,
                         "widgets": [
+                            {
+                                "attribute_alias": "UID",
+                                "widget_type": "InputHidden",
+                                "id": "uid_field"
+                            },
                             {
                                 "attribute_alias": "NAME"
                             },
@@ -150,10 +155,10 @@
                                         "attribute_alias": "VERSION"
                                     },
                                     {
-                                        "attribute_alias": "DESCRIPTION"
+                                        "attribute_alias": "DATA_CONNECTION__LABEL"
                                     },
                                     {
-                                        "attribute_alias": "DATA_CONNECTION__LABEL"
+                                        "attribute_alias": "DESCRIPTION"
                                     }
                                 ],
                                 "sorters": [
@@ -164,7 +169,17 @@
                                 ],
                                 "buttons": [
                                     {
-                                        "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                        "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                        "disabled_if": {
+                                            "operator": "AND",
+                                            "conditions": [
+                                                {
+                                                    "value_left": "=uid_field",
+                                                    "comparator": "==",
+                                                    "value_right": ""
+                                                }
+                                            ]
+                                        }
                                     },
                                     {
                                         "action_alias": "exface.Core.ShowObjectEditDialog",
@@ -185,6 +200,24 @@
                                 ]
                             }
                         ]
+                    }
+                ],
+                "buttons": [
+                    {
+                        "close_dialog": false,
+                        "action": {
+                            "alias": "exface.Core.ShowModelSearchDialog",
+                            "input_mapper": {
+                                "from_object_alias": "axenox.GenAI.AI_AGENT",
+                                "to_object_alias": "exface.Core.SEARCH_RESULT",
+                                "column_to_column_mappings": [
+                                    {
+                                        "from": "=Concatenate('\"', ALIAS_WITH_NS, '\"')",
+                                        "to": "_search_query"
+                                    }
+                                ]
+                            }
+                        }
                     }
                 ]
             },
