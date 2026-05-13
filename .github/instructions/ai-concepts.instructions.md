@@ -64,3 +64,9 @@ convenience.
 
 Many concepts produce markdown, but theoretically they can have other return 
 types if `getDataType()` is implemented properly. 
+
+## Global rules
+
+- Read global instructions
+    - Technical overview of the platform in `exface/core/.github/instructions/copilot-instructions.md`
+    - All UXON prototypes must adhere to `exface/core/.github/instructions/uxon.instructions.md`
