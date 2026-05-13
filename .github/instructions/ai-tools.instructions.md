@@ -59,3 +59,9 @@ The main methods to implement are:
 
 AI tool prototypes can be implemented in any app and should be placed in the 
 `AI/Tools` folder for easy autodiscovery. 
+
+## Global rules
+
+- Read global instructions
+  - Technical overview of the platform in `exface/core/.github/instructions/copilot-instructions.md`
+  - All UXON prototypes must adhere to `exface/core/.github/instructions/uxon.instructions.md`
