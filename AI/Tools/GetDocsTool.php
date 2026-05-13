@@ -34,7 +34,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *          }
  *      },
  *      "tools": {
- *          "GetDocs": {
+ *          "get_docs": {
+ *              "alias": "axenox.GenAI.GetDocsTool",
  *              "description": "Load markdown from our documentation by URL",
  *              "arguments": [
  *                  {

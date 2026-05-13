@@ -21,7 +21,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  {
  *      "instructions": "You help write Markdown documentation",
  *      "tools": {
- *          "WriteFile": {
+ *          "write_file": {
+ *              "alias": "axenox.GenAI.WriteFileTool",
  *              "description": "Create/overwrite a Markdown file",
  *              "use_vendor_folder_as_base": true,
  *              "allowed_paths": [

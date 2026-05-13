@@ -22,7 +22,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  {
  *      "instructions": "You summarize markdown files",
  *      "tools": {
- *          "ReadFile": {
+ *          "read_file": {
+ *              "alias": "axenox.GenAI.ReadFileTool",
  *              "description": "Read a Markdown file",
  *              "use_vendor_folder_as_base": true,
  *              "allowed_paths": [
