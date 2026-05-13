@@ -8,7 +8,7 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\FilePathDataType;
-use exface\Core\DataTypes\StringDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -54,7 +54,7 @@ class ReadFolderTool extends AbstractAiTool
     public const ARG_PATH = 'path';
 
     /** @var int */
-    private int $depth = 1;
+    private int $depth = 0;
 
     /**
      * {@inheritDoc}
@@ -63,42 +63,22 @@ class ReadFolderTool extends AbstractAiTool
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
     {
         $relativePath = (string) ($arguments[0] ?? '');
-
-        if ($relativePath === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target folder path.', 'INVALID_ARGUMENTS');
-        }
-
-        if (FilePathDataType::isAbsolute($relativePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.', 'ABSOLUTE_PATH_NOT_ALLOWED');
-        }
-
+        // Make sure the relative path for a folder ends with a slash
+        $relativePath = rtrim($relativePath, '/') . '/';
         $basePath = $this->getBasePathAbsolute();
-        $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath, DIRECTORY_SEPARATOR);
-
-        if (! $this->isInsideBasePath($absolutePath, $basePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: folder must stay inside the configured base path.', 'PATH_OUT_OF_BOUNDS');
-        }
-
-        $pathForPatternCheck = $this->makeRelativePath($absolutePath, $basePath);
-        if (! $this->isAllowedPath($pathForPatternCheck)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: folder path does not match any allowed_paths pattern.', 'PATH_NOT_ALLOWED');
-        }
-
+        $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
+        
         if (! is_dir($absolutePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target folder does not exist.', 'FOLDER_NOT_FOUND');
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target folder does not exist.');
         }
 
         if (! is_readable($absolutePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target folder is not readable.', 'FOLDER_NOT_READABLE');
+            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target folder is not readable.');
         }
 
-        $lines = [];
-        $title = rtrim(FilePathDataType::normalize($pathForPatternCheck, '/'), '/');
-        $lines[] = '- `' . ($title === '' ? '.' : $title) . '/`';
-
-        $this->appendDirectoryTree($absolutePath, $basePath, 1, $lines);
-
-        return implode(PHP_EOL, $lines);
+        $markdown = '- ' . rtrim(FilePathDataType::normalize($relativePath, '/'), '/') . '/';
+        $markdown .= $this->buildMdTreeLevel($absolutePath, $basePath, 1);
+        return $markdown;
     }
 
     /**
@@ -121,24 +101,25 @@ class ReadFolderTool extends AbstractAiTool
      */
     public function getReturnDataType(): DataTypeInterface
     {
-        return DataTypeFactory::createFromPrototype($this->getWorkbench(), StringDataType::class);
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 
     /**
      * Maximum recursive depth for folder listing.
      *
-     * Depth `1` lists direct children only. Higher values include deeper levels.
+     * Depth `1` lists direct children only. Higher values include deeper levels. Depth `0` includes all children
+     * recursively without limit.
      *
      * @uxon-property depth
      * @uxon-type integer
-     * @uxon-default 1
+     * @uxon-default 0
      *
      * @param int $value
      * @return ReadFolderTool
      */
     protected function setDepth(int $value): ReadFolderTool
     {
-        $this->depth = max(1, $value);
+        $this->depth = max(0, $value);
         return $this;
     }
 
@@ -151,37 +132,40 @@ class ReadFolderTool extends AbstractAiTool
      * @param string[] $lines
      * @return void
      */
-    protected function appendDirectoryTree(string $absoluteDir, string $basePath, int $level, array &$lines): void
+    protected function buildMdTreeLevel(string $absoluteDir, string $basePath, int $level): string
     {
-        if ($level > $this->depth) {
-            return;
+        if ($this->depth !== 0 && $level > $this->depth) {
+            return '';
         }
-
+        
         $entries = scandir($absoluteDir);
         if ($entries === false) {
-            return;
+            return '';
         }
 
-        $items = array_values(array_filter($entries, static function (string $name): bool {
-            return $name !== '.' && $name !== '..';
-        }));
+        $items = array_values(
+            array_filter(
+                $entries, 
+                static function (string $name): bool 
+                {
+                    return $name !== '.' && $name !== '..';
+                }
+            )
+        );
         natcasesort($items);
 
+        $markdown = '';
         foreach ($items as $name) {
             $path = $absoluteDir . DIRECTORY_SEPARATOR . $name;
-            $relativePath = $this->makeRelativePath($path, $basePath);
-            if (! $this->isAllowedPath($relativePath)) {
-                continue;
-            }
-
             $isDir = is_dir($path) && ! is_link($path);
             $indent = str_repeat('  ', $level);
             $displayName = str_replace('`', '\\`', $name);
-            $lines[] = $indent . '- `' . $displayName . ($isDir ? '/' : '') . '`';
+            $markdown .= "\n" . $indent . '- `' . $displayName . ($isDir ? '/' : '') . '`';
 
             if ($isDir) {
-                $this->appendDirectoryTree($path, $basePath, $level + 1, $lines);
+                $markdown .= $this->buildMdTreeLevel($path, $basePath, $level + 1);
             }
         }
+        return $markdown;
     }
 }

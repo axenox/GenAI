@@ -57,38 +57,20 @@ class ReadFileTool extends AbstractAiTool
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
     {
         $relativePath = (string) ($arguments[0] ?? '');
-
-        if ($relativePath === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target file path.', 'INVALID_ARGUMENTS');
-        }
-
-        if (FilePathDataType::isAbsolute($relativePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.', 'ABSOLUTE_PATH_NOT_ALLOWED');
-        }
-
         $basePath = $this->getBasePathAbsolute();
-        $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath, DIRECTORY_SEPARATOR);
-
-        if (! $this->isInsideBasePath($absolutePath, $basePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: file must stay inside the configured base path.', 'PATH_OUT_OF_BOUNDS');
-        }
-
-        $pathForPatternCheck = $this->makeRelativePath($absolutePath, $basePath);
-        if (! $this->isAllowedPath($pathForPatternCheck)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: file path does not match any allowed_paths pattern.', 'PATH_NOT_ALLOWED');
-        }
+        $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
 
         if (! is_file($absolutePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target file does not exist.', 'FILE_NOT_FOUND');
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target file does not exist.');
         }
 
         if (! is_readable($absolutePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target file is not readable.', 'FILE_NOT_READABLE');
+            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target file is not readable.');
         }
 
         $content = file_get_contents($absolutePath);
         if ($content === false) {
-            throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $pathForPatternCheck, 'FILE_READ_FAILED');
+            throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $relativePath);
         }
 
         return $content;

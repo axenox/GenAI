@@ -1,6 +1,8 @@
 <?php
 namespace axenox\GenAI\AI\Traits;
 
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\DataTypes\StringDataType;
@@ -106,26 +108,47 @@ trait FileAccessToolTrait
             DIRECTORY_SEPARATOR
         );
     }
+    
+    protected function getPathAbsolute(string $relativePath, string $basePath, AiPromptInterface $prompt) : string
+    {
+        if ($relativePath === '') {
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target folder path.');
+        }
+        $lastChar = mb_substr($relativePath, -1);
+        $relativePath = FilePathDataType::normalize($relativePath, '/');
+        if ($lastChar === '/' || $lastChar === '\\') {
+            $relativePath .= '/';
+        }
+
+        if (FilePathDataType::isAbsolute($relativePath)) {
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.');
+        }
+        
+        $this->checkPathAllowed($relativePath, $prompt);
+
+        $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath, DIRECTORY_SEPARATOR);
+        $this->checkPathInsideBasePath($absolutePath, $basePath);
+        
+        return $absolutePath;
+    }
 
     /**
      * @param string $absolutePath
      * @param string $basePath
      * @return bool
      */
-    protected function isInsideBasePath(string $absolutePath, string $basePath): bool
+    protected function checkPathInsideBasePath(string $absolutePath, string $basePath): bool
     {
-        $baseNorm = FilePathDataType::normalize($basePath, '/');
-        $targetNorm = FilePathDataType::normalize($absolutePath, '/');
-        $commonBase = FilePathDataType::findCommonBase([$baseNorm, $targetNorm]);
+        $commonBase = FilePathDataType::findCommonBase([$absolutePath, $basePath]);
         if ($commonBase === null) {
             return false;
         }
 
         if (DIRECTORY_SEPARATOR === '\\') {
-            return strcasecmp($commonBase, $baseNorm) === 0;
+            return strcasecmp($commonBase, $basePath) === 0;
         }
 
-        return $commonBase === $baseNorm;
+        return $commonBase === $basePath;
     }
 
     /**
@@ -148,21 +171,20 @@ trait FileAccessToolTrait
 
     /**
      * @param string $relativePath
-     * @return bool
+     * @return void
      */
-    protected function isAllowedPath(string $relativePath): bool
+    protected function checkPathAllowed(string $relativePath, AiPromptInterface $prompt): void
     {
         if (empty($this->allowedPaths)) {
-            return true;
+            return;
         }
 
-        $path = FilePathDataType::normalize($relativePath, '/');
         foreach ($this->allowedPaths as $pattern) {
-            if (FilePathDataType::matchesPattern($path, $pattern)) {
-                return true;
+            if (FilePathDataType::matchesPattern($relativePath, $pattern)) {
+                return;
             }
         }
 
-        return false;
+        throw new AiToolRuntimeError($this, $prompt, 'Invalid path: folder path does not match any allowed_paths pattern.');
     }
 }
