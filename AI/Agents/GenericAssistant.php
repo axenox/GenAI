@@ -12,11 +12,11 @@ use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
-use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
 use exface\Core\DataTypes\ArrayDataType;
@@ -25,7 +25,6 @@ use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
-use exface\Core\Exceptions\InternalError;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -48,7 +47,6 @@ use exface\Core\Templates\Placeholders\FormulaPlaceholders;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\DebugMessage;
 use exface\Core\Widgets\Markdown;
-use function Respect\Stringifier\stringify;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -118,7 +116,7 @@ class GenericAssistant implements AiAgentInterface
     private $responseTitlePath = null;
 
     private ?array $tools = null;
-    private ?UxonObject $toolsUxon = null;
+    private ?array $toolsUxon = null;
 
     private $sequenceNumber = null;
 
@@ -766,11 +764,11 @@ class GenericAssistant implements AiAgentInterface
             if ($prompt->hasInputData()) {
                 $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
             }
-            foreach ($this->getConcepts($prompt, $renderer) as $concept) {
-                $renderer->addPlaceholder($concept);
-                if(is_a($concept, \axenox\GenAI\Interfaces\AiConceptInterface::class)){
-                    foreach($concept->getTools() as $tool){
-                        $this->addTool($tool);
+            foreach ($this->getConcepts($prompt, $renderer) as $placeholderResolver) {
+                $renderer->addPlaceholder($placeholderResolver);
+                if ($placeholderResolver instanceof AiConceptInterface) {
+                    foreach ($placeholderResolver->getToolModels() as $toolName => $toolUxon) {
+                        $this->toolsUxon[$toolName] = $toolUxon;
                     }
                 }
             }
@@ -1144,7 +1142,9 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setTools(UxonObject $objectWithToolDefs) : AiAgentInterface
     {
-        $this->toolsUxon = $objectWithToolDefs;
+        foreach ($objectWithToolDefs as $toolName => $toolUxon) {
+            $this->toolsUxon[$toolName] = $toolUxon;
+        }
         return $this;
     }
 
@@ -1158,8 +1158,8 @@ class GenericAssistant implements AiAgentInterface
             if ($this->toolsUxon === null) {
                 $this->tools = [];
             } else {
-                foreach ($this->toolsUxon as $tool => $uxon) {
-                    $tool = AiFactory::createToolFromUxon($this->workbench, $uxon, $tool);
+                foreach ($this->toolsUxon as $toolName => $uxon) {
+                    $tool = AiFactory::createToolFromUxon($this->workbench, $uxon, $toolName);
                     $this->addTool($tool);
                 }
             }
@@ -1171,7 +1171,7 @@ class GenericAssistant implements AiAgentInterface
      * @param string $name
      * @return AiToolInterface
      */
-    protected function getTool(string $name) : AiToolInterface
+    public function getTool(string $name) : AiToolInterface
     {
         foreach ($this->getTools() as $tool) {
             if ($tool->getName() === $name) {
@@ -1181,9 +1181,10 @@ class GenericAssistant implements AiAgentInterface
         throw new AiAgentRuntimeError($this, 'Tool "' . $name . '" not found!');
     }
 
-    protected function addTool(AiToolInterface $tool)
+    protected function addTool(AiToolInterface $tool) : AiAgentInterface
     {
-        $this->tools[] = $tool;        
+        $this->tools[$tool->getName()] = $tool;
+        return $this;
     }
 
     /**

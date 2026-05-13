@@ -106,19 +106,23 @@ abstract class AbstractConcept implements AiConceptInterface
         return AiConceptUxonSchema::class;
     }
 
-    public function getTools() : array
+    /**
+     * {@inheritDoc}
+     * @see AiConceptInterface::getToolModels()
+     */
+    public function getToolModels() : array
     {
         return [];
     }
     
-    public function setOutput(string $output) : AiConceptInterface
+    protected function setOutput(string $output) : AiConceptInterface
     {
         $this->output = $output;
         return $this;
     }
 
     
-    public function hasPrescribedOutput() : bool
+    protected function hasPrescribedOutput() : bool
     {
         if ($this->output === null) {
             return false;
