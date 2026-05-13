@@ -60,7 +60,14 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
             $json['temperature'] = $val;
         }
 
-        return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        
+        // FIXME don't use arrays for JSON schemas because array do not distinguish between `[]` and `{}`.
+        // Need to use \stdClass instead when building the request.
+        // The below is a workaround for tools with no arguments
+        $json = str_replace('"parameters":{"type":"object","properties":[],"required":[]', '"parameters":{"type":"object","properties":{},"required":[]', $json);
+        
+        return $json;
     }
 
     /**
