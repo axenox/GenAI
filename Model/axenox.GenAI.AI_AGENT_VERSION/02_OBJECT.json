@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version [axenox.GenAI.AI_AGENT_VERSION]",
             "CREATED_ON": "2025-09-04 15:38:32",
-            "MODIFIED_ON": "2026-04-02 09:04:56",
+            "MODIFIED_ON": "2026-05-13 23:39:14",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a47972e1dbf6a479025041000001",
@@ -136,69 +136,101 @@
             },
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
+                "width": 4,
                 "widgets": [
                     {
-                        "widget_type": "WidgetGroup",
-                        "width": "max",
-                        "columns_in_grid": 2,
-                        "widgets": [
+                        "widget_type": "Tabs",
+                        "tabs": [
                             {
-                                "widget_type": "WidgetGroup",
+                                "caption": "Agent version",
                                 "widgets": [
                                     {
-                                        "attribute_alias": "AI_AGENT"
-                                    },
-                                    {
-                                        "attribute_alias": "VERSION"
-                                    },
-                                    {
-                                        "attribute_alias": "PROTOTYPE_CLASS",
-                                        "id": "prototype_field"
+                                        "widget_type": "WidgetGroup",
+                                        "width": "max",
+                                        "columns_in_grid": 2,
+                                        "widgets": [
+                                            {
+                                                "widget_type": "WidgetGroup",
+                                                "widgets": [
+                                                    {
+                                                        "attribute_alias": "UID",
+                                                        "id": "uid_field",
+                                                        "widget_type": "InputHidden"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_AGENT"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "VERSION"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "PROTOTYPE_CLASS",
+                                                        "id": "prototype_field"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "ENABLED_FLAG"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "widget_type": "WidgetGroup",
+                                                "caption": "Description",
+                                                "widgets": [
+                                                    {
+                                                        "attribute_alias": "DESCRIPTION",
+                                                        "height": 6,
+                                                        "hide_caption": true
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "widget_type": "WidgetGroup",
+                                                "caption": "Connection",
+                                                "widgets": [
+                                                    {
+                                                        "attribute_alias": "DATA_CONNECTION_DEFAULT"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "DATA_CONNECTION",
+                                                        "id": "current_connection_selector"
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     }
                                 ]
                             },
                             {
-                                "attribute_alias": "ENABLED_FLAG"
-                            },
-                            {
-                                "widget_type": "WidgetGroup",
-                                "caption": "Description",
+                                "caption": "Instructions & config",
+                                "columns_in_grid": 2,
+                                "active_if": {
+                                    "operator": "AND",
+                                    "conditions": [
+                                        {
+                                            "value_left": "=uid_field",
+                                            "comparator": "!==",
+                                            "value_right": ""
+                                        }
+                                    ]
+                                },
                                 "widgets": [
                                     {
-                                        "attribute_alias": "DESCRIPTION",
-                                        "height": 4,
-                                        "hide_caption": true
-                                    }
-                                ]
-                            },
-                            {
-                                "widget_type": "WidgetGroup",
-                                "caption": "Connection",
-                                "widgets": [
-                                    {
-                                        "attribute_alias": "DATA_CONNECTION_DEFAULT"
+                                        "widget_type": "InputMarkdown",
+                                        "attribute_alias": "INSTRUCTIONS",
+                                        "hide_caption": true,
+                                        "width": 1,
+                                        "height": "100%"
                                     },
                                     {
-                                        "attribute_alias": "DATA_CONNECTION",
-                                        "id": "current_connection_selector"
+                                        "widget_type": "InputUxon",
+                                        "caption": "Agent configuration",
+                                        "attribute_alias": "CONFIG_UXON",
+                                        "hide_caption": true,
+                                        "root_prototype": "=prototype_field",
+                                        "width": 1,
+                                        "height": "100%"
                                     }
                                 ]
-                            }
-                        ]
-                    },
-                    {
-                        "widget_type": "WidgetGroup",
-                        "caption": "Agent configuration",
-                        "width": "max",
-                        "height": "max",
-                        "widgets": [
-                            {
-                                "widget_type": "InputUxon",
-                                "attribute_alias": "CONFIG_UXON",
-                                "hide_caption": true,
-                                "root_prototype": "=prototype_field",
-                                "width": "max",
-                                "height": "max"
                             }
                         ]
                     }
@@ -232,6 +264,22 @@
                         "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog",
                         "caption": "Change local connection",
                         "close_dialog": false
+                    },
+                    {
+                        "close_dialog": false,
+                        "action": {
+                            "alias": "exface.Core.ShowModelSearchDialog",
+                            "input_mapper": {
+                                "from_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                "to_object_alias": "exface.Core.SEARCH_RESULT",
+                                "column_to_column_mappings": [
+                                    {
+                                        "from": "=Concatenate('\"', AI_AGENT__ALIAS_WITH_NS, '\"')",
+                                        "to": "_search_query"
+                                    }
+                                ]
+                            }
+                        }
                     }
                 ]
             },
