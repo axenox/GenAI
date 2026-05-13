@@ -118,6 +118,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $ds->getFilters()->addConditionFromString('AI_AGENT__ALIAS_WITH_NS', $alias, ComparatorDataType::EQUALS);
         $ds->getColumns()->addMultiple([
             'CONFIG_UXON',
+            'INSTRUCTIONS',
             'DATA_CONNECTION',
             'AI_AGENT__NAME',
             'AI_AGENT__ALIAS',
@@ -144,6 +145,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         // Add required props from the data row
         $uxon->setProperty('name', $agentRow['AI_AGENT__NAME']);
         $uxon->setProperty('alias', $agentRow['AI_AGENT__ALIAS']);
+        $uxon->setProperty('instructions', $agentRow['INSTRUCTIONS']);
         
         // Make sure, there is an LLM connection. If there is one defined, use it regularly. If not,
         // see if the previous version had one and inherit it.
