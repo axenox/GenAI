@@ -26,15 +26,15 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *      "instructions": "You are an helpful assistant answering questions about a no-code platform for business web apps. Use here is an overview of the available documentation. [#app_docs_overview#]",
  *      "concepts: {
  *          "app_docs_overview": {
- *              "class": "axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
+ *              "alias": "axenox.GenAI.AppDocsConcept",
  *              "starting_page": "developer_docs/index.md"
  *              "app_alias": "exface.Core",
  *              "depth": 0
  *          }
  *      },
  *      "tools": {
- *          "GetWidget": {
- *              "name": "GetWidget",
+ *          "get_widget": {
+ *              "alias": "axenox.GenAI.GetWidgetTool",
  *              "description": "Shows long description, properties, functions and presets of the requested Widget",
  *              "arguments": [
  *                  {

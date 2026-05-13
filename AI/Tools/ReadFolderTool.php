@@ -25,7 +25,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  {
  *      "instructions": "You summarize project structure",
  *      "tools": {
- *          "ReadFolder": {
+ *          "read_folder": {
+ *              "alias": "axenox.GenAI.ReadFolderTool",
  *              "description": "List files in a folder as Markdown",
  *              "use_vendor_folder_as_base": true,
  *              "allowed_paths": [

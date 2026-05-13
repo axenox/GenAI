@@ -33,8 +33,8 @@ use Psr\SimpleCache\CacheInterface;
  * ```
  *  {
  *     "tools": {
- *          "GetReport": {
- *              "class": "\\axenox\\GenAI\\AI\\Tools\\GetPrintPreviewTool",
+ *          "get_report": {
+ *              "alias": "axenox.GenAI.GetPrintPreviewTool",
  *              "description": "Returns an HTML print of the report with the given document number",
  *              "arguments": [
  *                  {"name": "Document number"}
