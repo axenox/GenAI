@@ -705,7 +705,7 @@ JS;
 
     protected function getIntroMessage() : string
     {
-        return '{"text": "' . $this->introMessage . '"}';
+        return '{"text": ' . json_encode($this->introMessage, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '}';
     }
 
     /**
