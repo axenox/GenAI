@@ -38,10 +38,15 @@ class ToolCallConcept extends AbstractConcept
 
     protected function getTool() : AiToolInterface
     {
-        if ($this->toolDef !== null) {
-            $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->toolDef, $this->getToolName());
-        } else {
-            throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
+        switch (true) {
+            case $this->toolDef !== null:
+                $tool = AiFactory::createToolFromUxon($this->getWorkbench(), $this->toolDef, $this->getToolName());
+                break;
+            case $this->toolName !== null:
+                $tool = $this->getAgent()->getTool($this->getToolName());
+                break;
+            default: 
+                throw new AiConceptConfigurationError($this, 'Missing tool definition for ToolCallConcept "' . $this->getPlaceholder() . '"');
         }
         
         return $tool;
@@ -65,6 +70,21 @@ class ToolCallConcept extends AbstractConcept
     protected function getToolName() : string
     {
         return $this->toolName ?? $this->getPlaceholder();
+    }
+
+    /**
+     * Call a tool available to this agent by name instead of adding a new tool_definition here
+     * 
+     * @uxon-property tool_name
+     * @uxon-type string
+     * 
+     * @param string $toolName
+     * @return $this
+     */
+    protected function setToolName(string $toolName) : ToolCallConcept
+    {
+        $this->toolName = $toolName;
+        return $this;
     }
 
     /**
@@ -104,7 +124,7 @@ class ToolCallConcept extends AbstractConcept
      * ```
      * @uxon-property tool_definition
      * @uxon-type \axenox\GenAI\Common\AbstractAiTool
-     * @uxon-template {"class": ""}
+     * @uxon-template {"alias": ""}
      *
      * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
      * @return ToolCallConcept

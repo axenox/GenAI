@@ -1,13 +1,9 @@
 <?php
 namespace axenox\GenAI\AI\Concepts;
 
+use axenox\GenAI\AI\Tools\GetDocsTool;
 use axenox\GenAI\Common\AbstractConcept;
-use axenox\GenAI\Common\FileReader;
-use axenox\GenAI\Common\LinkRebaser;
-use axenox\GenAI\Common\Selectors\AiToolSelector;
-use axenox\GenAI\Factories\AiFactory;
 use exface\Core\CommonLogic\UxonObject;
-use exface\Core\CommonLogic\Workbench;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\DocMarkdownPrinter;
 
@@ -81,27 +77,30 @@ class AppDocsConcept extends AbstractConcept
         return $result;
     }
 
-    public function getTools() : array
+    /**
+     * {@inheritDoc}
+     * @see AbstractConcept::getToolModels()
+     */
+    public function getToolModels() : array
     {
-        $tool = [];
-        $getDocsToolUxon = new UxonObject(
-                            [
-                                'name'=> 'GetDocs',
-                                'description'=> 'Load markdown from our documentation by URL',
-                                'arguments'=> [                
-                                    [
-                                        'name'=> 'url',
-                                        'description'=> 'Markdown file URL - absolute (with https->//...) or relative to api/docs on this server',
-                                        'data_type'=> [
-                                            'alias'=> 'exface.Core.String'
-                                        ]            
-                                    ]    
-                                ]
-                            ]
-                        );
-        $tool[] = AiFactory::createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class), $getDocsToolUxon);
+        $tools = [];
+        $tools['get_docs'] = new UxonObject(
+            [
+                'class' => '\\' . GetDocsTool::class,
+                'description'=> 'Load markdown from our documentation by URL',
+                'arguments'=> [
+                    [
+                        'name'=> 'url',
+                        'description'=> 'Markdown file URL - absolute (with https->//...) or relative to api/docs on this server',
+                        'data_type'=> [
+                            'alias'=> 'exface.Core.String'
+                        ]
+                    ]
+                ]
+            ]
+        );
 
-        return $tool;
+        return $tools;
     }
 
     /**
