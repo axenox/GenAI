@@ -63,10 +63,10 @@ CSS
                 var jqParent = jqSelf.parent();
                 var iHeightP = jqParent.innerHeight();
                 var iWidthP = jqParent.innerWidth();
-                if (iHeightP > 0 && iHeightP > jqSelf.height() + 10) {
+                if (iHeightP > 0 && iHeightP > (jqSelf.height() + 4)) {
                     jqSelf.height(iHeightP);
                 }
-                if (iWidthP > 0 && iWidthP > jqSelf.height() + 10) {
+                if (iWidthP > 0 && iWidthP > (jqSelf.width() + 4)) {
                     jqSelf.width(iWidthP);
                 }
             }, 100, $('#{$this->getIdOfDeepChat()}'));
