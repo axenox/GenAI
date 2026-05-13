@@ -10,7 +10,7 @@ class AiToolRuntimeError extends RuntimeException
     private AiToolInterface $tool;
     private AiPromptInterface $prompt;
     
-    public function __construct(AiToolInterface $tool, AiPromptInterface $prompt, string $message, string $alias, \Throwable $previous = null)
+    public function __construct(AiToolInterface $tool, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
     {
         parent::__construct($message, $alias, $previous);
         $this->tool = $tool;
