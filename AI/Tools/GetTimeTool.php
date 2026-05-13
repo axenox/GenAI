@@ -10,7 +10,7 @@ use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * This AI tool allows an LLM to get the current date and time from the server.
+ * Allows an LLM to get the current date and time from the server.
  * 
  * ## Example configuration in an assistant
  * 
