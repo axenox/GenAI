@@ -102,13 +102,11 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
     protected function buildArgumentSchema(ServiceParameterInterface $argument): array
     {
         $schema = null;
-        if (method_exists($argument, 'getCustomProperty')) {
-            $schemaJson = $argument->getCustomProperty('json_schema');
-            if (is_string($schemaJson) && trim($schemaJson) !== '') {
-                $decoded = json_decode($schemaJson, true);
-                if (is_array($decoded) && ! empty($decoded)) {
-                    $schema = $decoded;
-                }
+        $schemaJson = $argument->getCustomProperty('json_schema');
+        if (is_string($schemaJson) && trim($schemaJson) !== '') {
+            $decoded = json_decode($schemaJson, true);
+            if (is_array($decoded) && ! empty($decoded)) {
+                $schema = $decoded;
             }
         }
 
@@ -119,6 +117,43 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
         $description = $argument->getDescription();
         if ($description !== '' && ! array_key_exists('description', $schema)) {
             $schema['description'] = $description;
+        }
+
+        return $this->normalizeStrictFunctionSchema($schema);
+    }
+
+    /**
+     * Ensure nested object schemas satisfy OpenAI strict function schema rules.
+     *
+     * @param array $schema
+     * @return array
+     */
+    protected function normalizeStrictFunctionSchema(array $schema): array
+    {
+        if (($schema['type'] ?? null) === 'object') {
+            $schema['additionalProperties'] = false;
+
+            if (isset($schema['properties']) && is_array($schema['properties'])) {
+                foreach ($schema['properties'] as $key => $childSchema) {
+                    if (is_array($childSchema)) {
+                        $schema['properties'][$key] = $this->normalizeStrictFunctionSchema($childSchema);
+                    }
+                }
+            }
+        }
+
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $schema['items'] = $this->normalizeStrictFunctionSchema($schema['items']);
+        }
+
+        foreach (['anyOf', 'oneOf', 'allOf'] as $variantKey) {
+            if (isset($schema[$variantKey]) && is_array($schema[$variantKey])) {
+                foreach ($schema[$variantKey] as $idx => $variantSchema) {
+                    if (is_array($variantSchema)) {
+                        $schema[$variantKey][$idx] = $this->normalizeStrictFunctionSchema($variantSchema);
+                    }
+                }
+            }
         }
 
         return $schema;

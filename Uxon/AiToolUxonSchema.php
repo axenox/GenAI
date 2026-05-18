@@ -121,11 +121,19 @@ class AiToolUxonSchema extends UxonSchema
     {
         $tpls = parent::getPropertiesTemplates($prototypeClass, $uxon, $path);
         
+        
         if (
             is_a($prototypeClass, AbstractAiTool::class, true) 
             && ltrim($prototypeClass, '\\') !== AbstractAiTool::class
         ) {
             $tpls['arguments'] = json_encode($prototypeClass::getTemplate($this->getWorkbench())['arguments'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+        }
+        
+        foreach ($tpls['arguments'] as &$argument) {
+            unset($argument['data_type']);
+            if (array_key_exists('custom_properties', $argument)) {
+                unset($argument['custom_properties']);
+            }
         }
 
         return $tpls;
