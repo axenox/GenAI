@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Common;
 
 use axenox\GenAI\Interfaces\AiToolCallInterface;
+use exface\Core\DataTypes\StringDataType;
 use JsonSerializable;
 
 /**
@@ -49,7 +50,7 @@ class AiToolCall implements AiToolCallInterface, JsonSerializable
             switch (true) {
                 case $arg instanceof \stdClass:
                 case is_array($arg): 
-                    $args[] = json_encode($arg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                    $args[] = StringDataType::indent(json_encode($arg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), "\t");
                     $delim = ",\n\t";
                     break;
                 case is_bool($arg):
