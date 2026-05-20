@@ -183,6 +183,7 @@ class GenericAssistant implements AiAgentInterface
         }
 
         try {
+            //TODO RunTest gibt hier andere anzeige aus throw new \Exception('Test Error in getConnection/query');
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
@@ -190,6 +191,7 @@ class GenericAssistant implements AiAgentInterface
         }
         
         try {
+            //TODO RunTest gibt hier andere anzeige aus throw new \Exception('Test Error in handleToolCalls');
             $performedQuery = $this->handleToolCalls($prompt, $performedQuery);
         } catch (\Throwable $e){
             if (! $e instanceof AiToolRuntimeError) {
@@ -198,6 +200,7 @@ class GenericAssistant implements AiAgentInterface
             throw $this->saveConversationError($prompt,$e);
         }
         try {
+            throw new \Exception('Test Error in saveConversationResponse');
             $this->saveConversationResponse($prompt, $performedQuery);
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
         } catch (\Throwable $e) {
@@ -666,9 +669,20 @@ class GenericAssistant implements AiAgentInterface
             throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
         }
 
-        $feedback = substr($errorMessage, 0, 500);
-        $conversationData->setCellValue('RATING', 0, 5);
-        $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
+        $feedbackSuffix = "\n\nAuto generated error message:\n" . substr($errorMessage, 0, 500);
+        $existingRating = $conversationData->getCellValue('RATING', 0);
+        $existingFeedback = $conversationData->getCellValue('RATING_FEEDBACK', 0);
+
+        if ($existingRating === null || $existingRating === '') {
+            $conversationData->setCellValue('RATING', 0, 1);
+        }
+
+        if ($existingFeedback === null || $existingFeedback === '') {
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, ltrim($feedbackSuffix));
+        } else {
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . $feedbackSuffix);
+        }
+
         $conversationData->dataUpdate(false, $transaction);
     }
     
