@@ -35,6 +35,7 @@ use exface\Core\Factories\UiPageFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
@@ -173,8 +174,13 @@ class GenericAssistant implements AiAgentInterface
         
         $query->setFiles($prompt->getFiles());
 
-        $conversationId = $this->saveConversation($prompt, $query);
-        $prompt->setConversationUid($conversationId);
+        try {
+            $conversationId = $this->saveConversation($prompt, $query);
+            $prompt->setConversationUid($conversationId);
+        } catch (\Throwable $e) {
+            $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
+            throw $this->saveConversationError($prompt, $e);
+        }
 
         try {
             $performedQuery = $this->getConnection()->query($query);
@@ -191,9 +197,13 @@ class GenericAssistant implements AiAgentInterface
             }
             throw $this->saveConversationError($prompt,$e);
         }
-        $this->saveConversationResponse($prompt, $performedQuery);
-
-        return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
+        try {
+            $this->saveConversationResponse($prompt, $performedQuery);
+            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
+        } catch (\Throwable $e) {
+            $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
+            throw $this->saveConversationError($prompt, $e);
+        }
     }
     
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery) : AiQueryInterface
@@ -400,6 +410,7 @@ class GenericAssistant implements AiAgentInterface
         } catch(\Throwable $e){
             $this->workbench->getLogger()->logException($e);
             $transaction->rollback();
+            throw $e;
         }
         return $conversationId;
     }
@@ -618,6 +629,8 @@ class GenericAssistant implements AiAgentInterface
         }
 
         try {
+            $this->saveConversationErrorFeedback($conversationId, $error->getMessage(), $transaction);
+
             $messageData->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -636,6 +649,27 @@ class GenericAssistant implements AiAgentInterface
             // original error is returned so caller can still handle it
         }
         return $error;
+    }
+
+    protected function saveConversationErrorFeedback(string $conversationId, string $errorMessage, ?DataTransactionInterface $transaction = null) : void
+    {
+        $conversationData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+        $conversationData->getFilters()->addConditionFromAttribute(
+            $conversationData->getMetaObject()->getUidAttribute(),
+            $conversationId,
+            ComparatorDataType::EQUALS
+        );
+        $conversationData->getColumns()->addFromAttributeGroup($conversationData->getMetaObject()->getAttributes());
+        $conversationData->dataRead();
+
+        if ($conversationData->isEmpty()) {
+            throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
+        }
+
+        $feedback = substr($errorMessage, 0, 500);
+        $conversationData->setCellValue('RATING', 0, 5);
+        $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
+        $conversationData->dataUpdate(false, $transaction);
     }
     
     protected function enrichUxonWithTools( ?UxonObject $uxon) : UxonObject
