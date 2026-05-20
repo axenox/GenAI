@@ -183,7 +183,6 @@ class GenericAssistant implements AiAgentInterface
         }
 
         try {
-            //TODO RunTest gibt hier andere anzeige aus throw new \Exception('Test Error in getConnection/query');
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
@@ -191,7 +190,6 @@ class GenericAssistant implements AiAgentInterface
         }
         
         try {
-            //TODO RunTest gibt hier andere anzeige aus throw new \Exception('Test Error in handleToolCalls');
             $performedQuery = $this->handleToolCalls($prompt, $performedQuery);
         } catch (\Throwable $e){
             if (! $e instanceof AiToolRuntimeError) {
@@ -200,7 +198,6 @@ class GenericAssistant implements AiAgentInterface
             throw $this->saveConversationError($prompt,$e);
         }
         try {
-            throw new \Exception('Test Error in saveConversationResponse');
             $this->saveConversationResponse($prompt, $performedQuery);
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
         } catch (\Throwable $e) {
