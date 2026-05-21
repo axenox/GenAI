@@ -70,7 +70,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         }
         if ($includeConversation === true) {
             foreach ($this->getConversationData()->getRows() as $row) {
-                if(!in_array($row['ROLE'] ,[AiMessageTypeDataType::SYSTEM, AiMessageTypeDataType::TOOL, AiMessageTypeDataType::TOOLCALLING]))
+                if(!in_array($row['ROLE'] ,[AiMessageTypeDataType::SYSTEM, AiMessageTypeDataType::TOOL, AiMessageTypeDataType::TOOLCALLING, AiMessageTypeDataType::WARNING, AiMessageTypeDataType::ERROR]))
                     $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
             }
         }

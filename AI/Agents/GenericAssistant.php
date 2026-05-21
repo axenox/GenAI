@@ -435,7 +435,7 @@ class GenericAssistant implements AiAgentInterface
         try {
             
             $cost = $query->getCosts();
-            $this->saveConversationWarningsFeedback($conversationId, $query->getWarnings(), $transaction);
+            $this->saveConversationWarning($prompt, $query->getWarnings());
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -480,7 +480,7 @@ class GenericAssistant implements AiAgentInterface
             if($this->hasJsonSchema()){
                 $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
             }
-            $this->saveConversationWarningsFeedback($conversationId, $query->getWarnings(), $transaction);
+            $this->saveConversationWarning($prompt, $query->getWarnings());
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -663,18 +663,47 @@ class GenericAssistant implements AiAgentInterface
         );
     }
 
-    protected function saveConversationWarningsFeedback(string $conversationId, array $warnings, ?DataTransactionInterface $transaction = null) : void
+    protected function saveConversationWarning(AiPromptInterface $prompt, array $warnings) : void
     {
         if (empty($warnings)) {
             return;
         }
 
-        $this->saveConversationFeedback(
-            $conversationId,
-            "Auto generated warning:\n" . implode("\n", $warnings),
-            2,
-            $transaction
-        );
+        $conversationId = $prompt->getConversationUid();
+        if ($conversationId === null) {
+            return;
+        }
+
+        $transaction = $this->workbench->data()->startTransaction();
+        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $hasRows = false;
+
+        try {
+            foreach ($warnings as $warning) {
+                $warning = trim((string) $warning);
+                if ($warning === '') {
+                    continue;
+                }
+
+                $hasRows = true;
+
+                $messageData->addRow([
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE' => AiMessageTypeDataType::WARNING,
+                    'MESSAGE' => $warning,
+                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
+                ]);
+            }
+
+            if ($hasRows) {
+                $messageData->dataCreate(false, $transaction);
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
+        }
     }
 
     protected function saveConversationFeedback(string $conversationId, string $feedback, ?int $defaultRating = null, ?DataTransactionInterface $transaction = null) : void
