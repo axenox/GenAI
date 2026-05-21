@@ -116,7 +116,7 @@ class RunTest extends AbstractActionDeferred
             $this->errorFeedback = $errorMessage;
             $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
             $result = new AiResponse($prompt, '', $this->resolveConversationId($e, $prompt));
-            $this->userFeedback = ['USER_RATING' => 5, 'USER_FEEDBACK' => $errorMessage];
+            $this->userFeedback = ['USER_RATING' => 1, 'USER_FEEDBACK' => $errorMessage];
         }
         $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
         //$result = $this->getAgent()->handle($this->getPrompt());
