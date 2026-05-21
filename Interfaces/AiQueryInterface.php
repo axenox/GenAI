@@ -43,6 +43,12 @@ interface AiQueryInterface extends DataQueryInterface
     public function getCosts() : ?float;
 
     /**
+     *
+     * @return string[]
+     */
+    public function getWarnings() : array;
+
+    /**
      * 
      * @return int
      */

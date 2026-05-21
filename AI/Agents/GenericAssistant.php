@@ -435,6 +435,7 @@ class GenericAssistant implements AiAgentInterface
         try {
             
             $cost = $query->getCosts();
+            $this->saveConversationWarningsFeedback($conversationId, $query->getWarnings(), $transaction);
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -479,6 +480,7 @@ class GenericAssistant implements AiAgentInterface
             if($this->hasJsonSchema()){
                 $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
             }
+            $this->saveConversationWarningsFeedback($conversationId, $query->getWarnings(), $transaction);
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -653,6 +655,30 @@ class GenericAssistant implements AiAgentInterface
 
     protected function saveConversationErrorFeedback(string $conversationId, string $errorMessage, ?DataTransactionInterface $transaction = null) : void
     {
+        $this->saveConversationFeedback(
+            $conversationId,
+            "Auto generated error message:\n" . substr($errorMessage, 0, 500),
+            1,
+            $transaction
+        );
+    }
+
+    protected function saveConversationWarningsFeedback(string $conversationId, array $warnings, ?DataTransactionInterface $transaction = null) : void
+    {
+        if (empty($warnings)) {
+            return;
+        }
+
+        $this->saveConversationFeedback(
+            $conversationId,
+            "Auto generated warning:\n" . implode("\n", $warnings),
+            2,
+            $transaction
+        );
+    }
+
+    protected function saveConversationFeedback(string $conversationId, string $feedback, ?int $defaultRating = null, ?DataTransactionInterface $transaction = null) : void
+    {
         $conversationData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
         $conversationData->getFilters()->addConditionFromAttribute(
             $conversationData->getMetaObject()->getUidAttribute(),
@@ -666,18 +692,17 @@ class GenericAssistant implements AiAgentInterface
             throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
         }
 
-        $feedbackSuffix = "\n\nAuto generated error message:\n" . substr($errorMessage, 0, 500);
         $existingRating = $conversationData->getCellValue('RATING', 0);
         $existingFeedback = $conversationData->getCellValue('RATING_FEEDBACK', 0);
 
-        if ($existingRating === null || $existingRating === '') {
-            $conversationData->setCellValue('RATING', 0, 1);
+        if ($defaultRating !== null && ($existingRating === null || $existingRating === '')) {
+            $conversationData->setCellValue('RATING', 0, $defaultRating);
         }
 
         if ($existingFeedback === null || $existingFeedback === '') {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, ltrim($feedbackSuffix));
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
         } else {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . $feedbackSuffix);
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . "\n\n" . $feedback);
         }
 
         $conversationData->dataUpdate(false, $transaction);

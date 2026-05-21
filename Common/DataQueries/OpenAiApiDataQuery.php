@@ -45,6 +45,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private ?HttpResponseAdapterInterface $responseAdapter = null;
 
     private $costs = null;
+    private array $warnings = [];
     
     private $jsonSchema = null;
 
@@ -235,6 +236,13 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $clone;
     }
 
+    public function withWarnings(array $warnings) : OpenAiApiDataQuery
+    {
+        $clone = clone $this;
+        $clone->warnings = $warnings;
+        return $clone;
+    }
+
     /**
      * 
      * @return bool
@@ -259,6 +267,11 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     public function getCosts() : ?float
     {
         return $this->costs;
+    }
+
+    public function getWarnings() : array
+    {
+        return $this->warnings;
     }
 
     /**
