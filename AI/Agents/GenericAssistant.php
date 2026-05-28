@@ -685,7 +685,33 @@ class GenericAssistant implements AiAgentInterface
                 if ($warning instanceof ExceptionInterface) {
                     $warningException = $warning;
                 } else {
-                    $warningException = $this->mapWarningToException($prompt, $warning);
+                    if ($warning instanceof \Throwable) {
+                        $warningException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Unrecognized payload while saving warning: ' . $warning->getMessage(),
+                            null,
+                            $warning
+                        );
+                    } else {
+                        // Fallback path: convert non-platform warning payloads into AiPromptError
+                        // so they can be saved consistently in the warning log.
+                        $warningMessage = is_scalar($warning) || $warning === null
+                            ? trim((string) $warning)
+                            : trim(json_encode($warning, JSON_UNESCAPED_UNICODE) ?: '');
+
+                        if ($warningMessage === '') {
+                            $warningMessage = gettype($warning);
+                        }
+
+                        $warningException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Non-standard warning payload mapped during warning persistence: ' . $warningMessage
+                        );
+
+                        $this->workbench->getLogger()->logException($warningException);
+                    }
                 }
 
                 $warningText = trim($warningException->getMessage());
@@ -721,37 +747,6 @@ class GenericAssistant implements AiAgentInterface
         } catch (\Throwable $e) {
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Converts unknown warning payloads into platform exceptions so they can be persisted consistently.
-     *
-     * @param mixed $warning
-     */
-    protected function mapWarningToException(AiPromptInterface $prompt, $warning) : ExceptionInterface
-    {
-        switch (true) {
-            case $warning instanceof \Throwable:
-                return new AiPromptError(
-                    $this,
-                    $prompt,
-                    'Mapped non-platform warning throwable: ' . $warning->getMessage(),
-                    null,
-                    $warning
-                );
-            case is_array($warning):
-                $message = trim((string) ($warning['message'] ?? ''));
-                if ($message === '') {
-                    $message = 'Mapped warning from unsupported array payload.';
-                }
-                return new AiPromptError($this, $prompt, $message);
-            default:
-                $message = trim((string) $warning);
-                if ($message === '') {
-                    $message = 'Mapped warning from unsupported payload.';
-                }
-                return new AiPromptError($this, $prompt, $message);
         }
     }
 
