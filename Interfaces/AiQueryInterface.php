@@ -43,8 +43,9 @@ interface AiQueryInterface extends DataQueryInterface
     public function getCosts() : ?float;
 
     /**
+     * Warning payloads from the connector layer.
      *
-     * @return string[]
+     * @return \exface\Core\Interfaces\Exceptions\ExceptionInterface[]
      */
     public function getWarnings() : array;
 

@@ -680,22 +680,40 @@ class GenericAssistant implements AiAgentInterface
 
         try {
             foreach ($warnings as $warning) {
-                $warning = trim((string) $warning);
-                if ($warning === '') {
+                $warningException = null;
+
+                if ($warning instanceof ExceptionInterface) {
+                    $warningException = $warning;
+                } else {
+                    $warningException = $this->mapWarningToException($prompt, $warning);
+                }
+
+                $warningText = trim($warningException->getMessage());
+                $warningLogId = $warningException->getId();
+
+                if ($warningText === '') {
                     continue;
                 }
 
                 $hasRows = true;
 
-                $messageData->addRow([
+                $row = [
                     'AI_CONVERSATION' => $conversationId,
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE' => AiMessageTypeDataType::WARNING,
-                    'MESSAGE' => $warning,
+                    'MESSAGE' => $warningText,
                     'SEQUENCE_NUMBER' => $this->sequenceNumber++
-                ]);
+                ];
+
+                if ($warningLogId !== null && $warningLogId !== '') {
+                    $row['ERROR_LOG_ID'] = $warningLogId;
+                }
+
+                $messageData->addRow($row);
             }
 
+            // Use a flag for actually queued rows instead of count($warnings):
+            // warnings can be transformed or skipped (e.g. empty message), so not every input warning becomes a DB row.
             if ($hasRows) {
                 $messageData->dataCreate(false, $transaction);
             }
@@ -703,6 +721,37 @@ class GenericAssistant implements AiAgentInterface
         } catch (\Throwable $e) {
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
+        }
+    }
+
+    /**
+     * Converts unknown warning payloads into platform exceptions so they can be persisted consistently.
+     *
+     * @param mixed $warning
+     */
+    protected function mapWarningToException(AiPromptInterface $prompt, $warning) : ExceptionInterface
+    {
+        switch (true) {
+            case $warning instanceof \Throwable:
+                return new AiPromptError(
+                    $this,
+                    $prompt,
+                    'Mapped non-platform warning throwable: ' . $warning->getMessage(),
+                    null,
+                    $warning
+                );
+            case is_array($warning):
+                $message = trim((string) ($warning['message'] ?? ''));
+                if ($message === '') {
+                    $message = 'Mapped warning from unsupported array payload.';
+                }
+                return new AiPromptError($this, $prompt, $message);
+            default:
+                $message = trim((string) $warning);
+                if ($message === '') {
+                    $message = 'Mapped warning from unsupported payload.';
+                }
+                return new AiPromptError($this, $prompt, $message);
         }
     }
 

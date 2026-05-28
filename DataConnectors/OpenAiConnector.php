@@ -339,8 +339,9 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
             if (empty($pathVals)) {
                 $message = 'Placeholder "' . $jsonPath . '" not found in API response for cost calculation. Check the costs_calculation formula.';
                 $e = new DataConnectionConfigurationError($this, $message);
+                
                 $this->getWorkbench()->getLogger()->logException($e);
-                $warnings[] = $message;
+                $warnings[] = $e;
                 return 0;
             }
             $phVals[$jsonPath] = array_sum($pathVals);
