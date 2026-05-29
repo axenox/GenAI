@@ -337,7 +337,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
         foreach ($phs as $jsonPath) {
             $pathVals = ArrayDataType::filterJsonPath($usage, $jsonPath);
             if (empty($pathVals)) {
-                $message = 'Placeholder "' . $jsonPath . '" not found in API response for cost calculation. Check the costs_calculation formula.';
+                $message = 'Cost Calculation Error: Placeholder "' . $jsonPath . '" not found in API response. Check the costs_calculation formula.';
                 $e = new DataConnectionConfigurationError($this, $message);
                 
                 $this->getWorkbench()->getLogger()->logException($e);
