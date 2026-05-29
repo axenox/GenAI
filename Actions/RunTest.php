@@ -36,6 +36,8 @@ class RunTest extends AbstractActionDeferred
 
     private $userFeedback = [];
 
+    private ?string $errorFeedback = null;
+
     private ?string $testCaseUid = null;
 
     private ?string $testRunUid = null;
@@ -99,6 +101,9 @@ class RunTest extends AbstractActionDeferred
      */
     protected function runTestCase(DataSheetInterface $caseSheet = null, int $rowIdx = 0) : AbstractActionDeferred
     {
+        $this->userFeedback = [];
+        $this->errorFeedback = null;
+
         // TODO pass caseSheet to getAgent() and getPrompt()
         $agent = $this->getAgent($caseSheet);
         $prompt = $this->getPrompt($caseSheet);
@@ -108,9 +113,9 @@ class RunTest extends AbstractActionDeferred
             $this->getWorkbench()->getLogger()->logException($e);
             $this->getWorkbench()->getLogger()->logException($e);
             $errorMessage = $e->getMessage();
+            $this->errorFeedback = $errorMessage;
             $this->finishMessage = 'Testcase mit folgenden Fehler abgeschlossen: ' . $errorMessage;
-            //TODO Errorhandling (some errors dont have a conversation ID)
-            $result = new AiResponse($prompt, '', $e->getConversationId());
+            $result = new AiResponse($prompt, '', $this->resolveConversationId($e, $prompt));
             $this->userFeedback = ['USER_RATING' => 1, 'USER_FEEDBACK' => $errorMessage];
         }
         $testCaseId = $caseSheet->getUidColumn()->getValue($rowIdx);
@@ -229,20 +234,32 @@ class RunTest extends AbstractActionDeferred
     {
         $resultRatingSheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'axenox.GenAI.AI_TEST_RESULT_RATING');
 
+        $forcedErrorRating = $this->errorFeedback !== null;
+        $explanation = $forcedErrorRating ? $this->errorFeedback : ($rating->getExplanation() ?? '');
+
         $row = [
             'NAME' => $rating->getMetric()->getName(),
-            'RATING' => $rating->getRating(),
+            'RATING' => $forcedErrorRating ? 5 : $rating->getRating(),
             'AI_TEST_RESULT' => $aiTestResultOid,
             'RAW_VALUE' => $rating->getCriterion()->getValue($rating->getResponse()), //TODO improve this
-            'EXPLANATION' => $rating->getExplanation() ?? '',
-            'PROS' => $rating->getExplanationPros() ?? '',
-            'CONS' => $rating->getExplanationCons()?? '',
+            'EXPLANATION' => $explanation,
+            'PROS' => $forcedErrorRating ? '' : ($rating->getExplanationPros() ?? ''),
+            'CONS' => $forcedErrorRating ? '' : ($rating->getExplanationCons()?? ''),
         ];
 
         $resultRatingSheet->addRow($row);
 
         $resultRatingSheet->dataCreate();
         return $this;
+    }
+
+    protected function resolveConversationId(\Throwable $error, AiPrompt $prompt) : ?string
+    {
+        if (method_exists($error, 'getConversationId')) {
+            return $error->getConversationId();
+        }
+
+        return $prompt->getConversationUid();
     }
 
     protected function setTestRunUid(string $uid) : AbstractActionDeferred
