@@ -99,7 +99,10 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
             }
         }
         // Return a copy of the DataQuery with the LLM response in it
-        return $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter));
+        $warnings = [];
+        return $query
+            ->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, $warnings))
+            ->withWarnings($warnings);
     }
 
     protected function sendRequest(RequestInterface $request) : ResponseInterface
@@ -314,7 +317,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
         return $this->costsCalculation;
     }
 
-    protected function getCosts(HttpResponseAdapterInterface $adapter) : ?float
+    protected function getCosts(HttpResponseAdapterInterface $adapter, array &$warnings = []) : ?float
     {
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000)
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000) * GetConfig('axenox.GenAI', 'DISCOUNT')
@@ -333,6 +336,14 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
         $phVals = [];
         foreach ($phs as $jsonPath) {
             $pathVals = ArrayDataType::filterJsonPath($usage, $jsonPath);
+            if (empty($pathVals)) {
+                $message = 'Cost Calculation Error: Placeholder "' . $jsonPath . '" not found in API response. Check the costs_calculation formula.';
+                $e = new DataConnectionConfigurationError($this, $message);
+                
+                $this->getWorkbench()->getLogger()->logException($e);
+                $warnings[] = $e;
+                return 0;
+            }
             $phVals[$jsonPath] = array_sum($pathVals);
         }
         $formulaStr = StringDataType::replacePlaceholders($formulaStr, $phVals);

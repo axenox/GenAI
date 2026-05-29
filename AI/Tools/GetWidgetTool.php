@@ -2,8 +2,10 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
@@ -102,9 +104,9 @@ class GetWidgetTool extends AbstractAiTool
      * @param AiPromptInterface $prompt The current prompt context
      * @param array $arguments Tool arguments, expects [0] to be the widget file path
      * 
-     * @return string Markdown-formatted widget documentation or error message
+     * @return AiToolResultInterface Markdown-formatted widget documentation or error message
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($url) = $arguments;
         
@@ -161,11 +163,12 @@ class GetWidgetTool extends AbstractAiTool
             $output .= $this->createTextTable('Widget Functions', $widgetFunctionsHeaders, $widgetFunctions) . PHP_EOL;
             $output .= $this->createTextTable('Widget Presets', $widgetPresetsHeaders, $widgetPresets);
 
-            return $output;
+            return new AiToolResultString($this, $arguments, $output, $this->getReturnDataType());
         }
         catch(\Throwable $e){
             $this->getWorkbench()->getLogger()->logException($e);
-            return 'ERROR: file not found!';
+            $errorMsg = 'ERROR: file not found!';
+            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
         }
     }
 

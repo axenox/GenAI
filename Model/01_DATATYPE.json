@@ -114,7 +114,7 @@
         {
             "_EXPORT_SUMMARY": "AI message role",
             "CREATED_ON": "2026-02-02 20:36:05",
-            "MODIFIED_ON": "2026-02-02 20:38:10",
+            "MODIFIED_ON": "2026-05-28 13:03:25",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f190076aa330069007025041000001",
@@ -130,9 +130,10 @@
                 "color_scale": {
                     "system": "lightgray",
                     "user": "lightgreen",
-                    "assistant": "orange",
+                    "assistant": "#EAD1FF",
                     "tool calling": "lightblue",
                     "tool": "skyblue",
+                    "warning": "yellow",
                     "error": "~ERROR"
                 }
             },

@@ -11,6 +11,8 @@ ALTER TABLE [exf_ai_agent_version]
     ADD [instructions] NVARCHAR(MAX) NOT NULL
         CONSTRAINT [DF_exf_ai_agent_version_instructions] DEFAULT N'';
 
+GO;
+
 UPDATE [exf_ai_agent_version]
 SET [instructions] = COALESCE(
     JSON_VALUE([config_uxon], '$.instructions'),
@@ -21,6 +23,8 @@ UPDATE [exf_ai_agent_version]
 SET [config_uxon] = JSON_MODIFY([config_uxon], '$.instructions', NULL)
 WHERE [config_uxon] IS NOT NULL
   AND JSON_VALUE([config_uxon], '$.instructions') IS NOT NULL;
+
+GO;
 
 ALTER TABLE [exf_ai_agent_version]
     DROP CONSTRAINT [DF_exf_ai_agent_version_instructions];

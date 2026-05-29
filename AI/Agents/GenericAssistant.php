@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
@@ -35,6 +36,7 @@ use exface\Core\Factories\UiPageFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
+use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
@@ -173,8 +175,13 @@ class GenericAssistant implements AiAgentInterface
         
         $query->setFiles($prompt->getFiles());
 
-        $conversationId = $this->saveConversation($prompt, $query);
-        $prompt->setConversationUid($conversationId);
+        try {
+            $conversationId = $this->saveConversation($prompt, $query);
+            $prompt->setConversationUid($conversationId);
+        } catch (\Throwable $e) {
+            $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
+            throw $this->saveConversationError($prompt, $e);
+        }
 
         try {
             $performedQuery = $this->getConnection()->query($query);
@@ -191,9 +198,13 @@ class GenericAssistant implements AiAgentInterface
             }
             throw $this->saveConversationError($prompt,$e);
         }
-        $this->saveConversationResponse($prompt, $performedQuery);
-
-        return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
+        try {
+            $this->saveConversationResponse($prompt, $performedQuery);
+            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
+        } catch (\Throwable $e) {
+            $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
+            throw $this->saveConversationError($prompt, $e);
+        }
     }
     
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery) : AiQueryInterface
@@ -225,11 +236,11 @@ class GenericAssistant implements AiAgentInterface
                     throw (new AiToolNotFoundError("Requested tool not found"))
                         ->setConversationId($prompt->getConversationUid());
                 }
-
+                
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
                     $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
                 } else {
-                    $resultOfTool = "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.";
+                    $resultOfTool = new AiToolResultString($tool, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
                 } 
 
@@ -240,8 +251,7 @@ class GenericAssistant implements AiAgentInterface
                     $call->getToolName(),
                     $callId,
                     $call->getArguments(),
-                    $resultOfTool,
-                    $tool->getReturnDataType()->getAliasWithNamespace()
+                    $resultOfTool
                 );
 
                 $this->toolCalls[] = $toolCallResponses[$callId];
@@ -400,6 +410,7 @@ class GenericAssistant implements AiAgentInterface
         } catch(\Throwable $e){
             $this->workbench->getLogger()->logException($e);
             $transaction->rollback();
+            throw $e;
         }
         return $conversationId;
     }
@@ -424,6 +435,7 @@ class GenericAssistant implements AiAgentInterface
         try {
             
             $cost = $query->getCosts();
+            $this->saveConversationWarning($prompt, $query->getWarnings());
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -468,6 +480,7 @@ class GenericAssistant implements AiAgentInterface
             if($this->hasJsonSchema()){
                 $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
             }
+            $this->saveConversationWarning($prompt, $query->getWarnings());
             
             $message->addRow([
                 'AI_CONVERSATION' => $conversationId,
@@ -518,16 +531,16 @@ class GenericAssistant implements AiAgentInterface
         
         // Tool responses
         foreach ($responses as $response) {
-            $type = DataTypeFactory::createFromString($this->workbench, $response->getDataTypeAlias());
+            $type = $response->getToolResult()->getValueDataType();
             switch (true) {
                 case $type instanceof MarkdownDataType:
-                    $markdown .= $response->getToolResponse();
+                    $markdown .= $response->getToolResult()->getValueAsMarkdown();
                     break;
                 case $type instanceof JsonDataType:
-                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResponse());
+                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResult()->getValue());
                     break;
                 default:
-                    $markdown .= "\n" . $response->getToolResponse();
+                    $markdown .= "\n" . $response->getToolResult();
             }
             $markdown .= MarkdownDataType::makeHorizontalLine();
         }
@@ -618,6 +631,8 @@ class GenericAssistant implements AiAgentInterface
         }
 
         try {
+            $this->saveConversationErrorFeedback($conversationId, $error->getMessage(), $transaction);
+
             $messageData->addRow([
                 'AI_CONVERSATION' => $conversationId,
                 'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
@@ -636,6 +651,134 @@ class GenericAssistant implements AiAgentInterface
             // original error is returned so caller can still handle it
         }
         return $error;
+    }
+
+    protected function saveConversationErrorFeedback(string $conversationId, string $errorMessage, ?DataTransactionInterface $transaction = null) : void
+    {
+        $this->saveConversationFeedback(
+            $conversationId,
+            "Auto generated error message:\n" . substr($errorMessage, 0, 500),
+            1,
+            $transaction
+        );
+    }
+
+    protected function saveConversationWarning(AiPromptInterface $prompt, array $warnings) : void
+    {
+        if (empty($warnings)) {
+            return;
+        }
+
+        $conversationId = $prompt->getConversationUid();
+        if ($conversationId === null) {
+            return;
+        }
+
+        $transaction = $this->workbench->data()->startTransaction();
+        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $hasRows = false;
+
+        try {
+            foreach ($warnings as $warning) {
+                $warningException = null;
+
+                if ($warning instanceof ExceptionInterface) {
+                    $warningException = $warning;
+                } else {
+                    if ($warning instanceof \Throwable) {
+                        $warningException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Unrecognized payload while saving warning: ' . $warning->getMessage(),
+                            null,
+                            $warning
+                        );
+                    } else {
+                        // Fallback path: convert non-platform warning payloads into AiPromptError
+                        // so they can be saved consistently in the warning log.
+                        $warningMessage = is_scalar($warning) || $warning === null
+                            ? trim((string) $warning)
+                            : trim(json_encode($warning, JSON_UNESCAPED_UNICODE) ?: '');
+
+                        if ($warningMessage === '') {
+                            $warningMessage = gettype($warning);
+                        }
+
+                        $warningException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Non-standard warning payload mapped during warning persistence: ' . $warningMessage
+                        );
+
+                        $this->workbench->getLogger()->logException($warningException);
+                    }
+                }
+
+                $warningText = trim($warningException->getMessage());
+                $warningLogId = $warningException->getId();
+
+                if ($warningText === '') {
+                    continue;
+                }
+
+                $hasRows = true;
+
+                $row = [
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE' => AiMessageTypeDataType::WARNING,
+                    'MESSAGE' => $warningText,
+                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
+                ];
+
+                if ($warningLogId !== null && $warningLogId !== '') {
+                    $row['ERROR_LOG_ID'] = $warningLogId;
+                }
+
+                $messageData->addRow($row);
+            }
+
+            // Use a flag for actually queued rows instead of count($warnings):
+            // warnings can be transformed or skipped (e.g. empty message), so not every input warning becomes a DB row.
+            if ($hasRows) {
+                $messageData->dataCreate(false, $transaction);
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
+        }
+    }
+
+    protected function saveConversationFeedback(string $conversationId, string $feedback, ?int $defaultRating = null, ?DataTransactionInterface $transaction = null) : void
+    {
+        $conversationData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+        $conversationData->getFilters()->addConditionFromAttribute(
+            $conversationData->getMetaObject()->getUidAttribute(),
+            $conversationId,
+            ComparatorDataType::EQUALS
+        );
+        $conversationData->getColumns()->addFromAttributeGroup($conversationData->getMetaObject()->getAttributes());
+        $conversationData->dataRead();
+
+        if ($conversationData->isEmpty()) {
+            throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
+        }
+
+        $existingRating = $conversationData->getCellValue('RATING', 0);
+        $existingFeedback = $conversationData->getCellValue('RATING_FEEDBACK', 0);
+
+        if ($defaultRating !== null && ($existingRating === null || $existingRating === '')) {
+            $conversationData->setCellValue('RATING', 0, $defaultRating);
+        }
+
+        if ($existingFeedback === null || $existingFeedback === '') {
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
+        } else {
+            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . "\n\n" . $feedback);
+        }
+
+        $conversationData->dataUpdate(false, $transaction);
     }
     
     protected function enrichUxonWithTools( ?UxonObject $uxon) : UxonObject

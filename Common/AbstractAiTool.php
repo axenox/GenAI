@@ -22,7 +22,7 @@ abstract class AbstractAiTool implements AiToolInterface
 
     private $uxon = null;
 
-    private $arguments = [];
+    private $arguments = null;
 
     private $name = null;
 
@@ -54,15 +54,33 @@ abstract class AbstractAiTool implements AiToolInterface
      */
     protected function setArguments(UxonObject $arrayOfServiceParams) : AiToolInterface
     {
+        $argTemplates = static::getArgumentsTemplates($this->getWorkbench());
         foreach ($arrayOfServiceParams as $i => $uxon) {
-            array_push($this->arguments, new ServiceParameter($this, $uxon));
+            $argParam = $argTemplates[$i];
+            $argParam->importUxonObject($uxon);
+            $this->arguments[] = $argParam;
         }
         return $this;
     }
 
     public function getArguments(): array
     {
-        return $this->arguments;
+        if ($this->arguments === null) {
+            $defaultArgs = static::getArgumentsTemplates($this->getWorkbench());
+            if (! empty($defaultArgs)) {
+                $this->arguments = $defaultArgs;
+            }
+        }
+        return $this->arguments ?? [];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getAppendix()
+     */
+    public function getAppendix() : array
+    {
+        return [];
     }
 
     /**

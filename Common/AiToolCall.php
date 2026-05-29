@@ -2,6 +2,7 @@
 namespace axenox\GenAI\Common;
 
 use axenox\GenAI\Interfaces\AiToolCallInterface;
+use exface\Core\DataTypes\StringDataType;
 use JsonSerializable;
 
 /**
@@ -43,6 +44,23 @@ class AiToolCall implements AiToolCallInterface, JsonSerializable
     
     public function __toString(): string
     {
-        return $this->getToolName() . '(' . implode(', ', $this->getArguments()) . ')';
+        $args = [];
+        $delim = ', ';
+        foreach ($this->getArguments() as $arg) {
+            switch (true) {
+                case $arg instanceof \stdClass:
+                case is_array($arg): 
+                    $args[] = StringDataType::indent(json_encode($arg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), "\t");
+                    $delim = ",\n\t";
+                    break;
+                case is_bool($arg):
+                    $args[] = $arg ? 'true' : 'false';
+                    break;
+                default:
+                    $args[] = $arg;
+                    break;
+            }
+        }
+        return $this->getToolName() . '(' . implode($delim, $args) . ')';
     }
 }

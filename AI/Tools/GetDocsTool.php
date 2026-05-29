@@ -2,8 +2,10 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
@@ -73,30 +75,33 @@ class GetDocsTool extends AbstractAiTool
      */
     const ARG_URI = 'uri';
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($url) = $arguments;
         $url = str_replace('\\/', '/', $url);
         $url = ltrim($url, '/');
         
         if(! $this->checkSecurity($url)){
-            return $this->getSecurityFailurMessage();
+            $errorMsg = $this->getSecurityFailurMessage();
+            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
         }
         
         if(StringDataType::endsWith($url,"php")){
             $phpPrinter = new CodeMarkdownPrinter($this->getWorkbench(), $url);
-            return $phpPrinter->getMarkdown();
+            $markdown = $phpPrinter->getMarkdown();
+            return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
         }
         
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
             $md = $docsFacade->getDocsMarkdown($url);
-            return $md;
+            return new AiToolResultString($this, $arguments, $md, $this->getReturnDataType());
         }
         catch(\Throwable $e){
             $this->getWorkbench()->getLogger()->logException($e);
-            return 'ERROR: file not found!';
+            $errorMsg = 'ERROR: file not found!';
+            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
         }
     }
 
