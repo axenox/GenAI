@@ -3,9 +3,11 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\AI\Traits\FileAccessToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataTypeFactory;
@@ -62,7 +64,7 @@ class WriteFileTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $relativePath = (string) ($arguments[0] ?? '');
         $content = (string) ($arguments[1] ?? '');
@@ -74,7 +76,9 @@ class WriteFileTool extends AbstractAiTool
         } catch (\Throwable $e) {
             throw new AiToolRuntimeError($this, $prompt, 'Failed to write file: ' . $relativePath . '. ' . $e->getMessage(), null, $e);
         }
-        return 'File saved: ' . $relativePath;
+        
+        $message = 'File saved: ' . $relativePath;
+        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
     }
 
     /**

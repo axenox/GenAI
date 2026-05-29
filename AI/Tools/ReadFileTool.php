@@ -3,9 +3,11 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\AI\Traits\FileAccessToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\DataTypes\StringDataType;
@@ -44,6 +46,28 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * ## Support for common AI instruction formats
+ * 
+ * This tool can include applicable AI instructions stored in the neighborhood of the requested file. For example, when
+ * reading files from an app, the `.github` folder can be scanned for applicable instructions. Other formats like 
+ * `Agents.md` will follow in the future.
+ * 
+ * ### Github Copilot instructions
+ * 
+ * Set `include_instructions_for_github_copilot` to `true` to include capplicable Copilot instructions markdown in
+ * addition to the file contents, if `.github/instructions/*.instructions.md` files are found in the file hierarchy 
+ * above the requested file.
+ * 
+ * If multiple files are requested (e.g. multiple tool calls), instructions applicable to multiple files will be included
+ * only once.
+ * 
+ * Copilot instructions will be appended to the file contents:
+ * 
+ * ```
+ * <requested_file>
+ * 
+ * ```
  */
 class ReadFileTool extends AbstractAiTool
 {
@@ -55,7 +79,7 @@ class ReadFileTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $relativePath = (string) ($arguments[0] ?? '');
         $basePath = $this->getBasePathAbsolute();
@@ -74,7 +98,7 @@ class ReadFileTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $relativePath);
         }
 
-        return $content;
+        return new AiToolResultString($this, $arguments, $content, $this->getReturnDataType());
     }
 
     /**

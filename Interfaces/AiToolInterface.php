@@ -24,7 +24,7 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
      * @param array $arguments
      * @return string
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments) : string;
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments) : AiToolResultInterface;
 
     /**
      * Summary of getArguments

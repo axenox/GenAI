@@ -2,10 +2,12 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolConfigurationError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\WorkbenchCache;
@@ -133,7 +135,7 @@ class GetPrintPreviewTool extends AbstractAiTool
      * {@inheritDoc}
      * @see AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $printData = $this->getPrintData($arguments);
         
@@ -153,7 +155,8 @@ class GetPrintPreviewTool extends AbstractAiTool
             $results = $this->print($printData);
         }
         
-        return $this->concatenate($results);
+        $concatenated = $this->concatenate($results);
+        return new AiToolResultString($this, $arguments, $concatenated, $this->getReturnDataType());
     }
 
     /**
