@@ -3,9 +3,12 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataSheetSchema;
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
@@ -31,12 +34,12 @@ class ImportTool extends AbstractAiTool
      */
     private ?array $dataSchemas = null;
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         try{
             $payload = $arguments[0] ?? null;
             if ($payload === null) {
-                return 'Invalid Arguments';
+                throw new AiToolRuntimeError($this, $prompt, 'Missing data argument in ImportTool');
             }
 
             $uxon = UxonObject::fromAnything($payload);
@@ -62,7 +65,7 @@ class ImportTool extends AbstractAiTool
             $agent->getWorkbench()->getLogger()->logException($e);
         }
 
-        return $message;
+        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
     }
 
     /**

@@ -75,6 +75,15 @@ abstract class AbstractAiTool implements AiToolInterface
     }
 
     /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getAppendix()
+     */
+    public function getAppendix() : array
+    {
+        return [];
+    }
+
+    /**
      * Returns the default set of arguments
      * 
      * This allows the designer of an assistant to only specify certain argument properties

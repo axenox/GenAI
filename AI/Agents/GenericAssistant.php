@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
@@ -225,11 +226,11 @@ class GenericAssistant implements AiAgentInterface
                     throw (new AiToolNotFoundError("Requested tool not found"))
                         ->setConversationId($prompt->getConversationUid());
                 }
-
+                
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
                     $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
                 } else {
-                    $resultOfTool = "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.";
+                    $resultOfTool = new AiToolResultString($tool, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
                 } 
 
@@ -240,8 +241,7 @@ class GenericAssistant implements AiAgentInterface
                     $call->getToolName(),
                     $callId,
                     $call->getArguments(),
-                    $resultOfTool,
-                    $tool->getReturnDataType()->getAliasWithNamespace()
+                    $resultOfTool
                 );
 
                 $this->toolCalls[] = $toolCallResponses[$callId];
@@ -518,16 +518,16 @@ class GenericAssistant implements AiAgentInterface
         
         // Tool responses
         foreach ($responses as $response) {
-            $type = DataTypeFactory::createFromString($this->workbench, $response->getDataTypeAlias());
+            $type = $response->getToolResult()->getValueDataType();
             switch (true) {
                 case $type instanceof MarkdownDataType:
-                    $markdown .= $response->getToolResponse();
+                    $markdown .= $response->getToolResult()->getValueAsMarkdown();
                     break;
                 case $type instanceof JsonDataType:
-                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResponse());
+                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResult()->getValue());
                     break;
                 default:
-                    $markdown .= "\n" . $response->getToolResponse();
+                    $markdown .= "\n" . $response->getToolResult();
             }
             $markdown .= MarkdownDataType::makeHorizontalLine();
         }

@@ -2,9 +2,11 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\LogEntryMarkdownPrinter;
@@ -21,13 +23,14 @@ class GetLogEntryTool extends AbstractAiTool
      * {@inheritDoc}
      * @see AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($logId, $logFilePath) = $arguments;
         
         $printer = new LogEntryMarkdownPrinter($this->getWorkbench(), $logId, $logFilePath);
+        $markdown = $printer->getMarkdown();
 
-        return $printer->getMarkdown();
+        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
     }
 
     /**

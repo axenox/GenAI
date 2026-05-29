@@ -4,10 +4,12 @@ namespace axenox\GenAI\AI\Tools;
 
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\RequestResponsePairs;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
@@ -24,7 +26,7 @@ class MockTool extends AbstractAiTool
     private string $sampleResponse = "No data available for this request";
     
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($var) = $arguments;
         
@@ -32,13 +34,14 @@ class MockTool extends AbstractAiTool
             foreach($this->requestResponsePairs as $pair){
                 if($pair instanceof RequestResponsePairs){
                     if($pair->isMatch($var)){
-                        return $pair->getResponse();
+                        $response = $pair->getResponse();
+                        return new AiToolResultString($this, $arguments, $response, $this->getReturnDataType());
                     }
                 }
             }
         }
         
-        return $this->sampleResponse;
+        return new AiToolResultString($this, $arguments, $this->sampleResponse, $this->getReturnDataType());
     }
 
     /**

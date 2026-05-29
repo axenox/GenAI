@@ -2,12 +2,13 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
-use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\JsonSchemaDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Exceptions\DataSheets\DataSheetReadError;
@@ -219,7 +220,7 @@ class ReadDataSheetTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $dataSheetArg = $arguments[0] ?? null;
         if ($dataSheetArg === null || $dataSheetArg === '') {
@@ -253,7 +254,12 @@ class ReadDataSheetTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'Unexpected error reading data: ' . $e->getMessage(), null, $e);
         }
 
-        return $this->toMarkdown($dataSheet);
+        return new AiToolResultString(
+            $this, 
+            $arguments,
+            $this->toMarkdown($dataSheet),
+            $this->getReturnDataType()
+        );
     }
     
     protected function toMarkdown(DataSheetInterface $dataSheet) : string

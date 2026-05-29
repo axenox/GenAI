@@ -2,9 +2,11 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
@@ -32,7 +34,7 @@ class GetObjectTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $searchTerm = trim((string) ($arguments[0] ?? ''));
         if ($searchTerm === '') {
@@ -65,7 +67,8 @@ class GetObjectTool extends AbstractAiTool
 
         $rows = $ds->getRows();
         if (empty($rows)) {
-            return 'No objects found for term "' . $searchTerm . '".';
+            $notFoundMsg = 'No objects found for term "' . $searchTerm . '".';
+            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType());
         }
 
         $objectMarkdowns = [];
@@ -74,7 +77,7 @@ class GetObjectTool extends AbstractAiTool
             $objectAliases[] = $row['ALIAS_WITH_NS'];
             $selector = $row['UID'] ?? $row['ALIAS_WITH_NS'] ?? null;
             if (! is_string($selector) || $selector === '') {
-                throw new AiToolRuntimeError($this, 'Invalid object search result');
+                throw new AiToolRuntimeError($this, $prompt, 'Invalid object search result');
             }
 
             try {
@@ -85,7 +88,8 @@ class GetObjectTool extends AbstractAiTool
         }
 
         if (empty($objectAliases)) {
-            return 'No objects found for search query `' . $searchTerm . '`.';
+            $notFoundMsg = 'No objects found for search query `' . $searchTerm . '`.';
+            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType());
         }
         
         if (in_array($searchTerm, $objectAliases)) {
@@ -95,7 +99,7 @@ class GetObjectTool extends AbstractAiTool
 
         $details = implode("\n\n---\n\n", $objectMarkdowns);
         $aliasList = "\n- `" . implode("`\n- `", $objectAliases) . '`';
-        return <<<MD
+        $result = <<<MD
 # Object search results
 
 Objects matching `{$searchTerm}`:
@@ -104,6 +108,7 @@ Objects matching `{$searchTerm}`:
 {$details}
 MD;
 
+        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
     }
 
     /**

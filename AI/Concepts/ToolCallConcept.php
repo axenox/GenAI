@@ -28,7 +28,8 @@ class ToolCallConcept extends AbstractConcept
     protected function getOutput(): string
     {
         try{
-            return $this->getTool()->invoke($this->getAgent(), $this->getPrompt(), $this->arguments);
+            $result = $this->getTool()->invoke($this->getAgent(), $this->getPrompt(), $this->arguments);
+            return $result->getValueAsMarkdown();
         }catch (\Exception $e){
             $this->getWorkbench()->getLogger()->logException($e);
             return "";

@@ -3,8 +3,10 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
@@ -23,12 +25,14 @@ class GetCodeTool extends AbstractAiTool
 
     
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): string
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($codePath) = $arguments;
 
         $printer = new CodeMarkdownPrinter($this->getWorkbench(), $codePath);
-        return $printer->getMarkdown();
+        $markdown = $printer->getMarkdown();
+        
+        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
     }
 
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
