@@ -24,6 +24,7 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\LogLevelDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
@@ -40,6 +41,7 @@ use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
@@ -240,7 +242,7 @@ class GenericAssistant implements AiAgentInterface
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
                     $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
                 } else {
-                    $resultOfTool = new AiToolResultString($tool, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
+                    $resultOfTool = new AiToolResultString($tool, [], "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
                 } 
 
@@ -520,6 +522,7 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
+        $this->saveConversationToolExceptions($prompt, $responses);
         
         // Summary of tool calls
         $markdown = '> ' . count($toolCalls) . " tool calls:\n";
@@ -563,6 +566,137 @@ class GenericAssistant implements AiAgentInterface
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
             return $responses;
+        }
+    }
+
+    /**
+     * Saves all exceptions attached to tool responses.
+     *
+     * Warning-like exceptions are saved as warning messages, all others as errors.
+     *
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param AiToolCallResponse[] $responses
+     * @return void
+     */
+    protected function saveConversationToolExceptions(AiPromptInterface $prompt, array $responses) : void
+    {
+        $errors = [];
+        $warnings = [];
+
+        foreach ($responses as $response) {
+            foreach ($response->getToolResult()->getExceptions() as $exception) {
+                if ($exception instanceof ExceptionInterface) {
+                    if ($this->isWarningException($exception)) {
+                        $warnings[] = $exception;
+                    } else {
+                        $errors[] = $exception;
+                    }
+                }
+            }
+        }
+
+        $this->saveConversationWarning($prompt, $warnings);
+
+        $this->saveConversationErrorMessages($prompt, $errors);
+    }
+
+    /**
+     * Detects warning-like exceptions based on their configured PSR-3 log level.
+     */
+    protected function isWarningException(ExceptionInterface $exception) : bool
+    {
+        try {
+            $levelCmp = LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::WARNING);
+            return $levelCmp <= 0;
+        } catch (\Throwable $e) {
+            // Fail-safe: if level comparison breaks, keep exception as error.
+            return false;
+        }
+    }
+
+    /**
+     * Saves error payloads in the conversation as ERROR messages.
+     */
+    protected function saveConversationErrorMessages(AiPromptInterface $prompt, array $errors) : void
+    {
+        if (empty($errors)) {
+            return;
+        }
+
+        $conversationId = $prompt->getConversationUid();
+        if ($conversationId === null) {
+            return;
+        }
+
+        $transaction = $this->workbench->data()->startTransaction();
+        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $hasRows = false;
+
+        try {
+            foreach ($errors as $error) {
+                $errorException = null;
+
+                if ($error instanceof ExceptionInterface) {
+                    $errorException = $error;
+                } else {
+                    if ($error instanceof \Throwable) {
+                        $errorException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Unrecognized payload while saving error: ' . $error->getMessage(),
+                            null,
+                            $error
+                        );
+                    } else {
+                        $errorMessage = is_scalar($error) || $error === null
+                            ? trim((string) $error)
+                            : trim(json_encode($error, JSON_UNESCAPED_UNICODE) ?: '');
+
+                        if ($errorMessage === '') {
+                            $errorMessage = gettype($error);
+                        }
+
+                        $errorException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Non-standard error payload mapped during error persistence: ' . $errorMessage
+                        );
+
+                        $this->workbench->getLogger()->logException($errorException);
+                    }
+                }
+
+                $errorText = trim($errorException->getMessage());
+                $errorLogId = $errorException->getId();
+
+                if ($errorText === '') {
+                    continue;
+                }
+
+                $hasRows = true;
+
+                $row = [
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE' => AiMessageTypeDataType::ERROR,
+                    'MESSAGE' => $errorText,
+                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
+                ];
+
+                if ($errorLogId !== null && $errorLogId !== '') {
+                    $row['ERROR_LOG_ID'] = $errorLogId;
+                }
+
+                $messageData->addRow($row);
+            }
+
+            if ($hasRows) {
+                $messageData->dataCreate(false, $transaction);
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
         }
     }
 

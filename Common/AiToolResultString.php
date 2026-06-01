@@ -5,6 +5,7 @@ use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 
 /**
  * Generic string AI tool result - most tools will produce strings
@@ -17,20 +18,30 @@ class AiToolResultString implements AiToolResultInterface
     private mixed $value;
     private ?DataTypeInterface $type;
     private array $appendix;
+    /** @var ExceptionInterface[] */
+    private array $errors;
 
     /**
      * @param AiToolInterface $tool
      * @param $value
      * @param DataTypeInterface $type
      * @param array $appendix
+     * @param ExceptionInterface[] $errors
      */
-    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [])
+    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [], array $errors = [])
     {
         $this->tool = $tool;
         $this->arguments = $arguments;
         $this->value = $value;
         $this->type = $type;
         $this->appendix = $appendix;
+        $this->errors = [];
+
+        foreach ($errors as $error) {
+            if ($error instanceof ExceptionInterface) {
+                $this->errors[] = $error;
+            }
+        }
     }
 
     /**
@@ -94,6 +105,15 @@ class AiToolResultString implements AiToolResultInterface
     public function getAppendix(): array
     {
         return $this->appendix;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getExceptions()
+     */
+    public function getExceptions(): array
+    {
+        return $this->errors;
     }
 
     /**
