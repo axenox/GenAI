@@ -79,7 +79,9 @@ class GetObjectTool extends AbstractAiTool
         $rows = $ds->getRows();
         if (empty($rows)) {
             $notFoundMsg = 'No objects found for term "' . $searchTerm . '".';
-            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType());
+            $warning = (new AiToolRuntimeError($this, $prompt, $notFoundMsg))->setLogLevel(LoggerInterface::WARNING);
+            $this->getWorkbench()->getLogger()->logException($warning);
+            return (new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType()))->addException($warning);
         }
 
         $objectMarkdowns = [];
