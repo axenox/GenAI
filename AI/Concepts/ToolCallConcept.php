@@ -29,6 +29,13 @@ class ToolCallConcept extends AbstractConcept
     {
         try{
             $result = $this->getTool()->invoke($this->getAgent(), $this->getPrompt(), $this->arguments);
+            try {
+                foreach ($result->getExceptions() as $exception) {
+                    $this->getPrompt()->addWarning($exception);
+                }
+            } catch (\Throwable $e) {
+                // Ignore if prompt implementation does not support warnings.
+            }
             return $result->getValueAsMarkdown();
         }catch (\Exception $e){
             $this->getWorkbench()->getLogger()->logException($e);
@@ -158,4 +165,5 @@ class ToolCallConcept extends AbstractConcept
         $this->setTool($toolName);
         return $this;
     }
+
 }
