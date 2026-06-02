@@ -45,17 +45,43 @@ The agent below has a tool to get the DDL statement for a table in an SQL DB.
 
 ## Implementation details
 
-AI tool prototypes must implement `axenox\genai\Interfaces\AI Tool 
-Interface`. Most of them extend `axenox\genai\Common\AbstractAiTool` to 
+AI tool prototypes must implement `axenox\genai\Interfaces\AiToolInterface`.
+Most of them extend `axenox\genai\Common\AbstractAiTool` to 
 share common structures.
 
 The main methods to implement are:
 
-- `invoke($arguments)` - actually run the tool
+- `invoke($agent, $prompt, $arguments)` - actually run the tool
 - `getReturnDataType()` - important for good formatting/escaping of the result
 - `getArgumentsTemplates()`, which returns the generic JSON schema for all 
   possible arguments. This is supposed to be refined in every agent using 
   the tool.
+
+## Error and warning handling in tools
+
+When implementing tool `invoke(...)`, always handle failures in a way that can
+be persisted consistently by the agent.
+
+- Use platform exceptions (`ExceptionInterface`) for tool diagnostics.
+- Set the exception log level to indicate severity (`LoggerInterface::WARNING`
+  for warnings, `LoggerInterface::ERROR` or higher for errors).
+- Log exceptions with the workbench logger.
+- Return exceptions via the tool result (`AiToolResultInterface::getExceptions()`)
+  so the agent can persist them in the conversation.
+- If the tool handles a partial/internal failure and still returns a value,
+  add the exception to the result via `AiToolResultString::addException(...)`.
+
+Classification in the agent is log-level based, not text based:
+
+- log level `<= WARNING` -> persisted as warning message
+- log level `> WARNING` -> persisted as error message
+
+Recommended pattern:
+
+- Recoverable issue: return a normal tool result and attach exception(s) with
+  warning log level.
+- Non-recoverable issue: throw `AiToolRuntimeError` (or another suitable
+  runtime exception) with error log level.
 
 AI tool prototypes can be implemented in any app and should be placed in the 
 `AI/Tools` folder for easy autodiscovery. 

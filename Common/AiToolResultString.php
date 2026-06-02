@@ -117,6 +117,15 @@ class AiToolResultString implements AiToolResultInterface
     }
 
     /**
+     * Adds an exception to this tool result.
+     */
+    public function addException(ExceptionInterface $exception): self
+    {
+        $this->errors[] = $exception;
+        return $this;
+    }
+
+    /**
      * @inheritDoc
      */
     public function getWorkbench()
