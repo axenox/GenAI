@@ -63,13 +63,19 @@ When implementing tool `invoke(...)`, always handle failures in a way that can
 be persisted consistently by the agent.
 
 - Use platform exceptions (`ExceptionInterface`) for tool diagnostics.
-- Set the exception log level to indicate severity (`LoggerInterface::WARNING`
-  for warnings, `LoggerInterface::ERROR` or higher for errors).
+- Set the exception log level where needed to indicate warning severity
+  (`LoggerInterface::WARNING` for warnings).
 - Log exceptions with the workbench logger.
 - Return exceptions via the tool result (`AiToolResultInterface::getExceptions()`)
   so the agent can persist them in the conversation.
 - If the tool handles a partial/internal failure and still returns a value,
   add the exception to the result via `AiToolResultString::addException(...)`.
+- Small, safety-related or recoverable issues should usually be treated as
+  warnings.
+- Large failures should be logged as errors and can be treated as errors
+  without requiring an explicit warning log level.
+- Tools that were adjusted for this behavior should use two recognitions:
+  one for security/smaller warning cases and one for error cases.
 
 Classification in the agent is log-level based, not text based:
 
@@ -81,7 +87,7 @@ Recommended pattern:
 - Recoverable issue: return a normal tool result and attach exception(s) with
   warning log level.
 - Non-recoverable issue: throw `AiToolRuntimeError` (or another suitable
-  runtime exception) with error log level.
+  runtime exception); it will be handled as error by default.
 
 AI tool prototypes can be implemented in any app and should be placed in the 
 `AI/Tools` folder for easy autodiscovery. 
