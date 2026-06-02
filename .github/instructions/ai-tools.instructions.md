@@ -59,35 +59,34 @@ The main methods to implement are:
 
 ## Error and warning handling in tools
 
-When implementing tool `invoke(...)`, always handle failures in a way that can
-be persisted consistently by the agent.
+When implementing `invoke(...)`, handle failures so they can be persisted
+consistently by the agent.
+
+General rules:
 
 - Use platform exceptions (`ExceptionInterface`) for tool diagnostics.
-- Set the exception log level where needed to indicate warning severity
-  (`LoggerInterface::WARNING` for warnings).
-- Log exceptions with the workbench logger.
-- Return exceptions via the tool result (`AiToolResultInterface::getExceptions()`)
-  so the agent can persist them in the conversation.
-- If the tool handles a partial/internal failure and still returns a value,
-  add the exception to the result via `AiToolResultString::addException(...)`.
-- Small, safety-related or recoverable issues should usually be treated as
-  warnings.
-- Large failures should be logged as errors and can be treated as errors
-  without requiring an explicit warning log level.
-- Tools that were adjusted for this behavior should use two recognitions:
-  one for security/smaller warning cases and one for error cases.
+- Always log exceptions with the workbench logger.
+- Return exceptions via the tool result (`AiToolResultInterface::getExceptions()`).
+- If a tool continues after a partial/internal failure, attach that exception
+  to the result via `AiToolResultString::addException(...)`.
 
-Classification in the agent is log-level based, not text based:
+Severity model:
+
+- Small, security-related or recoverable issues should usually be treated as warnings.
+- Large failures should be treated as errors.
+- Set the log level explicitly only for warnings (`LoggerInterface::WARNING`).
+  Error handling can use the default error behavior.
+
+Classification in the agent is log-level based (not text based):
 
 - log level `<= WARNING` -> persisted as warning message
 - log level `> WARNING` -> persisted as error message
 
 Recommended pattern:
 
-- Recoverable issue: return a normal tool result and attach exception(s) with
-  warning log level.
-- Non-recoverable issue: throw `AiToolRuntimeError` (or another suitable
-  runtime exception); it will be handled as error by default.
+- Recoverable issue: return a normal tool result and attach warning exception(s).
+- Non-recoverable issue: throw `AiToolRuntimeError` (or another suitable runtime exception);
+  it will be handled as error by default.
 
 AI tool prototypes can be implemented in any app and should be placed in the 
 `AI/Tools` folder for easy autodiscovery. 
