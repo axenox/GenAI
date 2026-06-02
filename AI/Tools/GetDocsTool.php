@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
@@ -15,6 +16,8 @@ use exface\Core\Facades\DocsFacade;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\FacadeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -83,7 +86,11 @@ class GetDocsTool extends AbstractAiTool
         
         if(! $this->checkSecurity($url)){
             $errorMsg = $this->getSecurityFailurMessage();
-            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
+            $warning = (new AiToolRuntimeError($this, $prompt, $errorMsg))
+                ->setLogLevel(LoggerInterface::WARNING);
+            $this->getWorkbench()->getLogger()->logException($warning);
+            return (new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType()))
+                ->addException($warning);
         }
         
         if(StringDataType::endsWith($url,"php")){
@@ -99,9 +106,16 @@ class GetDocsTool extends AbstractAiTool
             return new AiToolResultString($this, $arguments, $md, $this->getReturnDataType());
         }
         catch(\Throwable $e){
-            $this->getWorkbench()->getLogger()->logException($e);
+            if ($e instanceof ExceptionInterface) {
+                $exception = $e;
+            } else {
+                $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load docs markdown. ' . $e->getMessage(), null, $e);
+            }
+
+            $this->getWorkbench()->getLogger()->logException($exception);
             $errorMsg = 'ERROR: file not found!';
-            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
+            return (new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType()))
+                ->addException($exception);
         }
     }
 

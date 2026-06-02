@@ -58,6 +58,9 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
     /**
      * Returns all stored exceptions for this tool response.
      *
+     * Consumers classify severity via ExceptionInterface::getLogLevel()
+     * (e.g. warning vs error persistence).
+     *
      * @return ExceptionInterface[]
      */
     public function getExceptions() : array;
