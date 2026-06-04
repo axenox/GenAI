@@ -430,9 +430,16 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
-        $markdown = count($toolCalls) . " tool calls:\n\n";
-        foreach ($toolCalls as $toolCall) {
-            $markdown .= '- `' . $toolCall->__toString() . "`\n";
+        $markdown = '**' . count($toolCalls) . "** tool calls:\n\n";
+        // Compact summary
+        foreach ($toolCalls as $i => $toolCall) {
+            $markdown .= ($i + 1 ) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
+        }
+        // Full tool calls
+        foreach ($toolCalls as $i => $toolCall) {
+            $no = $i + 1;
+            $markdown .= "\n## {$no}. " . $toolCall->getToolName() . "()";
+            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCall->__toString());
         }
         try {
             
@@ -525,27 +532,22 @@ class GenericAssistant implements AiAgentInterface
         $this->saveConversationToolExceptions($prompt, $responses);
         
         // Summary of tool calls
-        $markdown = '> ' . count($toolCalls) . " tool calls:\n";
-        foreach ($toolCalls as $toolCall) {
-            $markdown .= '> - `' . $toolCall->__toString() . "`\n";
+        $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
+        foreach ($toolCalls as $i => $toolCall) {
+            $markdown .= '> ' . ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
         }
         // Extra line break to make sure the first line of the response is not rendered as part of the block quote
         $markdown .= "\n";
         
         // Tool responses
+        // NOTE: $toolCalls have call-IDs as keys
+        $no = 0;
         foreach ($responses as $response) {
-            $type = $response->getToolResult()->getValueDataType();
-            switch (true) {
-                case $type instanceof MarkdownDataType:
-                    $markdown .= $response->getToolResult()->getValueAsMarkdown();
-                    break;
-                case $type instanceof JsonDataType:
-                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResult()->getValue());
-                    break;
-                default:
-                    $markdown .= "\n" . $response->getToolResult();
-            }
+            $no++;
+            $markdown .= "\n## {$no}. {$response->getToolName()}()";
+            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no-1]?->__toString());
             $markdown .= MarkdownDataType::makeHorizontalLine();
+            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
         }
         
         // Save the message with the tool responses

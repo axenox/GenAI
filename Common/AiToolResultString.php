@@ -3,6 +3,9 @@ namespace axenox\GenAI\Common;
 
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\DataTypes\CodeDataType;
+use exface\Core\DataTypes\HtmlDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
@@ -82,8 +85,19 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function getValueAsMarkdown(): string
     {
-        // TODO format depending on data type?
-        return $this->getValue();
+        $type = $this->getValueDataType();
+        switch (true) {
+            case $type instanceof HtmlDataType:
+            case $type instanceof MarkdownDataType:
+                $markdown = $this->getValue();
+                break;
+            case $type instanceof CodeDataType:
+                $markdown = MarkdownDataType::escapeCodeBlock($this->getValue(), $type->getLanguage());
+                break;
+            default:
+                $markdown = MarkdownDataType::escapeCodeBlock($this->__toString());
+        }
+        return $markdown;
     }
 
     /**
