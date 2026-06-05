@@ -239,10 +239,11 @@ class GenericAssistant implements AiAgentInterface
                         ->setConversationId($prompt->getConversationUid());
                 }
                 
+                $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
+                    $resultOfTool = $tool->invoke($this, $prompt, $args);
                 } else {
-                    $resultOfTool = new AiToolResultString($tool, [], "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
+                    $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
                 } 
 
