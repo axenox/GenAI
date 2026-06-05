@@ -14,6 +14,8 @@ use exface\Core\Facades\DocsFacade\MarkdownPrinters\ObjectMarkdownPrinter;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -36,9 +38,13 @@ class GetObjectTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
+        $toolWarnings = [];
         $searchTerm = trim((string) ($arguments[0] ?? ''));
         if ($searchTerm === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_term');
+            $error = new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_term');
+            $this->getWorkbench()->getLogger()->logException($error);
+            return (new AiToolResultString($this, $arguments, $error->getMessage(), $this->getReturnDataType()))
+                ->addException($error);
         }
 
         try {
@@ -62,13 +68,20 @@ class GetObjectTool extends AbstractAiTool
 
             $ds->dataRead();
         } catch (\Throwable $e) {
-            throw new AiToolRuntimeError($this, $prompt, 'Failed to search objects: ' . $e->getMessage(), null, $e);
+            $error = $e instanceof ExceptionInterface
+                ? $e
+                : new AiToolRuntimeError($this, $prompt, 'Failed to search objects: ' . $e->getMessage(), null, $e);
+            $this->getWorkbench()->getLogger()->logException($error);
+            return (new AiToolResultString($this, $arguments, 'ERROR: Failed to search objects.', $this->getReturnDataType()))
+                ->addException($error);
         }
 
         $rows = $ds->getRows();
         if (empty($rows)) {
             $notFoundMsg = 'No objects found for term "' . $searchTerm . '".';
-            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType());
+            $warning = (new AiToolRuntimeError($this, $prompt, $notFoundMsg))->setLogLevel(LoggerInterface::WARNING);
+            $this->getWorkbench()->getLogger()->logException($warning);
+            return (new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType()))->addException($warning);
         }
 
         $objectMarkdowns = [];
@@ -77,13 +90,23 @@ class GetObjectTool extends AbstractAiTool
             $objectAliases[] = $row['ALIAS_WITH_NS'];
             $selector = $row['UID'] ?? $row['ALIAS_WITH_NS'] ?? null;
             if (! is_string($selector) || $selector === '') {
-                throw new AiToolRuntimeError($this, $prompt, 'Invalid object search result');
+                $error = new AiToolRuntimeError($this, $prompt, 'Invalid object search result');
+                $this->getWorkbench()->getLogger()->logException($error);
+                return (new AiToolResultString($this, $arguments, 'ERROR: Invalid object search result.', $this->getReturnDataType()))
+                    ->addException($error);
             }
 
             try {
                 $objectMarkdowns[$row['ALIAS_WITH_NS']] = (new ObjectMarkdownPrinter($this->getWorkbench(), $selector, 0))->getMarkdown();
             } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
+                if ($e instanceof ExceptionInterface) {
+                    $warning = $e;
+                } else {
+                    $warning = new AiToolRuntimeError($this, $prompt, 'Failed to render object markdown. ' . $e->getMessage(), null, $e);
+                }
+                $warning->setLogLevel(LoggerInterface::WARNING);
+                $this->getWorkbench()->getLogger()->logException($warning);
+                $toolWarnings[] = $warning;
             }
         }
 
@@ -108,7 +131,12 @@ Objects matching `{$searchTerm}`:
 {$details}
 MD;
 
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        $toolResult = new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        foreach ($toolWarnings as $warning) {
+            $toolResult->addException($warning);
+        }
+
+        return $toolResult;
     }
 
     /**
