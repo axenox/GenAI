@@ -132,8 +132,7 @@ class ReadFolderTool extends AbstractAiTool
      * @param string $absoluteDir
      * @param string $basePath
      * @param int $level
-     * @param string[] $lines
-     * @return void
+     * @return string
      */
     protected function buildMdTreeLevel(string $absoluteDir, string $basePath, int $level): string
     {
