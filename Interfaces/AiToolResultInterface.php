@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
 
 /**
@@ -53,4 +54,14 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
      * @return string[]
      */
     public function getAppendix() : array;
+
+    /**
+     * Returns all stored exceptions for this tool response.
+     *
+     * Consumers classify severity via ExceptionInterface::getLogLevel()
+     * (e.g. warning vs error persistence).
+     *
+     * @return ExceptionInterface[]
+     */
+    public function getExceptions() : array;
 }
