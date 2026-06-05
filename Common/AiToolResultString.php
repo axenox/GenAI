@@ -5,10 +5,14 @@ use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\DataTypes\CodeDataType;
 use exface\Core\DataTypes\HtmlDataType;
+use exface\Core\DataTypes\LogLevelDataType;
 use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\Exceptions\InternalError;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
+use exface\Core\Interfaces\WorkbenchDependantInterface;
 
 /**
  * Generic string AI tool result - most tools will produce strings
@@ -22,28 +26,27 @@ class AiToolResultString implements AiToolResultInterface
     private ?DataTypeInterface $type;
     private array $appendix;
     /** @var ExceptionInterface[] */
-    private array $errors;
+    private array $exceptions;
+    private bool $hasCriticalErrors = false;
 
     /**
      * @param AiToolInterface $tool
      * @param $value
      * @param DataTypeInterface $type
      * @param array $appendix
-     * @param ExceptionInterface[] $errors
+     * @param \Throwable[] $exceptions
      */
-    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [], array $errors = [])
+    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [], array $exceptions = [])
     {
         $this->tool = $tool;
         $this->arguments = $arguments;
         $this->value = $value;
         $this->type = $type;
         $this->appendix = $appendix;
-        $this->errors = [];
+        $this->exceptions = [];
 
-        foreach ($errors as $error) {
-            if ($error instanceof ExceptionInterface) {
-                $this->errors[] = $error;
-            }
+        foreach ($exceptions as $e) {
+            $this->addException($e);
         }
     }
 
@@ -127,20 +130,28 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function getExceptions(): array
     {
-        return $this->errors;
+        return $this->exceptions;
     }
 
     /**
-     * Adds an exception to this tool result.
+     * {@inheritDoc}
+     * @see AiToolResultInterface::addException()
      */
-    public function addException(ExceptionInterface $exception): self
+    public function addException(\Throwable $exception) : AiToolResultInterface
     {
-        $this->errors[] = $exception;
+        if (! $exception instanceof ExceptionInterface) {
+            $exception = new InternalError("Error in AI tool `{$this->tool->getName()}`. {$exception->getMessage()}", null, $exception);
+        }
+        if (LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::CRITICAL) >= 0) {
+            $this->hasCriticalErrors = true;
+        }
+        $this->exceptions[] = $exception;
         return $this;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
+     * @see WorkbenchDependantInterface::getWorkbench()
      */
     public function getWorkbench()
     {
@@ -154,5 +165,14 @@ class AiToolResultString implements AiToolResultInterface
     public function __toString() : string
     {
         return $this->getValue();
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::isFailed()
+     */
+    public function isFailed() : bool
+    {
+        return $this->hasCriticalErrors;
     }
 }

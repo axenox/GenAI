@@ -64,4 +64,19 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
      * @return ExceptionInterface[]
      */
     public function getExceptions() : array;
+
+    /**
+     * Adds a non-critical error or warning to the tool result
+     * 
+     * @param \Throwable $exception
+     * @return AiToolResultInterface
+     */
+    public function addException(\Throwable $exception) : AiToolResultInterface;
+
+    /**
+     * Returns TRUE if the tool could not be executed (= result should not be sent to LLM) and FALSE otherwise
+     * 
+     * @return bool
+     */
+    public function isFailed() : bool;
 }
