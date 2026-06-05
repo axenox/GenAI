@@ -10,6 +10,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\PhpClassDataType;
 use exface\Core\DataTypes\PhpFilePathDataType;
+use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Uxon\UxonSchema;
@@ -100,7 +101,7 @@ class AiToolUxonSchema extends UxonSchema
                 }
                 $presets[] = [
                     'UID' => '',
-                    'NAME' => PhpClassDataType::findClassNameWithoutNamespace($class),
+                    'NAME' => $this->getNameForGeneratedPreset($class, $template),
                     'PROTOTYPE__LABEL' => 'Defaults',
                     'DESCRIPTION' => $title,
                     'PROTOTYPE' => $class,
@@ -111,6 +112,23 @@ class AiToolUxonSchema extends UxonSchema
             }
         }
         return $presets;
+    }
+    
+    protected function getNameForGeneratedPreset(string $class, array $template) : string
+    {
+
+        $className = PhpClassDataType::findClassNameWithoutNamespace($class);
+        if (StringDataType::endsWith($className, 'Tool')) {
+            $presetName = StringDataType::substringBefore($className, 'Tool', $className, true, true);
+        } else {
+            $presetName = $className;
+        }
+        $args = $template['arguments'];
+        $argsStr = '';
+        foreach ($args as $arg) {
+            $argsStr .= ($argsStr !== '' ? ', ' : '') . (true !== ($arg['required'] ?? false) ? '?' : '') . $arg['name'];
+        }
+        return $presetName . '(' . $argsStr . ')';
     }
 
     /**
