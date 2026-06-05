@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
@@ -86,11 +87,8 @@ class GetDocsTool extends AbstractAiTool
         
         if(! $this->checkSecurity($url)){
             $errorMsg = $this->getSecurityFailurMessage();
-            $warning = (new AiToolRuntimeError($this, $prompt, $errorMsg))
-                ->setLogLevel(LoggerInterface::WARNING);
-            $this->getWorkbench()->getLogger()->logException($warning);
-            return (new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType()))
-                ->addException($warning);
+            $warning = new AiToolRuntimeWarning($this, $prompt, $errorMsg);
+            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType(), [], [$warning]);
         }
         
         if(StringDataType::endsWith($url,"php")){
@@ -107,9 +105,7 @@ class GetDocsTool extends AbstractAiTool
 
             // Some docs responses may return an error/warning page as markdown instead of throwing.
             if (preg_match('/\b(error|warning)\b/i', $md) === 1) {
-                $warning = (new AiToolRuntimeError($this, $prompt, 'Docs markdown contains error/warning content for URL "' . $url . '"'))
-                    ->setLogLevel(LoggerInterface::WARNING);
-                $this->getWorkbench()->getLogger()->logException($warning);
+                $warning = AiToolRuntimeWarning($this, $prompt, 'Docs markdown contains error/warning content for URL "' . $url . '"');
                 $result->addException($warning);
             }
 

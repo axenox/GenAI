@@ -3,7 +3,9 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
@@ -41,10 +43,8 @@ class GetObjectTool extends AbstractAiTool
         $toolWarnings = [];
         $searchTerm = trim((string) ($arguments[0] ?? ''));
         if ($searchTerm === '') {
-            $error = new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_term');
-            $this->getWorkbench()->getLogger()->logException($error);
-            return (new AiToolResultString($this, $arguments, $error->getMessage(), $this->getReturnDataType()))
-                ->addException($error);
+            $error = new AiToolRuntimeError($this, $prompt, 'Missing required argument: `search_term`');
+            return new AiToolResultString($this, $arguments, $error->getMessage(), $this->getReturnDataType(), [], [$error]);
         }
 
         try {
@@ -68,20 +68,15 @@ class GetObjectTool extends AbstractAiTool
 
             $ds->dataRead();
         } catch (\Throwable $e) {
-            $error = $e instanceof ExceptionInterface
-                ? $e
-                : new AiToolRuntimeError($this, $prompt, 'Failed to search objects: ' . $e->getMessage(), null, $e);
-            $this->getWorkbench()->getLogger()->logException($error);
-            return (new AiToolResultString($this, $arguments, 'ERROR: Failed to search objects.', $this->getReturnDataType()))
-                ->addException($error);
+            $error = new AiToolRuntimeError($this, $prompt, 'Failed to search objects: ' . $e->getMessage(), null, $e);
+            return new AiToolResultString($this, $arguments, $e->getMessage(), $this->getReturnDataType(), [], [$error]);
         }
 
         $rows = $ds->getRows();
         if (empty($rows)) {
             $notFoundMsg = 'No objects found for term "' . $searchTerm . '".';
-            $warning = (new AiToolRuntimeError($this, $prompt, $notFoundMsg))->setLogLevel(LoggerInterface::WARNING);
-            $this->getWorkbench()->getLogger()->logException($warning);
-            return (new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType()))->addException($warning);
+            $warning = new AiToolRuntimeWarning($this, $prompt, $notFoundMsg);
+            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType(), [], [$warning]);
         }
 
         $objectMarkdowns = [];
@@ -90,22 +85,13 @@ class GetObjectTool extends AbstractAiTool
             $objectAliases[] = $row['ALIAS_WITH_NS'];
             $selector = $row['UID'] ?? $row['ALIAS_WITH_NS'] ?? null;
             if (! is_string($selector) || $selector === '') {
-                $error = new AiToolRuntimeError($this, $prompt, 'Invalid object search result');
-                $this->getWorkbench()->getLogger()->logException($error);
-                return (new AiToolResultString($this, $arguments, 'ERROR: Invalid object search result.', $this->getReturnDataType()))
-                    ->addException($error);
+                throw new AiToolCriticalError($this, $prompt, 'Invalid object search result: now selector found in object data in row ' . json_encode($row));
             }
 
             try {
                 $objectMarkdowns[$row['ALIAS_WITH_NS']] = (new ObjectMarkdownPrinter($this->getWorkbench(), $selector, 0))->getMarkdown();
             } catch (\Throwable $e) {
-                if ($e instanceof ExceptionInterface) {
-                    $warning = $e;
-                } else {
-                    $warning = new AiToolRuntimeError($this, $prompt, 'Failed to render object markdown. ' . $e->getMessage(), null, $e);
-                }
-                $warning->setLogLevel(LoggerInterface::WARNING);
-                $this->getWorkbench()->getLogger()->logException($warning);
+                $warning = new AiToolRuntimeWarning($this, $prompt, 'Failed to render object markdown. ' . $e->getMessage(), null, $e);
                 $toolWarnings[] = $warning;
             }
         }

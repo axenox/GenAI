@@ -11,6 +11,7 @@ use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
@@ -241,7 +242,27 @@ class GenericAssistant implements AiAgentInterface
                 
                 $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    $resultOfTool = $tool->invoke($this, $prompt, $args);
+                    try {
+                        $resultOfTool = $tool->invoke($this, $prompt, $args);
+                        $exceptions = $resultOfTool->getExceptions();
+                    } catch (\Throwable $e) {
+                        if (! $e instanceof AiToolCriticalError) {
+                            $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
+                        }
+                        $exceptions = [$e];
+                    }
+                    foreach ($exceptions as $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
+                    }
+                    $this->saveConversationExceptions($prompt, $exceptions);
+                    
+                    // On critical errors, we should tell the LLM not to use this tool anymore. It will either tell the
+                    // user or continue with other tools.
+                    if ($resultOfTool->isFailed()) {
+                        // TODO should we give more error details to the LLM
+                        $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Tool execution failed. It seems, this tool is broken.");
+                    }
+                    
                 } else {
                     $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
@@ -530,7 +551,6 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
-        $this->saveConversationToolExceptions($prompt, $responses);
         
         // Summary of tool calls
         $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
@@ -581,25 +601,22 @@ class GenericAssistant implements AiAgentInterface
      * @param AiToolCallResponse[] $responses
      * @return void
      */
-    protected function saveConversationToolExceptions(AiPromptInterface $prompt, array $responses) : void
+    protected function saveConversationExceptions(AiPromptInterface $prompt, array $exceptions) : void
     {
         $errors = [];
         $warnings = [];
 
-        foreach ($responses as $response) {
-            foreach ($response->getToolResult()->getExceptions() as $exception) {
-                if ($exception instanceof ExceptionInterface) {
-                    if ($this->isWarningException($exception)) {
-                        $warnings[] = $exception;
-                    } else {
-                        $errors[] = $exception;
-                    }
+        foreach ($exceptions as $exception) {
+            if ($exception instanceof ExceptionInterface) {
+                if ($this->isWarningException($exception)) {
+                    $warnings[] = $exception;
+                } else {
+                    $errors[] = $exception;
                 }
             }
         }
 
         $this->saveConversationWarning($prompt, $warnings);
-
         $this->saveConversationErrorMessages($prompt, $errors);
     }
 
@@ -705,6 +722,9 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * saves an error that occurred during the conversation
+     * 
+     * TODO why is this so different from saveConversationWarning? It still produces a message, just with a different
+     * role and maybe additional rating.
      *
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
      * @param \Throwable $error
