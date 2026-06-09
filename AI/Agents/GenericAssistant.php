@@ -115,6 +115,7 @@ class GenericAssistant implements AiAgentInterface
 
     private ?array $tools = null;
     private ?array $toolsUxon = null;
+    private ?AiConversation $conversation = null;
 
     private $maxNumberOfCalls = 5;
 
@@ -140,7 +141,7 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $conversation = new AiConversation($this, $prompt, $prompt->getConversationUid());
+        $conversation = $this->getConversation($prompt);
         $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
@@ -199,11 +200,33 @@ class GenericAssistant implements AiAgentInterface
                 $this->getAnswer($performedQuery),
                 $this->hasJsonSchema() ? $performedQuery->getAnswerJson() : null
             );
-            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
+            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
         }
+    }
+
+    /**
+     * Returns the current conversation helper for the prompt.
+     *
+     * Reuses the existing helper if it matches the prompt conversation ID,
+     * otherwise creates a new helper and initializes the prompt conversation.
+     */
+    protected function getConversation(AiPromptInterface $prompt) : AiConversation
+    {
+        $promptConversationId = $prompt->getConversationUid();
+
+        if ($this->conversation === null) {
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+            return $this->conversation;
+        }
+
+        if ($promptConversationId === null || $this->conversation->getConversationId() !== $promptConversationId) {
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+        }
+
+        return $this->conversation;
     }
     
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversation $conversation) : AiQueryInterface

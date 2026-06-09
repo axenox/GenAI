@@ -466,7 +466,7 @@ class AiConversation
      *
      * @param array $warnings Warning payloads from connector/tools.
      */
-    protected function saveWarning(array $warnings) : void
+    public function saveWarning(array $warnings) : void
     {
         if (empty($warnings)) {
             return;
