@@ -228,18 +228,8 @@ class GenericAssistant implements AiAgentInterface
             $existingCall = false;
 
             foreach($requestedCalls as $call){
-
-                foreach ($this->getTools() as $tool){
-                    if ($tool->getName() === $call->getToolName()){
-                        break;
-                    }
-                    $tool = null;
-                }
-                if ($tool === null){
-                    throw (new AiToolNotFoundError("Requested tool not found"))
-                        ->setConversationId($prompt->getConversationUid());
-                }
-                
+                $resultOfTool = null;
+                $tool = $this->getTool($call->getToolName());
                 $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
                     try {
@@ -258,7 +248,7 @@ class GenericAssistant implements AiAgentInterface
                     
                     // On critical errors, we should tell the LLM not to use this tool anymore. It will either tell the
                     // user or continue with other tools.
-                    if ($resultOfTool->isFailed()) {
+                    if ($resultOfTool && $resultOfTool->isFailed()) {
                         // TODO should we give more error details to the LLM
                         $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Tool execution failed. It seems, this tool is broken.");
                     }
