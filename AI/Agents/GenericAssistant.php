@@ -261,6 +261,7 @@ class GenericAssistant implements AiAgentInterface
                 
                 $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
+                    $resultOfTool = null;
                     try {
                         $resultOfTool = $tool->invoke($this, $prompt, $args);
                         $exceptions = $resultOfTool->getExceptions();
@@ -268,6 +269,7 @@ class GenericAssistant implements AiAgentInterface
                         if (! $e instanceof AiToolCriticalError) {
                             $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
                         }
+                        $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage());
                         $exceptions = [$e];
                     }
                     foreach ($exceptions as $e) {
