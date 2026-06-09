@@ -170,8 +170,9 @@ class GenericAssistant implements AiAgentInterface
         $query->setFiles($prompt->getFiles());
 
         try {
-            $conversationId = $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
-            $prompt->setConversationUid($conversationId);
+            $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            $conversation->saveUserPrompt($query);
+            $prompt->setConversationUid($conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);

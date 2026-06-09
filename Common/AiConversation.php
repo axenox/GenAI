@@ -147,14 +147,14 @@ class AiConversation
     }
 
     /**
-     * Saves the initial system prompt and the first user message.
+     * Saves the system prompt message.
      *
-     * @param AiToolInterface[] $tools
-     * @param AiQueryInterface $query Query with the current user prompt.
+     * @param AiQueryInterface $query Query used to initialize message sequence number.
      * @param string $systemPrompt Rendered system prompt text.
+     * @param AiToolInterface[] $tools Tool definitions to include in message metadata.
      * @param array|null $responseJsonSchema Optional JSON response schema metadata.
      *
-     * @return string Conversation ID used for stored messages.
+     * @return string Conversation ID used for the stored message.
      */
     public function saveSystemPrompt(AiQueryInterface $query, string $systemPrompt, array $tools = [], ?array $responseJsonSchema = null) : string
     {
@@ -181,6 +181,31 @@ class AiConversation
                 'DATA' => $dataUxon->toJson(true),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
+
+            $message->dataCreate(false, $transaction);
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $this->workbench->getLogger()->logException($e);
+            $transaction->rollback();
+            throw $e;
+        }
+
+        return $this->conversationId;
+    }
+
+    /**
+     * Saves the user prompt message.
+     *
+     * @param AiQueryInterface $query Query containing the current user prompt.
+     *
+     * @return string Conversation ID used for the stored message.
+     */
+    public function saveUserPrompt(AiQueryInterface $query) : string
+    {
+        $transaction = $this->workbench->data()->startTransaction();
+
+        try {
+            $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
 
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
