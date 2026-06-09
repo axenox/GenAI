@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AiResponse;
+use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
@@ -25,8 +26,6 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\DataTypes\LogLevelDataType;
-use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -34,24 +33,18 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
-use exface\Core\Factories\UiPageFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
-use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
-use exface\Core\Interfaces\Exceptions\ExceptionInterface;
-use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
-use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use exface\Core\Widgets\DebugMessage;
-use exface\Core\Widgets\Markdown;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -123,8 +116,6 @@ class GenericAssistant implements AiAgentInterface
     private ?array $tools = null;
     private ?array $toolsUxon = null;
 
-    private $sequenceNumber = null;
-
     private $maxNumberOfCalls = 5;
 
     /** @var AiToolCallResponse[] */
@@ -149,14 +140,14 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        
+        $conversation = new AiConversation($this, $prompt, $prompt->getConversationUid());
         $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
             $this->setInstructions($systemPrompt );
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
-            throw $this->saveConversationError($prompt,$e);
+            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
@@ -179,44 +170,48 @@ class GenericAssistant implements AiAgentInterface
         $query->setFiles($prompt->getFiles());
 
         try {
-            $conversationId = $this->saveConversation($prompt, $query);
+            $conversationId = $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
             $prompt->setConversationUid($conversationId);
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
-            throw $this->saveConversationError($prompt, $e);
+            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
         }
 
         try {
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
-            throw $this->saveConversationError($prompt,$e);
+            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
         }
         
         try {
-            $performedQuery = $this->handleToolCalls($prompt, $performedQuery);
+            $performedQuery = $this->handleToolCalls($prompt, $performedQuery, $conversation);
         } catch (\Throwable $e){
             if (! $e instanceof AiToolRuntimeError) {
                 $e = new AiPromptError($this, $prompt, 'Failed to call AI tools. ' . $e->getMessage(), null, $e);
             }
-            throw $this->saveConversationError($prompt,$e);
+            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
         }
         try {
-            $this->saveConversationResponse($prompt, $performedQuery);
+            $conversation->saveResponse(
+                $performedQuery,
+                $this->getAnswer($performedQuery),
+                $this->hasJsonSchema() ? $performedQuery->getAnswerJson() : null
+            );
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversationId);
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
-            throw $this->saveConversationError($prompt, $e);
+            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
         }
     }
     
-    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery) : AiQueryInterface
+    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversation $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
         // Check if the LLM has put some tool calls in its response
         while ($performedQuery->hasToolCalls()) {
             $numberOfCallResponses++;
-            $this->saveConversationToolCallRequest($prompt, $performedQuery);
+            $conversation->saveToolCallRequest($performedQuery);
 
             if ($numberOfCallResponses > $this->maxNumberOfCalls) {
                 // Add an AiQueryError that will accept the $performedQuery too, so that we see the actual
@@ -254,7 +249,7 @@ class GenericAssistant implements AiAgentInterface
                     foreach ($exceptions as $e) {
                         $this->getWorkbench()->getLogger()->logException($e);
                     }
-                    $this->saveConversationExceptions($prompt, $exceptions);
+                    $conversation->saveExceptions($exceptions);
                     
                     // On critical errors, we should tell the LLM not to use this tool anymore. It will either tell the
                     // user or continue with other tools.
@@ -283,695 +278,13 @@ class GenericAssistant implements AiAgentInterface
                 $performedQuery->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;
             }
-            $toolCallResponses = $this->saveConversationToolResponses($prompt, $performedQuery, $toolCallResponses);
+            $toolCallResponses = $conversation->saveToolResponses($performedQuery, $toolCallResponses);
             // $toolCallResponses = null;
             $performedQuery = $this->getConnection()->query($performedQuery);
             //$query->clearPreviousToolCalls();
         }
         return $performedQuery;
     }
-
-    /**
-     * creates a new conversation and return conversationId
-     * 
-     * @return string conversationId
-     */
-    protected function createConversation(AiPromptInterface $prompt, ?AiQueryInterface $query): string
-    {
-        
-        $conversationId = $prompt->getConversationUid();
-
-        if($conversationId !== null) {
-            return $conversationId;
-        }
-        
-        $transaction = $this->workbench->data()->startTransaction();
-        $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-        
-        $modelName    = null;
-        $connectionId = null;
-
-        try {
-            $connection   = $this->getConnection();
-            $connectionId = $connection->getId();
-
-            if ($query !== null) {
-                $modelName = $connection->getModelName($query);
-            }
-        } catch (\Throwable $e) {
-            // TODO possible Errorhandling
-        }
-
-        $title = $query !== null
-            ? $this->getTitle($query)
-            : 'Standard generated title';
-        
-        $dataUxon = $prompt->getInputData()->exportUxonObject();
-
-        $row = [
-            'AI_AGENT' => $this->getUid(),
-            'AI_AGENT_VERSION_NO' => $this->getVersion(),
-            'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-            'TITLE' => $title,
-            'DATA' => $dataUxon->toJson(),
-            'DEVMODE' => $this->getDevmode() ? 1 : 0,
-            'MODEL' => $modelName,
-            'CONNECTION' => $connectionId
-        ];
-        if ($prompt->hasMetaObject()) {
-            $row['META_OBJECT'] = $prompt->getMetaObject()->getId();
-        }
-        if ($prompt->isTriggeredOnPage()) {
-            $row['PAGE'] = $prompt->getPageTriggeredOn()->getUid();
-        }
-        $conversation->addRow($row);
-        $conversation->dataCreate(false,$transaction);
-        $conversationId = $conversation->getUidColumn()->getValue(0);
-        $transaction->commit();
-        
-        // Save the conversation id in the prompt, so it visible to all other logic using the prompt (e.g.
-        // logging, exception handling, etc.=
-        $prompt->setConversationUid($conversationId);
-        
-        return $conversationId;
-    }
-    
-    /**
-     * Saves the first system message and the user messages and returns conversationId
-     * 
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @throws \axenox\GenAI\Exceptions\AiConversationNotFoundError
-     * @return string
-     */
-    protected function saveConversation(AiPromptInterface $prompt, AiQueryInterface $query) : string
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $this->sequenceNumber = $query->getSequenceNumber();
-        try {
-            $conversationId = $prompt->getConversationUid();
-            $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-            if($conversationId === null) {
-
-            $conversationId = $this->createConversation($prompt, $query);    
-                
-            // create dataUxon for the message
-            // JSON structure:
-            // {
-            //   "tools": [ toolUxon, ... ],
-            //   "concepts": {
-            //     "placeholderName": conceptUxon,
-            //     ...
-            //   }
-            // }
-            $dataUxon = new UxonObject();
-            $this->enrichUxonWithTools( $dataUxon);
-            $this->enrichUxonWithJsonSchema($dataUxon);
-
-            // collect concepts mapped by their placeholder
-            $concepts = [];
-            // TODO this causes exceptions if placeholders require input data because the rendere is not created
-            // here correctly - see getSystemPrompt()
-            /*
-            foreach($this->getConcepts($prompt, new BracketHashStringTemplateRenderer($this->workbench)) as $concept) {
-                $concepts[$concept->getPlaceholder()] = $concept->exportUxonObject()->toArray();
-            }*/
-            // add concepts section only if at least one concept exists
-            if(!empty($concepts)) {
-                $dataUxon->setProperty('concepts', new UxonObject($concepts));
-            }    
-                
-            $message->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> AiMessageTypeDataType::SYSTEM,
-                'MESSAGE'=> $this->systemPrompt,
-                'DATA' => $dataUxon->toJson(true),
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++
-            ]);
-            }
-            else {
-                $ds = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-                $ds->getFilters()->addConditionFromAttribute($ds->getMetaObject()->getUidAttribute(), $conversationId, ComparatorDataType::EQUALS);
-                $ds->getColumns()->addFromAttributeGroup($ds->getMetaObject()->getAttributes());
-                $ds->dataRead();
-                if($ds->isEmpty()){
-                    throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
-                }
-            }
-            
-            $message->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> AiMessageTypeDataType::USER,
-                'MESSAGE'=> $query->getUserPrompt(),
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++
-            ]);
-
-            $message->dataCreate(false, $transaction);
-
-            $transaction->commit();
-        } catch(\Throwable $e){
-            $this->workbench->getLogger()->logException($e);
-            $transaction->rollback();
-            throw $e;
-        }
-        return $conversationId;
-    }
-
-    /**
-     * Saves the Tool Calling request of AI 
-     * 
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @return void
-     */
-    protected function saveConversationToolCallRequest(AiPromptInterface $prompt, AiQueryInterface $query) 
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $conversationId = $prompt->getConversationUid();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $toolCalls = $query->getToolCalls();
-        $markdown = '**' . count($toolCalls) . "** tool calls:\n\n";
-        // Compact summary
-        foreach ($toolCalls as $i => $toolCall) {
-            $markdown .= ($i + 1 ) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
-        }
-        // Full tool calls
-        foreach ($toolCalls as $i => $toolCall) {
-            $no = $i + 1;
-            $markdown .= "\n## {$no}. " . $toolCall->getToolName() . "()";
-            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCall->__toString());
-        }
-        try {
-            
-            $cost = $query->getCosts();
-            $this->saveConversationWarning($prompt, $query->getWarnings());
-            
-            $message->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> AiMessageTypeDataType::TOOLCALLING,
-                'MESSAGE'=> $markdown,
-                'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++,
-                'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
-                'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason()
-            ]);         
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-
-        } catch(\Throwable $e){
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Saves the response of AI to the user
-     * 
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @return void
-     */
-    protected function saveConversationResponse(AiPromptInterface $prompt, AiQueryInterface $query) 
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $conversationId = $prompt->getConversationUid();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        try {
-
-            $cost = $query->getCosts();
-
-            $dataUxon = new UxonObject();
-            
-            if($this->hasJsonSchema()){
-                $dataUxon->setProperty("fullJsonResponse",$query->getAnswerJson() );
-            }
-            $this->saveConversationWarning($prompt, $query->getWarnings());
-            
-            $message->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'=> AiMessageTypeDataType::ASSISTANT,
-                'MESSAGE'=> $this->getAnswer($query),
-                // TODO save the JSON data here if we are in JSON mode. Can we detect JSON mode in the answer?
-                // 'DATA' => $query->getAnswerJson(),
-                'SEQUENCE_NUMBER' => $this->sequenceNumber,
-                'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
-                'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason(),
-                'DATA' => $dataUxon->toJson(true)
-            ]);            
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-
-        } catch(\Throwable $e){
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * saves the responses of the requested tools 
-     * 
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @param AiToolCallResponse[] $responses
-     * @return void
-     */
-    protected function saveConversationToolResponses(AiPromptInterface $prompt, AiQueryInterface $query, array $responses) : ?array 
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $conversationId = $prompt->getConversationUid();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $toolCalls = $query->getToolCalls();
-        
-        // Summary of tool calls
-        $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
-        foreach ($toolCalls as $i => $toolCall) {
-            $markdown .= '> ' . ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
-        }
-        // Extra line break to make sure the first line of the response is not rendered as part of the block quote
-        $markdown .= "\n";
-        
-        // Tool responses
-        // NOTE: $toolCalls have call-IDs as keys
-        $no = 0;
-        foreach ($responses as $response) {
-            $no++;
-            $markdown .= "\n## {$no}. {$response->getToolName()}()";
-            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no-1]?->__toString());
-            $markdown .= MarkdownDataType::makeHorizontalLine();
-            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
-        }
-        
-        // Save the message with the tool responses
-        try {
-            $message->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::TOOL,
-                'DATA' => UxonObject::fromArray($responses)->toJson(true),
-                'MESSAGE' => $markdown,
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++
-            ]);
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-            return null;
-        } catch(\Throwable $e){
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-            return $responses;
-        }
-    }
-
-    /**
-     * Saves all exceptions attached to tool responses.
-     *
-     * Warning-like exceptions are saved as warning messages, all others as errors.
-     *
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param AiToolCallResponse[] $responses
-     * @return void
-     */
-    protected function saveConversationExceptions(AiPromptInterface $prompt, array $exceptions) : void
-    {
-        $errors = [];
-        $warnings = [];
-
-        foreach ($exceptions as $exception) {
-            if ($exception instanceof ExceptionInterface) {
-                if ($this->isWarningException($exception)) {
-                    $warnings[] = $exception;
-                } else {
-                    $errors[] = $exception;
-                }
-            }
-        }
-
-        $this->saveConversationWarning($prompt, $warnings);
-        $this->saveConversationErrorMessages($prompt, $errors);
-    }
-
-    /**
-     * Detects warning-like exceptions based on their configured PSR-3 log level.
-     */
-    protected function isWarningException(ExceptionInterface $exception) : bool
-    {
-        try {
-            $levelCmp = LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::WARNING);
-            return $levelCmp <= 0;
-        } catch (\Throwable $e) {
-            // Fail-safe: if level comparison breaks, keep exception as error.
-            return false;
-        }
-    }
-
-    /**
-     * Saves error payloads in the conversation as ERROR messages.
-     */
-    protected function saveConversationErrorMessages(AiPromptInterface $prompt, array $errors) : void
-    {
-        if (empty($errors)) {
-            return;
-        }
-
-        $conversationId = $prompt->getConversationUid();
-        if ($conversationId === null) {
-            return;
-        }
-
-        $transaction = $this->workbench->data()->startTransaction();
-        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $hasRows = false;
-
-        try {
-            foreach ($errors as $error) {
-                $errorException = null;
-
-                if ($error instanceof ExceptionInterface) {
-                    $errorException = $error;
-                } else {
-                    if ($error instanceof \Throwable) {
-                        $errorException = new AiPromptError(
-                            $this,
-                            $prompt,
-                            'Unrecognized payload while saving error: ' . $error->getMessage(),
-                            null,
-                            $error
-                        );
-                    } else {
-                        $errorMessage = is_scalar($error) || $error === null
-                            ? trim((string) $error)
-                            : trim(json_encode($error, JSON_UNESCAPED_UNICODE) ?: '');
-
-                        if ($errorMessage === '') {
-                            $errorMessage = gettype($error);
-                        }
-
-                        $errorException = new AiPromptError(
-                            $this,
-                            $prompt,
-                            'Non-standard error payload mapped during error persistence: ' . $errorMessage
-                        );
-
-                        $this->workbench->getLogger()->logException($errorException);
-                    }
-                }
-
-                $errorText = trim($errorException->getMessage());
-                $errorLogId = $errorException->getId();
-
-                if ($errorText === '') {
-                    continue;
-                }
-
-                $hasRows = true;
-
-                $row = [
-                    'AI_CONVERSATION' => $conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE' => AiMessageTypeDataType::ERROR,
-                    'MESSAGE' => $errorText,
-                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
-                ];
-
-                if ($errorLogId !== null && $errorLogId !== '') {
-                    $row['ERROR_LOG_ID'] = $errorLogId;
-                }
-
-                $messageData->addRow($row);
-            }
-
-            if ($hasRows) {
-                $messageData->dataCreate(false, $transaction);
-            }
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * saves an error that occurred during the conversation
-     * 
-     * TODO why is this so different from saveConversationWarning? It still produces a message, just with a different
-     * role and maybe additional rating.
-     *
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \Throwable $error
-     * @return ?\Throwable returns the error if persisting failed, otherwise null
-     */
-    protected function saveConversationError(AiPromptInterface $prompt, \Throwable $error) : ExceptionInterface
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-
-        $conversationId  = $prompt->getConversationUid();
-        
-        $messageData  = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        
-        // compact error payload for DATA column
-        // TODO Save the SAME data here as in the case of a successful message!
-        // Solution:
-        // - Make sure we only save AI exception here
-        // - All the error information will be saved by the logger when logging the exception
-        // - We will have a button in the conversation to show the error details - see `Administratino > BG processing`
-        // or `Administration > Data Flows > dblclick a flow run` for examples
-        
-        if (! $error instanceof ExceptionInterface) {
-            $error = new AiPromptError($this, $prompt, 'AI prompt failed. ' . $error->getMessage(), null, $error);
-        }
-
-        $markdown = '';
-        $errorWidget = $error->createWidget(UiPageFactory::createEmpty($this->getWorkbench()));
-        foreach ($errorWidget->getTab(0)->getWidgets() as $widget) {
-            if ($widget instanceof Markdown) {
-                $markdown .= "\n" . $widget->getMarkdown() . "\n";
-            }
-        }
-        
-        $errorID = $error->getId();
-
-        $errorPayload = [
-            'class'   => get_class($error),
-            'message' => $error->getMessage(),
-            'code'    => $error->getCode(),
-            'file'    => $error->getFile(),
-            'line'    => $error->getLine(),
-        ];
-        $dataUxon = UxonObject::fromArray($errorPayload);
-        
-        $dataUxon->setProperty('ID', $errorID );
-        
-        if($conversationId === null) {
-            $query = new OpenAiApiDataQuery($this->workbench);
-            $query->appendMessage('Failed conversation: ' . $prompt->getUserPrompt());
-            $conversationId =  $this->createConversation($prompt, $query);
-            $this->enrichUxonWithTools($dataUxon);
-            $dataUxon->setProperty('User Prompt', $prompt->getUserPrompt());
-            try {
-                $dataUxon->setProperty('System Prompt', $this->systemPrompt);
-            } catch (\Throwable $e){
-                $this->workbench->getLogger()->logException(
-                    new AiPromptError($this, $prompt, 'Failed to log AI system prompt. ' . $e->getMessage(), null, $e)
-                );
-                $dataUxon->setProperty('System Prompt causes an error', true);
-            }
-        }
-
-        try {
-            $this->saveConversationErrorFeedback($conversationId, $error->getMessage(), $transaction);
-
-            $messageData->addRow([
-                'AI_CONVERSATION' => $conversationId,
-                'USER'            => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE'            => AiMessageTypeDataType::ERROR, // fallback to ::SYSTEM or ::TOOL if ERROR is not available
-                'DATA'            => $dataUxon->toJson(true),
-                'MESSAGE'         => $markdown,
-                'SEQUENCE_NUMBER' => $this->sequenceNumber++,
-                'ERROR_LOG_ID'    => $errorID
-            ]);
-
-            $messageData->dataCreate(false, $transaction);
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-            // original error is returned so caller can still handle it
-        }
-        return $error;
-    }
-
-    protected function saveConversationErrorFeedback(string $conversationId, string $errorMessage, ?DataTransactionInterface $transaction = null) : void
-    {
-        $this->saveConversationFeedback(
-            $conversationId,
-            "Auto generated error message:\n" . substr($errorMessage, 0, 500),
-            1,
-            $transaction
-        );
-    }
-
-    protected function saveConversationWarning(AiPromptInterface $prompt, array $warnings) : void
-    {
-        if (empty($warnings)) {
-            return;
-        }
-
-        $conversationId = $prompt->getConversationUid();
-        if ($conversationId === null) {
-            return;
-        }
-
-        $transaction = $this->workbench->data()->startTransaction();
-        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $hasRows = false;
-
-        try {
-            foreach ($warnings as $warning) {
-                $warningException = null;
-
-                if ($warning instanceof ExceptionInterface) {
-                    $warningException = $warning;
-                } else {
-                    if ($warning instanceof \Throwable) {
-                        $warningException = new AiPromptError(
-                            $this,
-                            $prompt,
-                            'Unrecognized payload while saving warning: ' . $warning->getMessage(),
-                            null,
-                            $warning
-                        );
-                    } else {
-                        // Fallback path: convert non-platform warning payloads into AiPromptError
-                        // so they can be saved consistently in the warning log.
-                        $warningMessage = is_scalar($warning) || $warning === null
-                            ? trim((string) $warning)
-                            : trim(json_encode($warning, JSON_UNESCAPED_UNICODE) ?: '');
-
-                        if ($warningMessage === '') {
-                            $warningMessage = gettype($warning);
-                        }
-
-                        $warningException = new AiPromptError(
-                            $this,
-                            $prompt,
-                            'Non-standard warning payload mapped during warning persistence: ' . $warningMessage
-                        );
-
-                        $this->workbench->getLogger()->logException($warningException);
-                    }
-                }
-
-                $warningText = trim($warningException->getMessage());
-                $warningLogId = $warningException->getId();
-
-                if ($warningText === '') {
-                    continue;
-                }
-
-                $hasRows = true;
-
-                $row = [
-                    'AI_CONVERSATION' => $conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE' => AiMessageTypeDataType::WARNING,
-                    'MESSAGE' => $warningText,
-                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
-                ];
-
-                if ($warningLogId !== null && $warningLogId !== '') {
-                    $row['ERROR_LOG_ID'] = $warningLogId;
-                }
-
-                $messageData->addRow($row);
-            }
-
-            // Use a flag for actually queued rows instead of count($warnings):
-            // warnings can be transformed or skipped (e.g. empty message), so not every input warning becomes a DB row.
-            if ($hasRows) {
-                $messageData->dataCreate(false, $transaction);
-            }
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    protected function saveConversationFeedback(string $conversationId, string $feedback, ?int $defaultRating = null, ?DataTransactionInterface $transaction = null) : void
-    {
-        $conversationData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-        $conversationData->getFilters()->addConditionFromAttribute(
-            $conversationData->getMetaObject()->getUidAttribute(),
-            $conversationId,
-            ComparatorDataType::EQUALS
-        );
-        $conversationData->getColumns()->addFromAttributeGroup($conversationData->getMetaObject()->getAttributes());
-        $conversationData->dataRead();
-
-        if ($conversationData->isEmpty()) {
-            throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
-        }
-
-        $existingRating = $conversationData->getCellValue('RATING', 0);
-        $existingFeedback = $conversationData->getCellValue('RATING_FEEDBACK', 0);
-
-        if ($defaultRating !== null && ($existingRating === null || $existingRating === '')) {
-            $conversationData->setCellValue('RATING', 0, $defaultRating);
-        }
-
-        if ($existingFeedback === null || $existingFeedback === '') {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
-        } else {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . "\n\n" . $feedback);
-        }
-
-        $conversationData->dataUpdate(false, $transaction);
-    }
-    
-    protected function enrichUxonWithTools( ?UxonObject $uxon) : UxonObject
-    {
-        if($uxon === null) {
-            $dataUxon = new UxonObject([
-                'tools' => []
-            ]);
-        }else {
-            $dataUxon = $uxon;
-            $dataUxon->setProperty('tools', []);
-        }
-        foreach ($this->getTools() as $tool) {
-            $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
-        }
-        
-        return $dataUxon;
-    }
-    
-    protected function enrichUxonWithJsonSchema(?UxonObject $uxon) : UxonObject
-    {
-        
-        if($uxon === null) {
-            $dataUxon = new UxonObject();
-        }else {
-            $dataUxon = $uxon;
-        }
-        if ($this->hasJsonSchema()) {
-            $dataUxon->setProperty('responseJsonSchema', $this->getResponseJsonSchema());
-        }
-        return $dataUxon;
-        
-    }
-    
-
-
 
     /**
      * AI concepts to be used in the system prompt
@@ -1112,7 +425,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return \exface\Core\Interfaces\DataSources\DataConnectionInterface
      */
-    protected function getConnection() : DataConnectionInterface
+    public function getConnection() : DataConnectionInterface
     {
         if ($this->dataConnection === null) {
             if($this->dataConnectionAlias === null) {
@@ -1183,7 +496,7 @@ class GenericAssistant implements AiAgentInterface
      * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
      * @return string
      */
-    protected function getTitle(AiQueryInterface $query) : string
+    public function getTitle(AiQueryInterface $query) : string
     {
         if ($this->hasJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
             $json = $query->getAnswerJson();
