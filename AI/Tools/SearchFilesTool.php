@@ -18,10 +18,10 @@ use exface\Core\Interfaces\WorkbenchInterface;
 use Symfony\Component\Finder\Finder;
 
 /**
- * This AI tool searches file contents in a folder and returns matching file paths.
+ * This AI tool searches files by path pattern and optional content query.
  *
- * Use this tool similarly to IDE codebase search: provide a query and optionally
- * restrict the search scope with a folder path or wildcard folder pattern.
+ * Use this tool similarly to IDE codebase search: provide a required relative
+ * file path pattern and optionally a string or regex to match file contents.
  *
  * ## Example configuration in an assistant
  *
@@ -47,9 +47,9 @@ class SearchFilesTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
-    public const ARG_QUERY = 'query';
+    public const ARG_PATH = 'path';
 
-    public const ARG_FOLDER = 'folder';
+    public const ARG_QUERY = 'query';
 
     /**
      * {@inheritDoc}
@@ -57,19 +57,21 @@ class SearchFilesTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $query = trim((string) ($arguments[0] ?? ''));
-        $folderPattern = trim((string) ($arguments[1] ?? ''));
+        $pathPattern = trim((string) ($arguments[0] ?? ''));
+        $query = trim((string) ($arguments[1] ?? ''));
         $basePath = $this->getBasePathAbsolute();
 
-        if ($query === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing search query.');
+        if ($pathPattern === '') {
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing path pattern.');
         }
 
-        $isRegexQuery = RegularExpressionDataType::isRegex($query);
-        $searchPattern = $isRegexQuery ? $query : '/' . preg_quote($query, '/') . '/i';
-        $searchFolders = $this->resolveSearchFolders($folderPattern, $basePath, $prompt);
+        $pathPattern = $this->normalizePathPattern($pathPattern, $basePath, $prompt);
+        $isWildcardPath = $this->containsWildcard($pathPattern);
+        $absolutePath = FilePathDataType::normalize(FilePathDataType::makeAbsolute($pathPattern, $basePath, DIRECTORY_SEPARATOR), DIRECTORY_SEPARATOR);
+        $isDirectoryPath = ! $isWildcardPath && is_dir($absolutePath);
+        $isFilePath = ! $isWildcardPath && is_file($absolutePath);
 
-        if (empty($searchFolders)) {
+        if (! $isWildcardPath && ! $isDirectoryPath && ! $isFilePath) {
             return new AiToolResultString($this, $arguments, '- No matches found.', $this->getReturnDataType());
         }
 
@@ -78,8 +80,33 @@ class SearchFilesTool extends AbstractAiTool
             $finder->files()
                 ->ignoreUnreadableDirs()
                 ->ignoreVCSIgnored(true)
-                ->contains($searchPattern)
-                ->in($searchFolders);
+                ->in($basePath)
+                ->filter(function (
+                    \SplFileInfo $file
+                ) use ($basePath, $pathPattern, $isWildcardPath, $isDirectoryPath): bool {
+                    $absolutePath = (string) $file->getRealPath();
+                    if ($absolutePath === '') {
+                        return false;
+                    }
+
+                    $relativePath = FilePathDataType::normalize($this->makeRelativePath($absolutePath, $basePath), '/');
+                    if ($isWildcardPath) {
+                        return FilePathDataType::matchesPattern($relativePath, $pathPattern);
+                    }
+
+                    if ($isDirectoryPath) {
+                        $directoryPath = trim($pathPattern, '/');
+                        return $relativePath === $directoryPath || str_starts_with($relativePath, $directoryPath . '/');
+                    }
+
+                    return $relativePath === trim($pathPattern, '/');
+                });
+
+            if ($query !== '') {
+                $isRegexQuery = RegularExpressionDataType::isRegex($query);
+                $searchPattern = $isRegexQuery ? $query : '/' . preg_quote($query, '/') . '/i';
+                $finder->contains($searchPattern);
+            }
         } catch (\Throwable $e) {
             throw new AiToolRuntimeError($this, $prompt, 'Search failed: ' . $e->getMessage(), null, $e);
         }
@@ -119,11 +146,12 @@ class SearchFilesTool extends AbstractAiTool
         $self = new self($workbench);
         return [
             (new ServiceParameter($self))
-                ->setName(self::ARG_QUERY)
-                ->setDescription('String or regular expression to search for in file contents.'),
+                ->setName(self::ARG_PATH)
+                ->setDescription('Required relative file path or wildcard pattern to search in.')
+                ->setRequired(true),
             (new ServiceParameter($self))
-                ->setName(self::ARG_FOLDER)
-                ->setDescription('Optional folder path or wildcard pattern relative to the configured base path.'),
+                ->setName(self::ARG_QUERY)
+                ->setDescription('Optional string or regular expression to search for in file contents.'),
         ];
     }
 
@@ -137,54 +165,41 @@ class SearchFilesTool extends AbstractAiTool
     }
 
     /**
-     * Resolves folder input into existing absolute folders to search in.
+     * Validates and normalizes the required relative path pattern.
      *
-     * @param string $folderPatternRelative
+     * @param string $pathPatternRelative
      * @param string $basePath
      * @param AiPromptInterface $prompt
-     * @return string[]
+     * @return string
      */
-    protected function resolveSearchFolders(string $folderPatternRelative, string $basePath, AiPromptInterface $prompt): array
+    protected function normalizePathPattern(string $pathPatternRelative, string $basePath, AiPromptInterface $prompt): string
     {
-        if ($folderPatternRelative === '') {
-            return [$basePath];
+        if ($pathPatternRelative === '') {
+            throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing path pattern.');
         }
 
-        if (FilePathDataType::isAbsolute($folderPatternRelative)) {
+        if (FilePathDataType::isAbsolute($pathPatternRelative)) {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.');
         }
 
-        $folderPatternRelative = FilePathDataType::normalize($folderPatternRelative, '/');
-        $this->checkPathAllowed($folderPatternRelative, $prompt);
+        $pathPatternRelative = FilePathDataType::normalize($pathPatternRelative, '/');
+        $this->checkPathAllowed($pathPatternRelative, $prompt);
 
-        $absolutePattern = FilePathDataType::makeAbsolute($folderPatternRelative, $basePath, DIRECTORY_SEPARATOR);
-        $absolutePattern = FilePathDataType::normalize($absolutePattern, DIRECTORY_SEPARATOR);
-
-        if ($this->containsWildcard($absolutePattern)) {
-            $dirs = glob($absolutePattern, GLOB_ONLYDIR);
-            if ($dirs === false) {
-                return [];
-            }
-
-            $existing = [];
-            foreach ($dirs as $dir) {
-                $dirNormalized = FilePathDataType::normalize($dir, DIRECTORY_SEPARATOR);
-                if (is_dir($dirNormalized) && $this->checkPathInsideBasePath($dirNormalized, $basePath)) {
-                    $existing[] = $dirNormalized;
-                }
-            }
-            return array_values(array_unique($existing));
+        $staticPrefix = preg_split('/[*?\[\]{}]/', $pathPatternRelative, 2)[0] ?? '';
+        if ($staticPrefix === '') {
+            $staticPrefix = '.';
         }
 
-        if (! is_dir($absolutePattern)) {
-            return [];
-        }
+        $absolutePrefix = FilePathDataType::normalize(
+            FilePathDataType::makeAbsolute($staticPrefix, $basePath, DIRECTORY_SEPARATOR),
+            DIRECTORY_SEPARATOR
+        );
 
-        if (! $this->checkPathInsideBasePath($absolutePattern, $basePath)) {
+        if (! $this->checkPathInsideBasePath($absolutePrefix, $basePath)) {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid path: resolved folder is outside the configured base path.');
         }
 
-        return [$absolutePattern];
+        return trim($pathPatternRelative, '/');
     }
 
     /**
