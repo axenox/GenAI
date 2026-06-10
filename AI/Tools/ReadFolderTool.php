@@ -72,7 +72,7 @@ class ReadFolderTool extends AbstractAiTool
         $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
         
         if (! is_dir($absolutePath)) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target folder does not exist.');
+            return new AiToolResultString($this, $arguments, 'Folder does not exist', $this->getReturnDataType());
         }
 
         if (! is_readable($absolutePath)) {
@@ -132,8 +132,7 @@ class ReadFolderTool extends AbstractAiTool
      * @param string $absoluteDir
      * @param string $basePath
      * @param int $level
-     * @param string[] $lines
-     * @return void
+     * @return string
      */
     protected function buildMdTreeLevel(string $absoluteDir, string $basePath, int $level): string
     {

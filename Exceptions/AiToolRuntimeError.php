@@ -1,29 +1,25 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Interfaces\AiPromptInterface;
-use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Interfaces\Log\LoggerInterface;
 
-class AiToolRuntimeError extends RuntimeException
+/**
+ * Exception thrown in AI tools on regular errors - non-critical for the conversation, but visible to the UI as errors.
+ * 
+ * Typical examples: file or any other asset not found, invalid argument, etc. These errors only affect one particular
+ * tool call. The LLM can still use this tool with other arguments.
+ * 
+ * @author Andrej Kabachnik
+ */
+class AiToolRuntimeError extends AiToolCriticalError
 {
-    private AiToolInterface $tool;
-    private AiPromptInterface $prompt;
-    
-    public function __construct(AiToolInterface $tool, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
+    /**
+     * {@inheritDoc}
+     * @see RuntimeException::getDefaultLogLevel()
+     */
+    public function getDefaultLogLevel()
     {
-        parent::__construct($message, $alias, $previous);
-        $this->tool = $tool;
-        $this->prompt = $prompt;
-    }
-    
-    public function getTool(): AiToolInterface
-    {
-        return $this->tool;
-    }
-    
-    public function getPrompt(): AiPromptInterface
-    {
-        return $this->prompt;
+        return LoggerInterface::ERROR;
     }
 }

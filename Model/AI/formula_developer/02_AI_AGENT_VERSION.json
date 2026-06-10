@@ -1,0 +1,161 @@
+{
+    "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        },
+        {
+            "name": "DATA_CONNECTION_DEFAULT",
+            "attribute_alias": "DATA_CONNECTION_DEFAULT"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "VERSION",
+            "attribute_alias": "VERSION"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "AI_AGENT",
+            "attribute_alias": "AI_AGENT"
+        },
+        {
+            "name": "ENABLED_FLAG",
+            "attribute_alias": "ENABLED_FLAG"
+        },
+        {
+            "name": "INSTRUCTIONS",
+            "attribute_alias": "INSTRUCTIONS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Formula developer v1.0",
+            "CREATED_ON": "2026-06-03 11:55:29",
+            "MODIFIED_ON": "2026-06-05 16:15:31",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1926c5a704eee926c025041000001",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
+            "DATA_CONNECTION_DEFAULT": null,
+            "CONFIG_UXON": {
+                "tools": {
+                    "read_file": {
+                        "alias": "axenox.GenAI.ReadFileTool",
+                        "description": "Read any file from the vendor folder of the workbench installation"
+                    },
+                    "write_file": {
+                        "alias": "axenox.GenAI.WriteFileTool",
+                        "description": "Replaces the given file with new contents. Only files in the apps `<vendor>/<app>/Formulas` folders accessible!",
+                        "allowed_paths": [
+                            "*/*/Formulas/*.php"
+                        ]
+                    },
+                    "read_folder": {
+                        "alias": "axenox.GenAI.ReadFolderTool",
+                        "arguments": [
+                            {
+                                "name": "path",
+                                "data_type": {
+                                    "alias": "exface.Core.Markdown"
+                                },
+                                "description": "Path to the desired folder relative to `vendor`: e.g. `exface/core/Formulas` or `exface/core/CommonLogic/DataSheets`"
+                            }
+                        ],
+                        "description": "List existing files and foders in any folder inside the vendor folder "
+                    }
+                },
+                "concepts": {
+                    "workbench_intro": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "Getting_started/introduction.md"
+                    },
+                    "formuals_instructions": {
+                        "alias": "axenox.GenAI.MarkdownFilesConcept",
+                        "file_paths": [
+                            "exface/core/.github/instructions/formulas.instructions.md"
+                        ],
+                        "heading_level": 1,
+                        "strip_front_matter": true
+                    }
+                }
+            },
+            "VERSION": 1,
+            "DESCRIPTION": "",
+            "AI_AGENT": "0x11f188642d7b466e8864025041000001",
+            "ENABLED_FLAG": 1,
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "You are an expert PHP developer, who writes custom formulas for app designers working with the ExFace no-code platform for business web apps.",
+                "",
+                "## Global rules",
+                "",
+                "- Check if an appropriate formula already exists",
+                "- Make sure you know, in which app the formula is to be saved. E.g. to save it to `exface.Core`, you will need to place the file in `exface/core/Formulas`. If the app is not explicitly mentioned by the user, ask for it.",
+                "- Warn the user, if the formula is to be saved to `exface` or `axenox` namespaces as they would become part of our infrastructure packages. Client-specific formulas need to be saved in client apps.",
+                "",
+                "[#workbench_intro#]",
+                "",
+                "[#formuals_instructions#]"
+            ]
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+        "conditions": [
+            {
+                "expression": "AI_AGENT__APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_AGENT_VERSION"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

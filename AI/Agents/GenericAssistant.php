@@ -11,6 +11,7 @@ use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
@@ -24,6 +25,7 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\DataTypes\LogLevelDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
@@ -40,6 +42,7 @@ use exface\Core\Interfaces\DataSources\DataTransactionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
@@ -225,22 +228,33 @@ class GenericAssistant implements AiAgentInterface
             $existingCall = false;
 
             foreach($requestedCalls as $call){
-
-                foreach ($this->getTools() as $tool){
-                    if ($tool->getName() === $call->getToolName()){
-                        break;
-                    }
-                    $tool = null;
-                }
-                if ($tool === null){
-                    throw (new AiToolNotFoundError("Requested tool not found"))
-                        ->setConversationId($prompt->getConversationUid());
-                }
-                
+                $resultOfTool = null;
+                $tool = $this->getTool($call->getToolName());
+                $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    $resultOfTool = $tool->invoke($this, $prompt, array_values($call->getArguments()));
+                    try {
+                        $resultOfTool = $tool->invoke($this, $prompt, $args);
+                        $exceptions = $resultOfTool->getExceptions();
+                    } catch (\Throwable $e) {
+                        if (! $e instanceof AiToolCriticalError) {
+                            $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
+                        }
+                        $exceptions = [$e];
+                    }
+                    foreach ($exceptions as $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
+                    }
+                    $this->saveConversationExceptions($prompt, $exceptions);
+                    
+                    // On critical errors, we should tell the LLM not to use this tool anymore. It will either tell the
+                    // user or continue with other tools.
+                    if ($resultOfTool && $resultOfTool->isFailed()) {
+                        // TODO should we give more error details to the LLM
+                        $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Tool execution failed. It seems, this tool is broken.");
+                    }
+                    
                 } else {
-                    $resultOfTool = new AiToolResultString($tool, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
+                    $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
                     // TODO is this actually an error? Should we log an exception here?
                 } 
 
@@ -428,9 +442,16 @@ class GenericAssistant implements AiAgentInterface
         $conversationId = $prompt->getConversationUid();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
-        $markdown = count($toolCalls) . " tool calls:\n\n";
-        foreach ($toolCalls as $toolCall) {
-            $markdown .= '- `' . $toolCall->__toString() . "`\n";
+        $markdown = '**' . count($toolCalls) . "** tool calls:\n\n";
+        // Compact summary
+        foreach ($toolCalls as $i => $toolCall) {
+            $markdown .= ($i + 1 ) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
+        }
+        // Full tool calls
+        foreach ($toolCalls as $i => $toolCall) {
+            $no = $i + 1;
+            $markdown .= "\n## {$no}. " . $toolCall->getToolName() . "()";
+            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCall->__toString());
         }
         try {
             
@@ -522,27 +543,22 @@ class GenericAssistant implements AiAgentInterface
         $toolCalls = $query->getToolCalls();
         
         // Summary of tool calls
-        $markdown = '> ' . count($toolCalls) . " tool calls:\n";
-        foreach ($toolCalls as $toolCall) {
-            $markdown .= '> - `' . $toolCall->__toString() . "`\n";
+        $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
+        foreach ($toolCalls as $i => $toolCall) {
+            $markdown .= '> ' . ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
         }
         // Extra line break to make sure the first line of the response is not rendered as part of the block quote
         $markdown .= "\n";
         
         // Tool responses
+        // NOTE: $toolCalls have call-IDs as keys
+        $no = 0;
         foreach ($responses as $response) {
-            $type = $response->getToolResult()->getValueDataType();
-            switch (true) {
-                case $type instanceof MarkdownDataType:
-                    $markdown .= $response->getToolResult()->getValueAsMarkdown();
-                    break;
-                case $type instanceof JsonDataType:
-                    $markdown .= MarkdownDataType::escapeCodeBlock($response->getToolResult()->getValue());
-                    break;
-                default:
-                    $markdown .= "\n" . $response->getToolResult();
-            }
+            $no++;
+            $markdown .= "\n## {$no}. {$response->getToolName()}()";
+            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no-1]?->__toString());
             $markdown .= MarkdownDataType::makeHorizontalLine();
+            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
         }
         
         // Save the message with the tool responses
@@ -567,7 +583,138 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
+     * Saves all exceptions attached to tool responses.
+     *
+     * Warning-like exceptions are saved as warning messages, all others as errors.
+     *
+     * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
+     * @param AiToolCallResponse[] $responses
+     * @return void
+     */
+    protected function saveConversationExceptions(AiPromptInterface $prompt, array $exceptions) : void
+    {
+        $errors = [];
+        $warnings = [];
+
+        foreach ($exceptions as $exception) {
+            if ($exception instanceof ExceptionInterface) {
+                if ($this->isWarningException($exception)) {
+                    $warnings[] = $exception;
+                } else {
+                    $errors[] = $exception;
+                }
+            }
+        }
+
+        $this->saveConversationWarning($prompt, $warnings);
+        $this->saveConversationErrorMessages($prompt, $errors);
+    }
+
+    /**
+     * Detects warning-like exceptions based on their configured PSR-3 log level.
+     */
+    protected function isWarningException(ExceptionInterface $exception) : bool
+    {
+        try {
+            $levelCmp = LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::WARNING);
+            return $levelCmp <= 0;
+        } catch (\Throwable $e) {
+            // Fail-safe: if level comparison breaks, keep exception as error.
+            return false;
+        }
+    }
+
+    /**
+     * Saves error payloads in the conversation as ERROR messages.
+     */
+    protected function saveConversationErrorMessages(AiPromptInterface $prompt, array $errors) : void
+    {
+        if (empty($errors)) {
+            return;
+        }
+
+        $conversationId = $prompt->getConversationUid();
+        if ($conversationId === null) {
+            return;
+        }
+
+        $transaction = $this->workbench->data()->startTransaction();
+        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $hasRows = false;
+
+        try {
+            foreach ($errors as $error) {
+                $errorException = null;
+
+                if ($error instanceof ExceptionInterface) {
+                    $errorException = $error;
+                } else {
+                    if ($error instanceof \Throwable) {
+                        $errorException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Unrecognized payload while saving error: ' . $error->getMessage(),
+                            null,
+                            $error
+                        );
+                    } else {
+                        $errorMessage = is_scalar($error) || $error === null
+                            ? trim((string) $error)
+                            : trim(json_encode($error, JSON_UNESCAPED_UNICODE) ?: '');
+
+                        if ($errorMessage === '') {
+                            $errorMessage = gettype($error);
+                        }
+
+                        $errorException = new AiPromptError(
+                            $this,
+                            $prompt,
+                            'Non-standard error payload mapped during error persistence: ' . $errorMessage
+                        );
+
+                        $this->workbench->getLogger()->logException($errorException);
+                    }
+                }
+
+                $errorText = trim($errorException->getMessage());
+                $errorLogId = $errorException->getId();
+
+                if ($errorText === '') {
+                    continue;
+                }
+
+                $hasRows = true;
+
+                $row = [
+                    'AI_CONVERSATION' => $conversationId,
+                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                    'ROLE' => AiMessageTypeDataType::ERROR,
+                    'MESSAGE' => $errorText,
+                    'SEQUENCE_NUMBER' => $this->sequenceNumber++
+                ];
+
+                if ($errorLogId !== null && $errorLogId !== '') {
+                    $row['ERROR_LOG_ID'] = $errorLogId;
+                }
+
+                $messageData->addRow($row);
+            }
+
+            if ($hasRows) {
+                $messageData->dataCreate(false, $transaction);
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            $this->workbench->getLogger()->logException($e);
+        }
+    }
+
+    /**
      * saves an error that occurred during the conversation
+     * 
+     * TODO why is this so different from saveConversationWarning? It still produces a message, just with a different
+     * role and maybe additional rating.
      *
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
      * @param \Throwable $error

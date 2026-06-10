@@ -16,6 +16,8 @@ use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
@@ -36,6 +38,8 @@ class ImportTool extends AbstractAiTool
 
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
+        $result = null;
+        $warnings = [];
         try{
             $payload = $arguments[0] ?? null;
             if ($payload === null) {
@@ -47,6 +51,10 @@ class ImportTool extends AbstractAiTool
             if($uxon->isArray()){
                 foreach ($uxon as $index => $item) {
                     if (! $item instanceof UxonObject) {
+                        $warning = (new AiToolRuntimeError($this, $prompt, 'Skipped invalid import row at index ' . $index . '.'))
+                            ->setLogLevel(LoggerInterface::WARNING);
+                        $this->getWorkbench()->getLogger()->logException($warning);
+                        $warnings[] = $warning;
                         continue;
                     }
                     $sheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $item);
@@ -59,13 +67,26 @@ class ImportTool extends AbstractAiTool
                 $message = 'No Data Imported';
             }else {
                 $message = implode("\n", $messages);
-            }  
+            }
+
+            $result = new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+            foreach ($warnings as $warning) {
+                $result->addException($warning);
+            }
         }catch (\Throwable $e) {
             $message = 'Error during import: ' . $e->getMessage();
-            $agent->getWorkbench()->getLogger()->logException($e);
+            if ($e instanceof ExceptionInterface) {
+                $exception = $e;
+            } else {
+                $exception = new AiToolRuntimeError($this, $prompt, 'Error during import. ' . $e->getMessage(), null, $e);
+            }
+
+            $agent->getWorkbench()->getLogger()->logException($exception);
+            $result = (new AiToolResultString($this, $arguments, $message, $this->getReturnDataType()))
+                ->addException($exception);
         }
 
-        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+        return $result;
     }
 
     /**

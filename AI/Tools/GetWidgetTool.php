@@ -3,6 +3,7 @@ namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
@@ -13,6 +14,7 @@ use exface\Core\DataTypes\SortingDirectionsDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -108,6 +110,7 @@ class GetWidgetTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
+        // TODO accept a widget type here too. Perhaps rename the tool to GetWidgetTypeTool
         list($url) = $arguments;
         
         try{
@@ -166,9 +169,8 @@ class GetWidgetTool extends AbstractAiTool
             return new AiToolResultString($this, $arguments, $output, $this->getReturnDataType());
         }
         catch(\Throwable $e){
-            $this->getWorkbench()->getLogger()->logException($e);
-            $errorMsg = 'ERROR: file not found!';
-            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType());
+            $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load widget metadata. ' . $e->getMessage(), null, $e);
+            return new AiToolResultString($this, $arguments, 'ERROR: file not found!', $this->getReturnDataType(), [], [$exception]);
         }
     }
 
