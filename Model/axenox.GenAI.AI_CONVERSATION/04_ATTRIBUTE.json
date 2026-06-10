@@ -639,7 +639,7 @@
         {
             "_EXPORT_SUMMARY": "Date [DATE]",
             "CREATED_ON": "2025-09-24 13:33:49",
-            "MODIFIED_ON": "2025-09-24 13:34:21",
+            "MODIFIED_ON": "2026-06-10 09:56:46",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a28e56f08cb6a28e025041000001",
@@ -660,15 +660,16 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 0,
-            "ICON": null,
-            "ICON_SET": null,
-            "ABBREVIATION": null,
+            "ICON": "",
+            "ICON_SET": "",
+            "ABBREVIATION": "",
             "ALIAS": "DATE",
             "DATATYPE": "0x32000000000000000000000000000000",
             "DATA_ADDRESS": [
                 "// Multiline text delimited by `\n`",
                 "@MySQL: DATE([#CREATED_ON#])",
-                "@T-SQL: CONVERT(DATE, [#CREATED_ON#])"
+                "@T-SQL: CONVERT(DATE, [#CREATED_ON#])",
+                "@pgSQL: [#CREATED_ON#]::date"
             ],
             "OBJECT": "0x11ef91a72e443c7491a7025041000001",
             "FORMATTER": "",
@@ -691,7 +692,7 @@
         {
             "_EXPORT_SUMMARY": "Week [DATE_WEEK]",
             "CREATED_ON": "2025-09-24 13:36:42",
-            "MODIFIED_ON": "2025-09-24 15:14:44",
+            "MODIFIED_ON": "2026-06-10 09:55:56",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a307be44d318a307025041000001",
@@ -712,15 +713,16 @@
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 0,
-            "ICON": null,
-            "ICON_SET": null,
-            "ABBREVIATION": null,
+            "ICON": "",
+            "ICON_SET": "",
+            "ABBREVIATION": "",
             "ALIAS": "DATE_WEEK",
             "DATATYPE": "0x32000000000000000000000000000000",
             "DATA_ADDRESS": [
                 "// Multiline text delimited by `\n`",
                 "@MySQL: CAST(DATE_SUB([#CREATED_ON#], INTERVAL WEEKDAY([#CREATED_ON#]) DAY) AS DATE)",
-                "@T-SQL: DATEADD(WEEK, DATEDIFF(WEEK, 0, [#CREATED_ON#]), 0)"
+                "@T-SQL: DATEADD(WEEK, DATEDIFF(WEEK, 0, [#CREATED_ON#]), 0)",
+                "@pgSQL: DATE_TRUNC('week', [#CREATED_ON#])::date"
             ],
             "OBJECT": "0x11ef91a72e443c7491a7025041000001",
             "FORMATTER": "",
