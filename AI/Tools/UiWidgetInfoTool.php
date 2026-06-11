@@ -13,6 +13,7 @@ use exface\Core\Facades\AbstractHttpFacade\FacadeResolver;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\UiWidgetMarkdownPrinter;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Facades\HtmlPageFacadeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use GuzzleHttp\Psr7\Uri;
 
@@ -53,14 +54,26 @@ class UiWidgetInfoTool extends AbstractAiTool
         if ($url === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: url');
         }
+        $uri = new Uri($url);
         
-        $resolver = new FacadeResolver(new Uri($url));
+        // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
+        // do the global routing to the correct facade. This ensures, we know exactly which facade is responsible for
+        // rendering this URL.
+        $resolver = new FacadeResolver($uri);
         $page = $resolver->getPage();
         if ($widgetId !== null) {
             $widget = $page->getWidget($widgetId);
         } else {
             $widget = $page->getWidgetRoot();
         }
+        
+        // Ask the facade, what widget it would render for this URL - that could also be a different one because
+        // facades are free to build their URLs as they like. In particular, the UI5 facade has its own complicated
+        // routing
+        $facade = $resolver->getFacade();
+        if ($facade instanceof HtmlPageFacadeInterface) {
+            $widget = $facade->findUrlWidget($uri);
+        }         
         
         $printer = new UiWidgetMarkdownPrinter($widget);
         return new AiToolResultString($this, $arguments, $printer->getMarkdown(), $this->getReturnDataType());
