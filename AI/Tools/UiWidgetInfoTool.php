@@ -4,11 +4,14 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\Exceptions\Facades\FacadeRoutingError;
+use exface\Core\Exceptions\UiPage\UiPageNotFoundError;
 use exface\Core\Facades\AbstractHttpFacade\FacadeResolver;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\UiWidgetMarkdownPrinter;
 use exface\Core\Factories\DataTypeFactory;
@@ -59,7 +62,7 @@ class UiWidgetInfoTool extends AbstractAiTool
         // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
         // do the global routing to the correct facade. This ensures, we know exactly which facade is responsible for
         // rendering this URL.
-        $resolver = new FacadeResolver($uri);
+        $resolver = new FacadeResolver($this->getWorkbench(), $uri);
         $page = $resolver->getPage();
         if ($widgetId !== null) {
             $widget = $page->getWidget($widgetId);
@@ -72,7 +75,11 @@ class UiWidgetInfoTool extends AbstractAiTool
         // routing
         $facade = $resolver->getFacade();
         if ($facade instanceof HtmlPageFacadeInterface) {
-            $widget = $facade->findUrlWidget($uri);
+            try {
+                $widget = $facade->findUrlWidget($uri);
+            } catch (UiPageNotFoundError|FacadeRoutingError $e) {
+                throw new AiToolRuntimeWarning($this, $prompt, 'Cannot find UI page in URL `' . $url . '`. ' . $e->getMessage());
+            }
         }         
         
         $printer = new UiWidgetMarkdownPrinter($widget);
