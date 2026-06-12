@@ -79,6 +79,67 @@
             "DESCRIPTION": "",
             "DISABLED_FLAG": 0,
             "PRIORITY": null
+        },
+        {
+            "_EXPORT_SUMMARY": "Create a first version, when an agent is created",
+            "CREATED_ON": "2026-06-12 22:35:24",
+            "MODIFIED_ON": "2026-06-12 23:01:09",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f19d033d5eba029d03025041000001",
+            "BEHAVIOR": "exface/core/Behaviors/CallActionBehavior.php",
+            "CONFIG_UXON": {
+                "event_aliases": [
+                    "exface.Core.DataSheet.OnCreateData"
+                ],
+                "action": {
+                    "alias": "exface.Core.CreateData",
+                    "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                    "input_mapper": {
+                        "from_object_alias": "axenox.GenAI.AI_AGENT",
+                        "to_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                        "column_to_column_mappings": [
+                            {
+                                "from": "UID",
+                                "to": "AI_AGENT"
+                            },
+                            {
+                                "from": "='1.0'",
+                                "to": "VERSION"
+                            },
+                            {
+                                "from": [
+                                    "// Multiline text delimited by `\n`",
+                                    "='You are general purpose AI assistant in a no-code platform for business web-apps.",
+                                    "",
+                                    "## Global rules",
+                                    "",
+                                    "",
+                                    "",
+                                    "## Introduction to the platform",
+                                    "",
+                                    "[#introduction#]'"
+                                ],
+                                "to": "INSTRUCTIONS"
+                            },
+                            {
+                                "from": "='{\"concepts\": {\"introduction\": {\"alias\":\"axenox.GenAI.AppDocsConcept\",\"depth\":0,\"app_alias\":\"exface.Core\",\"starting_page\":\"Getting_started/introduction.md\"}}}'",
+                                "to": "CONFIG_UXON"
+                            },
+                            {
+                                "from": "='axenox/genai/AI/Agents/GenericAssistant.php'",
+                                "to": "PROTOTYPE_CLASS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "OBJECT": "0x11ef8ec22e439a628ec2025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "NAME": "Create a first version, when an agent is created",
+            "DESCRIPTION": "",
+            "DISABLED_FLAG": 0,
+            "PRIORITY": null
         }
     ],
     "totals_rows": [],
