@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-05-13 23:37:41",
+            "MODIFIED_ON": "2026-06-12 23:21:49",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
@@ -123,7 +123,10 @@
                                 "height": 3
                             },
                             {
-                                "attribute_alias": "ALIAS"
+                                "attribute_alias": "ALIAS",
+                                "widget_type": "Input",
+                                "required": false,
+                                "hint": "Alias of the agent. If not set, it will be generated automatically from the agents name."
                             },
                             {
                                 "attribute_alias": "APP"
@@ -153,6 +156,9 @@
                                     },
                                     {
                                         "attribute_alias": "VERSION"
+                                    },
+                                    {
+                                        "attribute_alias": "PROTOTYPE_CLASS__LABEL"
                                     },
                                     {
                                         "attribute_alias": "DATA_CONNECTION__LABEL"
