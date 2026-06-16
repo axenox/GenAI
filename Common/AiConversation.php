@@ -340,7 +340,7 @@ class AiConversation
             $markdown .= "\n## {$no}. {$response->getToolName()}()";
             $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString());
             $markdown .= MarkdownDataType::makeHorizontalLine();
-            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
+            $markdown .= "\n\n" . MarkdownDataType::convertFrontMatterToMarkdown($response->getToolResult()->getValueAsMarkdown());
         }
 
         try {

@@ -14,6 +14,8 @@ class AiPrompt extends HttpTask implements AiPromptInterface
     private $conversationId = null;
     
     private $files = [];
+    
+    private array $konwledge = [];
 
     public function getMessages() : array
     {
@@ -144,5 +146,34 @@ MD;
     {
         $this->files = $files;
         return $this;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     * @see AiPromptInterface::hasKnowledge()
+     */
+    public function hasKnowledge(string $key) : bool
+    {
+        return array_key_exists($key, $this->konwledge);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiPromptInterface::addKnowledge()
+     */
+    public function addKnowledge(string $key, string $content) : AiPromptInterface
+    {
+        $this->konwledge[$key] = $content;
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiPromptInterface::getKnowledge()
+     */
+    public function getKnowledge() : array
+    {
+        return $this->konwledge;
     }
 }
