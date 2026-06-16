@@ -1,3 +1,8 @@
+---
+description: "Use when working on AI tools"
+name: "AI tools"
+applyTo: "AI/Tools/*.php"
+---
 # AI tools
 
 ## Summary
