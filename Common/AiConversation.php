@@ -5,6 +5,7 @@ use axenox\GenAI\AI\Agents\GenericAssistant;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
@@ -27,7 +28,7 @@ use exface\Core\Widgets\Markdown;
  * The constructor initializes the conversation context and ensures a valid
  * conversation ID exists before any save operation is executed.
  */
-class AiConversation
+class AiConversation implements AiConversationInterface
 {
     private GenericAssistant $assistant;
 
@@ -78,7 +79,7 @@ class AiConversation
      */
     public function getConversationId() : string
     {
-        if ($this->conversationId === null) {
+        if ($this->conversationId === null || $this->conversationId === '') {
             return $this->createConversation(null);
         }
 
@@ -174,7 +175,7 @@ class AiConversation
             }
 
             $message->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
+                'AI_CONVERSATION' => $this->getConversationId(),
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::SYSTEM,
                 'MESSAGE' => $systemPrompt,
@@ -250,7 +251,7 @@ class AiConversation
 
         try {
             $cost = $query->getCosts();
-            $this->saveWarning($query->getWarnings());
+            $this->saveWarnings($query->getWarnings());
 
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
@@ -292,7 +293,7 @@ class AiConversation
             if ($fullJsonResponse !== null) {
                 $dataUxon->setProperty('fullJsonResponse', $fullJsonResponse);
             }
-            $this->saveWarning($query->getWarnings());
+            $this->saveWarnings($query->getWarnings());
 
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
@@ -383,7 +384,7 @@ class AiConversation
             }
         }
 
-        $this->saveWarning($warnings);
+        $this->saveWarnings($warnings);
         $this->saveErrorMessages($errors);
     }
 
@@ -466,7 +467,7 @@ class AiConversation
      *
      * @param array $warnings Warning payloads from connector/tools.
      */
-    public function saveWarning(array $warnings) : void
+    public function saveWarnings(array $warnings) : void
     {
         if (empty($warnings)) {
             return;

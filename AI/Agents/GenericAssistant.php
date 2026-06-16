@@ -16,6 +16,7 @@ use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
@@ -115,7 +116,7 @@ class GenericAssistant implements AiAgentInterface
 
     private ?array $tools = null;
     private ?array $toolsUxon = null;
-    private ?AiConversation $conversation = null;
+    private ?AiConversationInterface $conversation = null;
 
     private $maxNumberOfCalls = 5;
 
@@ -213,7 +214,7 @@ class GenericAssistant implements AiAgentInterface
      * Reuses the existing helper if it matches the prompt conversation ID,
      * otherwise creates a new helper and initializes the prompt conversation.
      */
-    protected function getConversation(AiPromptInterface $prompt) : AiConversation
+    protected function getConversation(AiPromptInterface $prompt) : AiConversationInterface
     {
         $promptConversationId = $prompt->getConversationUid();
 
@@ -229,7 +230,7 @@ class GenericAssistant implements AiAgentInterface
         return $this->conversation;
     }
     
-    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversation $conversation) : AiQueryInterface
+    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
         // Check if the LLM has put some tool calls in its response
