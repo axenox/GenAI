@@ -43,4 +43,10 @@ interface AiPromptInterface extends TaskInterface, iCanGenerateDebugWidgets
      * @return FileInterface[]
      */
     public function getFiles(): array;
+
+    public function hasKnowledge(string $key) : bool;
+
+    public function addKnowledge(string $key, string $content) : AiPromptInterface;
+    
+    public function getKnowledge() : array;
 }
