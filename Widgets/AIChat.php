@@ -91,17 +91,16 @@ JS);
         $top = $this->getButtonsHTML('top');
         $botton = $this->getButtonsHTML('botton');
 
+        $requestDataJsObject = '';
         if ($this->isBoundToAttribute()) {
-            $requestDataJs = <<<JS
-                requestDetails.body.data = {
-                    oId: "{$this->getMetaObject()->getId()}", 
-                    rows: [
-                        { {$this->getAttributeAlias()}: $("#{$this->getIdOfDeepChat()}").data("exf-value") }
-                    ]
-                }
+            $requestDataJsObject = <<<JS
+                    requestDetails.body.data = {
+                        oId: "{$this->getMetaObject()->getId()}", 
+                        rows: [
+                            { {$this->getAttributeAlias()}: $("#{$this->getIdOfDeepChat()}").data("exf-value") }
+                        ]
+                    };
     JS;
-
-
         }
         
         return <<<HTML
@@ -145,9 +144,96 @@ JS);
                 }'
                 requestInterceptor = 'function (requestDetails) {
                     var domEl = document.getElementById("{$this->getIdOfDeepChat()}");
-                    requestDetails.body.conversation = domEl.conversationId;
-                    {$requestDataJs};
-                    return requestDetails;
+                    var conversationId = domEl ? domEl.conversationId : null;
+                    var body = requestDetails.body;
+
+                    // No files attached: DeepChat sends a regular JSON object. Keep the original
+                    // behaviour and enrich the body synchronously - exactly as it worked before.
+                    if (!(typeof FormData !== "undefined" && body instanceof FormData)) {
+                        requestDetails.body.conversation = conversationId;
+                        {$requestDataJsObject}
+                        return requestDetails;
+                    }
+
+                    // Files attached: DeepChat sends FormData and calls the request with
+                    // stringifyBody=false, so it would NOT JSON-encode a plain object body. We
+                    // therefore rebuild the regular JSON body (keeping the original "messages"
+                    // format), add the files as base64 and send it ourselves as a JSON string with
+                    // an explicit application/json header, so the prompt extraction on the server
+                    // stays exactly the same as without files. Reading files is async, so we return
+                    // a Promise only in this case.
+                    return new Promise(function (resolve) {
+                        var newBody = {};
+                        var messages = [];
+
+                        body.forEach(function (value, key) {
+                            if (key === "files") {
+                                return;
+                            }
+                            var match = key.match(/^message(\d+)$/);
+                            if (match) {
+                                var parsed;
+                                try {
+                                    parsed = JSON.parse(value);
+                                } catch (e) {
+                                    parsed = { role: "user", text: value };
+                                }
+                                messages.push({ index: parseInt(match[1], 10), message: parsed });
+                                return;
+                            }
+                            newBody[key] = value;
+                        });
+
+                        messages.sort(function (a, b) { return a.index - b.index; });
+                        newBody.messages = messages.map(function (m) { return m.message; });
+                        newBody.conversation = conversationId;
+                        requestDetails.body = newBody;
+                        {$requestDataJsObject}
+
+                        var finalize = function () {
+                            requestDetails.headers = Object.assign({}, requestDetails.headers, { "Content-Type": "application/json" });
+                            requestDetails.body = JSON.stringify(requestDetails.body);
+                            resolve(requestDetails);
+                        };
+
+                        var files = body.getAll("files");
+                        if (!files || files.length === 0) {
+                            finalize();
+                            return;
+                        }
+
+                        var encodeFileToBase64 = function (file) {
+                            return new Promise(function (resolveFile, rejectFile) {
+                                if (!(file instanceof File)) {
+                                    resolveFile(null);
+                                    return;
+                                }
+
+                                var reader = new FileReader();
+                                reader.onload = function () {
+                                    var dataUrl = String(reader.result || "");
+                                    var parts = dataUrl.split(",");
+                                    resolveFile({
+                                        name: file.name || "",
+                                        type: file.type || "",
+                                        size: file.size || 0,
+                                        content: parts.length > 1 ? parts[1] : ""
+                                    });
+                                };
+                                reader.onerror = function () {
+                                    rejectFile(reader.error || new Error("file_read_error"));
+                                };
+                                reader.readAsDataURL(file);
+                            });
+                        };
+
+                        Promise.all(files.map(encodeFileToBase64)).then(function (encodedFiles) {
+                            requestDetails.body.filesBase64 = encodedFiles.filter(function (f) { return f !== null; });
+                            finalize();
+                        }).catch(function () {
+                            resolve({ error: "Datei konnte nicht codiert werden" });
+                        });
+                    });
                 }'
 
                 errorMessages='{

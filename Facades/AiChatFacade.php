@@ -56,6 +56,24 @@ class AiChatFacade extends AbstractHttpFacade
         foreach ($files as $key => $file) {
             $inMemoryFiles[] = new InMemoryFile($file->getStream()->getContents(), $file->getClientFilename(), $file->getClientMediaType());
         }
+
+        // Files attached in the chat are sent as base64 in the JSON body (see AIChat widget).
+        $parsedBody = $request->getParsedBody();
+        $filesBase64 = is_array($parsedBody) ? ($parsedBody['filesBase64'] ?? []) : [];
+        if (is_array($filesBase64)) {
+            foreach ($filesBase64 as $encodedFile) {
+                if (! is_array($encodedFile) || empty($encodedFile['content'])) {
+                    continue;
+                }
+                $content = base64_decode($encodedFile['content'], true);
+                if ($content === false) {
+                    continue;
+                }
+                $name = $encodedFile['name'] ?? 'upload.bin';
+                $mediaType = $encodedFile['type'] ?? 'application/octet-stream';
+                $inMemoryFiles[] = new InMemoryFile($content, $name, $mediaType);
+            }
+        }
         // api/aichat/exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent/completions
         $pathInFacade = StringDataType::substringAfter($path, $this->getUrlRouteDefault() . '/');
         // exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent, completions
