@@ -44,13 +44,14 @@ class AiConversation implements AiConversationInterface
      * @param GenericAssistant $assistant Owning assistant instance.
      * @param AiPromptInterface $prompt Prompt currently processed.
      * @param string|null $conversationId Optional existing conversation ID.
+     * @param AiQueryInterface|null $query Optional query used for model/title metadata.
      */
-    public function __construct(GenericAssistant $assistant, AiPromptInterface $prompt, ?string $conversationId = null)
+    public function __construct(GenericAssistant $assistant, AiPromptInterface $prompt, ?string $conversationId = null, ?AiQueryInterface $query = null)
     {
         $this->assistant = $assistant;
         $this->prompt = $prompt;
         $this->workbench = $assistant->getWorkbench();
-        $this->init($conversationId);
+        $this->init($conversationId, $query);
     }
 
     /**
@@ -60,14 +61,15 @@ class AiConversation implements AiConversationInterface
      * a new conversation is created immediately.
      *
      * @param string|null $conversationId Optional existing conversation ID.
+     * @param AiQueryInterface|null $query Optional query used for model/title metadata.
      */
-    protected function init(?string $conversationId = null) : void
+    protected function init(?string $conversationId = null, ?AiQueryInterface $query = null) : void
     {
         $this->conversationId = $conversationId ?? $this->prompt->getConversationUid();
         if ($this->conversationId !== null) {
             $this->prompt->setConversationUid($this->conversationId);
         } else {
-            $this->createConversation(null);
+            $this->createConversation($query);
         }
     }
 

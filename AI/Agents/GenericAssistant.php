@@ -142,12 +142,12 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $conversation = $this->getConversation($prompt);
         $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
             $this->setInstructions($systemPrompt );
         } catch (\Throwable $e) {
+            $conversation = $this->getConversation($prompt);
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
             /* TODO handle different errors differently
@@ -170,6 +170,8 @@ class GenericAssistant implements AiAgentInterface
         }
         
         $query->setFiles($prompt->getFiles());
+
+        $conversation = $this->getConversation($prompt, $query);
 
         try {
             $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
@@ -214,17 +216,17 @@ class GenericAssistant implements AiAgentInterface
      * Reuses the existing helper if it matches the prompt conversation ID,
      * otherwise creates a new helper and initializes the prompt conversation.
      */
-    protected function getConversation(AiPromptInterface $prompt) : AiConversationInterface
+    protected function getConversation(AiPromptInterface $prompt, ?AiQueryInterface $query = null) : AiConversationInterface
     {
         $promptConversationId = $prompt->getConversationUid();
 
         if ($this->conversation === null) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
             return $this->conversation;
         }
 
         if ($promptConversationId === null || $this->conversation->getConversationId() !== $promptConversationId) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
         }
 
         return $this->conversation;
