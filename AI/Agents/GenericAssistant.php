@@ -215,7 +215,7 @@ class GenericAssistant implements AiAgentInterface
      * Reuses the existing helper if it matches the prompt conversation ID,
      * otherwise creates a new helper and initializes the prompt conversation.
      */
-    protected function getConversation(AiPromptInterface $prompt ?AiQueryInterface $query = null) : AiConversation
+    protected function getConversation(AiPromptInterface $prompt, ?AiQueryInterface $query = null) : AiConversation
     {
         $promptConversationId = $prompt->getConversationUid();
 

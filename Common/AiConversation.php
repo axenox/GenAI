@@ -49,19 +49,7 @@ class AiConversation
         $this->assistant = $assistant;
         $this->prompt = $prompt;
         $this->workbench = $assistant->getWorkbench();
-        $this->init($conversationId, $query);
-    }
 
-    /**
-     * Initializes the conversation state and ensures an ID exists.
-     *
-     * If no conversation ID is provided (and none is present in the prompt),
-     * a new conversation is created immediately.
-     *
-     * @param string|null $conversationId Optional existing conversation ID.
-     */
-    protected function init(?string $conversationId = null) : void
-    {
         $this->conversationId = $conversationId ?? $this->prompt->getConversationUid();
         if ($this->conversationId !== null) {
             $this->prompt->setConversationUid($this->conversationId);
@@ -79,7 +67,7 @@ class AiConversation
     public function getConversationId() : string
     {
         if ($this->conversationId === null|| $this->conversationId === '') {
-            return $this->createConversation(null);
+            return $this->createConversation();
         }
 
         return $this->conversationId;
@@ -92,7 +80,7 @@ class AiConversation
      *
      * @param AiQueryInterface|null $query Optional query used for model/title metadata.
      */
-    protected function createConversation(?AiQueryInterface $query) : string
+    protected function createConversation(?AiQueryInterface $query = null) : string
     {
         if ($this->conversationId !== null) {
             return $this->conversationId;
@@ -117,7 +105,7 @@ class AiConversation
 
         $title = $query !== null
             ? $this->assistant->getTitle($query)
-            : 'Standard generated title';
+            : 'Unknown topic';
 
         $dataUxon = $this->prompt->getInputData()->exportUxonObject();
 
