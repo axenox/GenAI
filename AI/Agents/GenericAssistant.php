@@ -141,7 +141,7 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $conversation = $this->getConversation($prompt);
+        
         $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
@@ -169,6 +169,8 @@ class GenericAssistant implements AiAgentInterface
         }
         
         $query->setFiles($prompt->getFiles());
+
+        $conversation = $this->getConversation($prompt, $query);
 
         try {
             $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
@@ -213,17 +215,17 @@ class GenericAssistant implements AiAgentInterface
      * Reuses the existing helper if it matches the prompt conversation ID,
      * otherwise creates a new helper and initializes the prompt conversation.
      */
-    protected function getConversation(AiPromptInterface $prompt) : AiConversation
+    protected function getConversation(AiPromptInterface $prompt ?AiQueryInterface $query = null) : AiConversation
     {
         $promptConversationId = $prompt->getConversationUid();
 
         if ($this->conversation === null) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
             return $this->conversation;
         }
 
         if ($promptConversationId === null || $this->conversation->getConversationId() !== $promptConversationId) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId);
+            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
         }
 
         return $this->conversation;
