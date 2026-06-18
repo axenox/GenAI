@@ -44,12 +44,12 @@ class AiConversation
      * @param AiPromptInterface $prompt Prompt currently processed.
      * @param string|null $conversationId Optional existing conversation ID.
      */
-    public function __construct(GenericAssistant $assistant, AiPromptInterface $prompt, ?string $conversationId = null)
+    public function __construct(GenericAssistant $assistant, AiPromptInterface $prompt, ?string $conversationId = null, ?AiQueryInterface $query = null)
     {
         $this->assistant = $assistant;
         $this->prompt = $prompt;
         $this->workbench = $assistant->getWorkbench();
-        $this->init($conversationId);
+        $this->init($conversationId, $query);
     }
 
     /**
@@ -66,7 +66,7 @@ class AiConversation
         if ($this->conversationId !== null) {
             $this->prompt->setConversationUid($this->conversationId);
         } else {
-            $this->createConversation(null);
+            $this->createConversation($query);
         }
     }
 
@@ -78,7 +78,7 @@ class AiConversation
      */
     public function getConversationId() : string
     {
-        if ($this->conversationId === null) {
+        if ($this->conversationId === null|| $this->conversationId === '') {
             return $this->createConversation(null);
         }
 
