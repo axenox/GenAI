@@ -79,7 +79,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 4. A table of available presets with columns: NAME, DESCRIPTION, USABLE AS WRAPPER, IS PART OF APP
  * 
  */
-class GetWidgetTool extends AbstractAiTool
+class ModelWidgetTypeInfoTool extends AbstractAiTool
 {
     /**
      * Argument name for the widget file path
