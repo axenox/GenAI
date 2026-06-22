@@ -69,10 +69,13 @@ class AppDocsConcept extends AbstractConcept
 
     protected function buildMarkdownDocs() : string
     {
-        $docPrinter = (new DocMarkdownPrinter($this->getWorkbench()))
-            ->setDocsPath($this->getStartingPage())
-            ->setAppAlias($this->getAppAlias())
-            ->setDepth($this->getDepth());
+        $docPrinter = new DocMarkdownPrinter(
+            $this->getWorkbench(),
+            null,
+            $this->getDepth(),
+            $this->getAppAlias(),
+            $this->getStartingPage()
+        );
             
         if(!$docPrinter->docsExists()){
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
