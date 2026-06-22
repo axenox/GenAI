@@ -13,6 +13,8 @@ use exface\Core\Interfaces\Filesystem\FileInfoInterface;
 
 /**
  * Shared file access configuration and path validation for AI file tools.
+ * 
+ * NOTE: all directory separators are normalized to `/` internally!
  */
 trait FileAccessToolTrait
 {
@@ -107,16 +109,15 @@ trait FileAccessToolTrait
         }
 
         if ($this->basePath === null || trim($this->basePath) === '') {
-            return FilePathDataType::normalize($defaultBasePath, DIRECTORY_SEPARATOR);
+            return FilePathDataType::normalize($defaultBasePath);
         }
 
         if (FilePathDataType::isAbsolute($this->basePath)) {
-            return FilePathDataType::normalize($this->basePath, DIRECTORY_SEPARATOR);
+            return FilePathDataType::normalize($this->basePath);
         }
 
         return FilePathDataType::normalize(
-            FilePathDataType::makeAbsolute($this->basePath, $defaultBasePath, DIRECTORY_SEPARATOR),
-            DIRECTORY_SEPARATOR
+            FilePathDataType::makeAbsolute($this->basePath, $defaultBasePath)
         );
     }
     
@@ -137,7 +138,7 @@ trait FileAccessToolTrait
         
         $this->checkPathAllowed($relativePath, $prompt);
 
-        $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath, DIRECTORY_SEPARATOR);
+        $absolutePath = FilePathDataType::makeAbsolute($relativePath, $basePath);
         $this->checkPathInsideBasePath($absolutePath, $basePath);
         
         return $absolutePath;
@@ -338,19 +339,34 @@ trait FileAccessToolTrait
     }
 
     /**
+     * Returns TRUE if the given relative path is allowed by `allowed_paths` (or if no restriction is set).
+     *
+     * @param string $relativePath
+     * @return bool
+     */
+    protected function isPathAllowed(string $relativePath): bool
+    {
+        if (empty($this->allowedPaths)) {
+            return true;
+        }
+
+        foreach ($this->allowedPaths as $pattern) {
+            if (FilePathDataType::matchesPattern($relativePath, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param string $relativePath
      * @return void
      */
     protected function checkPathAllowed(string $relativePath, AiPromptInterface $prompt): void
     {
-        if (empty($this->allowedPaths)) {
+        if ($this->isPathAllowed($relativePath)) {
             return;
-        }
-
-        foreach ($this->allowedPaths as $pattern) {
-            if (FilePathDataType::matchesPattern($relativePath, $pattern)) {
-                return;
-            }
         }
 
         throw new AiToolRuntimeError($this, $prompt, 'Invalid path: folder path does not match any allowed_paths pattern.');
