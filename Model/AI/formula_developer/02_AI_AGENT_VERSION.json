@@ -72,18 +72,18 @@
             "CONFIG_UXON": {
                 "tools": {
                     "read_file": {
-                        "alias": "axenox.GenAI.ReadFileTool",
+                        "alias": "axenox.GenAI.FileReadTool",
                         "description": "Read any file from the vendor folder of the workbench installation"
                     },
                     "write_file": {
-                        "alias": "axenox.GenAI.WriteFileTool",
+                        "alias": "axenox.GenAI.FileWriteTool",
                         "description": "Replaces the given file with new contents. Only files in the apps `<vendor>/<app>/Formulas` folders accessible!",
                         "allowed_paths": [
                             "*/*/Formulas/*.php"
                         ]
                     },
                     "read_folder": {
-                        "alias": "axenox.GenAI.ReadFolderTool",
+                        "alias": "axenox.GenAI.FolderReadTool",
                         "arguments": [
                             {
                                 "name": "path",

@@ -9,15 +9,11 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\CommonLogic\Filesystem\LocalFileInfo;
-use exface\Core\DataTypes\FilePathDataType;
 use exface\Core\DataTypes\MarkdownDataType;
-use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Filesystem\FileInfoInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
-use exface\Core\Widgets\Markdown;
 
 /**
  * This AI tool allows an LLM to read a file from selected folders.
@@ -40,9 +36,7 @@ use exface\Core\Widgets\Markdown;
  *                  {
  *                      "name": "path",
  *                      "description": "Path including filename and extension relative to the vendor folder",
- *                      "data_type": {
- *                          "alias": "exface.Core.String"
- *                      }
+ *                      "examples": ["exface/core/Docs/Getting_started/Introduction.md"]
  *                  }
  *              ]
  *          }
@@ -78,7 +72,7 @@ use exface\Core\Widgets\Markdown;
  * Matching instructions are appended to the file contents as a separate `## Instructions` markdown chapter. If multiple
  * instruction files match, they are separated by a horizontal line.
  */
-class ReadFileTool extends AbstractAiTool
+class FileReadTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
@@ -133,9 +127,9 @@ class ReadFileTool extends AbstractAiTool
      * @uxon-default true
      *
      * @param bool $value
-     * @return ReadFileTool
+     * @return FileReadTool
      */
-    protected function setIncludeInstructionsForGithubCopilot(bool $value) : ReadFileTool
+    protected function setIncludeInstructionsForGithubCopilot(bool $value) : FileReadTool
     {
         $this->includeInstructionsForGithubCopilot = $value;
         return $this;

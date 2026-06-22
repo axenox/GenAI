@@ -49,7 +49,7 @@ use Symfony\Component\Finder\Finder;
  * 
  * ```
  */
-class SearchFilesTool extends AbstractAiTool
+class FileSearchTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
@@ -259,9 +259,9 @@ class SearchFilesTool extends AbstractAiTool
      * @uxon-default true
      *
      * @param bool $value
-     * @return SearchFilesTool
+     * @return FileSearchTool
      */
-    protected function setIncludeExtractLine(bool $value): SearchFilesTool
+    protected function setIncludeExtractLine(bool $value): FileSearchTool
     {
         $this->includeExtractLine = $value;
         return $this;

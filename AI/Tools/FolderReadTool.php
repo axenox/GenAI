@@ -50,7 +50,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *
  * ```
  */
-class ReadFolderTool extends AbstractAiTool
+class FolderReadTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
@@ -118,9 +118,9 @@ class ReadFolderTool extends AbstractAiTool
      * @uxon-default 0
      *
      * @param int $value
-     * @return ReadFolderTool
+     * @return FolderReadTool
      */
-    protected function setDepth(int $value): ReadFolderTool
+    protected function setDepth(int $value): FolderReadTool
     {
         $this->depth = max(0, $value);
         return $this;

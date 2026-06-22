@@ -30,7 +30,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * - `GetObject("0x31343400000000000000000000000000")` - will search for the object with the given UID exactly
  * - `GetObject("exface.Core.USER") - will search for the object with the given alias exactly`
  */
-class GetObjectTool extends AbstractAiTool
+class ModelObjectInfoTool extends AbstractAiTool
 {
     public const ARG_SEARCH_TERM = 'search_term';
 

@@ -21,7 +21,7 @@ use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
-class ImportTool extends AbstractAiTool
+class DataSheetImportTool extends AbstractAiTool
 {
     public const ARG_DATASHEET = 'data_sheet';
 
@@ -96,7 +96,7 @@ class ImportTool extends AbstractAiTool
      * @uxon-type \axenox\GenAI\Common\DataSheetSchema
      * @uxon-template {"object_alias":"my.App.REPORT","subsheets":[{"object_alias":"my.App.TOPIC","subsheets":[]}]}
      */
-    protected function setSaveAs(UxonObject $uxon): ImportTool
+    protected function setSaveAs(UxonObject $uxon): DataSheetImportTool
     {
         $this->saveAsUxon = $uxon;
         $this->dataSchemasUxon = null;
@@ -124,7 +124,7 @@ class ImportTool extends AbstractAiTool
      *   }
      * ]
      */
-    protected function setDataSchemas(UxonObject $uxon): ImportTool
+    protected function setDataSchemas(UxonObject $uxon): DataSheetImportTool
     {
         if (! $uxon->isArray()) {
             throw new RuntimeException('UXON property "save_targets" must be an array of schema objects (same shape as "save_as").');
