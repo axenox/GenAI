@@ -3,8 +3,10 @@ namespace axenox\GenAI\Facades;
 
 use axenox\GenAI\Common\AiPrompt;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Facades\Middleware\FormDataMiddleware;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Filesystem\InMemoryFile;
+use Psr\Http\Message\UploadedFileInterface;
 use exface\Core\Exceptions\Facades\FacadeRoutingError;
 use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
@@ -51,28 +53,13 @@ class AiChatFacade extends AbstractHttpFacade
         $uri = $request->getUri();
         $path = $uri->getPath();
         $headers = $this->buildHeadersCommon();
-        $files = $request->getUploadedFiles();
-        $inMemoryFiles =[];
-        foreach ($files as $key => $file) {
-            $inMemoryFiles[] = new InMemoryFile($file->getStream()->getContents(), $file->getClientFilename(), $file->getClientMediaType());
-        }
 
-        // Files attached in the chat are sent as base64 in the JSON body (see AIChat widget).
-        $parsedBody = $request->getParsedBody();
-        $filesBase64 = is_array($parsedBody) ? ($parsedBody['filesBase64'] ?? []) : [];
-        if (is_array($filesBase64)) {
-            foreach ($filesBase64 as $encodedFile) {
-                if (! is_array($encodedFile) || empty($encodedFile['content'])) {
-                    continue;
-                }
-                $content = base64_decode($encodedFile['content'], true);
-                if ($content === false) {
-                    continue;
-                }
-                $name = $encodedFile['name'] ?? 'upload.bin';
-                $mediaType = $encodedFile['type'] ?? 'application/octet-stream';
-                $inMemoryFiles[] = new InMemoryFile($content, $name, $mediaType);
-            }
+        // Files attached in the chat are sent as regular multipart/form-data uploads (see AIChat
+        // widget and FormDataMiddleware). Collect them all - DeepChat sends every file under the
+        // field name `files`, so getUploadedFiles() may return nested arrays.
+        $inMemoryFiles = [];
+        foreach ($this->flattenUploadedFiles($request->getUploadedFiles()) as $file) {
+            $inMemoryFiles[] = new InMemoryFile($file->getStream()->getContents(), $file->getClientFilename(), $file->getClientMediaType());
         }
         // api/aichat/exface.Core.SqlFilterAgent/completions -> exface.Core.SqlFilterAgent/completions
         $pathInFacade = StringDataType::substringAfter($path, $this->getUrlRouteDefault() . '/');
@@ -205,6 +192,11 @@ class AiChatFacade extends AbstractHttpFacade
 
         // Parse JSON body if it is a JSON and make it available via `$request->getParsedBody()`
         $middleware[] = new JsonBodyParser();
+
+        // If files are attached, DeepChat sends multipart/form-data with the messages as separate
+        // `messageN` fields. Reconstruct the regular `messages` array from them before the task is
+        // created, so the prompt extraction stays the same as for plain JSON requests.
+        $middleware[] = new FormDataMiddleware();
         
         // Generate a task and save it in the request attributes
         $middleware[] = new TaskReader($this, self::REQUEST_ATTR_TASK, function(AiChatFacade $facade, ServerRequestInterface $request){
@@ -234,5 +226,25 @@ class AiChatFacade extends AbstractHttpFacade
         // TODO find agent by selector once an agent list is implemented
         $agent = AiFactory::createAgentFromString($this->getWorkbench(), $selector);
         return $agent;
+    }
+
+    /**
+     * Flattens the (possibly nested) array returned by `$request->getUploadedFiles()` into a flat
+     * list of UploadedFileInterface instances.
+     * 
+     * @param array $uploadedFiles
+     * @return UploadedFileInterface[]
+     */
+    protected function flattenUploadedFiles(array $uploadedFiles) : array
+    {
+        $result = [];
+        foreach ($uploadedFiles as $file) {
+            if ($file instanceof UploadedFileInterface) {
+                $result[] = $file;
+            } elseif (is_array($file)) {
+                $result = array_merge($result, $this->flattenUploadedFiles($file));
+            }
+        }
+        return $result;
     }
 }
