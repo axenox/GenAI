@@ -1,3 +1,8 @@
+---
+description: "Use when working on AI concepts - configurable placeholders in the instructions of our AI agents"
+name: "AI concepts"
+applyTo: "AI/Concepts/*.php"
+---
 # AI concepts
 
 ## Summary

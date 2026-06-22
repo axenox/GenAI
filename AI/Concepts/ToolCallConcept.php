@@ -6,6 +6,7 @@ use axenox\GenAI\Exceptions\AiConceptConfigurationError;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\MarkdownDataType;
 
 /**
  * Allows to use placeholders for predefined tool calls in system prompts.
@@ -36,7 +37,7 @@ class ToolCallConcept extends AbstractConcept
             } catch (\Throwable $e) {
                 // Ignore if prompt implementation does not support warnings.
             }
-            return $result->getValueAsMarkdown();
+            return MarkdownDataType::convertFrontMatterToMarkdown($result->getValueAsMarkdown());
         }catch (\Exception $e){
             $this->getWorkbench()->getLogger()->logException($e);
             return "";
