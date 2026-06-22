@@ -7,6 +7,12 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\DocMarkdownPrinter;
 
+/**
+ * Provides app documentation markdown as an AI concept.
+ *
+ * Designers can choose the app docs entry page and optionally inline linked
+ * markdown pages by setting a depth greater than 0.
+ */
 class AppDocsConcept extends AbstractConcept
 {
     private $appAlias = null;
@@ -65,7 +71,8 @@ class AppDocsConcept extends AbstractConcept
     {
         $docPrinter = (new DocMarkdownPrinter($this->getWorkbench()))
             ->setDocsPath($this->getStartingPage())
-            ->setAppAlias($this->getAppAlias());
+            ->setAppAlias($this->getAppAlias())
+            ->setDepth($this->getDepth());
             
         if(!$docPrinter->docsExists()){
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
@@ -73,7 +80,7 @@ class AppDocsConcept extends AbstractConcept
         
         $markdown = $docPrinter->getMarkdown();
 
-        $result = str_replace('\\', '\/', $markdown);;
+        $result = str_replace('\\', '\/', $markdown);
         return $result;
     }
 
