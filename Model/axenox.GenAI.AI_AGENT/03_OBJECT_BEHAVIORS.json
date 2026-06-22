@@ -83,7 +83,7 @@
         {
             "_EXPORT_SUMMARY": "Create a first version, when an agent is created",
             "CREATED_ON": "2026-06-12 22:35:24",
-            "MODIFIED_ON": "2026-06-12 23:01:09",
+            "MODIFIED_ON": "2026-06-12 23:51:14",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f19d033d5eba029d03025041000001",
@@ -114,9 +114,6 @@
                                     "",
                                     "## Global rules",
                                     "",
-                                    "",
-                                    "",
-                                    "## Introduction to the platform",
                                     "",
                                     "[#introduction#]'"
                                 ],
