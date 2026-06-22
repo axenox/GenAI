@@ -116,7 +116,6 @@ class AiToolUxonSchema extends UxonSchema
     
     protected function getNameForGeneratedPreset(string $class, array $template) : string
     {
-
         $className = PhpClassDataType::findClassNameWithoutNamespace($class);
         if (StringDataType::endsWith($className, 'Tool')) {
             $presetName = StringDataType::substringBefore($className, 'Tool', $className, true, true);
@@ -128,7 +127,7 @@ class AiToolUxonSchema extends UxonSchema
         foreach ($args as $arg) {
             $argsStr .= ($argsStr !== '' ? ', ' : '') . (true !== ($arg['required'] ?? false) ? '?' : '') . $arg['name'];
         }
-        return $presetName . '(' . $argsStr . ')';
+        return '<b>' . $presetName . '</b><br/>(' . $argsStr . ')';
     }
 
     /**
