@@ -117,7 +117,7 @@ class GenericAssistant implements AiAgentInterface
     private ?array $toolsUxon = null;
     private ?AiConversation $conversation = null;
 
-    private $maxNumberOfCalls = 5;
+    private $maxNumberOfCalls = 10;
 
     /** @var AiToolCallResponse[] */
     private array $toolCalls = [];
@@ -876,5 +876,21 @@ class GenericAssistant implements AiAgentInterface
         ]]));
         $debugWidget->addTab($tab);
         return $debugWidget;
+    }
+
+    /**
+     * Maximum number of tool calls before a response
+     * 
+     * @uxon-property tool_calls_max
+     * @uxon-type integer
+     * @uxon-default 30
+     * 
+     * @param int $number
+     * @return $this
+     */
+    protected function setToolCallsMax(int $number) : GenericAssistant
+    {
+        $this->maxNumberOfCalls = $number;
+        return $this;
     }
 }
