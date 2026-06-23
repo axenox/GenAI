@@ -11,7 +11,8 @@
     },
     "require": {
         "exface/core": "^1.0",
-        "npm-asset/deep-chat": "^2"
+        "npm-asset/deep-chat": "^2",
+        "symfony/expression-language": "^5.3||^6"
     },
     "autoload": {
         "psr-4": {
