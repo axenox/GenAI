@@ -14,6 +14,9 @@ use exface\Core\Facades\DocsFacade\MarkdownPrinters\DocMarkdownPrinter;
  * Use this concept to inject rendered docs of a selected app into a placeholder.
  * The content can start at a specific page and optionally normalize heading levels
  * to fit into surrounding instruction sections.
+ * 
+ * The rendered markdown can not only contain a single docs page, but also pages
+ * linked to from within this page. Set `depth` > 0 to include linked pages.
  */
 class AppDocsConcept extends AbstractConcept
 {
@@ -75,9 +78,13 @@ class AppDocsConcept extends AbstractConcept
 
     protected function buildMarkdownDocs() : string
     {
-        $docPrinter = (new DocMarkdownPrinter($this->getWorkbench()))
-            ->setDocsPath($this->getStartingPage())
-            ->setAppAlias($this->getAppAlias());
+        $docPrinter = new DocMarkdownPrinter(
+            $this->getWorkbench(),
+            null,
+            $this->getDepth(),
+            $this->getAppAlias(),
+            $this->getStartingPage()
+        );
             
         if(!$docPrinter->docsExists()){
             throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Docs not found for app "' . $this->getAppAlias() . '"');
@@ -91,7 +98,7 @@ class AppDocsConcept extends AbstractConcept
             $markdown = MarkdownDataType::convertHeaderLevels($markdown, $this->getHeadingLevel());
         }
 
-        $result = str_replace('\\', '\/', $markdown);;
+        $result = str_replace('\\', '\/', $markdown);
         return $result;
     }
 
