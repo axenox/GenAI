@@ -4,9 +4,17 @@ namespace axenox\GenAI\AI\Concepts;
 use axenox\GenAI\AI\Tools\GetDocsTool;
 use axenox\GenAI\Common\AbstractConcept;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Exceptions\TemplateRenderer\PlaceholderValueInvalidError;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\DocMarkdownPrinter;
 
+/**
+ * Includes an app documentation page as markdown in agent instructions.
+ * 
+ * Use this concept to inject rendered docs of a selected app into a placeholder.
+ * The content can start at a specific page and optionally normalize heading levels
+ * to fit into surrounding instruction sections.
+ */
 class AppDocsConcept extends AbstractConcept
 {
     private $appAlias = null;
@@ -14,6 +22,10 @@ class AppDocsConcept extends AbstractConcept
     private $depth = 0;
 
     private $startingPage = null;
+
+    private $hideTitle = false;
+
+    private ?int $headingLevel = null;
 
 
     protected function getOutput(): string
@@ -73,8 +85,43 @@ class AppDocsConcept extends AbstractConcept
         
         $markdown = $docPrinter->getMarkdown();
 
+        $markdown = $this->hideTitleIfNeeded($markdown);
+
+        if (null !== $this->getHeadingLevel()) {
+            $markdown = MarkdownDataType::convertHeaderLevels($markdown, $this->getHeadingLevel());
+        }
+
         $result = str_replace('\\', '\/', $markdown);;
         return $result;
+    }
+
+    /**
+     * Applies `hide_title` options to the rendered markdown.
+     * 
+     * The first line starting with `#` is considered the top-level title. If `hide_title`
+     * is enabled, that line is removed entirely. 
+     * 
+     * @param string $markdown
+     * @return string
+     */
+    protected function hideTitleIfNeeded(string $markdown) : string
+    {
+        if ($this->hideTitle === false) {
+            return $markdown;
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $markdown);
+        foreach ($lines as $i => $line) {
+            if (preg_match('/^(#+)\s+/', $line, $matches) !== 1) {
+                continue;
+            }
+            if ($this->hideTitle === true) {
+                unset($lines[$i]);
+            } 
+            break;
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -125,5 +172,51 @@ class AppDocsConcept extends AbstractConcept
     {
         $this->startingPage = $page;
         return $this;
+    }
+
+    /**
+     * Remove the top-level title (the first line starting with `#`) completely.
+     * 
+     * @uxon-property hide_title
+     * @uxon-type boolean
+     * @uxon-default false
+     * 
+     * @param bool $hide
+     * @return AppDocsConcept
+     */
+    protected function setHideTitle(bool $hide) : AppDocsConcept
+    {
+        $this->hideTitle = $hide;
+        return $this;
+    }
+
+    /**
+     * Heading level for the highest heading in the resulting markdown.
+     * 
+     * Use this property to embed app docs under a specific heading depth in larger
+     * instructions.
+     * 
+     * @uxon-property heading_level
+     * @uxon-type integer
+     * 
+     * @param int $level
+     * @return AppDocsConcept
+     */
+    protected function setHeadingLevel(int $level) : AppDocsConcept
+    {
+        if ($level < 1) {
+            throw new PlaceholderValueInvalidError($this->getPlaceholder(), 'Invalid heading_level value "' . $level . '": heading levels must be greater than 0.');
+        }
+
+        $this->headingLevel = $level;
+        return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    protected function getHeadingLevel() : ?int
+    {
+        return $this->headingLevel;
     }
 }
