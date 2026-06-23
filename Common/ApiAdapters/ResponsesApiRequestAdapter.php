@@ -90,10 +90,15 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
                 $requiredArgNames[] = $argument->getName();
             }
 
+            $description = $tool->getDescription();
+            if ($rules = $tool->getRules()) {
+                $description .= "\n\n" . $rules;
+            }
+            
             $tools[] = [
                 'type' => 'function',
                 'name' => $tool->getName(),
-                'description' => $tool->getDescription(),
+                'description' => $description,
                 'parameters' => [
                     'type' => 'object',
                     'properties' => $arguments,

@@ -79,13 +79,18 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
                 $requiredArgNames[] = $argument->getName();
             }
 
+            $description = $tool->getDescription();
+            if ($rules = $tool->getRules()) {
+                $description .= "\n\n" . $rules;
+            }
+            
             array_push(
                 $tools,
                 [
                     "type" => "function",
                     "function" => [
                         "name" => $tool->getName(),
-                        "description" => $tool->getDescription(),
+                        "description" => $description,
                         "parameters" => [
                             "type" => "object",
                             "properties" => $arguments,
