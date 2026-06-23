@@ -313,4 +313,13 @@ abstract class AbstractAiTool implements AiToolInterface
             'arguments' => $argsModels,
         ];
     }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getRules()
+     */
+    public function getRules() : ?string
+    {
+        return null;
+    }
 }
