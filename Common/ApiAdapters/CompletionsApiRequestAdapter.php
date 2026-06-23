@@ -5,12 +5,13 @@ use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
+use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
-class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
+class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpRequestToolTestInterface
 {
     private AiConnectorInterface $connector;
     
@@ -250,5 +251,180 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface
 JSON;
         
         return new Response(200, [], $json);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getUserPromptFromRequest()
+     */
+    public function getUserPromptFromRequest(array $requestJson) : ?string
+    {
+        $prompt = null;
+        foreach (($requestJson['messages'] ?? []) as $message) {
+            if (($message['role'] ?? null) !== 'user') {
+                continue;
+            }
+            $content = $message['content'] ?? '';
+            if (is_string($content)) {
+                $prompt = $content;
+                continue;
+            }
+            if (is_array($content)) {
+                foreach ($content as $block) {
+                    if (is_array($block) && in_array(($block['type'] ?? null), ['text', 'input_text'], true)) {
+                        $prompt = $block['text'] ?? '';
+                    }
+                }
+            }
+        }
+        return $prompt;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolNamesFromRequest()
+     */
+    public function getToolNamesFromRequest(array $requestJson) : array
+    {
+        $names = [];
+        foreach (($requestJson['tools'] ?? []) as $tool) {
+            if (null !== $name = ($tool['function']['name'] ?? null)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolArgumentNames()
+     */
+    public function getToolArgumentNames(array $requestJson, string $toolName) : ?array
+    {
+        foreach (($requestJson['tools'] ?? []) as $tool) {
+            if (($tool['function']['name'] ?? null) !== $toolName) {
+                continue;
+            }
+            $properties = $tool['function']['parameters']['properties'] ?? [];
+            return array_keys(is_array($properties) ? $properties : []);
+        }
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::hasToolCallResultsInRequest()
+     */
+    public function hasToolCallResultsInRequest(array $requestJson) : bool
+    {
+        foreach (($requestJson['messages'] ?? []) as $message) {
+            $role = $message['role'] ?? null;
+            if ($role === 'tool' || ($role === 'assistant' && ! empty($message['tool_calls']))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolCallResultsFromRequest()
+     */
+    public function getToolCallResultsFromRequest(array $requestJson) : array
+    {
+        $results = [];
+        foreach (($requestJson['messages'] ?? []) as $message) {
+            if (($message['role'] ?? null) === 'tool') {
+                $content = $message['content'] ?? '';
+                $results[] = is_string($content) ? $content : json_encode($content, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+        }
+        return $results;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::buildTextResponse()
+     */
+    public function buildTextResponse(array $requestJson, string $text) : ResponseInterface
+    {
+        $json = [
+            'id' => 'chatcmpl-tooltest-001',
+            'object' => 'chat.completion',
+            'created' => 1726608704,
+            'model' => $this->connector->getModelName(),
+            'choices' => [
+                [
+                    'index' => 0,
+                    'finish_reason' => 'stop',
+                    'logprobs' => null,
+                    'message' => [
+                        'role' => 'assistant',
+                        'content' => $text,
+                    ],
+                ],
+            ],
+            'usage' => [
+                'completion_tokens' => 0,
+                'prompt_tokens' => 0,
+                'total_tokens' => 0,
+            ],
+            'debug' => [
+                'request' => $requestJson,
+            ],
+        ];
+
+        return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::buildToolCallResponse()
+     */
+    public function buildToolCallResponse(array $requestJson, array $toolCalls) : ResponseInterface
+    {
+        $calls = [];
+        foreach ($toolCalls as $call) {
+            $calls[] = [
+                'id' => $call['call_id'] ?? '',
+                'type' => 'function',
+                'function' => [
+                    'name' => $call['name'] ?? '',
+                    'arguments' => json_encode(
+                        (object) ($call['arguments'] ?? []),
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    ),
+                ],
+            ];
+        }
+
+        $json = [
+            'id' => 'chatcmpl-tooltest-001',
+            'object' => 'chat.completion',
+            'created' => 1726608704,
+            'model' => $this->connector->getModelName(),
+            'choices' => [
+                [
+                    'index' => 0,
+                    'finish_reason' => 'tool_calls',
+                    'logprobs' => null,
+                    'message' => [
+                        'role' => 'assistant',
+                        'content' => null,
+                        'tool_calls' => $calls,
+                    ],
+                ],
+            ],
+            'usage' => [
+                'completion_tokens' => 0,
+                'prompt_tokens' => 0,
+                'total_tokens' => 0,
+            ],
+            'debug' => [
+                'request' => $requestJson,
+            ],
+        ];
+
+        return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 }
