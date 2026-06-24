@@ -5,6 +5,7 @@ use axenox\GenAI\AI\Agents\GenericAssistant;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
@@ -27,7 +28,7 @@ use exface\Core\Widgets\Markdown;
  * The constructor initializes the conversation context and ensures a valid
  * conversation ID exists before any save operation is executed.
  */
-class AiConversation
+class AiConversation implements AiConversationInterface
 {
     private GenericAssistant $assistant;
 
@@ -43,13 +44,27 @@ class AiConversation
      * @param GenericAssistant $assistant Owning assistant instance.
      * @param AiPromptInterface $prompt Prompt currently processed.
      * @param string|null $conversationId Optional existing conversation ID.
+     * @param AiQueryInterface|null $query Optional query used for model/title metadata.
      */
     public function __construct(GenericAssistant $assistant, AiPromptInterface $prompt, ?string $conversationId = null, ?AiQueryInterface $query = null)
     {
         $this->assistant = $assistant;
         $this->prompt = $prompt;
         $this->workbench = $assistant->getWorkbench();
+        $this->init($conversationId, $query);
+    }
 
+    /**
+     * Initializes the conversation state and ensures an ID exists.
+     *
+     * If no conversation ID is provided (and none is present in the prompt),
+     * a new conversation is created immediately.
+     *
+     * @param string|null $conversationId Optional existing conversation ID.
+     * @param AiQueryInterface|null $query Optional query used for model/title metadata.
+     */
+    protected function init(?string $conversationId = null, ?AiQueryInterface $query = null) : void
+    {
         $this->conversationId = $conversationId ?? $this->prompt->getConversationUid();
         if ($this->conversationId !== null) {
             $this->prompt->setConversationUid($this->conversationId);
@@ -66,8 +81,8 @@ class AiConversation
      */
     public function getConversationId() : string
     {
-        if ($this->conversationId === null|| $this->conversationId === '') {
-            return $this->createConversation();
+        if ($this->conversationId === null || $this->conversationId === '') {
+            return $this->createConversation(null);
         }
 
         return $this->conversationId;
@@ -80,7 +95,7 @@ class AiConversation
      *
      * @param AiQueryInterface|null $query Optional query used for model/title metadata.
      */
-    protected function createConversation(?AiQueryInterface $query = null) : string
+    protected function createConversation(?AiQueryInterface $query) : string
     {
         if ($this->conversationId !== null) {
             return $this->conversationId;
@@ -105,7 +120,7 @@ class AiConversation
 
         $title = $query !== null
             ? $this->assistant->getTitle($query)
-            : 'Unknown topic';
+            : 'Standard generated title';
 
         $dataUxon = $this->prompt->getInputData()->exportUxonObject();
 
@@ -162,7 +177,7 @@ class AiConversation
             }
 
             $message->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
+                'AI_CONVERSATION' => $this->getConversationId(),
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::SYSTEM,
                 'MESSAGE' => $systemPrompt,
@@ -238,7 +253,7 @@ class AiConversation
 
         try {
             $cost = $query->getCosts();
-            $this->saveWarning($query->getWarnings());
+            $this->saveWarnings($query->getWarnings());
 
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
@@ -280,7 +295,7 @@ class AiConversation
             if ($fullJsonResponse !== null) {
                 $dataUxon->setProperty('fullJsonResponse', $fullJsonResponse);
             }
-            $this->saveWarning($query->getWarnings());
+            $this->saveWarnings($query->getWarnings());
 
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
@@ -328,7 +343,7 @@ class AiConversation
             $markdown .= "\n## {$no}. {$response->getToolName()}()";
             $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString());
             $markdown .= MarkdownDataType::makeHorizontalLine();
-            $markdown .= "\n\n" . MarkdownDataType::convertFrontMatterToMarkdown($response->getToolResult()->getValueAsMarkdown());
+            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
         }
 
         try {
@@ -371,7 +386,7 @@ class AiConversation
             }
         }
 
-        $this->saveWarning($warnings);
+        $this->saveWarnings($warnings);
         $this->saveErrorMessages($errors);
     }
 
@@ -454,7 +469,7 @@ class AiConversation
      *
      * @param array $warnings Warning payloads from connector/tools.
      */
-    public function saveWarning(array $warnings) : void
+    public function saveWarnings(array $warnings) : void
     {
         if (empty($warnings)) {
             return;
