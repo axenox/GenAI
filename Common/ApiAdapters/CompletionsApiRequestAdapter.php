@@ -247,9 +247,9 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
     ],
     "system_fingerprint": null,
     "usage": {
-        "completion_tokens": 30,
-        "prompt_tokens": 3004,
-        "total_tokens": 3034
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0
     },
     "debug": {$debugJsonStr}
 }  
