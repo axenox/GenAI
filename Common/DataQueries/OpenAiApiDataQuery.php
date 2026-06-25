@@ -304,7 +304,12 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getAnswerJson() : ?array
     {
-        return $this->responseAdapter->getAnswerJson();
+         try {
+             $json = $this->responseAdapter->getAnswerJson();
+         } catch (\Throwable $e) {
+             throw new DataQueryFailedError($this, 'Expected JSON not received from LLM. ' . $e->getMessage(), null, $e);
+         }
+         return $json;
     }
     
     /**

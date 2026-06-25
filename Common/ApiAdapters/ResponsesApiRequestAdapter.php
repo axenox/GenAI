@@ -433,18 +433,14 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
         ];
     }
 
-    public function getDryrunResponse(array $requestJson): ResponseInterface
+    public function getDryrunResponse(array $requestJson, string $response): ResponseInterface
     {
         $debug = [
             'request' => $requestJson,
         ];
 
         $debugJsonStr = json_encode($debug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        $contentJson = json_encode(
-            $this->dryrunResponse ?? 'Dummy response - AI connector is in dry-run mode',
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
+        $contentJson = json_encode($response,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $json = <<<JSON
 {
