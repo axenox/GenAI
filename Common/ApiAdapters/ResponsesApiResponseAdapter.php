@@ -54,7 +54,7 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
      */
     public function getAnswerJson() : ?array
     {
-        return json_decode($this->getFullAnswer(), true);
+        return JsonDataType::decodeJson($this->getFullAnswer());
     }
 
     /**
