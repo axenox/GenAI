@@ -63,7 +63,7 @@
         {
             "_EXPORT_SUMMARY": "Admin AI Assistant v1.1",
             "CREATED_ON": "2025-04-14 11:38:28",
-            "MODIFIED_ON": "2026-06-12 22:40:54",
+            "MODIFIED_ON": "2026-06-26 16:08:35",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f09c3c3860f7dc9c3c025041000001",
@@ -72,6 +72,7 @@
             "CONFIG_UXON": {
                 "tools": {
                     "GetDocs": {
+                        "alias": "axenox.GenAI.GetDocsTool",
                         "arguments": [
                             {
                                 "name": "url",
@@ -84,6 +85,7 @@
                         "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. "
                     },
                     "GetObject": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
                         "arguments": [
                             {
                                 "name": "object_alias",
@@ -96,6 +98,7 @@
                         "description": "Load information about the any metaobject. "
                     },
                     "GetLogEntry": {
+                        "alias": "axenox.GenAI.GetLogEntryTool",
                         "arguments": [
                             {
                                 "name": "LogId",
@@ -108,6 +111,7 @@
                         "description": "Read the log"
                     },
                     "GetUxonPrototype": {
+                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -123,6 +127,16 @@
                             "- aliases - they are used inside UXON models. Aliases are currently NOT SUPPORTED by this tool!!!",
                             "- fully qualified PHP class names as selectors (always starting with a `\\`) ",
                             "- file paths relative to the vendor folder using `/` as directory separator"
+                        ]
+                    },
+                    "GetWidgetTypeInfo": {
+                        "alias": "axenox.GenAI.ModelWidgetTypeInfoTool",
+                        "description": "Retrieve detailed documentation for a widget prototype with available properties, widget functions, presets, etc.",
+                        "arguments": [
+                            {
+                                "name": "path",
+                                "description": "Widget type (e.g. `DataTable`) or path to the widget PHP file relative to the vendor folder (e.g. `exface/core/Widgets/DataTable.php`)"
+                            }
                         ]
                     }
                 },
