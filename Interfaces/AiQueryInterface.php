@@ -20,7 +20,7 @@ interface AiQueryInterface extends DataQueryInterface
      * 
      * @return string
      */
-    public function getFullAnswer() : string;
+    public function getAnswerRaw() : string;
 
     /**
      * Returns the structured data returned by an LLM if it runs in JSON mode
@@ -28,6 +28,11 @@ interface AiQueryInterface extends DataQueryInterface
      * @return array|null
      */
     public function getAnswerJson() : ?array;
+
+    /**
+     * @return string|null
+     */
+    public function getAnswerMarkdown() : string;
     
     /**
      * Returns FALSE if the LLM is not done yet and this is just a partial response
@@ -118,4 +123,17 @@ interface AiQueryInterface extends DataQueryInterface
     public function getFiles() : array;
     
     public function hasFiles() : bool;
+
+    /**
+     * @param string $jsonPath
+     * @return AiAgentInterface
+     */
+    public function setResponseAnswerPath(string $jsonPath) : AiQueryInterface;
+
+    /**
+     * Returns the JSONpath to find the text answer in the response JSON if a response_json_schema was provided
+     * 
+     * @return string|null
+     */
+    public function getResponseAnswerPath() : ?string;
 }

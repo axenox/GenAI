@@ -1,10 +1,13 @@
 <?php
 namespace axenox\GenAI\Common\DataQueries;
 
+use axenox\GenAI\AI\Agents\GenericAssistant;
+use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
+use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
@@ -47,7 +50,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     private $costs = null;
     private array $warnings = [];
     
-    private $jsonSchema = null;
+    private ?array $responseJsonSchema = null;
+    private ?string $responseAnswerPath = null;
 
     private $tools = [];
     
@@ -291,11 +295,38 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getFullAnswer()
+     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswerRaw()
      */
-    public function getFullAnswer() : string
+    public function getAnswerRaw() : string
     {
-        return $this->responseAdapter->getFullAnswer();
+        return $this->responseAdapter->getAnswerRaw();
+    }
+
+    /**
+     *
+     * @see AiQueryInterface::getAnswerMarkdown()
+     */
+    public function getAnswerMarkdown() : string
+    {
+        if ($this->hasResponseJsonSchema()) {
+            $json = $this->getAnswerJson();
+
+            if ($this->getResponseAnswerPath() !== null) {
+                $matches = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath());
+                return $matches[0] ?? '';
+            } else {
+                $answer = $json;
+            }
+
+            if (!is_string($answer)) {
+                $answer = json_encode($answer, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            }
+
+            // Codeblock for the AIChat (?)
+            return "```json\n" . $answer . "\n```";
+        }
+
+        return $this->getAnswerRaw();
     }
 
     /**
@@ -371,13 +402,47 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     public function setResponseJsonSchema(array $value)
     {
-        $this->jsonSchema = $value;
+        $this->responseJsonSchema = $value;
         return $this;
     }
 
     public function getResponseJsonSchema() : ?array
     {
-        return $this->jsonSchema;
+        return $this->responseJsonSchema;
+    }
+
+    /**
+     *
+     * @return bool
+     */
+    protected function hasResponseJsonSchema() : bool
+    {
+        return $this->responseJsonSchema !== null;
+    }
+
+    /**
+     * If the AI should respond with JSON, specify the path where to find its answer/comment in that JSON
+     *
+     * @uxon-property response_answer_path
+     * @uxon-type string
+     * @uxon-template $.text
+     *
+     * @see AiQueryInterface::setResponseAnswerPath()
+     */
+    public function setResponseAnswerPath(string $jsonPath) : AiQueryInterface
+    {
+        $this->responseAnswerPath = $jsonPath;
+        return $this;
+    }
+
+    /**
+     * Returns the JSONpath to find the text answer in the response JSON if a response_json_schema was provided
+     * 
+     * @see AiQueryInterface::getResponseAnswerPath()
+     */
+    public function getResponseAnswerPath() : ?string
+    {
+        return $this->responseAnswerPath;
     }
 
     /**

@@ -27,9 +27,9 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface::getFullAnswer()
+     * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface::getAnswerRaw()
      */
-    public function getFullAnswer() : string
+    public function getAnswerRaw() : string
     {
         $texts = [];
 
@@ -54,7 +54,7 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
      */
     public function getAnswerJson() : ?array
     {
-        return JsonDataType::decodeJson($this->getFullAnswer());
+        return JsonDataType::decodeJson($this->getAnswerRaw());
     }
 
     /**
@@ -147,7 +147,7 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
 
         $message = [
             'role' => 'assistant',
-            'content' => $this->getFullAnswer()
+            'content' => $this->getAnswerRaw()
         ];
 
         if ($this->hasToolCalls()) {

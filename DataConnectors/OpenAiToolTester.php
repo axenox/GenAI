@@ -10,6 +10,7 @@ use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\AbstractDataConnector;
+use exface\Core\CommonLogic\Utils\JsonObject;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use exface\Core\DataConnectors\Traits\IDoNotSupportTransactionsTrait;
 use exface\Core\DataTypes\UUIDDataType;
@@ -80,6 +81,13 @@ class OpenAiToolTester extends AbstractDataConnector implements AiConnectorInter
         if ($requestAdapter->hasToolCallResultsInRequest($requestJson)) {
             $results = $requestAdapter->getToolCallResultsFromRequest($requestJson);
             $text = empty($results) ? 'Tool test completed.' : implode("\n\n", $results);
+            // If the agent expects a JSON response (it has a response_json_schema), the response adapter
+            // will try to parse the answer as JSON. A plain text tool test result would not be valid JSON
+            // and lead to a parsing error. Wrap the result into a JSON object instead. If an answer path is
+            // defined, place the result there so the agent can find it.
+            if ($query->getResponseJsonSchema() !== null) {
+                $text = $this->wrapTextInJson($text, $query->getResponseAnswerPath());
+            }
             $response = $requestAdapter->buildTextResponse($requestJson, $text);
             $responseAdapter = $this->getResponseAdapter($response);
             $warnings = [];
@@ -204,6 +212,25 @@ class OpenAiToolTester extends AbstractDataConnector implements AiConnectorInter
         }
         
         return $calls;
+    }
+    
+    /**
+     * Wraps a plain text into a JSON string so it can be parsed by response adapters that expect JSON.
+     * 
+     * If an answer path (JSONPath like `$.text`) is given, the text is placed at that path within the
+     * resulting JSON object. Otherwise it is placed under a generic `text` key. Non-existent nodes along
+     * the path are created automatically.
+     * 
+     * @param string $text
+     * @param string|null $answerPath
+     * @return string
+     */
+    protected function wrapTextInJson(string $text, ?string $answerPath) : string
+    {
+        $jsonPath = ($answerPath !== null && $answerPath !== '') ? $answerPath : '$.text';
+        $json = new JsonObject();
+        $json->set($jsonPath, $text);
+        return $json->getJson();
     }
     
     /**
