@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-03-16 18:33:33",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-06-03 12:14:27",
+    "modified_on": "2026-06-26 16:24:41",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AGENT",
@@ -104,6 +104,9 @@
                                             },
                                             {
                                                 "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog"
                                             },
                                             {
                                                 "action_alias": "exface.Core.DeleteObject",
