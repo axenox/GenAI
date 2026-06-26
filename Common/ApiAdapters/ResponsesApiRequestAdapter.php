@@ -477,9 +477,15 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
         }
     },
     "usage": {
-        "input_tokens": 3004,
-        "output_tokens": 30,
-        "total_tokens": 3034
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 0
     },
     "debug": {$debugJsonStr}
 }
