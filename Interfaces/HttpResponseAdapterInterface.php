@@ -10,7 +10,7 @@ interface HttpResponseAdapterInterface
      *
      * @return string
      */
-    public function getFullAnswer() : string;
+    public function getAnswerRaw() : string;
 
     /**
      * Returns the structured data returned by an LLM if it runs in JSON mode
