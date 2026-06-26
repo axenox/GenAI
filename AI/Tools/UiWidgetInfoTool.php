@@ -21,22 +21,22 @@ use exface\Core\Interfaces\WorkbenchInterface;
 use GuzzleHttp\Psr7\Uri;
 
 /**
- * Returns markdown documentation for a UI page, dialog, or a specific widget.
+ * Get UXON models and documentation for a UI page, dialog, or a specific widget.
  *
  * Use this tool when an agent needs structured UI knowledge for a given ExFace URL
  * or page alias. The tool resolves the URL via the facade resolver, loads the target
  * page, and prints widget information using the UI widget markdown printer.
- *
+ * 
  * Behavior:
  * - If only `url` is provided, the root widget of the resolved page is documented.
  * - If `widget_id` is provided, the tool documents only that widget from the page.
  * - The result is returned as markdown data, suitable for inclusion in agent context.
- *
+ * 
  * Typical use cases:
  * - Explain what widgets are available on a page before generating actions.
  * - Inspect a specific widget to identify expressions, structure, and configuration.
  * - Provide up-to-date UI context for assistants that need page-aware guidance.
- *
+ * 
  * Example arguments:
  * - `["exface.core.administration"]`
  * - `["exface.core.objects.html?filter_ALIAS=", "my_widget_id"]`
