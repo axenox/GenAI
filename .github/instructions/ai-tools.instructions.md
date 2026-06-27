@@ -61,6 +61,13 @@ The main methods to implement are:
 - `getArgumentsTemplates()`, which returns the generic JSON schema for all 
   possible arguments. This is supposed to be refined in every agent using 
   the tool.
+- `getRules()` if the tool has configured boundaries or workflow rules that
+  the LLM must see at runtime. Rules should be derived from the current tool
+  configuration where possible, for example base folders, allowed path
+  patterns, scopes, security checks or configured limits. Keep the tool
+  description focused on what the tool is for; put usage constraints and
+  must-follow behavior into rules so concepts such as tool introductions can
+  render them separately.
 
 ## Error and warning handling in tools
 
