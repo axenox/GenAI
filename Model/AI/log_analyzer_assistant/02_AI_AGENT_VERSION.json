@@ -63,15 +63,16 @@
         {
             "_EXPORT_SUMMARY": "Log analyzer assistant v1.1",
             "CREATED_ON": "2025-11-23 12:25:22",
-            "MODIFIED_ON": "2025-12-04 10:29:45",
+            "MODIFIED_ON": "2026-06-26 09:27:50",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0b0fd198f0920b0fdc84bd653ed63",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "tools": {
                     "GetDocs": {
+                        "alias": "axenox.GenAI.GetDocsTool",
                         "arguments": [
                             {
                                 "name": "url",
@@ -84,6 +85,7 @@
                         "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. "
                     },
                     "GetObject": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
                         "arguments": [
                             {
                                 "name": "object_alias",
@@ -96,6 +98,7 @@
                         "description": "Load information about the any metaobject. "
                     },
                     "GetLogEntry": {
+                        "alias": "axenox.GenAI.GetLogEntryTool",
                         "arguments": [
                             {
                                 "name": "LogId",
@@ -108,6 +111,7 @@
                         "description": "Request a log entry"
                     },
                     "GetUxonPrototype": {
+                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
                         "arguments": [
                             {
                                 "name": "selector",
