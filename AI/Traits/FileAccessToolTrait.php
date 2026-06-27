@@ -120,6 +120,32 @@ trait FileAccessToolTrait
             FilePathDataType::makeAbsolute($this->basePath, $defaultBasePath)
         );
     }
+
+    /**
+     * Returns a human-readable description of the configured base path.
+     *
+     * @return string
+     */
+    protected function getBasePathDescription(): string
+    {
+        $baseName = $this->useVendorFolderAsBase === true ? 'vendor folder' : 'workbench base folder';
+
+        if ($this->basePath === null || trim($this->basePath) === '') {
+            return $baseName;
+        }
+
+        return '`' . FilePathDataType::normalize($this->basePath, '/') . '` below the ' . $baseName;
+    }
+
+    /**
+     * Returns configured allowed path patterns normalized for display.
+     *
+     * @return string[]
+     */
+    protected function getAllowedPathPatterns(): array
+    {
+        return $this->allowedPaths;
+    }
     
     protected function getPathAbsolute(string $relativePath, string $basePath, AiPromptInterface $prompt) : string
     {
