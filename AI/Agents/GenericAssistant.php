@@ -147,6 +147,7 @@ class GenericAssistant implements AiAgentInterface
             $systemPrompt = $this->getSystemPrompt($prompt);
             $this->setInstructions($systemPrompt );
         } catch (\Throwable $e) {
+            $conversation = $this->getConversation($prompt);
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
             /* TODO handle different errors differently
@@ -783,7 +784,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return AiToolInterface[]
      */
-    protected function getTools() : array
+    public function getTools() : array
     {
         if ($this->tools === null) {
             if ($this->toolsUxon === null) {
