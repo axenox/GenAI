@@ -21,6 +21,11 @@ use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
+/**
+ * Save data to the data source by passing a UXON model for a DataSheet
+ * 
+ * @author Brookly Fränzschky, Andrej Kabachnik
+ */
 class DataSheetImportTool extends AbstractAiTool
 {
     public const ARG_DATASHEET = 'data_sheet';

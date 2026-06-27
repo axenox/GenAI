@@ -63,7 +63,7 @@
         {
             "_EXPORT_SUMMARY": "Log analyzer assistant v1.1",
             "CREATED_ON": "2025-11-23 12:25:22",
-            "MODIFIED_ON": "2026-06-26 09:27:50",
+            "MODIFIED_ON": "2026-06-26 07:56:53",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f0b0fd198f0920b0fdc84bd653ed63",
@@ -156,6 +156,160 @@
                 ]
             },
             "VERSION": 1.1,
+            "DESCRIPTION": "",
+            "AI_AGENT": "0x11f08672fd46832e8672c84bd653ed63",
+            "ENABLED_FLAG": 0,
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "You are the support assistant for a no-code platform for business web-apps. Your primary task is to help users diagnose issues and provide clear actionable solutions.",
+                "",
+                "The people you are dealing with are app designers: they use the platform to configure apps for their clients. Most of them already have some experience using the platform. However, they are not programmers: they cannot read or modify the PHP or JavaScript code behind the platform.",
+                "",
+                "## Workflow",
+                "",
+                "Before responding to any user reported error, always follow this workflow:",
+                "",
+                "1. Analyze the error log above.",
+                "2. Request linked documentation using the `GetDocs` tool",
+                "3. Request other error message details using the `GetLogEntry(Log-ID)` tool if other Log-IDs are referenced.",
+                "4. Think of a solution. Use the provided tools to gain information about available functionality of the platform and specific UXON configuration options.",
+                "5. Use the stack trace to evealuate for evaluation, but do not cite it in your answer directly. Most users will not understand it. Instead try to find corresponding UXON properties - e.g. an error in `getAttributeAlias()` might simply mean, that the property `attribute_alias` is not set propery. PHP class methods will include the names of the properties they deal with in CamelCase notation instead of under_score. If you come to the conclusion, than the issue is a bug in the code of the platform - make it clear to the user, that a technical investigation is required and the core development team needs to be contacted.",
+                "",
+                "Answer as follows:",
+                "",
+                "- If asked about an error:",
+                "    - Start with a short statement about the most probable root cause and a recomendation, what to change in the UXON configuration to avoid it. This will give experienced users a valuable hint. ",
+                "    - Continue with a more detailed evaluation.",
+                "    - Your response must contain a specific recommendation or a direct actionable next step for the user.",
+                "    - Do not tell users to examine or change PHP or JavaScript code unless explicitly instructed to. Most users can only edit the UXON models.",
+                "- If asked to explain a log entry, which is not an error, simply explain, what happens.",
+                "",
+                "## Context",
+                "",
+                "When errors happen, app designers will use a log viewer in the administration UI to get the details of the issue. When they open the log entry, they will see your chat right next to it.",
+                "",
+                "Each log message has a unique Log-ID. Log entries are very verbose: each message will contain a lot of details about the state of the workbench. Error messages will also contain links to the documentation pages related to the error. These docs contain detailed description of components involved, usage examples, etc. Make sure to read this documentation using the tool `GetDocs(url)`.",
+                "",
+                "The user is currently esxamining Log-ID `[#~input:id#]`. Here is its contents:",
+                "",
+                "-------------------------------------",
+                "[#errorlog#]",
+                "-------------------------------------",
+                "",
+                "## General introduction to the platform",
+                "",
+                "[#introduction#]",
+                ""
+            ]
+        },
+        {
+            "_EXPORT_SUMMARY": "Log analyzer assistant v2.0",
+            "CREATED_ON": "2026-06-26 00:13:36",
+            "MODIFIED_ON": "2026-06-26 07:56:42",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1a5941ca61324a594025041000001",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
+            "DATA_CONNECTION_DEFAULT": null,
+            "CONFIG_UXON": {
+                "prompt_suggestions": [
+                    "Help me to find out, what is the Error.",
+                    "Explain this log entry"
+                ],
+                "tools": {
+                    "get_docs": {
+                        "alias": "axenox.GenAI.GetDocsTool",
+                        "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. ",
+                        "arguments": [
+                            {
+                                "name": "url",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Markdown file URL - absolute (with https://...) or local ones starting with `api/docs`"
+                            }
+                        ]
+                    },
+                    "get_object": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
+                        "description": "Load information about the any metaobject. ",
+                        "arguments": [
+                            {
+                                "name": "object_alias",
+                                "description": "Fully qualified alias (with namespace) or UID of the object to be read: e.g. `exface.Core.PAGE` or `0x11e86314af5caf7f971b0205857feb80`"
+                            }
+                        ]
+                    },
+                    "get_log_entry": {
+                        "alias": "axenox.GenAI.GetLogEntryTool",
+                        "description": "Read another log entry by providing its Log-ID",
+                        "arguments": [
+                            {
+                                "name": "LogId",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "The Log-ID visible to the designer or referenced in another log item. E.g. `AB8B3FD1`."
+                            }
+                        ]
+                    },
+                    "get_uxon_prototype_info": {
+                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "description": [
+                            "// Multiline text delimited by `\n`",
+                            "This tool provides documentation for any UXON prototype - widgets, actions, behaviors, data connectors, etc. UXON prototypes are PHP classes, that can be configured via UXON. Prototypes are referenced using different selectors: most common selector types are:",
+                            "- aliases - they are used inside UXON models. Aliases are currently NOT SUPPORTED by this tool!!!",
+                            "- fully qualified PHP class names as selectors (always starting with a `\\`) ",
+                            "- file paths relative to the vendor folder using `/` as directory separator"
+                        ],
+                        "arguments": [
+                            {
+                                "name": "selector",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "PHP class starting with `\\` (e.g. `\\exface\\Core\\Actions\\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`)."
+                            }
+                        ]
+                    },
+                    "read_file": {
+                        "alias": "axenox.GenAI.FileReadTool",
+                        "description": "Read a file from the vendor folder.",
+                        "arguments": [
+                            {
+                                "name": "path",
+                                "description": "Path to the file relative to the vendor folder: e.g. `axenox/packagemanager/AI/Tools/FileReadTool.php`."
+                            },
+                            {
+                                "name": "start_with_line",
+                                "description": "Optional 1-based line number to start reading from. Use together with max_lines to read large files in chunks."
+                            },
+                            {
+                                "name": "max_lines",
+                                "description": "Optional maximum number of lines to read starting from start_with_line. If omitted, the file is read to the end."
+                            }
+                        ]
+                    }
+                },
+                "concepts": {
+                    "errorlog": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_name": "get_log_entry",
+                        "arguments": [
+                            {
+                                "url": "[#~input:id#]"
+                            }
+                        ]
+                    },
+                    "introduction": {
+                        "alias": "axenox.GenAI.AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "Getting_started/introduction.md"
+                    }
+                }
+            },
+            "VERSION": 2,
             "DESCRIPTION": "",
             "AI_AGENT": "0x11f08672fd46832e8672c84bd653ed63",
             "ENABLED_FLAG": 1,

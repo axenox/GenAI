@@ -6,7 +6,16 @@ use Psr\Http\Message\ResponseInterface;
 
 interface HttpRequestAdapterInterface
 {
+    /**
+     * @param OpenAiApiDataQuery $query
+     * @return string
+     */
     public function buildBody(OpenAiApiDataQuery $query): string;
 
-    public function getDryrunResponse(array $requestJson) : ResponseInterface;
+    /**
+     * @param array $requestJson
+     * @param string $response
+     * @return ResponseInterface
+     */
+    public function getDryrunResponse(array $requestJson, string $response) : ResponseInterface;
 }

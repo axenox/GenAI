@@ -27,9 +27,9 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
     
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface::getFullAnswer()
+     * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface::getAnswerRaw()
      */
-    public function getFullAnswer() : string
+    public function getAnswerRaw() : string
     {
         $fullAnswer = $this->json['choices'][0]['message']['content'];
         return $fullAnswer;
@@ -41,7 +41,7 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
      */
     public function getAnswerJson() : ?array
     {
-        return json_decode($this->getFullAnswer(), true);
+        return json_decode($this->getAnswerRaw(), true);
     }
 
     /**
