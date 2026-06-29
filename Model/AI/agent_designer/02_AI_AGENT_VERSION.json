@@ -168,7 +168,7 @@
                 }
             },
             "VERSION": 0.1,
-            "DESCRIPTION": "Diese Version kann nur einen Agenten erstellen oder eine einzelne Version hinzufügen.",
+            "DESCRIPTION": "Basisversion: erstellt einen neuen Agenten oder fügt genau eine Version für einen bestehenden Agenten hinzu.",
             "AI_AGENT": "0x11f18e69ea481ec48e69025041000001",
             "ENABLED_FLAG": 1,
             "INSTRUCTIONS": [
@@ -359,7 +359,7 @@
                 }
             },
             "VERSION": 0.2,
-            "DESCRIPTION": "Strickter (füllt Json Schema immer erstmal aus)Diese Version kann nur einen Agenten erstellen oder eine einzelne Version hinzufügen.",
+            "DESCRIPTION": "Striktere Variante: füllt das JSON-Schema konsequent aus, nutzt klare Entscheidungslogik und erstellt entweder einen Agenten mit erster Version oder genau eine Version für einen bestehenden Agenten.",
             "AI_AGENT": "0x11f18e69ea481ec48e69025041000001",
             "ENABLED_FLAG": 1,
             "INSTRUCTIONS": [
@@ -694,7 +694,7 @@
                 }
             },
             "VERSION": 0.3,
-            "DESCRIPTION": "Fuegt knappe Prompting-Tipps, Power-UI-Kontext und GetDocs fuer sichtbare Dokumentationslinks hinzu.",
+            "DESCRIPTION": "Erweitert v0.2 um knappe Prompting-Tipps, Power-UI-Kontext sowie GetDocs/ReadFolder für dokumentationsgestütztes Arbeiten mit sichtbaren Links.",
             "AI_AGENT": "0x11f18e69ea481ec48e69025041000001",
             "ENABLED_FLAG": 1,
             "INSTRUCTIONS": [
