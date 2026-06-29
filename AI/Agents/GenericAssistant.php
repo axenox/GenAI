@@ -16,6 +16,7 @@ use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
@@ -115,7 +116,7 @@ class GenericAssistant implements AiAgentInterface
 
     private ?array $tools = null;
     private ?array $toolsUxon = null;
-    private ?AiConversation $conversation = null;
+    private ?AiConversationInterface $conversation = null;
 
     private $maxNumberOfCalls = 10;
 
@@ -140,29 +141,13 @@ class GenericAssistant implements AiAgentInterface
 
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
-    {        
-        // Initialize the data query
-        $query = new OpenAiApiDataQuery($this->workbench);
-        if (null !== $conversationId = $prompt->getConversationUid()) {
-            $query->setConversationUid($conversationId);
-        }
-        // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
-        // prompt will be used as title.
-        $query->appendMessage($prompt->getUserPrompt());
-        $query->setFiles($prompt->getFiles());
-        
-        // Initialize the conversation
-        $conversation = $this->getConversation($prompt, $query);
-        if ($conversationId === null) {
-            $conversationId = $conversation->getConversationId();
-            $prompt->setConversationUid($conversationId);
-        }
-
-        // Render system prompt
+    {
+        $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
             $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
+            $conversation = $this->getConversation($prompt);
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
             /* TODO handle different errors differently
@@ -227,7 +212,7 @@ class GenericAssistant implements AiAgentInterface
      * Reuses the existing helper if it matches the prompt conversation ID,
      * otherwise creates a new helper and initializes the prompt conversation.
      */
-    protected function getConversation(AiPromptInterface $prompt, ?AiQueryInterface $query = null) : AiConversation
+    protected function getConversation(AiPromptInterface $prompt, ?AiQueryInterface $query = null) : AiConversationInterface
     {
         $promptConversationId = $prompt->getConversationUid();
 
@@ -243,7 +228,7 @@ class GenericAssistant implements AiAgentInterface
         return $this->conversation;
     }
     
-    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversation $conversation) : AiQueryInterface
+    protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
         // Check if the LLM has put some tool calls in its response
