@@ -108,6 +108,33 @@ class FolderReadTool extends AbstractAiTool
     }
 
     /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiToolInterface::getRules()
+     */
+    public function getRules(): ?string
+    {
+        $rules = [];
+        $rules[] = 'Read folder paths relative to the configured base path: ' . $this->getBasePathDescription() . '.';
+        $rules[] = 'Never pass absolute paths. Pass only the folder path argument expected by this tool.';
+
+        $allowedPaths = $this->getAllowedPathPatterns();
+        if ($allowedPaths !== []) {
+            $rules[] = 'Allowed folder paths must match one of these patterns:';
+            foreach ($allowedPaths as $pattern) {
+                $rules[] = '- `' . $pattern . '`';
+            }
+        } else {
+            $rules[] = 'No additional allowed-path pattern is configured; stay within the configured base path.';
+        }
+
+        $rules[] = $this->getDepth() === 0
+            ? 'The folder listing is recursive without a configured depth limit.'
+            : 'The folder listing includes children up to depth ' . $this->getDepth() . '.';
+
+        return implode("\n", $rules);
+    }
+
+    /**
      * Maximum recursive depth for folder listing.
      *
      * Depth `1` lists direct children only. Higher values include deeper levels. Depth `0` includes all children
@@ -124,6 +151,11 @@ class FolderReadTool extends AbstractAiTool
     {
         $this->depth = max(0, $value);
         return $this;
+    }
+
+    protected function getDepth(): int
+    {
+        return $this->depth;
     }
 
     /**

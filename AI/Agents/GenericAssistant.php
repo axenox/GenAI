@@ -753,7 +753,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return AiToolInterface[]
      */
-    protected function getTools() : array
+    public function getTools() : array
     {
         if ($this->tools === null) {
             if ($this->toolsUxon === null) {
