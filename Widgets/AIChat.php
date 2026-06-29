@@ -91,6 +91,7 @@ JS);
         $top = $this->getButtonsHTML('top');
         $botton = $this->getButtonsHTML('botton');
 
+        $requestDataJs = '';
         if ($this->isBoundToAttribute()) {
             $requestDataJs = <<<JS
                 requestDetails.body.data = {
@@ -99,9 +100,7 @@ JS);
                         { {$this->getAttributeAlias()}: $("#{$this->getIdOfDeepChat()}").data("exf-value") }
                     ]
                 }
-    JS;
-
-
+JS;
         }
         
         return <<<HTML
