@@ -32,7 +32,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *      "instructions": "You help users analyze business data",
  *      "tools": {
  *          "read_data": {
- *              "alias": "axenox.GenAI.ReadDataSheetTool",
+ *              "alias": "axenox.GenAI.DataSheetReadTool",
  *              "description": "Read data from a business object",
  *              "arguments": [
  *                  {
