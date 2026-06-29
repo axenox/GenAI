@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-03-16 18:33:33",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-06-26 16:24:41",
+    "modified_on": "2026-06-29 13:31:10",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AGENT",
@@ -238,6 +238,7 @@
                         "widget_type": "axenox.GenAI.AIChat",
                         "object_alias": "exface.Core.DUMMY",
                         "agent_alias": "axenox.GenAI.workbench_ai_assistant",
+                        "upload_enabled": true,
                         "live_references": [
                             {
                                 "widget_link": "=agents_table!ALIAS_WITH_VERSION",
