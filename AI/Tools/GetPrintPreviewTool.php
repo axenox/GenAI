@@ -60,7 +60,7 @@ use Psr\SimpleCache\CacheInterface;
  *  {
  *     "tools": {
  *          "GetReports": {
- *              "class": "\\axenox\\GenAI\\AI\\Tools\\GetPrintPreviewTool",
+ *              "alias": "axenox.GenAI.GetPrintPreviewTool",
  *              "description": "Returns an HTML prints of all report from a given week and year",
  *              "arguments": [
  *                  {"name": "weekNo", "description": "Week number"},
@@ -152,7 +152,11 @@ class GetPrintPreviewTool extends AbstractAiTool
                 $results[] = $preview;
             }
         } else {
-            $results = $this->print($printData);
+            foreach ($printData->getRows() as $i => $row) {
+                $printDataForRow = $printData->extractRows([$i]);
+                $preview = $this->print($printDataForRow)[0];
+                $results[] = $preview;
+            }
         }
         
         $concatenated = $this->concatenate($results);
@@ -214,7 +218,7 @@ class GetPrintPreviewTool extends AbstractAiTool
             $tplRenderer->addPlaceholder((new FormulaPlaceholders($this->getWorkbench()))->setSanitizeAsUxon(true));
             $tplRenderer->addPlaceholder((new ConfigPlaceholders($this->getWorkbench()))->setSanitizeAsUxon(true));
             $uxon = $tplRenderer->render($tpl);
-            $printData = DataSheetFactory::createFromUxon($this->getWorkbench(), $uxon, $obj);
+            $printData = DataSheetFactory::createFromUxon($this->getWorkbench(), UxonObject::fromJson($uxon), $obj);
         } else {
             $printData = DataSheetFactory::createFromObject($obj);
             if ($obj->hasUidAttribute()) {
