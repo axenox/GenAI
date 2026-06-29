@@ -83,8 +83,8 @@ interface AiConversationInterface
      *
      * @return ExceptionInterface Normalized platform exception.
      */
-    public function saveError(\Throwable $error, ?string $systemPrompt = null, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface;
-
+    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface;
+    
     /**
      * Persists warning payloads as WARNING messages.
      *
