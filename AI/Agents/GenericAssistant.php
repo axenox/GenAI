@@ -118,7 +118,7 @@ class GenericAssistant implements AiAgentInterface
     private ?array $toolsUxon = null;
     private ?AiConversationInterface $conversation = null;
 
-    private $maxNumberOfCalls = 5;
+    private $maxNumberOfCalls = 10;
 
     /** @var AiToolCallResponse[] */
     private array $toolCalls = [];
@@ -145,48 +145,44 @@ class GenericAssistant implements AiAgentInterface
         $userPromt = $prompt->getUserPrompt();
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
-            $this->setInstructions($systemPrompt );
+            $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
             $conversation = $this->getConversation($prompt);
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
-            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
             */
         }
-        
-        $query = new OpenAiApiDataQuery($this->workbench);
-        $query->setSystemPrompt($this->systemPrompt);
-        $query->appendMessage($userPromt);
-        if (null !== $val = $prompt->getConversationUid()) 
-            $query->setConversationUid($val);
 
-        if($this->hasJsonSchema())
+        // Add JSON schema
+        if($this->hasResponseJsonSchema()) {
             $query->setResponseJsonSchema($this->getResponseJsonSchema());
-
+            if ($val = $this->getResponseAnswerPath()) {
+                $query->setResponseAnswerPath($val);
+            }
+        }
+        
+        // Add tools
         foreach ($this->getTools() as $tool) {
             $query->addTool($tool);
         }
-        
-        $query->setFiles($prompt->getFiles());
 
-        $conversation = $this->getConversation($prompt, $query);
-
+        // Now save the conversation messages for system and user prompts including all their metadata metadata
         try {
-            $conversation->saveSystemPrompt($query, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            $conversation->saveSystemPrompt($query, $systemPrompt, $this->getTools(), $this->getResponseJsonSchema());
             $conversation->saveUserPrompt($query);
-            $prompt->setConversationUid($conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
-            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
 
         try {
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
-            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
         
         try {
@@ -195,18 +191,18 @@ class GenericAssistant implements AiAgentInterface
             if (! $e instanceof AiToolRuntimeError) {
                 $e = new AiPromptError($this, $prompt, 'Failed to call AI tools. ' . $e->getMessage(), null, $e);
             }
-            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
         try {
             $conversation->saveResponse(
                 $performedQuery,
-                $this->getAnswer($performedQuery),
-                $this->hasJsonSchema() ? $performedQuery->getAnswerJson() : null
+                $performedQuery->getAnswerMarkdown($performedQuery),
+                $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null
             );
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
-            throw $conversation->saveError($e, $this->systemPrompt, $this->getTools(), $this->hasJsonSchema() ? $this->getResponseJsonSchema() : null);
+            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
     }
 
@@ -474,10 +470,10 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
     {
-        if($this->hasJsonSchema()){
-            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId, $query->getAnswerJson());
-        }else {
-            $response = new AiResponse($prompt, $this->getAnswer($query), $conversationId);
+        if($this->hasResponseJsonSchema()){
+            $response = new AiResponse($prompt, $query->getAnswerMarkdown(), $conversationId, $query->getAnswerJson());
+        } else {
+            $response = new AiResponse($prompt, $query->getAnswerMarkdown(), $conversationId);
         }
         $response->setToolCalls($this->toolCalls);
         return $response;
@@ -488,36 +484,9 @@ class GenericAssistant implements AiAgentInterface
      * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
      * @return string
      */
-    protected function getAnswer(AiQueryInterface $query) : string
-    {
-        if ($this->hasJsonSchema()) {
-            $json = $query->getAnswerJson();
-
-            if ($this->getResponseAnswerPath() !== null) {
-                return ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath())[0];
-            } else {
-                $answer = $json;
-            }
-
-            if (!is_string($answer)) {
-                $answer = json_encode($answer, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-            }
-
-            // Codeblock for the AIChat (?)
-            return "```json\n" . $answer . "\n```";
-        }
-
-        return $query->getFullAnswer();
-    }
-
-    /**
-     * 
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @return string
-     */
     public function getTitle(AiQueryInterface $query) : string
     {
-        if ($this->hasJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
+        if ($this->hasResponseJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
             $json = $query->getAnswerJson();
             $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
         } else {
@@ -652,7 +621,7 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return bool
      */
-    private function hasJsonSchema() : bool
+    protected function hasResponseJsonSchema() : bool
     {        
         return $this->responseJsonSchema !== null;
     }
@@ -676,24 +645,24 @@ class GenericAssistant implements AiAgentInterface
         
     }
 
-    
-
     /**
-     * Summary of setResponseJsonSchema
+     * If the LLM should respond with a JSON, define its JSONschema here
+     * 
      * @uxon-property response_json_schema 
      * @uxon-type object
      * @uxon-template {"type":"object","properties":{"title":{"type":"string","description":"Summary of the conversation"},"text":{"type":"string","description":"Your answer as markdown"}},"additionalProperties":false,"required":["title"]}
+     * 
      * @param \exface\Core\CommonLogic\UxonObject $uxon
      * @return static
      */
-    protected function setResponseJsonSchema(UxonObject $uxon)
+    public function setResponseJsonSchema(UxonObject $uxon) : AiAgentInterface
     {
         $this->responseJsonSchema = $uxon->toArray();
         return $this;
     }
 
     /**
-     * The JSONPath to the response message if a JSON schema is used by this assistant
+     * If the AI should respond with JSON, specify the path where to find its answer/comment in that JSON
      * 
      * @uxon-property response_answer_path
      * @uxon-type string
@@ -702,7 +671,7 @@ class GenericAssistant implements AiAgentInterface
      * @param string $jsonPath
      * @return \axenox\GenAI\AI\Agents\GenericAssistant
      */
-    protected function setResponseAnswerPath(string $jsonPath) : GenericAssistant
+    protected function setResponseAnswerPath(string $jsonPath) : AiAgentInterface
     {
         $this->responseAnswerPath = $jsonPath;
         return $this;
@@ -767,7 +736,7 @@ class GenericAssistant implements AiAgentInterface
      * ```
      * @uxon-property tools
      * @uxon-type \axenox\GenAI\Common\AbstractAiTool[]
-     * @uxon-template {"": {"description": "", "arguments": [{"name": "", "data_type": {"alias": ""}}]}}
+     * @uxon-template {"": {"alias": "", "description": ""}}
      * 
      * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
      * @return GenericAssistant
@@ -877,5 +846,21 @@ class GenericAssistant implements AiAgentInterface
         ]]));
         $debugWidget->addTab($tab);
         return $debugWidget;
+    }
+
+    /**
+     * Maximum number of tool calls before a response
+     * 
+     * @uxon-property tool_calls_max
+     * @uxon-type integer
+     * @uxon-default 30
+     * 
+     * @param int $number
+     * @return $this
+     */
+    protected function setToolCallsMax(int $number) : GenericAssistant
+    {
+        $this->maxNumberOfCalls = $number;
+        return $this;
     }
 }

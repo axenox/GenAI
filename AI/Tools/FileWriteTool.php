@@ -52,7 +52,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ```
  */
-class WriteFileTool extends AbstractAiTool
+class FileWriteTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 

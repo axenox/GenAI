@@ -9,15 +9,12 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\CommonLogic\Filesystem\LocalFileInfo;
-use exface\Core\DataTypes\FilePathDataType;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
-use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Filesystem\FileInfoInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
-use exface\Core\Widgets\Markdown;
 
 /**
  * This AI tool allows an LLM to read a file from selected folders.
@@ -40,9 +37,7 @@ use exface\Core\Widgets\Markdown;
  *                  {
  *                      "name": "path",
  *                      "description": "Path including filename and extension relative to the vendor folder",
- *                      "data_type": {
- *                          "alias": "exface.Core.String"
- *                      }
+ *                      "examples": ["exface/core/Docs/Getting_started/Introduction.md"]
  *                  }
  *              ]
  *          }
@@ -55,6 +50,12 @@ use exface\Core\Widgets\Markdown;
  * 
  * The tool will return the file contents in Open Knowledge Format (OKF) - as a Markdown file starting with a 
  * frontmatter block with file properties.
+ * 
+ * ## Partial reads
+ * 
+ * Large files can be read in chunks using the optional `start_with_line` and `max_lines` arguments. `start_with_line`
+ * is a 1-based line number to start reading from (defaults to the first line) and `max_lines` limits how many lines
+ * are returned (defaults to the rest of the file). This lets an LLM page through a file without loading it entirely.
  * 
  * ## Support for common AI instruction formats
  * 
@@ -78,11 +79,15 @@ use exface\Core\Widgets\Markdown;
  * Matching instructions are appended to the file contents as a separate `## Instructions` markdown chapter. If multiple
  * instruction files match, they are separated by a horizontal line.
  */
-class ReadFileTool extends AbstractAiTool
+class FileReadTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
     public const ARG_PATH = 'path';
+
+    public const ARG_START_WITH_LINE = 'start_with_line';
+
+    public const ARG_MAX_LINES = 'max_lines';
 
     private bool $includeInstructionsForGithubCopilot = true;
 
@@ -108,6 +113,23 @@ class ReadFileTool extends AbstractAiTool
         if ($content === false) {
             throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $relativePath);
         }
+
+        $startWithLine = $arguments[1] ?? null;
+        $maxLines = $arguments[2] ?? null;
+        if ($startWithLine !== null && $startWithLine !== '') {
+            $startWithLine = (int) $startWithLine;
+        } else {
+            $startWithLine = null;
+        }
+        if ($maxLines !== null && $maxLines !== '') {
+            $maxLines = (int) $maxLines;
+        } else {
+            $maxLines = null;
+        }
+        if ($startWithLine !== null || $maxLines !== null) {
+            $content = $this->sliceLines($content, $startWithLine, $maxLines);
+        }
+
         $result = $this->buildFrontmatter($fileInfo) . "\n\n";
         if ($language === 'markdown') {
             $result .= $content;
@@ -133,9 +155,9 @@ class ReadFileTool extends AbstractAiTool
      * @uxon-default true
      *
      * @param bool $value
-     * @return ReadFileTool
+     * @return FileReadTool
      */
-    protected function setIncludeInstructionsForGithubCopilot(bool $value) : ReadFileTool
+    protected function setIncludeInstructionsForGithubCopilot(bool $value) : FileReadTool
     {
         $this->includeInstructionsForGithubCopilot = $value;
         return $this;
@@ -179,6 +201,27 @@ class ReadFileTool extends AbstractAiTool
         return "\n\n# Instructions\n\n" . $chapters . "\n";
     }
     
+    /**
+     * Returns a slice of the given content based on a 1-based start line and a maximum number of lines.
+     *
+     * @param string $content
+     * @param int|null $startWithLine
+     * @param int|null $maxLines
+     * @return string
+     */
+    protected function sliceLines(string $content, ?int $startWithLine, ?int $maxLines) : string
+    {
+        $lines = preg_split('/\r\n|\r|\n/', $content);
+        $start = $startWithLine !== null ? max($startWithLine, 1) : 1;
+        $offset = $start - 1;
+        if ($maxLines !== null) {
+            $slice = array_slice($lines, $offset, max($maxLines, 0));
+        } else {
+            $slice = array_slice($lines, $offset);
+        }
+        return implode("\n", $slice);
+    }
+
     protected function getFileLanguage(FileInfoInterface $fileInfo) : ?string
     {
         $lang = null;
@@ -215,6 +258,16 @@ FM;
             (new ServiceParameter($self))
                 ->setName(self::ARG_PATH)
                 ->setDescription('Path to the file relative to the configured base path.'),
+            (new ServiceParameter($self))
+                ->setDataType(new UxonObject(['alias' => 'exface.Core.Integer']))
+                ->setName(self::ARG_START_WITH_LINE)
+                ->setDescription('Optional 1-based line number to start reading from. Use together with max_lines to read large files in chunks.')
+                ->setRequired(false),
+            (new ServiceParameter($self))
+                ->setDataType(new UxonObject(['alias' => 'exface.Core.Integer']))
+                ->setName(self::ARG_MAX_LINES)
+                ->setDescription('Optional maximum number of lines to read starting from start_with_line. If omitted, the file is read to the end.')
+                ->setRequired(false),
         ];
     }
 

@@ -16,13 +16,13 @@ use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * This AI tool allows an LLM to list files and folders in a directory.
- *
+ * List files and folders in a directory up to a certain depth.
+ * 
  * Use this tool to inspect folder contents in a controlled scope using
  * `base_path`, `use_vendor_folder_as_base` and `allowed_paths`.
- *
+ * 
  * ## Example configuration in an assistant
- *
+ * 
  * ```
  *  {
  *      "instructions": "You summarize project structure",
@@ -38,19 +38,16 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *              "arguments": [
  *                  {
  *                      "name": "path",
- *                      "description": "Path to a folder relative to the vendor folder",
- *                      "data_type": {
- *                          "alias": "exface.Core.String"
- *                      }
+ *                      "description": "Path to a folder relative to the vendor folder"
  *                  }
  *              ]
  *          }
  *      }
  *  }
- *
+ * 
  * ```
  */
-class ReadFolderTool extends AbstractAiTool
+class FolderReadTool extends AbstractAiTool
 {
     use FileAccessToolTrait;
 
@@ -58,6 +55,9 @@ class ReadFolderTool extends AbstractAiTool
 
     /** @var int */
     private int $depth = 0;
+
+    /** @var bool */
+    private bool $excludeDotPaths = true;
 
     /**
      * {@inheritDoc}
@@ -118,11 +118,27 @@ class ReadFolderTool extends AbstractAiTool
      * @uxon-default 0
      *
      * @param int $value
-     * @return ReadFolderTool
+     * @return FolderReadTool
      */
-    protected function setDepth(int $value): ReadFolderTool
+    protected function setDepth(int $value): FolderReadTool
     {
         $this->depth = max(0, $value);
+        return $this;
+    }
+
+    /**
+     * Set to FALSE to list files and folders whose names start with a dot - e.g. `.git`.
+     *
+     * @uxon-property exclude_dot_paths
+     * @uxon-type boolean
+     * @uxon-default true
+     *
+     * @param bool $value
+     * @return FolderReadTool
+     */
+    protected function setExcludeDotPaths(bool $value): FolderReadTool
+    {
+        $this->excludeDotPaths = $value;
         return $this;
     }
 
@@ -154,6 +170,18 @@ class ReadFolderTool extends AbstractAiTool
                 }
             )
         );
+
+        if ($this->excludeDotPaths) {
+            $items = array_values(
+                array_filter(
+                    $items,
+                    static function (string $name): bool
+                    {
+                        return $name === '' || $name[0] !== '.';
+                    }
+                )
+            );
+        }
         natcasesort($items);
 
         $markdown = '';

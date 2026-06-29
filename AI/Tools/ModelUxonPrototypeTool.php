@@ -14,7 +14,7 @@ use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
-class GetUxonPrototypeTool extends AbstractAiTool
+class ModelUxonPrototypeTool extends AbstractAiTool
 {
     /**
      *

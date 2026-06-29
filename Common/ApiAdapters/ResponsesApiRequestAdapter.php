@@ -5,6 +5,7 @@ use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
+use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\MimeTypeDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
@@ -12,7 +13,7 @@ use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
-class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
+class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpRequestToolTestInterface
 {
     private AiConnectorInterface $connector;
 
@@ -89,10 +90,15 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
                 $requiredArgNames[] = $argument->getName();
             }
 
+            $description = $tool->getDescription();
+            if ($rules = $tool->getRules()) {
+                $description .= "\n\n" . $rules;
+            }
+            
             $tools[] = [
                 'type' => 'function',
                 'name' => $tool->getName(),
-                'description' => $tool->getDescription(),
+                'description' => $description,
                 'parameters' => [
                     'type' => 'object',
                     'properties' => $arguments,
@@ -427,18 +433,14 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         ];
     }
 
-    public function getDryrunResponse(array $requestJson): ResponseInterface
+    public function getDryrunResponse(array $requestJson, string $response): ResponseInterface
     {
         $debug = [
             'request' => $requestJson,
         ];
 
         $debugJsonStr = json_encode($debug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        $contentJson = json_encode(
-            $this->dryrunResponse ?? 'Dummy response - AI connector is in dry-run mode',
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
+        $contentJson = json_encode($response,JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $json = <<<JSON
 {
@@ -475,14 +477,206 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface
         }
     },
     "usage": {
-        "input_tokens": 3004,
-        "output_tokens": 30,
-        "total_tokens": 3034
+      "input_tokens": 0,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 0,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 0
     },
     "debug": {$debugJsonStr}
 }
 JSON;
 
         return new Response(200, [], $json);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getUserPromptFromRequest()
+     */
+    public function getUserPromptFromRequest(array $requestJson) : ?string
+    {
+        $prompt = null;
+        foreach (($requestJson['input'] ?? []) as $item) {
+            if (($item['type'] ?? 'message') !== 'message') {
+                continue;
+            }
+            if (($item['role'] ?? null) !== 'user') {
+                continue;
+            }
+            $content = $item['content'] ?? '';
+            if (is_string($content)) {
+                $prompt = $content;
+                continue;
+            }
+            if (is_array($content)) {
+                foreach ($content as $block) {
+                    if (is_array($block) && in_array(($block['type'] ?? null), ['input_text', 'text'], true)) {
+                        $prompt = $block['text'] ?? '';
+                    }
+                }
+            }
+        }
+        return $prompt;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolNamesFromRequest()
+     */
+    public function getToolNamesFromRequest(array $requestJson) : array
+    {
+        $names = [];
+        foreach (($requestJson['tools'] ?? []) as $tool) {
+            if (null !== $name = ($tool['name'] ?? null)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolArgumentNames()
+     */
+    public function getToolArgumentNames(array $requestJson, string $toolName) : ?array
+    {
+        foreach (($requestJson['tools'] ?? []) as $tool) {
+            if (($tool['name'] ?? null) !== $toolName) {
+                continue;
+            }
+            $properties = $tool['parameters']['properties'] ?? [];
+            return array_keys(is_array($properties) ? $properties : []);
+        }
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::hasToolCallResultsInRequest()
+     */
+    public function hasToolCallResultsInRequest(array $requestJson) : bool
+    {
+        foreach (($requestJson['input'] ?? []) as $item) {
+            if (in_array(($item['type'] ?? null), ['function_call_output', 'function_call'], true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::getToolCallResultsFromRequest()
+     */
+    public function getToolCallResultsFromRequest(array $requestJson) : array
+    {
+        $results = [];
+        foreach (($requestJson['input'] ?? []) as $item) {
+            if (($item['type'] ?? null) === 'function_call_output') {
+                $results[] = $this->normalizeMessageText($item['output'] ?? '');
+            }
+        }
+        return $results;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::buildTextResponse()
+     */
+    public function buildTextResponse(array $requestJson, string $text) : ResponseInterface
+    {
+        $json = [
+            'id' => 'resp_tooltest_001',
+            'object' => 'response',
+            'created_at' => 1726608704,
+            'status' => 'completed',
+            'error' => null,
+            'model' => $this->connector->getModelName(),
+            'output' => [
+                [
+                    'type' => 'message',
+                    'id' => 'msg_tooltest_001',
+                    'status' => 'completed',
+                    'role' => 'assistant',
+                    'content' => [
+                        [
+                            'type' => 'output_text',
+                            'text' => $text,
+                            'annotations' => [],
+                        ],
+                    ],
+                ],
+            ],
+            'parallel_tool_calls' => true,
+            'tool_choice' => 'auto',
+            'tools' => $requestJson['tools'] ?? [],
+            'temperature' => 0,
+            'text' => [
+                'format' => [
+                    'type' => 'text',
+                ],
+            ],
+            'usage' => [
+                'input_tokens' => 0,
+                'output_tokens' => 0,
+                'total_tokens' => 0,
+            ],
+            'debug' => [
+                'request' => $requestJson,
+            ],
+        ];
+
+        return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\HttpRequestToolTestInterface::buildToolCallResponse()
+     */
+    public function buildToolCallResponse(array $requestJson, array $toolCalls) : ResponseInterface
+    {
+        $output = [];
+        foreach ($toolCalls as $call) {
+            $output[] = [
+                'type' => 'function_call',
+                'id' => 'fc_' . ($call['call_id'] ?? ''),
+                'call_id' => $call['call_id'] ?? '',
+                'name' => $call['name'] ?? '',
+                'arguments' => json_encode(
+                    (object) ($call['arguments'] ?? []),
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ),
+                'status' => 'completed',
+            ];
+        }
+
+        $json = [
+            'id' => 'resp_tooltest_001',
+            'object' => 'response',
+            'created_at' => 1726608704,
+            'status' => 'completed',
+            'error' => null,
+            'model' => $this->connector->getModelName(),
+            'output' => $output,
+            'parallel_tool_calls' => true,
+            'tool_choice' => 'auto',
+            'tools' => $requestJson['tools'] ?? [],
+            'temperature' => 0,
+            'usage' => [
+                'input_tokens' => 0,
+                'output_tokens' => 0,
+                'total_tokens' => 0,
+            ],
+            'debug' => [
+                'request' => $requestJson,
+            ],
+        ];
+
+        return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 }

@@ -209,7 +209,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * @author Andrej Kabachnik
  */
-class ReadDataSheetTool extends AbstractAiTool
+class DataSheetReadTool extends AbstractAiTool
 {
     public const ARG_DATA_SHEET = 'data_sheet';
 

@@ -394,13 +394,12 @@ class AiConversation implements AiConversationInterface
      * Saves a fatal conversation error as an ERROR message.
      *
      * @param \Throwable $error Original error.
-     * @param string|null $systemPrompt Optional system prompt snapshot.
      * @param array $tools Tool metadata to include in payload.
      * @param array|null $responseJsonSchema Optional JSON schema metadata.
      *
      * @return ExceptionInterface Normalized platform exception.
      */
-    public function saveError(\Throwable $error, ?string $systemPrompt = null, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface
+    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface
     {
         $transaction = $this->workbench->data()->startTransaction();
         $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
@@ -432,14 +431,6 @@ class AiConversation implements AiConversationInterface
         $this->enrichUxonWithTools($dataUxon, $tools);
         $this->enrichUxonWithJsonSchema($dataUxon, $responseJsonSchema);
         $dataUxon->setProperty('User Prompt', $this->prompt->getUserPrompt());
-        try {
-            $dataUxon->setProperty('System Prompt', $systemPrompt);
-        } catch (\Throwable $e) {
-            $this->workbench->getLogger()->logException(
-                new AiPromptError($this->assistant, $this->prompt, 'Failed to log AI system prompt. ' . $e->getMessage(), null, $e)
-            );
-            $dataUxon->setProperty('System Prompt causes an error', true);
-        }
 
         try {
             $this->saveErrorFeedback($this->conversationId, $error->getMessage(), $transaction);
