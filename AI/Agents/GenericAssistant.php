@@ -6,14 +6,12 @@ use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
-use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolCriticalError;
-use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
@@ -33,7 +31,6 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataSources\DataConnectionInterface;
@@ -142,12 +139,28 @@ class GenericAssistant implements AiAgentInterface
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
-        $userPromt = $prompt->getUserPrompt();
+        // Initialize the data query
+        $query = new OpenAiApiDataQuery($this->workbench);
+        if (null !== $conversationId = $prompt->getConversationUid()) {
+            $query->setConversationUid($conversationId);
+        }
+        // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
+        // prompt will be used as title.
+        $query->appendMessage($prompt->getUserPrompt());
+        $query->setFiles($prompt->getFiles());
+        
+        // Initialize the conversation
+        $conversation = $this->getConversation($prompt, $query);
+        if ($conversationId === null) {
+            $conversationId = $conversation->getConversationId();
+            $prompt->setConversationUid($conversationId);
+        }
+
+        // Render system prompt
         try {
             $systemPrompt = $this->getSystemPrompt($prompt);
             $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
-            $conversation = $this->getConversation($prompt);
             $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
             /* TODO handle different errors differently
