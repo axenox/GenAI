@@ -116,7 +116,7 @@ class ImportAgent extends GenericAssistant
                 $response->addOKStatusMessage('Data saved successfully.');
             } else {
                 $warning = new AiPromptError($this, $prompt, 'Data import completed, but data was not saved.');
-                $this->getConversation($prompt)->saveWarning([$warning]);
+                $this->getConversation($prompt)->saveWarnings([$warning]);
                 $response->addErrorStatusMessage('Data not saved.');
             }
 
