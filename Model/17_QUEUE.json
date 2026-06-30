@@ -1,0 +1,108 @@
+{
+    "object_alias": "exface.Core.QUEUE",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "ALLOW_MULTI_QUEUE_HANDLING",
+            "attribute_alias": "ALLOW_MULTI_QUEUE_HANDLING"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Autonomous AI Agents",
+            "CREATED_ON": "2026-06-26 15:12:22",
+            "MODIFIED_ON": "2026-06-26 15:13:12",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1b082ab3d3fa4b082025041000001",
+            "PROTOTYPE_CLASS": "\\exface\\Core\\CommonLogic\\Queue\\SyncTaskQueue",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "DESCRIPTION": "Runs autonomous AI agent tasks",
+            "ALIAS": "autonomous_ai_agents",
+            "ALLOW_MULTI_QUEUE_HANDLING": 0,
+            "CONFIG_UXON": {
+                "topics": {
+                    "all_of": [
+                        "agents"
+                    ]
+                },
+                "error_log_level": "critical",
+                "skip_task_if_already_running": true
+            },
+            "NAME": "Autonomous AI Agents"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.QUEUE",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "exface.Core.QUEUE"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
