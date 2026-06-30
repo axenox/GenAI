@@ -2,7 +2,7 @@
     "uid": "0x11ef926fdae5d9b8926f025041000001",
     "alias_with_namespace": "axenox.genai.conversations",
     "menu_parent_page_selector": "0x11efb71bcc0c07e2b71b025041000001",
-    "menu_index": 1,
+    "menu_index": 2,
     "menu_visible": true,
     "name": "Conversations",
     "description": "Inspect conversations, investigate issues",
@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
     "created_on": "2024-11-07 12:31:37",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-05-29 17:24:56",
+    "modified_on": "2026-06-30 01:53:46",
     "icon": "comments",
     "icon_set": "fa",
     "contents": {
