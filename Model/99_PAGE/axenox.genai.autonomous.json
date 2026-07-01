@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-06-30 01:53:15",
-    "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-06-30 08:47:38",
+    "modified_by_user_selector": "0x11eea89602c1c3dca896005056be9fa0",
+    "modified_on": "2026-06-30 10:44:01",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -127,7 +127,7 @@
                                         "hide_header": true,
                                         "data": {
                                             "aggregate_by_attribute_alias": [
-                                                "DATE_WEEK",
+                                                "DATE",
                                                 "AI_AGENT_NAME"
                                             ],
                                             "filters": [
@@ -139,7 +139,7 @@
                                                 {
                                                     "attribute_alias": "AI_AGENT__AI_AUTONOMOUS__UID",
                                                     "comparator": "!==",
-                                                    "value": ""
+                                                    "value": "NULL"
                                                 }
                                             ]
                                         },
@@ -149,7 +149,7 @@
                                                 "split_by_attribute_alias": "AI_AGENT_NAME",
                                                 "stacked": true,
                                                 "caption": "Conversations",
-                                                "x_attribute_alias": "DATE_WEEK",
+                                                "x_attribute_alias": "DATE",
                                                 "y_attribute_alias": "COUNT_CONVERSATIONS:SUM"
                                             }
                                         ]
@@ -175,6 +175,12 @@
                                                 "hidden": true,
                                                 "value": "=conversations_timeline_chart!DATE_WEEK",
                                                 "apply_on_change": true
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT__AI_AUTONOMOUS__UID",
+                                                "hidden": true,
+                                                "value": "NULL",
+                                                "comparator": "!=="
                                             }
                                         ],
                                         "columns": [
