@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "Autonomous agent [axenox.GenAI.AI_AUTONOMOUS]",
             "CREATED_ON": "2026-06-30 01:49:23",
-            "MODIFIED_ON": "2026-06-30 08:51:05",
+            "MODIFIED_ON": "2026-07-01 08:43:07",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f180f627a6002e80f6025041000001",
@@ -106,7 +106,7 @@
                 "widget_type": "Dialog",
                 "widgets": [
                     {
-                        "attribute_alias": "AGENT"
+                        "attribute_alias": "AI_AGENT"
                     },
                     {
                         "attribute_alias": "APP"
@@ -126,7 +126,7 @@
                         "height": "max",
                         "widgets": [
                             {
-                                "attribute_alias": "FLOW",
+                                "attribute_alias": "FLOW_DIAGRAM",
                                 "width": "100%",
                                 "height": "100%",
                                 "hide_caption": true

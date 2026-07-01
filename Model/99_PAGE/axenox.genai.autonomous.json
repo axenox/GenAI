@@ -10,8 +10,8 @@
     "replaces_page_selector": null,
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-06-30 01:53:15",
-    "modified_by_user_selector": "0x11eea89602c1c3dca896005056be9fa0",
-    "modified_on": "2026-06-30 10:44:01",
+    "modified_by_user_selector": "0x31000000000000000000000000000000",
+    "modified_on": "2026-07-01 08:46:04",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -32,7 +32,7 @@
                                         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
                                         "filters": [
                                             {
-                                                "attribute_alias": "AGENT"
+                                                "attribute_alias": "AI_AGENT"
                                             },
                                             {
                                                 "attribute_alias": "APP"
@@ -40,17 +40,17 @@
                                         ],
                                         "columns": [
                                             {
-                                                "attribute_alias": "AGENT__NAME"
+                                                "attribute_alias": "AI_AGENT__NAME"
                                             },
                                             {
                                                 "attribute_alias": "SCHEDULER__SCHEDULE"
                                             },
                                             {
-                                                "attribute_alias": "AGENT__AI_AGENT_VERSION__UID:COUNT",
+                                                "attribute_alias": "AI_AGENT__AI_AGENT_VERSION__UID:COUNT",
                                                 "caption": "Versions"
                                             },
                                             {
-                                                "attribute_alias": "AGENT__AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",
+                                                "attribute_alias": "AI_AGENT__AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",
                                                 "caption": "Connection(s)"
                                             },
                                             {
@@ -60,17 +60,17 @@
                                                 "attribute_alias": "APP__ALIAS"
                                             },
                                             {
-                                                "attribute_alias": "AGENT",
+                                                "attribute_alias": "AI_AGENT",
                                                 "hidden": true
                                             },
                                             {
-                                                "attribute_alias": "FLOW",
+                                                "attribute_alias": "FLOW_DIAGRAM",
                                                 "hidden": true
                                             }
                                         ],
                                         "sorters": [
                                             {
-                                                "attribute_alias": "AGENT__NAME",
+                                                "attribute_alias": "AI_AGENT__NAME",
                                                 "direction": "asc"
                                             }
                                         ],
@@ -99,7 +99,7 @@
                                     {
                                         "widget_type": "InputMarkdown",
                                         "render_mermaid_diagrams": true,
-                                        "value": "=agents_table!FLOW",
+                                        "value": "=agents_table!FLOW_DIAGRAM",
                                         "disabled": true,
                                         "hide_caption": true,
                                         "width": "100%",
@@ -168,7 +168,7 @@
                                                 "comparator": "==",
                                                 "hidden": true,
                                                 "apply_on_change": true,
-                                                "value": "=agents_table!AGENT"
+                                                "value": "=agents_table!AI_AGENT"
                                             },
                                             {
                                                 "attribute_alias": "DATE_WEEK",
