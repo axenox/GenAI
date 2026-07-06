@@ -632,7 +632,7 @@ class AiConversation implements AiConversationInterface
     {
         $this->saveFeedback(
             $conversationId,
-            "Auto generated error message:\n" . substr($errorMessage, 0, 500),
+            "Error: " . StringDataType::truncate($errorMessage, 500, true, false, true),
             1,
             $transaction
         );
