@@ -65,16 +65,16 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI message: Error details [AiMessageErrorDetailsDialog]",
+            "_EXPORT_SUMMARY": "AI message: Error monitor [AiMessageErrorMonitorDialog]",
             "CREATED_ON": "2026-02-05 13:59:45",
-            "MODIFIED_ON": "2026-02-05 14:03:04",
+            "MODIFIED_ON": "2026-07-07 00:16:05",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f1b1088bd8f06eb108025041000001",
             "OBJECT": "0x11ef950a2e445768950a025041000001",
             "ACTION_PROTOTYPE": "exface/core/Actions/ShowObjectEditDialog.php",
-            "ALIAS": "AiMessageErrorDetailsDialog",
-            "NAME": "Error details",
+            "ALIAS": "AiMessageErrorMonitorDialog",
+            "NAME": "Error monitor",
             "SHORT_DESCRIPTION": "",
             "CONFIG_UXON": {
                 "object_alias": "exface.Core.MONITOR_ERROR",
@@ -84,6 +84,7 @@
                 "input_mappers": [
                     {
                         "from_object_alias": "axenox.GenAI.AI_MESSAGE",
+                        "to_object_alias": "exface.Core.MONITOR_ERROR",
                         "column_to_column_mappings": [
                             {
                                 "from": "ERROR_MONITOR__UID",
@@ -92,7 +93,7 @@
                         ],
                         "from_data_invalid_if": [
                             {
-                                "error_text": "Log-ID not found in the monitor",
+                                "error_text": "No monitor entries found for this message",
                                 "operator": "AND",
                                 "conditions": [
                                     {
@@ -105,6 +106,43 @@
                         ]
                     }
                 ]
+            },
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "AI message: Log details [AiMessageLogDetailsDialog]",
+            "CREATED_ON": "2026-07-07 00:08:20",
+            "MODIFIED_ON": "2026-07-07 00:08:20",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1acd932cac33cacd9025041000001",
+            "OBJECT": "0x11ef950a2e445768950a025041000001",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ShowDialogFromFile.php",
+            "ALIAS": "AiMessageLogDetailsDialog",
+            "NAME": "Log details",
+            "SHORT_DESCRIPTION": "",
+            "CONFIG_UXON": {
+                "input_object_alias": "axenox.GenAI.AI_MESSAGE",
+                "input_rows_min": 1,
+                "input_rows_max": 1,
+                "input_invalid_if": [
+                    {
+                        "error_text": "This message has no Log-ID",
+                        "operator": "AND",
+                        "conditions": [
+                            {
+                                "expression": "ERROR_LOG_ID",
+                                "comparator": "==",
+                                "value": ""
+                            }
+                        ]
+                    }
+                ],
+                "file_path_attribute_alias": "ERROR_LOG_DETAILS_PATH",
+                "file_extension": "json",
+                "folder_path": "logs/details"
             },
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "USE_IN_OBJECT_BASKET_FLAG": 0,

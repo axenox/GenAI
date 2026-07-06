@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-02-05 14:03:43",
+            "MODIFIED_ON": "2026-07-07 00:27:42",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -177,7 +177,7 @@
                                         ],
                                         "buttons": [
                                             {
-                                                "caption": "Details",
+                                                "caption": "Message details",
                                                 "bind_to_double_click": true,
                                                 "action": {
                                                     "alias": "exface.core.ShowObjectInfoDialog",
@@ -185,21 +185,22 @@
                                                 }
                                             },
                                             {
-                                                "action_alias": "axenox.GenAI.AiMessageErrorDetailsDialog",
+                                                "action_alias": "axenox.GenAI.AiMessageLogDetailsDialog"
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiMessageErrorMonitorDialog",
+                                                "//": "Do not use disabled_if_input_invalid because it will add a slow reading ERROR_MONITOR__UID column to the table data",
+                                                "disabled_if_input_invalid": false,
                                                 "disabled_if": {
                                                     "operator": "AND",
                                                     "conditions": [
                                                         {
-                                                            "value_left": "=~input!ERROR_LOG_ID",
+                                                            "value_left": "~input!ERROR_LOG_ID",
                                                             "comparator": "==",
                                                             "value_right": ""
                                                         }
                                                     ]
                                                 }
-                                            },
-                                            {
-                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
-                                                "visibility": "optional"
                                             }
                                         ],
                                         "sorters": [
