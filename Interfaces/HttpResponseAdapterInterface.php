@@ -1,8 +1,11 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+
 interface HttpResponseAdapterInterface
 {
+    
     public function getUsage() : array;
 
     /**
@@ -45,6 +48,16 @@ interface HttpResponseAdapterInterface
     public function getFinishReason() : string;
 
     /**
+     * Validates/normalizes the finish reason reported by the provider.
+     *
+     * Returns TRUE if the finish reason is known/expected for this adapter.
+     * Returns FALSE if an unexpected or problematic finish reason was detected.
+     *
+     * @return bool
+     */
+    public function checktFinishReason() : bool;
+
+    /**
      * Checks if the request has tool calls
      *
      * @return bool
@@ -64,4 +77,18 @@ interface HttpResponseAdapterInterface
      * @return AiToolCallInterface[]
      */
     public function getToolCalls() : array;
+
+    /**
+     * Maps a generic exception to a provider-specific exception if possible.
+     *
+     * Implementations can inspect provider response data and return a more
+     * specific error (for example overload, refusal, invalid request, etc.).
+     * If no mapping is possible, return the original exception.
+     *
+     * @param OpenAiApiDataQuery $query
+     * @param \Exception $e
+     * @return \Exception
+     */
+    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception;
+
 }

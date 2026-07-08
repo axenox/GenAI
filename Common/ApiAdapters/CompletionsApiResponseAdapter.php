@@ -2,13 +2,35 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use Psr\Http\Message\ResponseInterface;
 
 class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+
+    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    {
+        $finishReason = (string) ($this->json['choices'][0]['finish_reason'] ?? 'unknown');
+        if ($finishReason === 'content_filter') {
+            return new DataQueryFailedError($query, 'Completion blocked by content filter.', null, $e);
+        }
+
+        return new DataQueryFailedError($query, 'Error in LLM response. ' . $e->getMessage(), null, $e);
+    }
+
+    public function checktFinishReason() : bool
+    {
+        $finishReason = $this->getFinishReason();
+        if ($finishReason === 'content_filter') {
+            return false;
+        }
+
+        return in_array($finishReason, ['stop', 'tool_calls', 'length'], true);
+    }
     
     public function __construct(ResponseInterface $response)
     {

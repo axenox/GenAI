@@ -2,13 +2,41 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
+use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use Psr\Http\Message\ResponseInterface;
 
 class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+
+    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    {
+        if (($this->json['type'] ?? null) === 'error') {
+            $errorType = (string) ($this->json['error']['type'] ?? 'unknown_error');
+            $message = (string) ($this->json['error']['message'] ?? $e->getMessage());
+            return new DataQueryFailedError($query, 'Claude API error [' . $errorType . ']: ' . $message, null, $e);
+        }
+
+        if (($this->json['stop_reason'] ?? null) === 'refusal') {
+            $category = (string) ($this->json['stop_details']['category'] ?? 'unknown');
+            return new DataQueryFailedError($query, 'Claude response refused by model (category=' . $category . ').', null, $e);
+        }
+
+        return new DataQueryFailedError($query, 'Error in LLM response. ' . $e->getMessage(), null, $e);
+    }
+
+    public function checktFinishReason() : bool
+    {
+        $finishReason = $this->getFinishReason();
+        if ($finishReason === 'refusal') {
+            return false;
+        }
+
+        return in_array($finishReason, ['tool_calls', 'end_turn', 'max_tokens', 'stop_sequence', 'pause_turn'], true);
+    }
 
     public function __construct(ResponseInterface $response)
     {

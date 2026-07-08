@@ -84,15 +84,24 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
         if ($this->isDryrun()) {
                 $response = $requestAdapter->getDryrunResponse(json_decode($json, true), $this->dryrunResponse);
                 $responseAdapter = $this->getResponseAdapter($response);
+                if ($responseAdapter->checktFinishReason() === false) {
+                    $query = $query->withResponse($response, $responseAdapter);
+                    throw $responseAdapter->getError($query, new \RuntimeException('LLM Dry Run failed: finish_reason indicates an unsupported or error state.'));
+                }
         } else {
             try {
                 $query = $query->withRequest($request);
                 $response = $this->sendRequest($request);
                 $responseAdapter = $this->getResponseAdapter($response);
+                if ($responseAdapter->checktFinishReason() === false) {
+                    $query = $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, []));
+                    throw $responseAdapter->getError($query, new \RuntimeException('LLM request failed: finish_reason indicates an unsupported or error state.'));
+                }
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
                     $responseAdapter = $this->getResponseAdapter($response);
-                    $query = $query->withResponse($response, $responseAdapter);
+                    $query = $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, []));
+                    throw $responseAdapter->getError($query, $re);
                 }
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);
             }
@@ -310,7 +319,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
      *  
      * @return string
      */
-    protected function getCostsCalcuation() : string
+    protected function getCostsCalculation() : string
     {
         if(!$this->costsCalculation) return '';
         return $this->costsCalculation;
