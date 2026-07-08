@@ -60,7 +60,7 @@ class ModelComponentInfoTool extends AbstractAiTool
                 ->setDataType(new UxonObject([
                     'alias' => 'exface.Core.GenericStringEnum',
                     'values' => array_combine($workbench->getComponentRegistry()->getComponentKeys(), $workbench->getComponentRegistry()->getComponentKeys())
-                ]))
+                ])),
             (new ServiceParameter($self))
                 ->setName(self::ARG_SELECTOR)
                 ->setDescription('Component selector to describe - typically the alias of the component with an app namespace if available')
