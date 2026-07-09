@@ -94,13 +94,13 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
                 $response = $this->sendRequest($request);
                 $responseAdapter = $this->getResponseAdapter($response);
                 if ($responseAdapter->checktFinishReason() === false) {
-                    $query = $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, []));
+                    $query = $query->withResponse($response, $responseAdapter);
                     throw $responseAdapter->getError($query, new \RuntimeException('LLM request failed: finish_reason indicates an unsupported or error state.'));
                 }
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
                     $responseAdapter = $this->getResponseAdapter($response);
-                    $query = $query->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, []));
+                    $query = $query->withResponse($response, $responseAdapter);
                     throw $responseAdapter->getError($query, $re);
                 }
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);

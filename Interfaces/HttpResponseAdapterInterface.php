@@ -83,7 +83,7 @@ interface HttpResponseAdapterInterface
      *
      * Implementations can inspect provider response data and return a more
      * specific error (for example overload, refusal, invalid request, etc.).
-     * If no mapping is possible, return the original exception.
+     * If no mapping is possible, return a generic provider query error.
      *
      * @param OpenAiApiDataQuery $query
      * @param \Exception $e

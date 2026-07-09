@@ -3,9 +3,13 @@ namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Exceptions\AiInvalidRequestError;
+use axenox\GenAI\Exceptions\AiMaxTokensExceededError;
+use axenox\GenAI\Exceptions\AiModelRefusalError;
+use axenox\GenAI\Exceptions\AiOverloadError;
+use axenox\GenAI\Exceptions\AiProviderDataQueryError;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use Psr\Http\Message\ResponseInterface;
 
 class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
@@ -17,15 +21,26 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
         if (($this->json['type'] ?? null) === 'error') {
             $errorType = (string) ($this->json['error']['type'] ?? 'unknown_error');
             $message = (string) ($this->json['error']['message'] ?? $e->getMessage());
-            return new DataQueryFailedError($query, 'Claude API error [' . $errorType . ']: ' . $message, null, $e);
+            $fullMessage = 'Claude API error [' . $errorType . ']: ' . $message;
+            switch (true) {
+                case $errorType === 'overloaded_error':
+                    return new AiOverloadError($query, $fullMessage, $e);
+                case $errorType === 'invalid_request_error':
+                    if (stripos($message, 'max_tokens') !== false && stripos($message, 'maximum allowed') !== false) {
+                        return new AiMaxTokensExceededError($query, $fullMessage, $e);
+                    }
+                    return new AiInvalidRequestError($query, $fullMessage, $e);
+                default:
+                    return new AiProviderDataQueryError($query, $fullMessage, $e);
+            }
         }
 
         if (($this->json['stop_reason'] ?? null) === 'refusal') {
             $category = (string) ($this->json['stop_details']['category'] ?? 'unknown');
-            return new DataQueryFailedError($query, 'Claude response refused by model (category=' . $category . ').', null, $e);
+            return new AiModelRefusalError($query, 'Claude response refused by model (category=' . $category . ').', $e);
         }
 
-        return new DataQueryFailedError($query, 'Error in LLM response. ' . $e->getMessage(), null, $e);
+        return new AiProviderDataQueryError($query, 'Error in LLM response. ' . $e->getMessage(), $e);
     }
 
     public function checktFinishReason() : bool

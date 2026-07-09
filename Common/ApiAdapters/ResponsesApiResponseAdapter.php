@@ -3,9 +3,9 @@ namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Exceptions\AiProviderDataQueryError;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 use Psr\Http\Message\ResponseInterface;
 
 class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
@@ -15,11 +15,12 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
     public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $status = (string) ($this->json['status'] ?? 'unknown');
-        if (in_array($status, ['failed', 'cancelled', 'incomplete'], true)) {
-            return new DataQueryFailedError($query, 'Responses API returned non-success status: ' . $status, null, $e);
+        switch (true) {
+            case in_array($status, ['failed', 'cancelled', 'incomplete'], true):
+                return new AiProviderDataQueryError($query, 'Responses API returned non-success status: ' . $status, $e);
+            default:
+                return new AiProviderDataQueryError($query, 'Error in LLM response. ' . $e->getMessage(), $e);
         }
-
-        return new DataQueryFailedError($query, 'Error in LLM response. ' . $e->getMessage(), null, $e);
     }
 
     public function checktFinishReason() : bool
