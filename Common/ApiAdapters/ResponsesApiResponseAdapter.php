@@ -15,11 +15,12 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
     public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $status = (string) ($this->json['status'] ?? 'unknown');
+        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
         switch (true) {
             case in_array($status, ['failed', 'cancelled', 'incomplete'], true):
-                return new AiProviderDataQueryError($query, 'Responses API returned non-success status: ' . $status, $e);
+                return new AiProviderDataQueryError($query, 'Responses API returned a non-success status: ' . $status, $e, null, $model);
             default:
-                return new AiProviderDataQueryError($query, 'Error in LLM response. ' . $e->getMessage(), $e);
+                return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
         }
     }
 

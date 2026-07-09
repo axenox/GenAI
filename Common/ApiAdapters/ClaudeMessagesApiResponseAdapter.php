@@ -18,29 +18,36 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 
     public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
+        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
+
         if (($this->json['type'] ?? null) === 'error') {
             $errorType = (string) ($this->json['error']['type'] ?? 'unknown_error');
             $message = (string) ($this->json['error']['message'] ?? $e->getMessage());
-            $fullMessage = 'Claude API error [' . $errorType . ']: ' . $message;
             switch (true) {
                 case $errorType === 'overloaded_error':
-                    return new AiOverloadError($query, $fullMessage, $e);
+                    return new AiOverloadError($query, '', $e, true, $model, 'claude');
                 case $errorType === 'invalid_request_error':
                     if (stripos($message, 'max_tokens') !== false && stripos($message, 'maximum allowed') !== false) {
-                        return new AiMaxTokensExceededError($query, $fullMessage, $e);
+                        $requested = null;
+                        $allowed = null;
+                        if (preg_match('/max_tokens:\s*(\d+)\s*>\s*(\d+)/i', $message, $matches)) {
+                            $requested = (int) $matches[1];
+                            $allowed = (int) $matches[2];
+                        }
+                        return new AiMaxTokensExceededError($query, $message, $e, false, $model, 'claude', $requested, $allowed);
                     }
-                    return new AiInvalidRequestError($query, $fullMessage, $e);
+                    return new AiInvalidRequestError($query, $message, $e, false, $model, 'claude');
                 default:
-                    return new AiProviderDataQueryError($query, $fullMessage, $e);
+                    return new AiProviderDataQueryError($query, $message, $e, null, $model);
             }
         }
 
         if (($this->json['stop_reason'] ?? null) === 'refusal') {
             $category = (string) ($this->json['stop_details']['category'] ?? 'unknown');
-            return new AiModelRefusalError($query, 'Claude response refused by model (category=' . $category . ').', $e);
+            return new AiModelRefusalError($query, '', $e, false, $model, 'claude', $category);
         }
 
-        return new AiProviderDataQueryError($query, 'Error in LLM response. ' . $e->getMessage(), $e);
+        return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
     }
 
     public function checktFinishReason() : bool

@@ -16,11 +16,12 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
     public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $finishReason = (string) ($this->json['choices'][0]['finish_reason'] ?? 'unknown');
+        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
         switch (true) {
             case $finishReason === 'content_filter':
-                return new AiModelRefusalError($query, 'Completion blocked by content filter.', $e);
+                return new AiModelRefusalError($query, 'The model refused to answer due to content filtering.', $e, false, $model, 'completions', $finishReason);
             default:
-                return new AiProviderDataQueryError($query, 'Error in LLM response. ' . $e->getMessage(), $e);
+                return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
         }
     }
 
