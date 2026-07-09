@@ -16,7 +16,7 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
 
-    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
 
@@ -50,14 +50,14 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
         return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
     }
 
-    public function checktFinishReason() : bool
+    public function isError() : bool
     {
         $finishReason = $this->getFinishReason();
         if ($finishReason === 'refusal') {
-            return false;
+            return true;
         }
 
-        return in_array($finishReason, ['tool_calls', 'end_turn', 'max_tokens', 'stop_sequence', 'pause_turn'], true);
+        return in_array($finishReason, ['tool_calls', 'end_turn', 'max_tokens', 'stop_sequence', 'pause_turn'], true) === false;
     }
 
     public function __construct(ResponseInterface $response)

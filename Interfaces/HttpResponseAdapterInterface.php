@@ -48,14 +48,14 @@ interface HttpResponseAdapterInterface
     public function getFinishReason() : string;
 
     /**
-     * Validates/normalizes the finish reason reported by the provider.
+     * Determines whether the provider response indicates an error state.
      *
-     * Returns TRUE if the finish reason is known/expected for this adapter.
-     * Returns FALSE if an unexpected or problematic finish reason was detected.
+     * Returns TRUE if an unexpected or problematic finish reason/status was detected.
+     * Returns FALSE when the finish reason/status is known and acceptable.
      *
      * @return bool
      */
-    public function checktFinishReason() : bool;
+    public function isError() : bool;
 
     /**
      * Checks if the request has tool calls
@@ -89,6 +89,6 @@ interface HttpResponseAdapterInterface
      * @param \Exception $e
      * @return \Exception
      */
-    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception;
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception;
 
 }

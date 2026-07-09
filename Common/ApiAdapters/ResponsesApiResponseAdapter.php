@@ -12,7 +12,7 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
 
-    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $status = (string) ($this->json['status'] ?? 'unknown');
         $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
@@ -24,9 +24,9 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
         }
     }
 
-    public function checktFinishReason() : bool
+    public function isError() : bool
     {
-        return in_array($this->getFinishReason(), ['stop', 'tool_calls', 'in_progress', 'completed', 'queued'], true);
+        return in_array($this->getFinishReason(), ['stop', 'tool_calls', 'in_progress', 'completed', 'queued'], true) === false;
     }
 
     public function __construct(ResponseInterface $response)

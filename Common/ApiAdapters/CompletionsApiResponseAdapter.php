@@ -13,7 +13,7 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
 
-    public function getError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
     {
         $finishReason = (string) ($this->json['choices'][0]['finish_reason'] ?? 'unknown');
         $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
@@ -25,14 +25,14 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
         }
     }
 
-    public function checktFinishReason() : bool
+    public function isError() : bool
     {
         $finishReason = $this->getFinishReason();
         if ($finishReason === 'content_filter') {
-            return false;
+            return true;
         }
 
-        return in_array($finishReason, ['stop', 'tool_calls', 'length'], true);
+        return in_array($finishReason, ['stop', 'tool_calls', 'length'], true) === false;
     }
     
     public function __construct(ResponseInterface $response)
