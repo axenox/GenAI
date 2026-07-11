@@ -341,7 +341,7 @@ class AiConversation implements AiConversationInterface
         foreach ($responses as $response) {
             $no++;
             $markdown .= "\n## {$no}. {$response->getToolName()}()";
-            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString());
+            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString() ?? '< no response >');
             $markdown .= MarkdownDataType::makeHorizontalLine();
             $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
         }
