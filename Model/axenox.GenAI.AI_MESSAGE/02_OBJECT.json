@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI message [axenox.GenAI.AI_MESSAGE]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-07-07 00:13:28",
+            "MODIFIED_ON": "2026-07-08 00:22:29",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef950a2e445768950a025041000001",
@@ -114,6 +114,16 @@
                                     {
                                         "widget_type": "WidgetGroup",
                                         "widgets": [
+                                            {
+                                                "attribute_alias": "UID",
+                                                "widget_type": "InputHidden",
+                                                "id": "uid_field"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_CONVERSATION",
+                                                "widget_type": "InputHidden",
+                                                "id": "conversation_uid_field"
+                                            },
                                             {
                                                 "attribute_alias": "ROLE"
                                             },
@@ -142,6 +152,26 @@
                                             },
                                             {
                                                 "attribute_alias": "COST"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "widget_type": "ImageGallery",
+                                        "object_alias": "axenox.GenAI.AI_MESSAGE_FILE",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AI_MESSAGE",
+                                                "value": "=uid_field",
+                                                "comparator": "==",
+                                                "hidden": true,
+                                                "required": true
+                                            },
+                                            {
+                                                "attribute_alias": "AI_CONVERSATION",
+                                                "value": "=conversation_uid_field",
+                                                "comparator": "==",
+                                                "hidden": true,
+                                                "required": true
                                             }
                                         ]
                                     },
