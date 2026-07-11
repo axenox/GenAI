@@ -208,21 +208,32 @@ class AiConversation implements AiConversationInterface
         $transaction = $this->workbench->data()->startTransaction();
 
         try {
-            $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-
-            $message->addRow([
+            $messageSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+            $messageSheet->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::USER,
                 'MESSAGE' => $query->getUserPrompt(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
-
-            $message->dataCreate(false, $transaction);
+            $messageSheet->dataCreate(false, $transaction);
+            $msgUID = $messageSheet->getUidColumn()->getValue(0);
             $transaction->commit();
+
+            $files = $query->getFiles();
+            if (! empty($files)) {
+                $filesSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
+                $filesSheet->getFilters()->addConditionFromString('AI_MESSAGE', $msgUID);
+                foreach ($files as $file) {
+                    $filesSheet->addRow([
+                        'PATHNAME_RELATIVE' => "data/axenox/GenAI/Conversations/{$messageSheet->getUidColumn()->getValue(0)}/{$file->getFileInfo()->getFilename()}",
+                        'CONTENTS' => $file->read()
+                    ]);
+                }
+                $filesSheet->dataCreate(false, $transaction);
+            }
         } catch (\Throwable $e) {
             $this->workbench->getLogger()->logException($e);
-            $transaction->rollback();
             throw $e;
         }
 
