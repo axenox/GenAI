@@ -68,7 +68,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f1b683ea4c3c70b683025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/ImportAgent.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f183f7ee2a1ea283f7025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "auto_save": true,
                 "data_schemas": [
@@ -240,7 +240,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f19f9c33cb72a89f9c025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/ImportAgent.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f183f7ee2a1ea283f7025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "auto_save": true,
                 "data_schemas": [
@@ -545,7 +545,7 @@
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f1a75b96f8c7d6a75b025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/ImportAgent.php",
-            "DATA_CONNECTION_DEFAULT": "0x11f183f7ee2a1ea283f7025041000001",
+            "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "auto_save": true,
                 "data_schemas": [
