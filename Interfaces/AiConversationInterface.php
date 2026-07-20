@@ -91,4 +91,53 @@ interface AiConversationInterface
      * @param array $warnings Warning payloads from connector/tools.
      */
     public function saveWarnings(array $warnings) : void;
+
+    /**
+     * Retrieves all system messages from the conversation.
+     *
+     * @return array Array of system message strings.
+     */
+    public function getSystemMessages() : array;
+
+    /**
+     * Retrieves all user messages from the conversation.
+     *
+     * @return array Array of user message strings.
+     */
+    public function getUserMessages() : array;
+
+    /**
+     * Retrieves all assistant messages from the conversation.
+     *
+     * @return array Array of assistant message strings.
+     */
+    public function getAssistantMessages() : array;
+
+    /**
+     * Retrieves all tool messages from the conversation.
+     *
+     * @return array Array of tool message strings.
+     */
+    public function getToolMessages() : array;
+
+    /**
+     * Retrieves all tool calling messages from the conversation.
+     *
+     * @return array Array of tool calling message strings.
+     */
+    public function getToolCallingMessages() : array;
+
+    /**
+     * Retrieves all warning messages from the conversation.
+     *
+     * @return array Array of warning message strings.
+     */
+    public function getWarningMessages() : array;
+
+    /**
+     * Retrieves all error messages from the conversation.
+     *
+     * @return array Array of error message strings.
+     */
+    public function getErrorMessages() : array;
 }
