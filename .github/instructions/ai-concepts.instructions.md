@@ -70,6 +70,14 @@ convenience.
 Many concepts produce markdown, but theoretically they can have other return 
 types if `getDataType()` is implemented properly. 
 
+## Documentation maintenance
+
+- Whenever a concept prototype is added, changed, renamed, or removed, update the concept documentation in `Docs/AI/Concepts/index.md` in the same change.
+- Keep the English `Docs/AI/Concepts/index.md` and German `Docs/AI/Concepts/index_german.md` versions synchronized. Every content or navigation change must be applied to both language versions in the same change.
+- Keep the documented purpose, use cases, unsuitable use cases, configuration, output, limitations, alias, and UXON prototype link consistent with the implementation.
+- If a concept suggests tools or changes when its output is resolved, document that behavior explicitly.
+- Concepts provided by other apps must be documented in the owning app. The GenAI documentation only lists prototypes supplied by `axenox.GenAI` and states that further concepts can exist in other apps.
+
 ## Global rules
 
 - Read global instructions

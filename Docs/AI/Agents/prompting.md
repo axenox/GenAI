@@ -1,37 +1,39 @@
-# Tipps und Tricks fuer Agent-Prompts
+# Tips and tricks for agent prompts
 
-Diese Hinweise ergaenzen die allgemeine Beschreibung zu Agent-Versionen, ohne die Grundlagen aus der Uebersicht zu wiederholen.
+[Deutsch](prompting_german.md)
 
-## Kontext klein starten
+These notes complement the general description of agent versions without repeating the basics from the overview.
 
-Ein kurzer gemeinsamer Kontext ist oft wertvoller als ein langer Dokumentationsblock. Der Agent braucht zuerst die Begriffe, Zielgruppe und Grenzen der Umgebung. Details kann er spaeter gezielt nachladen.
+## Start with minimal context
 
-Mehr Tiefe ist nicht automatisch besser. Eine kleine, gut verlinkte Startseite darf etwas mitgerendert werden. Bei groesseren Bereichen ist ein knapper Einstieg plus Nachladen meist robuster.
+A short shared context is often more valuable than a long block of documentation. The agent first needs the terminology, target audience, and boundaries of its environment. It can load details later as needed.
 
-## Concepts als Hintergrund
+More depth is not automatically better. A small, well-linked start page can be rendered as part of the initial context. For larger areas, a concise introduction combined with on-demand loading is usually more robust.
 
-Gute Concepts liefern Material, das der Agent fast immer braucht, ohne dass der Benutzer daran denken muss. Dazu gehoeren stabile Einordnungen, relevante Regeln, vorhandene Strukturen oder aktueller Kontext aus der Oberflaeche.
+## Concepts as background context
 
-Ein guter Platzhaltername sagt schon, warum der Abschnitt existiert. Unklare Namen machen Kontext zwar sichtbar, aber nicht unbedingt nuetzlich.
+Good concepts provide information that the agent almost always needs without requiring the user to supply it. This includes stable background information, relevant rules, existing structures, or current context from the user interface.
 
-## Doku als Einstieg, Tools als Lupe
+A good placeholder name indicates why the section exists. Ambiguous names may expose context without making it useful.
 
-Gerenderte Doku ist gut fuer Orientierung. Ein Doku-Tool ist gut fuer Details. Zusammen vermeiden sie zwei Extreme: zu wenig Kontext im Prompt und zu viel komplette Dokumentation auf einmal.
+## Documentation for orientation, tools for detail
 
-Links sollten als Spuren behandelt werden, nicht als etwas, das das Modell erraten soll. Wenn ein Link sichtbar ist und fuer die Antwort wichtig wirkt, sollte der Agent ihn nachlesen duerfen.
+Rendered documentation is useful for orientation. A documentation tool is useful for details. Together, they avoid two extremes: too little context in the prompt and too much complete documentation at once.
 
-## Tools brauchen einen Anlass
+Links should be treated as paths to follow, not as something the model is expected to guess. If a visible link appears relevant to the answer, the agent should be allowed to follow it.
 
-Ein Tool wird eher genutzt, wenn der Prompt den Anlass beschreibt. Das Modell sollte erkennen koennen, welche Art von Unsicherheit durch das Tool kleiner wird.
+## Tools need a clear purpose
 
-Die Tool-Beschreibung sollte deshalb weniger wie ein technisches Etikett klingen und mehr wie eine Entscheidungshilfe: Was kann damit geprueft werden, welche Eingabe ist erlaubt, und wann ist das Ergebnis besser als Raten?
+A tool is more likely to be used when the prompt describes its purpose. The model should be able to recognize what kind of uncertainty the tool can reduce.
 
-## Sichtbare Tools kurz einordnen
+The tool description should therefore read less like a technical label and more like decision guidance: What can the tool verify, what input is permitted, and when is its result better than guessing?
 
-Eine automatisch gerenderte Tool-Uebersicht hilft, ersetzt aber nicht den fachlichen Hinweis, wofuer ein Tool im Ablauf gedacht ist. Eine kurze Regel im Prompt reicht oft: erst pruefen, dann ableiten; erst nachlesen, dann behaupten; erst Kontext laden, dann speichern.
+## Briefly explain visible tools
 
-## Kontext nach Stabilitaet sortieren
+An automatically rendered tool overview is helpful, but it does not replace domain-specific guidance on where a tool fits into the workflow. A short rule in the prompt is often enough: verify before deriving, read before asserting, and load context before saving.
 
-Stabile Informationen gehoeren eher in Concepts. Veraenderliche Informationen gehoeren eher in Tools. Dadurch bleibt der Prompt klein, ohne dass der Agent blind arbeiten muss.
+## Organize context by stability
 
-Diese Trennung macht Antworten robuster. Der Agent startet mit genug Orientierung, bleibt aber beweglich, wenn die eigentliche Frage Details braucht.
+Stable information belongs in concepts, while changing information belongs in tools. This keeps the prompt small without forcing the agent to work blindly.
+
+This separation makes responses more robust. The agent starts with enough context for orientation while remaining flexible when a question requires more detail.
