@@ -180,6 +180,8 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
             $sheet->getSorters()->addFromString('SEQUENCE_NUMBER','ASC');
             $sheet->dataRead();
             $this->conversationData = $sheet;
+            
+            /* TODO load files into something: the message? The conversation?
             foreach ($sheet->getRows() as $row) {
                 if ($row['ROLE'] === AiMessageTypeDataType::USER) {
                     // TODO load files here by reading them for the message. Which messages can actually include files?
@@ -199,6 +201,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
                     }
                 }
             }
+            */
         }
         return $this->conversationData;
     }
