@@ -1,32 +1,36 @@
 # AI Agents
 
-Ein Agent ist die fachliche Einheit, die einen Prompt entgegennimmt und eine Antwort vom LLM erzeugt. In der Konfiguration besteht ein Agent aus zwei Ebenen:
+[Deutsch](index_german.md)
 
-- `AI_AGENT` beschreibt die stabile Identitaet des Agenten, z.B. Name, Alias, Beschreibung und App-Zuordnung.
-- `AI_AGENT_VERSION` beschreibt eine konkrete lauffaehige Version dieses Agenten, z.B. Prototyp, LLM-Verbindung, Instructions und `CONFIG_UXON`.
+An agent is the functional unit that receives a prompt and generates a response from the LLM. In the configuration, an agent consists of two levels:
 
-Dadurch kann ein Agent mehrere Versionen haben. Aufrufende Komponenten verwenden den Agent-Alias und optional eine Versionsbedingung. Die Factory waehlt daraus die passende aktivierte Version aus. Neue Prompts, Tools oder Concepts sollten deshalb als neue Agent-Version gepflegt werden, wenn sich das Verhalten nachvollziehbar aendern soll.
+- `AI_AGENT` describes the agent's stable identity, such as its name, alias, description, and app assignment.
+- `AI_AGENT_VERSION` describes a specific executable version of that agent, such as its prototype, LLM connection, instructions, and `CONFIG_UXON`.
 
-## Weiterfuehrende Themen
+This allows an agent to have multiple versions. Calling components use the agent alias and, optionally, a version constraint. The factory then selects the appropriate enabled version. New prompts, tools, or concepts should therefore be maintained as new agent versions whenever behavioral changes need to remain traceable.
 
-- [Prompting, Concepts und Tools](prompting.md)
+## Related topics
 
-## Aufbau einer Agent-Version
+- [Prompting, concepts, and tools](prompting.md)
+- [Tool reference](../Tools/index.md)
+- [Concept reference](../Concepts/index.md)
 
-Eine Agent-Version legt fest, wie der Agent zur Laufzeit erzeugt wird:
+## Structure of an agent version
 
-- `PROTOTYPE_CLASS` zeigt auf die PHP-Klasse des Agenten, z.B. `axenox/genai/AI/Agents/GenericAssistant.php`.
-- `DATA_CONNECTION` bzw. die Default-Verbindung bestimmt, welcher AI-Connector bzw. welches Modell verwendet wird.
-- `INSTRUCTIONS` enthalten den System-Prompt. Sie koennen Markdown und Platzhalter enthalten.
-- `CONFIG_UXON` ist das strukturierte Konfigurationsmodell fuer den Prototyp. Beim `GenericAssistant` werden daraus u.a. Tools, Concepts, Antwortschema und weitere Prototyp-Eigenschaften importiert.
+An agent version defines how the agent is created at runtime:
 
-Der Prototyp liefert das Verhalten in PHP. Das UXON-Modell liefert die konkrete Konfiguration fuer eine Version. So kann derselbe Prototyp fuer mehrere Agenten oder Versionen wiederverwendet werden.
+- `PROTOTYPE_CLASS` points to the agent's PHP class, for example `axenox/genai/AI/Agents/GenericAssistant.php`.
+- `DATA_CONNECTION`, or the default connection, determines which AI connector or model is used.
+- `INSTRUCTIONS` contains the system prompt. It can include Markdown and placeholders.
+- `CONFIG_UXON` is the structured configuration model for the prototype. For `GenericAssistant`, it is used to import tools, concepts, the response schema, and other prototype properties.
 
-## Rolle von `CONFIG_UXON`
+The prototype implements the behavior in PHP. The UXON model provides the specific configuration for a version. This allows the same prototype to be reused for multiple agents or versions.
 
-`CONFIG_UXON` ist kein zweiter Prompt, sondern die maschinenlesbare Konfiguration des Agent-Prototyps. Beim Laden einer Version wird das UXON aus `AI_AGENT_VERSION.CONFIG_UXON` gelesen. Danach werden Name, Alias und `INSTRUCTIONS` der Version in dieses UXON uebernommen und der konfigurierte Prototyp damit instanziiert.
+## Role of `CONFIG_UXON`
 
-Ein typischer Ausschnitt sieht so aus:
+`CONFIG_UXON` is not a second prompt. It is the machine-readable configuration of the agent prototype. When a version is loaded, the UXON is read from `AI_AGENT_VERSION.CONFIG_UXON`. The version's name, alias, and `INSTRUCTIONS` are then added to this UXON, which is used to instantiate the configured prototype.
+
+A typical excerpt looks like this:
 
 ```json
 {
@@ -53,13 +57,13 @@ Ein typischer Ausschnitt sieht so aus:
 }
 ```
 
-Die Property-Namen im UXON entsprechen den konfigurierbaren Eigenschaften des Prototyps. Beim `GenericAssistant` sind besonders `tools`, `concepts`, `response_json_schema` und weitere dokumentierte UXON-Properties relevant.
+The property names in the UXON correspond to the prototype's configurable properties. For `GenericAssistant`, the most relevant properties include `tools`, `concepts`, `response_json_schema`, and other documented UXON properties.
 
-## Instructions und Concepts
+## Instructions and concepts
 
-Concepts sind Platzhalter, die Teile des System-Prompts dynamisch erzeugen. Im UXON werden sie unter `concepts` gepflegt. Der Key ist der Platzhaltername, der in den Instructions verwendet wird.
+Concepts are placeholders that dynamically generate parts of the system prompt. They are maintained under `concepts` in the UXON. The key is the placeholder name used in the instructions.
 
-Beispiel:
+Example:
 
 ```json
 {
@@ -74,7 +78,7 @@ Beispiel:
 }
 ```
 
-In den Instructions kann das Concept dann eingebunden werden:
+The concept can then be included in the instructions:
 
 ```md
 ## Introduction to the platform
@@ -82,13 +86,13 @@ In den Instructions kann das Concept dann eingebunden werden:
 [#introduction#]
 ```
 
-Zur Laufzeit rendert der Agent zuerst die Concepts und ersetzt die Platzhalter im Prompt. Concepts eignen sich fuer Kontext, der aus Daten, Dokumentation, Metamodell oder Tool-Ausgaben erzeugt wird. Einige Concepts koennen ausserdem eigene Tool-Modelle bereitstellen; diese werden beim Rendern zusaetzlich in die Tool-Konfiguration des Agenten uebernommen.
+At runtime, the agent first renders the concepts and replaces the placeholders in the prompt. Concepts are suitable for context generated from data, documentation, the metamodel, or tool output. Some concepts can also provide their own tool models; during rendering, these are added to the agent's tool configuration.
 
-## Tools einpflegen
+## Configuring tools
 
-Tools werden im `CONFIG_UXON` unter `tools` gepflegt. Der Key ist der Funktionsname, den das LLM spaeter verwenden kann. Die Tool-Definition beschreibt mindestens Zweck und Argumente. Optional kann ueber `alias` oder `class` ein konkreter Tool-Prototyp angegeben werden. Ohne expliziten Selector versucht die Factory, den Tool-Prototyp ueber den Funktionsnamen zu finden.
+Tools are maintained under `tools` in `CONFIG_UXON`. The key is the function name that the LLM can use later. A tool definition describes at least its purpose and arguments. A specific tool prototype can optionally be selected via `alias` or `class`. Without an explicit selector, the factory attempts to find the tool prototype by its function name.
 
-Beispiel:
+Example:
 
 ```json
 {
@@ -107,21 +111,21 @@ Beispiel:
 }
 ```
 
-Die Beschreibung sollte dem LLM klar sagen, wann das Tool verwendet werden soll und welche Werte erlaubt sind. Argumente sollten moeglichst konkrete Namen, Datentypen und Beschreibungen haben.
+The description should clearly tell the LLM when to use the tool and which values are permitted. Arguments should have names, data types, and descriptions that are as specific as possible.
 
-## Vorgehen beim Bauen eines Agenten
+## Building an agent
 
-1. Agent in `AI_AGENT` anlegen und Alias, Name, Beschreibung sowie App-Zuordnung festlegen.
-2. Erste Version in `AI_AGENT_VERSION` anlegen.
-3. Passenden `PROTOTYPE_CLASS` waehlen, meistens `GenericAssistant` fuer Chat-Assistenten.
-4. LLM- bzw. Datenverbindung hinterlegen.
-5. Instructions schreiben und darin benoetigte Concept-Platzhalter setzen.
-6. Concepts im `CONFIG_UXON` konfigurieren und die Platzhalternamen mit den Instructions abgleichen.
-7. Tools im `CONFIG_UXON` konfigurieren, falls der Agent aktiv Daten laden oder Aktionen vorbereiten soll.
-8. Agent mit Testfaellen und Conversation-Logs pruefen und Verbesserungen als neue Versionen pflegen.
+1. Create the agent in `AI_AGENT` and define its alias, name, description, and app assignment.
+2. Create the first version in `AI_AGENT_VERSION`.
+3. Select an appropriate `PROTOTYPE_CLASS`, usually `GenericAssistant` for chat assistants.
+4. Configure the LLM or data connection.
+5. Write the instructions and add the required concept placeholders.
+6. Configure concepts in `CONFIG_UXON` and match the placeholder names to those in the instructions.
+7. Configure tools in `CONFIG_UXON` if the agent needs to actively load data or prepare actions.
+8. Test the agent with test cases and conversation logs, and maintain improvements as new versions.
 
-## Versionierung
+## Versioning
 
-Versionen dienen dazu, Agent-Verhalten reproduzierbar zu machen. Eine neue Version ist sinnvoll, wenn sich Instructions, Tools, Concepts, Antwortschema oder Modellverbindung so aendern, dass vorhandene Tests oder produktive Antworten anders ausfallen koennen.
+Versions make agent behavior reproducible. A new version is appropriate when instructions, tools, concepts, the response schema, or the model connection change in ways that may affect existing tests or production responses.
 
-Beim Laden sucht die Factory alle Versionen eines Agenten, sortiert sie absteigend und waehlt die beste Version zur angefragten Versionsbedingung. Falls eine Version keine eigene Verbindung hat, kann eine Verbindung aus einer vorherigen Version uebernommen werden. Trotzdem sollte fuer produktive Agenten klar dokumentiert sein, welche Version aktiv verwendet wird.
+When loading an agent, the factory retrieves all of its versions, sorts them in descending order, and selects the best match for the requested version constraint. If a version has no connection of its own, it can inherit one from a previous version. Nevertheless, the version currently used by a production agent should be clearly documented.

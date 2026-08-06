@@ -85,6 +85,18 @@ included in any app in the `AI/Agents` subfolder.
 Custom agent prototypes allow to add logic "around" the agent - e.g. extract 
 more data from the Ai prompt.
 
+## Documentation maintenance
+
+Changes to agent, tool, or concept prototypes must include the corresponding documentation update in the same change:
+
+- Agent behavior and configuration: `Docs/AI/Agents/`
+- Tool prototypes: `Docs/AI/Tools/index.md`
+- Concept prototypes: `Docs/AI/Concepts/index.md`
+
+All documentation is maintained in English and German. Keep every `index.md` and `index_german.md` pair synchronized; for additional pages, such as `prompting.md`, update the corresponding `_german.md` file in the same change. Each language version must link to its counterpart directly below the page title.
+
+Keep usage guidance, configuration, limitations, and UXON prototype links synchronized with the implementation. Prototypes owned by another app must be documented in that app rather than added to the GenAI prototype reference.
+
 ## Instructions
 
 What exactly an Agent is supposed to do is defined it it's model mainly by 
