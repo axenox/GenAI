@@ -389,11 +389,10 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
-     * 
-     * @param \axenox\GenAI\Interfaces\AiPromptInterface $promt
-     * @return string
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiAgentInterface::getSystemPrompt()
      */
-    protected function getSystemPrompt(AiPromptInterface $prompt) : string
+    public function getSystemPrompt(AiPromptInterface $prompt) : string
     {
         if ($this->systemPromptRendered === null) {
             $renderer = new BracketHashStringTemplateRenderer($this->workbench);
