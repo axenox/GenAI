@@ -2,6 +2,9 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Exceptions\AiModelRefusalError;
+use axenox\GenAI\Exceptions\AiProviderDataQueryError;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
 use Psr\Http\Message\ResponseInterface;
@@ -9,6 +12,28 @@ use Psr\Http\Message\ResponseInterface;
 class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    {
+        $finishReason = (string) ($this->json['choices'][0]['finish_reason'] ?? 'unknown');
+        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
+        switch (true) {
+            case $finishReason === 'content_filter':
+                return new AiModelRefusalError($query, 'The model refused to answer due to content filtering.', $e, false, $model, 'completions', $finishReason);
+            default:
+                return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
+        }
+    }
+
+    public function isError() : bool
+    {
+        $finishReason = $this->getFinishReason();
+        if ($finishReason === 'content_filter') {
+            return true;
+        }
+
+        return in_array($finishReason, ['stop', 'tool_calls', 'length'], true) === false;
+    }
     
     public function __construct(ResponseInterface $response)
     {
