@@ -2,6 +2,8 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
+use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Exceptions\AiProviderDataQueryError;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
 use Psr\Http\Message\ResponseInterface;
@@ -9,6 +11,23 @@ use Psr\Http\Message\ResponseInterface;
 class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+
+    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    {
+        $status = (string) ($this->json['status'] ?? 'unknown');
+        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
+        switch (true) {
+            case in_array($status, ['failed', 'cancelled', 'incomplete'], true):
+                return new AiProviderDataQueryError($query, 'Responses API returned a non-success status: ' . $status, $e, null, $model);
+            default:
+                return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
+        }
+    }
+
+    public function isError() : bool
+    {
+        return in_array($this->getFinishReason(), ['stop', 'tool_calls', 'in_progress', 'completed', 'queued'], true) === false;
+    }
 
     public function __construct(ResponseInterface $response)
     {

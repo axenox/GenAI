@@ -84,15 +84,25 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
         if ($this->isDryrun()) {
                 $response = $requestAdapter->getDryrunResponse(json_decode($json, true), $this->dryrunResponse);
                 $responseAdapter = $this->getResponseAdapter($response);
+                if ($responseAdapter->isError()) {
+                    $query = $query->withResponse($response, $responseAdapter);
+                    throw $responseAdapter->enrichError($query, new \RuntimeException('LLM Dry Run failed: finish_reason indicates an unsupported or error state.'));
+                }
         } else {
             try {
                 $query = $query->withRequest($request);
                 $response = $this->sendRequest($request);
                 $responseAdapter = $this->getResponseAdapter($response);
+                //isError
+                if ($responseAdapter->isError()) {
+                    $query = $query->withResponse($response, $responseAdapter);
+                    throw $responseAdapter->enrichError($query, new \RuntimeException('LLM request failed: finish_reason indicates an unsupported or error state.'));
+                }
             } catch (RequestException $re) {
                 if (null !== $response = $re->getResponse()) {
                     $responseAdapter = $this->getResponseAdapter($response);
                     $query = $query->withResponse($response, $responseAdapter);
+                    throw $responseAdapter->enrichError($query, $re);
                 }
                 throw new DataQueryFailedError($query, 'Error in LLM request. ' . $re->getMessage(), null, $re);
             }
@@ -310,7 +320,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
      *  
      * @return string
      */
-    protected function getCostsCalcuation() : string
+    protected function getCostsCalculation() : string
     {
         if(!$this->costsCalculation) return '';
         return $this->costsCalculation;
@@ -320,7 +330,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
     {
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000)
         // ([#$.completion_tokens#] * 8.4984 / 1000000) + ([#$.prompt_tokens#] - [#$.prompt_tokens_details.cached_tokens#]) * 2.12459 / 1000000 + [#$.prompt_tokens_details.cached_tokens#] * 1.0623/1000000) * GetConfig('axenox.GenAI', 'DISCOUNT')
-        $formulaStr = $this->getCostsCalcuation();
+        $formulaStr = $this->getCostsCalculation();
         if(!$formulaStr || $formulaStr == '') {
             return 0;
         }
