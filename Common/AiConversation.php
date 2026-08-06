@@ -152,6 +152,8 @@ class AiConversation implements AiConversationInterface
     /**
      * Saves the system prompt message.
      *
+     * Ignores the request if a system prompt has already been saved for this conversation.
+     *
      * @param AiQueryInterface $query Query used to initialize message sequence number.
      * @param string $systemPrompt Rendered system prompt text.
      * @param AiToolInterface[] $tools Tool definitions to include in message metadata.
@@ -161,6 +163,11 @@ class AiConversation implements AiConversationInterface
      */
     public function saveSystemPrompt(AiQueryInterface $query, string $systemPrompt, array $tools = [], ?array $responseJsonSchema = null) : string
     {
+        // Return early if a system prompt already exists for this conversation
+        if ($this->hasSavedSystemPrompt()) {
+            return $this->conversationId;
+        }
+
         $transaction = $this->workbench->data()->startTransaction();
         $this->sequenceNumber = $query->getSequenceNumber();
 
@@ -194,6 +201,16 @@ class AiConversation implements AiConversationInterface
         }
 
         return $this->conversationId;
+    }
+
+    /**
+     * Checks whether a system prompt has already been saved for this conversation.
+     *
+     * @return bool True if at least one system message exists, false otherwise.
+     */
+    protected function hasSavedSystemPrompt() : bool
+    {
+        return count($this->getSystemMessages()) > 0;
     }
 
     /**
@@ -762,5 +779,99 @@ class AiConversation implements AiConversationInterface
         if ($ds->isEmpty()) {
             throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
         }
+    }
+
+    /**
+     * Retrieves messages of a specific type from the conversation.
+     *
+     * @param string $messageType The message type filter (e.g., SYSTEM, USER, ASSISTANT, etc.).
+     *
+     * @return array Array of message strings sorted by sequence number.
+     */
+    protected function getMessagesByType(string $messageType) : array
+    {
+        $messageSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $messageSheet->getColumns()->addFromExpression('MESSAGE');
+        $messageSheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationId());
+        $messageSheet->getFilters()->addConditionFromString('ROLE', $messageType);
+        $messageSheet->getSorters()->addFromString('SEQUENCE_NUMBER', 'ASC');
+        $messageSheet->dataRead();
+
+        $messages = [];
+        foreach ($messageSheet->getRows() as $row) {
+            $messages[] = isset($row['MESSAGE']) ? (string) $row['MESSAGE'] : '';
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Retrieves all system messages from the conversation.
+     *
+     * @return array Array of system message strings.
+     */
+    public function getSystemMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::SYSTEM);
+    }
+
+    /**
+     * Retrieves all user messages from the conversation.
+     *
+     * @return array Array of user message strings.
+     */
+    public function getUserMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::USER);
+    }
+
+    /**
+     * Retrieves all assistant messages from the conversation.
+     *
+     * @return array Array of assistant message strings.
+     */
+    public function getAssistantMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::ASSISTANT);
+    }
+
+    /**
+     * Retrieves all tool messages from the conversation.
+     *
+     * @return array Array of tool message strings.
+     */
+    public function getToolMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::TOOL);
+    }
+
+    /**
+     * Retrieves all tool calling messages from the conversation.
+     *
+     * @return array Array of tool calling message strings.
+     */
+    public function getToolCallingMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::TOOLCALLING);
+    }
+
+    /**
+     * Retrieves all warning messages from the conversation.
+     *
+     * @return array Array of warning message strings.
+     */
+    public function getWarningMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::WARNING);
+    }
+
+    /**
+     * Retrieves all error messages from the conversation.
+     *
+     * @return array Array of error message strings.
+     */
+    public function getErrorMessages() : array
+    {
+        return $this->getMessagesByType(AiMessageTypeDataType::ERROR);
     }
 }
