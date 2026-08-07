@@ -68,9 +68,31 @@ class AiConversation implements AiConversationInterface
         $this->conversationId = $conversationId ?? $this->prompt->getConversationUid();
         if ($this->conversationId !== null) {
             $this->prompt->setConversationUid($this->conversationId);
+            $this->sequenceNumber = $this->loadMaxSequenceNumber() + 1;
         } else {
             $this->createConversation($query);
         }
+    }
+
+    /**
+     * Queries the highest SEQUENCE_NUMBER stored for this conversation.
+     *
+     * @return int The current maximum, or -1 if no messages exist yet.
+     */
+    protected function loadMaxSequenceNumber() : int
+    {
+        $messageSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $messageSheet->getColumns()->addFromExpression('SEQUENCE_NUMBER');
+        $messageSheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId);
+        $messageSheet->getSorters()->addFromString('SEQUENCE_NUMBER', 'DESC');
+        $messageSheet->setRowsLimit(1);
+        $messageSheet->dataRead();
+
+        if ($messageSheet->isEmpty()) {
+            return -1;
+        }
+
+        return (int) $messageSheet->getColumns()->getByExpression('SEQUENCE_NUMBER')->getValue(0);
     }
 
     /**
