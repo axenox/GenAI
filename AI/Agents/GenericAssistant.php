@@ -111,6 +111,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
+    private bool $emojiRuleEnabled = true;
+
     private ?array $tools = null;
     private ?array $toolsUxon = null;
     private ?AiConversationInterface $conversation = null;
@@ -425,7 +427,35 @@ class GenericAssistant implements AiAgentInterface
                 throw new AiConceptRenderingError($renderer, 'Cannot apply AI concepts. ' . $e->getMessage(), null, $e, $systemPrompt);
             }
         }
-        return $this->systemPromptRendered;
+        return $this->systemPromptRendered . $this->getAdditionalSystemPrompt();
+    }
+
+    protected function getAdditionalSystemPrompt() : string
+    {
+        $rules = [];
+        if ($this->emojiRuleEnabled) {
+            $rules[] = "Dont use Emojis in youre Answer!";
+        }
+        if (empty($rules)) {
+            return '';
+        }
+        return "\n" . implode("\n", $rules);
+    }
+
+    /**
+     * Enables/disables the emoji rule in the additional system prompt.
+     *
+     * @uxon-property emoji_rule_enabled
+     * @uxon-type boolean
+     * @uxon-default true
+     *
+     * @param bool $trueOrFalse
+     * @return \axenox\GenAI\Interfaces\AiAgentInterface
+     */
+    protected function setEmojiRuleEnabled(bool $trueOrFalse) : AiAgentInterface
+    {
+        $this->emojiRuleEnabled = $trueOrFalse;
+        return $this;
     }
 
     protected function getApp(AiPromptInterface $prompt) : ?AppInterface
