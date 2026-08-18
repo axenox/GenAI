@@ -203,11 +203,11 @@
             ]
         },
         {
-            "_EXPORT_SUMMARY": "Log analyzer assistant v2.0",
+            "_EXPORT_SUMMARY": "Log analyzer assistant v2",
             "CREATED_ON": "2026-06-26 00:13:36",
-            "MODIFIED_ON": "2026-06-26 07:56:42",
+            "MODIFIED_ON": "2026-08-18 09:13:10",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f1a5941ca61324a594025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "DATA_CONNECTION_DEFAULT": null,
@@ -296,9 +296,7 @@
                         "alias": "axenox.GenAI.ToolCallConcept",
                         "tool_name": "get_log_entry",
                         "arguments": [
-                            {
-                                "url": "[#~input:id#]"
-                            }
+                            "[#~input:id#]"
                         ]
                     },
                     "introduction": {
