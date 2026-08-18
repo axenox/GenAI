@@ -19,6 +19,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
+| Understand the menu and screens of an app | `UiOverviewTool` |
 | Inspect a concrete page or widget instance | `UiWidgetInfoTool` |
 | Provide deterministic test output | `MockTool` |
 | Search where model entities are referenced | `ModelSearchTool` |
@@ -424,6 +425,25 @@ replacement text
 **How to use.** The model supplies the widget PHP file path or a supported core widget type. A file path is the most explicit selector.
 
 **Result and limits.** The tool combines indexed UXON annotations with widget-function and preset metadata. Missing or incomplete model annotations lead to incomplete documentation.
+
+## `UiOverviewTool`
+
+**Alias:** `axenox.GenAI.UiOverviewTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiOverviewTool)
+
+**Purpose.** Produces a Markdown overview of the platform's main menu and of the screens of a given app. The main menu is listed completely with a page link for every entry, while the pages of the app of interest and the dialogs reachable from them are described in detail.
+
+**Use when.** The agent needs to understand which screens an app offers, what a user can do on them, and how to navigate to further pages. The page links in the menu can be passed to `UiWidgetInfoTool` for deeper inspection.
+
+**Do not use when.** To inspect the UXON of a single, already known page or dialog, use `UiWidgetInfoTool` directly.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `app` | Yes | Alias of the app whose pages are described in detail (for example `exface.Core`). |
+| `depth` | No | How deep to follow dialogs opened by buttons inside the app's pages. Defaults to `10`. |
+
+**How to use.** The model supplies the app alias and optionally a recursion depth. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
+
+**Result and limits.** Each screen chapter lists the meta objects shown on the screen and all buttons available to the user. Dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview.
 
 ## `UiWidgetInfoTool`
 
