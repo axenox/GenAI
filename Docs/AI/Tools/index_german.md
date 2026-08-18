@@ -17,6 +17,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
 | Eine konkrete Seiten- oder Widget-Instanz untersuchen | `UiWidgetInfoTool` |
@@ -345,6 +346,29 @@ replacement text
 **Verwendung.** Das Modell übergibt eine UID, einen vollständig qualifizierten Alias, einen Teilalias oder einen menschenlesbaren Namen. Werte, die mit `0x` beginnen, werden als UIDs behandelt. Wahrscheinliche vollständige Aliasse werden exakt abgeglichen; andere Werte durchsuchen Objektnamen und -aliasse.
 
 **Ergebnis und Grenzen.** Exakte Treffer werden zuerst ausgegeben, gefolgt von erzeugtem Markdown für jeden Treffer. Allgemeine Begriffe können mehrere Objekte zurückgeben; verwenden Sie daher den spezifischsten bekannten Selektor.
+
+## `ModelSearchTool`
+
+**Alias:** `axenox.GenAI.ModelSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelSearchTool)
+
+**Zweck.** Durchsucht das ExFace-Metamodell nach Verwendungsstellen und Referenzen über das vordefinierte Objekt `exface.Core.SEARCH_RESULT`.
+
+**Verwenden, wenn.** Der Agent herausfinden soll, wo ein Objektalias, Aktionsalias, Seitenalias oder ein anderer Modellbegriff in Model-UXON verwendet wird.
+
+**Nicht verwenden, wenn.** Verwenden Sie das Tool nicht für allgemeine Business-Datenabfragen. Nutzen Sie `DataSheetReadTool`, wenn Sie ein frei konfigurierbares Objekt oder abweichende Spalten benötigen.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `search_query` | Ja | Suchbegriff für die Modellsuche. |
+| `object_type` | Nein | Optionaler Typfilter wie `exf_object`, `exf_attribute`, `exf_page` oder `exf_object_action`. |
+| `rows_limit` | Nein | Optionale maximale Zeilenanzahl. Standard ist `50`. |
+| `rows_offset` | Nein | Optionaler Pagination-Offset. Standard ist `0`. |
+
+**Verwendung.** Das Tool kapselt `DataSheetReadTool` und setzt `object_alias`, Spalten und den UXON-Suchfilter bereits vordefiniert. Sie übergeben nur den Suchbegriff und optional einschränkende Argumente.
+
+**So sieht es aus.** Die KI gibt einen Suchbegriff ein, zum Beispiel `search_query = "\"exface.Core.USER\""`, und bekommt dazu passende Verwendungs-Trefferzeilen zurück.
+
+**Ergebnis und Grenzen.** Das Ergebnis wird wie bei `DataSheetReadTool` als Markdown zurückgegeben und enthält Treffer mit Kontextfeldern wie Objektname, Instanzname und Instanzalias.
 
 ## `ModelComponentInfoTool`
 
