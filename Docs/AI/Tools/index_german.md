@@ -20,6 +20,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
+| Menü und Bildschirme einer App verstehen | `UiOverviewTool` |
 | Eine konkrete Seiten- oder Widget-Instanz untersuchen | `UiWidgetInfoTool` |
 | Deterministische Testausgaben bereitstellen | `MockTool` |
 
@@ -424,6 +425,25 @@ replacement text
 **Verwendung.** Das Modell übergibt den PHP-Dateipfad des Widgets oder einen unterstützten Core-Widget-Typ. Ein Dateipfad ist der eindeutigste Selektor.
 
 **Ergebnis und Grenzen.** Das Tool kombiniert indizierte UXON-Annotationen mit Metadaten zu Widget-Funktionen und Presets. Fehlende oder unvollständige Modellannotationen führen zu unvollständiger Dokumentation.
+
+## `UiOverviewTool`
+
+**Alias:** `axenox.GenAI.UiOverviewTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiOverviewTool)
+
+**Zweck.** Erzeugt eine Markdown-Übersicht des Hauptmenüs der Plattform sowie der Bildschirme einer bestimmten App. Das Hauptmenü wird vollständig mit einem Seiten-Link zu jedem Eintrag aufgelistet, während die Seiten der betreffenden App und die von ihnen erreichbaren Dialoge ausführlich beschrieben werden.
+
+**Verwenden, wenn.** Der Agent verstehen muss, welche Bildschirme eine App anbietet, was ein Benutzer dort tun kann und wie er zu weiteren Seiten navigiert. Die Seiten-Links im Menü können an `UiWidgetInfoTool` übergeben werden, um Details zu untersuchen.
+
+**Nicht verwenden, wenn.** Um das UXON einer einzelnen, bereits bekannten Seite oder eines Dialogs zu untersuchen, verwenden Sie `UiWidgetInfoTool` direkt.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `app` | Ja | Alias der App, deren Seiten ausführlich beschrieben werden (zum Beispiel `exface.Core`). |
+| `depth` | Nein | Wie tief Dialoge verfolgt werden, die über Schaltflächen innerhalb der Seiten der App geöffnet werden. Standardwert `10`. |
+
+**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
+
+**Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte sowie alle für den Benutzer verfügbaren Schaltflächen auf. Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht.
 
 ## `UiWidgetInfoTool`
 
