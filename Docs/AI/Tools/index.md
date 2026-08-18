@@ -21,6 +21,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Inspect a concrete page or widget instance | `UiWidgetInfoTool` |
 | Provide deterministic test output | `MockTool` |
+| Search where model entities are referenced | `ModelSearchTool` |
 
 ## Common configuration
 
@@ -345,6 +346,29 @@ replacement text
 **How to use.** The model supplies a UID, fully qualified alias, partial alias, or human-readable name. Values beginning with `0x` are treated as UIDs, likely full aliases are matched exactly, and other values search object names and aliases.
 
 **Result and limits.** Exact matches are returned first, followed by generated Markdown for every match. Broad terms may return several objects, so use the most specific known selector.
+
+## `ModelSearchTool`
+
+**Alias:** `axenox.GenAI.ModelSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelSearchTool)
+
+**Purpose.** Searches the ExFace metamodel for references and usage locations using the predefined object `exface.Core.SEARCH_RESULT`.
+
+**Use when.** The agent needs to find where an object alias, action alias, page alias, or another model term is referenced inside model UXON.
+
+**Do not use when.** Do not use it for generic business data retrieval. Use `DataSheetReadTool` when you need custom object access or custom columns beyond model-search defaults.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `search_query` | Yes | Search term for the model search. |
+| `object_type` | No | Optional type filter such as `exf_object`, `exf_attribute`, `exf_page`, or `exf_object_action`. |
+| `rows_limit` | No | Optional maximum row count. Defaults to `50`. |
+| `rows_offset` | No | Optional pagination offset. Defaults to `0`. |
+
+**How to use.** The tool wraps `DataSheetReadTool` and predefines `object_alias`, columns, and the UXON search filter. You only provide the search term and optional narrowing arguments.
+
+**What it looks like.** The AI enters a search term, for example `search_query = "\"exface.Core.USER\""`, and receives matching usage rows.
+
+**Result and limits.** The result is rendered like `DataSheetReadTool` output and includes matched model entities with usage context fields such as object name, instance name, and instance alias.
 
 ## `ModelComponentInfoTool`
 
