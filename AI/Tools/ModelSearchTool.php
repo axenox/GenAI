@@ -1,14 +1,19 @@
 <?php
-
 namespace axenox\GenAI\AI\Tools;
 
+use axenox\GenAI\Common\AbstractAiTool;
+use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\CommonLogic\UxonObject;
-use exface\Core\DataTypes\ComparatorDataType;
+use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\DataTypes\StringDataType;
+use exface\Core\Factories\DataSheetFactory;
+use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
+use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -29,7 +34,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *
  * @author Brooklyn Fraenzschky
  */
-class ModelSearchTool extends DataSheetReadTool
+class ModelSearchTool extends AbstractAiTool
 {
     public const ARG_SEARCH_QUERY = 'search_query';
     public const ARG_OBJECT_TYPE = 'object_type';
@@ -44,49 +49,43 @@ class ModelSearchTool extends DataSheetReadTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $searchQuery = trim((string) ($arguments[0] ?? ''));
-        if ($searchQuery === '') {
+        list($query, $objType, $limit, $offset) = $arguments;
+        
+        if (! $query) {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_query');
         }
+        
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.SEARCH_RESULT');
+        $sheet->getColumns()->addMultiple([
+            'OBJECT_NAME',
+            'INSTANCE_NAME',
+            'ATTRIBUTE_NAME',
+            'APP__ALIAS',
+            'INSTANCE_ALIAS_WITH_NS',
+            'OBJECT_TYPE',
+            'COMPONENT'
+        ]);
+        $sheet->getFilters()->addConditionFromString(
+            'UXON', $query
+        );
+        $sheet->dataRead();
 
-        $objectType = trim((string) ($arguments[1] ?? ''));
-        $rowsLimit = $this->sanitizeRowsLimit($arguments[2] ?? null);
-        $rowsOffset = $this->sanitizeRowsOffset($arguments[3] ?? null);
-
-        $dataSheet = [
-            'object_alias' => 'exface.Core.SEARCH_RESULT',
-            'columns' => [
-                ['attribute_alias' => 'OBJECT_NAME'],
-                ['attribute_alias' => 'INSTANCE_NAME'],
-                ['attribute_alias' => 'ATTRIBUTE_NAME'],
-                ['attribute_alias' => 'APP__ALIAS'],
-                ['attribute_alias' => 'INSTANCE_ALIAS'],
-                ['attribute_alias' => 'OBJECT_TYPE'],
-                ['attribute_alias' => 'TABLE_NAME']
-            ],
-            'filters' => [
-                'operator' => 'AND',
-                'conditions' => [
-                    [
-                        'expression' => 'UXON',
-                        'comparator' => ComparatorDataType::IS,
-                        'value' => $searchQuery
-                    ]
-                ]
-            ],
-            'rows_limit' => $rowsLimit,
-            'rows_offset' => $rowsOffset
-        ];
-
-        if ($objectType !== '') {
-            $dataSheet['filters']['conditions'][] = [
-                'expression' => 'OBJECT_TYPE',
-                'comparator' => ComparatorDataType::EQUALS,
-                'value' => $objectType
+        return new AiToolResultString($this, $arguments, $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
+    }
+    
+    protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet) : string
+    {
+        $rows = [];
+        foreach ($resultSheet->getRows() as $row) {
+            $rows[] = [
+                'Component' => $row['COMPONENT'] ?? '',
+                'Selector' => $row['INSTANCE_ALIAS_WITH_NS'],
+                'Name' => $row['INSTANCE_NAME'] ?? '',
+                'Match in' => $row['ATTRIBUTE_NAME'] ?? ''
             ];
         }
-
-        return parent::invoke($agent, $prompt, [new UxonObject($dataSheet)]);
+        $md = MarkdownDataType::buildMarkdownTableFromArray($rows);
+        return $md;
     }
 
     /**
@@ -122,29 +121,11 @@ class ModelSearchTool extends DataSheetReadTool
         ];
     }
 
-    private function sanitizeRowsLimit($value): int
+    /**
+     * @inheritDoc
+     */
+    public function getReturnDataType(): DataTypeInterface
     {
-        if ($value === null || $value === '') {
-            return self::DEFAULT_LIMIT;
-        }
-
-        if (! is_numeric($value)) {
-            return self::DEFAULT_LIMIT;
-        }
-
-        return max(1, (int) $value);
-    }
-
-    private function sanitizeRowsOffset($value): int
-    {
-        if ($value === null || $value === '') {
-            return 0;
-        }
-
-        if (! is_numeric($value)) {
-            return 0;
-        }
-
-        return max(0, (int) $value);
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 }
