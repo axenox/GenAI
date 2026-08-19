@@ -37,6 +37,7 @@ class ModelComponentInfoTool extends AbstractAiTool
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($component, $selector) = $arguments;
+        $component = trim(mb_strtolower($component));
         
         $registry = $this->getWorkbench()->getComponentRegistry();
         switch (true) {
