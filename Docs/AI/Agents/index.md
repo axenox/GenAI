@@ -59,6 +59,8 @@ A typical excerpt looks like this:
 
 The property names in the UXON correspond to the prototype's configurable properties. For `GenericAssistant`, the most relevant properties include `tools`, `concepts`, `response_json_schema`, and other documented UXON properties.
 
+For agents that should also provide structured self-reflection, `feedback_mode` can be enabled. When active, the JSON response schema is extended with a `feedback` object containing `tool_reasoning`, `new_tools`, and `improvement_suggestions`. This allows the LLM to explain a workflow, justify tool calls, suggest missing tools with a rationale, and propose concrete improvements.
+
 ## Instructions and concepts
 
 Concepts are placeholders that dynamically generate parts of the system prompt. They are maintained under `concepts` in the UXON. The key is the placeholder name used in the instructions.
