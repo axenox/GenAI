@@ -105,6 +105,8 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseJsonSchema = null;
 
+    private bool $feedbackMode = false;
+
     private $devMode = null;
 
     private $responseAnswerPath = null;
@@ -626,7 +628,94 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function getResponseJsonSchema() : ?array
     {
-        return $this->responseJsonSchema;
+        if ($this->responseJsonSchema === null) {
+            if ($this->feedbackMode === false) {
+                return null;
+            }
+
+            $this->responseJsonSchema = [
+                'type' => 'object',
+                'properties' => [
+                    'result' => [
+                        'type' => 'string',
+                        'description' => 'Main answer content as markdown or plain text.'
+                    ]
+                ],
+                'required' => ['result'],
+                'additionalProperties' => false
+            ];
+
+            if ($this->responseAnswerPath === null) {
+                $this->responseAnswerPath = '$.result';
+            }
+        }
+
+        if ($this->feedbackMode === false) {
+            return $this->responseJsonSchema;
+        }
+
+        return $this->enrichResponseJsonSchemaWithFeedback($this->responseJsonSchema);
+    }
+
+    /**
+     * Adds a structured feedback block to the response JSON schema so the LLM can explain
+     * which steps or tool calls were necessary, which new tools it would need, and which
+     * improvements it suggests.
+     *
+     * @uxon-property feedback_mode
+     * @uxon-type boolean
+     * @uxon-default false
+     *
+     * @param bool $value
+     * @return GenericAssistant
+     */
+    protected function setFeedbackMode(bool $value) : GenericAssistant
+    {
+        $this->feedbackMode = $value;
+        if ($value === true && $this->responseAnswerPath === null && $this->responseJsonSchema === null) {
+            $this->responseAnswerPath = '$.result';
+        }
+        return $this;
+    }
+
+    public function getFeedbackMode() : bool
+    {
+        return $this->feedbackMode;
+    }
+
+    protected function enrichResponseJsonSchemaWithFeedback(array $schema) : array
+    {
+        if (!isset($schema['type']) || $schema['type'] !== 'object' || !is_array($schema['properties'] ?? null)) {
+            return $schema;
+        }
+
+        if (isset($schema['properties']['feedback'])) {
+            return $schema;
+        }
+
+        $schema['properties']['feedback'] = [
+            'type' => 'object',
+            'description' => 'Structured feedback about the workflow and possible improvements.',
+            'properties' => [
+                'reasoning' => [
+                    'type' => 'string',
+                    'description' => 'Explain what was done and why it was necessary, including relevant tool calls and the reasoning behind them.'
+                ],
+                'new_tools' => [
+                    'type' => 'string',
+                    'description' => 'List suggested new tools or capabilities, including what they should do and why they are needed.'
+                ],
+                'improvement_suggestions' => [
+                    'type' => 'string',
+                    'description' => 'List concrete improvement suggestions for the workflow, instructions, or tooling.'
+                ]
+            ],
+            'required' => ['reasoning', 'new_tools', 'improvement_suggestions'],
+            'additionalProperties' => false
+        ];
+
+        $schema['required'] = array_values(array_unique(array_merge($schema['required'] ?? [], ['feedback'])));
+        return $schema;
     }
 
     /**
@@ -634,8 +723,8 @@ class GenericAssistant implements AiAgentInterface
      * @return bool
      */
     protected function hasResponseJsonSchema() : bool
-    {        
-        return $this->responseJsonSchema !== null;
+    {
+        return $this->getResponseJsonSchema() !== null;
     }
 
     public function setDevmode(bool $trueOrFalse): AiAgentInterface
