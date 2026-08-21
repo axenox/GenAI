@@ -17,6 +17,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Objekte nach Objektname finden | `ObjectSearchTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -239,6 +240,28 @@ replacement text
 **Verwendung.** Das Modell übergibt ein DataSheet-UXON-Objekt mit `object_alias`, den ausgewählten `columns` und optional `filters`, `sorters`, `aggregators`, `rows_limit` und `rows_offset`. Die Anweisungen des Agenten sollten für Objekte, die viele Datensätze enthalten können, ein angemessenes Zeilenlimit vorschreiben.
 
 **Ergebnis und Grenzen.** Das Ergebnis enthält JSON-formatierte Zeilen und Metadaten in Markdown. Es gelten die üblichen ExFace-Objektberechtigungen und DataSheet-Lesebeschränkungen. Ungültige Objektaliasse, Ausdrücke oder Filter führen zu Fehlern.
+
+## `ObjectSearchTool`
+
+**Alias:** `axenox.GenAI.ObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CObjectSearchTool)
+
+**Zweck.** Führt ein einfaches DataSheet-Read auf `exface.Core.OBJECT` aus, gefiltert nach dem Objekt-`NAME`.
+
+**Verwenden, wenn.** Der Agent eine kompakte Liste von Objekten benötigt, die zu einem vom Benutzer vorgegebenen Objektname-Begriff passen.
+
+**Nicht verwenden, wenn.** Verwenden Sie es nicht für erweiterte Modellanalyse oder Alias-/UID-Suche über viele Kriterien. Nutzen Sie `ModelObjectInfoTool` oder `DataSheetReadTool` für umfassendere Abfragen.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `result_columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Steuert, welche Attribute aus `exface.Core.OBJECT` in der Ergebnistabelle enthalten sind. Unbekannte Spaltennamen werden ignoriert. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `object_name` | Ja | Filterbegriff für `exface.Core.OBJECT.NAME` (Contains-ähnlicher Vergleich). |
+
+**Verwendung.** Übergeben Sie ein String-Argument mit dem Objektname-Begriff. Das Tool setzt einen DataSheet-Filter auf `NAME` und liest bis zu 100 Zeilen. Optional können Sie über `result_columns` in UXON die sichtbaren Attribute anpassen.
+
+**Ergebnis und Grenzen.** Das Tool gibt eine Markdown-Tabelle zurück. Unterstützte Spalten sind `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT` und `SHORT_DESCRIPTION`. Leere Treffer werden als Warnhinweis zurückgegeben.
 
 ## `DataSheetImportTool`
 

@@ -17,6 +17,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Create or completely replace a file | `FileWriteTool` |
 | Run a tightly controlled local command | `CommandLineTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
+| Find objects by object name | `ObjectSearchTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Understand the menu and screens of an app | `UiOverviewTool` |
@@ -239,6 +240,28 @@ replacement text
 **How to use.** The model passes one DataSheet UXON object containing `object_alias`, selected `columns`, and optional `filters`, `sorters`, `aggregators`, `rows_limit`, and `rows_offset`. Agent instructions should require a reasonable row limit for objects that may contain many records.
 
 **Result and limits.** The result contains JSON-formatted rows and metadata in Markdown. Normal ExFace object permissions and DataSheet read restrictions apply. Invalid object aliases, expressions, or filters produce errors.
+
+## `ObjectSearchTool`
+
+**Alias:** `axenox.GenAI.ObjectSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CObjectSearchTool)
+
+**Purpose.** Performs a simple DataSheet read on `exface.Core.OBJECT` filtered by object `NAME`.
+
+**Use when.** The agent needs a compact list of objects matching a user-provided object name term.
+
+**Do not use when.** Do not use it for advanced model analysis or alias/UID lookup across many criteria. Use `ModelObjectInfoTool` or `DataSheetReadTool` for richer or broader queries.
+
+| UXON property | Default | Description |
+| --- | --- | --- |
+| `result_columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which `exface.Core.OBJECT` attributes are included in the result table. Unknown column names are ignored. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `object_name` | Yes | Filter term for `exface.Core.OBJECT.NAME` (contains-style match). |
+
+**How to use.** Pass one string argument with the object name term. The tool applies a DataSheet filter on `NAME` and reads up to 100 rows. Optionally configure `result_columns` in UXON to tailor visible attributes.
+
+**Result and limits.** The tool returns a Markdown table. Supported columns are `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT`, and `SHORT_DESCRIPTION`. Empty matches are returned as a warning-style message.
 
 ## `DataSheetImportTool`
 
