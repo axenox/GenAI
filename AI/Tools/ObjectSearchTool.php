@@ -46,27 +46,27 @@ class ObjectSearchTool extends AbstractAiTool
     ];
 
     /**
-     * Available result columns and their meaning.
+     * Available result columns.
      */
     private const AVAILABLE_RESULT_COLUMNS = [
-        'UID' => 'Technical object UID.',
-        'ALIAS_WITH_NS' => 'Object alias including namespace.',
-        'HAS_DEFAULT_EDITOR' => 'Flag indicating if an editor is configured.',
-        'INHERIT_DATA_SOURCE_BASE_OBJECT' => 'Flag indicating data source inheritance from base object.',
-        'NAME' => 'Human-readable object name.',
-        'DOCS' => 'Object documentation text.',
-        'COMMENTS' => 'Internal comments.',
-        'READABLE_FLAG' => 'Flag indicating whether object is readable.',
-        'WRITABLE_FLAG' => 'Flag indicating whether object is writable.',
-        'ALIAS' => 'Object alias without namespace.',
-        'APP' => 'Owning app alias.',
-        'DATA_ADDRESS' => 'Data address string.',
-        'DATA_ADDRESS_PROPS' => 'Data source settings.',
-        'DATA_SOURCE' => 'Configured data source reference.',
-        'DEFAULT_EDITOR_UXON' => 'Default editor UXON configuration.',
-        'LABEL' => 'Display label of the object.',
-        'PARENT_OBJECT' => 'Parent object reference.',
-        'SHORT_DESCRIPTION' => 'Short object description.'
+        'UID',
+        'ALIAS_WITH_NS',
+        'HAS_DEFAULT_EDITOR',
+        'INHERIT_DATA_SOURCE_BASE_OBJECT',
+        'NAME',
+        'DOCS',
+        'COMMENTS',
+        'READABLE_FLAG',
+        'WRITABLE_FLAG',
+        'ALIAS',
+        'APP',
+        'DATA_ADDRESS',
+        'DATA_ADDRESS_PROPS',
+        'DATA_SOURCE',
+        'DEFAULT_EDITOR_UXON',
+        'LABEL',
+        'PARENT_OBJECT',
+        'SHORT_DESCRIPTION'
     ];
 
     /**
@@ -104,17 +104,12 @@ class ObjectSearchTool extends AbstractAiTool
         }
 
         $table = MarkdownDataType::buildMarkdownTableFromArray($rows, $resultColumns);
-        $columnDescriptions = $this->buildColumnDescriptionsMarkdown($resultColumns);
         $result = <<<MD
 # Object search result
 
 Filter: `NAME IS "{$objectName}"`
 
 {$table}
-
-    ## Column descriptions
-
-    {$columnDescriptions}
 MD;
 
         return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
@@ -170,7 +165,7 @@ MD;
                 continue;
             }
             $column = mb_strtoupper($column);
-            if (array_key_exists($column, self::AVAILABLE_RESULT_COLUMNS)) {
+            if (in_array($column, self::AVAILABLE_RESULT_COLUMNS, true)) {
                 $sanitized[$column] = $column;
             }
         }
@@ -188,20 +183,6 @@ MD;
     protected function getResultColumns(): array
     {
         return $this->resultColumns;
-    }
-
-    /**
-     * @param string[] $columns
-     * @return string
-     */
-    protected function buildColumnDescriptionsMarkdown(array $columns): string
-    {
-        $lines = [];
-        foreach ($columns as $column) {
-            $description = self::AVAILABLE_RESULT_COLUMNS[$column] ?? 'No description available.';
-            $lines[] = '- `' . $column . '` - ' . $description;
-        }
-        return implode("\n", $lines);
     }
 
     /**

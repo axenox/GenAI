@@ -253,7 +253,7 @@ replacement text
 
 | UXON property | Default | Description |
 | --- | --- | --- |
-| `result_columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which `exface.Core.OBJECT` attributes are included in the result table and in the generated column descriptions. Unknown column names are ignored. |
+| `result_columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which `exface.Core.OBJECT` attributes are included in the result table. Unknown column names are ignored. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
@@ -261,7 +261,7 @@ replacement text
 
 **How to use.** Pass one string argument with the object name term. The tool applies a DataSheet filter on `NAME` and reads up to 100 rows. Optionally configure `result_columns` in UXON to tailor visible attributes.
 
-**Result and limits.** The tool returns a Markdown table plus a compact list of descriptions for the selected columns. Supported columns are `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT`, and `SHORT_DESCRIPTION`. Empty matches are returned as a warning-style message.
+**Result and limits.** The tool returns a Markdown table. Supported columns are `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT`, and `SHORT_DESCRIPTION`. Empty matches are returned as a warning-style message.
 
 ## `DataSheetImportTool`
 
