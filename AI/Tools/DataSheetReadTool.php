@@ -213,8 +213,14 @@ class DataSheetReadTool extends AbstractAiTool
 {
     public const ARG_DATA_SHEET = 'data_sheet';
 
+    const OUTPUT_MARKDOWN_TABLE = 'markdown_table';
+    const OUTPUT_JSON = 'json';
+    const OUTPUT_MARKDOWN = 'markdown';
+    
     private const DEFAULT_LIMIT = 100;
     private const MAX_LIMIT = 1000;
+    
+    private $outputMode = 'markdown_table';
 
     /**
      * {@inheritDoc}
@@ -257,12 +263,33 @@ class DataSheetReadTool extends AbstractAiTool
         return new AiToolResultString(
             $this, 
             $arguments,
-            $this->toMarkdown($dataSheet),
+            $this->renderOutput($dataSheet),
             $this->getReturnDataType()
         );
     }
     
-    protected function toMarkdown(DataSheetInterface $dataSheet) : string
+    protected function renderOutput(DataSheetInterface $dataSheet) : string
+    {
+        switch ($this->outputMode) {
+            case self::OUTPUT_JSON:
+                return $dataSheet->exportUxonObject()->toJson(true);
+            case self::OUTPUT_MARKDOWN_TABLE:
+                return $this->toMarkdownTable($dataSheet);
+            case self::OUTPUT_MARKDOWN:
+                return $this->toMarkdown($dataSheet);
+        }
+        // TODO throw error here because of unknown output mode
+        return '';
+    }
+    
+    protected function toMarkdown(DataSheetInterface $dataSheet) : MarkdownDataType
+    {
+        // TODO print values from selected columns (add a UXON property to specify, which columns to print)
+        // TODO what if we have multiple rows? Maybe headings per row?
+        return '';
+    }
+    
+    protected function toMarkdownTable(DataSheetInterface $dataSheet) : string
     {
         $colNames = [];
         foreach ($dataSheet->getColumns() as $column) {
