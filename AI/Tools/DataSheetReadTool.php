@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
@@ -213,14 +214,38 @@ class DataSheetReadTool extends AbstractAiTool
 {
     public const ARG_DATA_SHEET = 'data_sheet';
 
-    const OUTPUT_MARKDOWN_TABLE = 'markdown_table';
-    const OUTPUT_JSON = 'json';
-    const OUTPUT_MARKDOWN = 'markdown';
+    public const OUTPUT_MARKDOWN_TABLE = 'markdown_table';
+    public const OUTPUT_JSON = 'json';
+    public const OUTPUT_MARKDOWN = 'markdown';
     
     private const DEFAULT_LIMIT = 100;
     private const MAX_LIMIT = 1000;
     
-    private $outputMode = 'markdown_table';
+    private $outputMode = self::OUTPUT_MARKDOWN_TABLE;
+
+    /**
+     * @uxon-property output_mode
+     * @uxon-type [markdown_table, markdown, json]
+     * @uxon-default markdown_table
+     *
+     * @param string $mode
+     * @return $this
+     */
+    protected function setOutputMode(string $mode)
+    {
+        $allowedModes = [
+            self::OUTPUT_MARKDOWN_TABLE,
+            self::OUTPUT_MARKDOWN,
+            self::OUTPUT_JSON
+        ];
+
+        if (!in_array($mode, $allowedModes, true)) {
+            throw new \InvalidArgumentException('Invalid output_mode "' . $mode . '" for DataSheetReadTool. Allowed values: ' . implode(', ', $allowedModes));
+        }
+
+        $this->outputMode = $mode;
+        return $this;
+    }
 
     /**
      * {@inheritDoc}
@@ -260,12 +285,22 @@ class DataSheetReadTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'Unexpected error reading data: ' . $e->getMessage(), null, $e);
         }
 
-        return new AiToolResultString(
-            $this, 
+        $result = new AiToolResultString(
+            $this,
             $arguments,
             $this->renderOutput($dataSheet),
             $this->getReturnDataType()
         );
+
+        if (empty($dataSheet->getRows())) {
+            $result->addException(new AiToolRuntimeWarning(
+                $this,
+                $prompt,
+                'No rows found for DataSheet query on object ' . $dataSheet->getMetaObject()->__toString() . '.'
+            ));
+        }
+
+        return $result;
     }
     
     protected function renderOutput(DataSheetInterface $dataSheet) : string
@@ -277,16 +312,80 @@ class DataSheetReadTool extends AbstractAiTool
                 return $this->toMarkdownTable($dataSheet);
             case self::OUTPUT_MARKDOWN:
                 return $this->toMarkdown($dataSheet);
+            default:
+                throw new \InvalidArgumentException('Unsupported output mode "' . $this->outputMode . '" for DataSheetReadTool.');
         }
-        // TODO throw error here because of unknown output mode
-        return '';
     }
     
-    protected function toMarkdown(DataSheetInterface $dataSheet) : MarkdownDataType
+    protected function toMarkdown(DataSheetInterface $dataSheet) : string
     {
-        // TODO print values from selected columns (add a UXON property to specify, which columns to print)
-        // TODO what if we have multiple rows? Maybe headings per row?
-        return '';
+        $rows = $dataSheet->getRows();
+        $columns = [];
+        foreach ($dataSheet->getColumns() as $column) {
+            $columns[] = $column->getExpressionObj()->__toString();
+        }
+
+        if (empty($rows)) {
+            return <<<MD
+## Data
+
+Read data of object {$dataSheet->getMetaObject()->__toString()}.
+
+No rows found.
+MD;
+        }
+
+        $header = <<<MD
+## Data
+
+Read data of object {$dataSheet->getMetaObject()->__toString()}.
+MD;
+
+        if (count($rows) === 1) {
+            $lines = [$header, ''];
+            foreach ($columns as $columnName) {
+                $value = $rows[0][$columnName] ?? null;
+                $lines[] = '- **' . $columnName . '**: ' . $this->formatMarkdownValue($value);
+            }
+            return implode("\n", $lines);
+        }
+
+        $sections = [$header, ''];
+        foreach ($rows as $index => $row) {
+            $sections[] = '### Record ' . ($index + 1);
+            foreach ($columns as $columnName) {
+                $value = $row[$columnName] ?? null;
+                $sections[] = '- **' . $columnName . '**: ' . $this->formatMarkdownValue($value);
+            }
+            $sections[] = '';
+        }
+
+        return implode("\n", $sections);
+    }
+
+    protected function formatMarkdownValue($value) : string
+    {
+        if ($value === null) {
+            return 'null';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_array($value)) {
+            return implode(', ', array_map([$this, 'formatMarkdownValue'], $value));
+        }
+
+        if (is_object($value) && method_exists($value, '__toString')) {
+            return (string) $value;
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?? 'null';
     }
     
     protected function toMarkdownTable(DataSheetInterface $dataSheet) : string

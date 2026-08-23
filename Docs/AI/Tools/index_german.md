@@ -240,6 +240,8 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Ergebnis enthält JSON-formatierte Zeilen und Metadaten in Markdown. Es gelten die üblichen ExFace-Objektberechtigungen und DataSheet-Lesebeschränkungen. Ungültige Objektaliasse, Ausdrücke oder Filter führen zu Fehlern.
 
+**Ausgabemodi.** Das Tool unterstützt drei Renderings: `markdown_table` (Standard), `markdown` und `json`. `markdown_table` eignet sich am besten für Mehrzeilergebnisse. `markdown` wechselt auf eine Datensatz-für-Datensatz-Zusammenfassung für leere, einzeilige oder breite Ergebnisse, wenn eine kompakte Tabelle keine klare Darstellung mehr ist.
+
 ## `DataSheetImportTool`
 
 **Alias:** `axenox.GenAI.DataSheetImportTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CDataSheetImportTool)
