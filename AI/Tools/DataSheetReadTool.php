@@ -367,16 +367,18 @@ class DataSheetReadTool extends AbstractAiTool
     
     protected function renderOutput(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
+        $output = 'Read data of object ' . $dataSheet->getMetaObject()->__toString();
+
         try {
             switch ($this->outputMode) {
                 case self::OUTPUT_JSON:
-                    $output = $dataSheet->exportUxonObject()->toJson(true);
+                    $rendered = $dataSheet->exportUxonObject()->toJson(true);
                     break;
                 case self::OUTPUT_MARKDOWN_TABLE:
-                    $output = $this->toMarkdownTable($dataSheet, $prompt);
+                    $rendered = $this->toMarkdownTable($dataSheet, $prompt);
                     break;
                 case self::OUTPUT_MARKDOWN:
-                    $output = $this->toMarkdown($dataSheet, $prompt);
+                    $rendered = $this->toMarkdown($dataSheet, $prompt);
                     break;
                 default:
                     $this->warnings[] = new AiToolRuntimeWarning(
@@ -384,7 +386,7 @@ class DataSheetReadTool extends AbstractAiTool
                         $prompt,
                         'Unsupported output mode "' . $this->outputMode . '" for DataSheetReadTool. Falling back to markdown_table.'
                     );
-                    $output = $this->toMarkdownTable($dataSheet, $prompt);
+                    $rendered = $this->toMarkdownTable($dataSheet, $prompt);
                     break;
             }
         } catch (\Throwable $e) {
@@ -396,7 +398,11 @@ class DataSheetReadTool extends AbstractAiTool
                 $e
             );
             $this->warnings[] = $warning;
-            $output = $this->toMarkdownTable($dataSheet, $prompt);
+            $rendered = $this->toMarkdownTable($dataSheet, $prompt);
+        }
+
+        if (trim((string) $rendered) !== '') {
+            $output .= "\n\n" . $rendered;
         }
 
         if ($this->isObjectDescriptionEnabled()) {
