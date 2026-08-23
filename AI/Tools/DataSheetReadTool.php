@@ -222,6 +222,9 @@ class DataSheetReadTool extends AbstractAiTool
     private const MAX_LIMIT = 1000;
     
     private $outputMode = self::OUTPUT_MARKDOWN_TABLE;
+    private $headerLevel = 2;
+    private $includeObjectDescription = null;
+    private array $warnings = [];
 
     /**
      * @uxon-property output_mode
@@ -246,6 +249,49 @@ class DataSheetReadTool extends AbstractAiTool
         $this->outputMode = $mode;
         return $this;
     }
+
+    /**
+     * @uxon-property header_level
+     * @uxon-type integer
+     * @uxon-default 2
+     *
+     * @param int $level
+     * @return $this
+     */
+    protected function setHeaderLevel(int $level)
+    {
+        if ($level < 1 || $level > 6) {
+            $this->warnings[] = 'Invalid header_level "' . $level . '" for DataSheetReadTool. Falling back to default level 2.';
+            $level = 2;
+        }
+
+        $this->headerLevel = $level;
+        return $this;
+    }
+
+    /**
+     * @uxon-property include_object_description
+     * @uxon-type boolean
+     * @uxon-default true for markdown_table, false otherwise
+     *
+     * @param bool $includeObjectDescription
+     * @return $this
+     */
+    protected function setIncludeObjectDescription(bool $includeObjectDescription)
+    {
+        $this->includeObjectDescription = $includeObjectDescription;
+        return $this;
+    }
+
+    protected function isObjectDescriptionEnabled() : bool
+    {
+        if ($this->includeObjectDescription !== null) {
+            return $this->includeObjectDescription;
+        }
+
+        return $this->outputMode === self::OUTPUT_MARKDOWN_TABLE;
+    }
+
 
     /**
      * {@inheritDoc}
@@ -285,39 +331,85 @@ class DataSheetReadTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'Unexpected error reading data: ' . $e->getMessage(), null, $e);
         }
 
+        $this->warnings = [];
+
+        $rendered = $this->renderOutput($dataSheet, $prompt);
+
         $result = new AiToolResultString(
             $this,
-            $arguments,
-            $this->renderOutput($dataSheet),
+            [$dataSheet->exportUxonObject()->toArray()],
+            $rendered,
             $this->getReturnDataType()
         );
 
+        foreach ($this->warnings as $warning) {
+            if ($warning instanceof \Throwable) {
+                $result->addException($warning);
+            } else {
+                $result->addException(new AiToolRuntimeWarning($this, $prompt, (string)$warning));
+            }
+        }
+
         if (empty($dataSheet->getRows())) {
-            $result->addException(new AiToolRuntimeWarning(
+            $warning = new AiToolRuntimeWarning(
                 $this,
                 $prompt,
                 'No rows found for DataSheet query on object ' . $dataSheet->getMetaObject()->__toString() . '.'
-            ));
+            );
+            $this->warnings[] = $warning;
+            $result->addException($warning);
         }
+
+        $this->warnings = [];
 
         return $result;
     }
     
-    protected function renderOutput(DataSheetInterface $dataSheet) : string
+    protected function renderOutput(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
-        switch ($this->outputMode) {
-            case self::OUTPUT_JSON:
-                return $dataSheet->exportUxonObject()->toJson(true);
-            case self::OUTPUT_MARKDOWN_TABLE:
-                return $this->toMarkdownTable($dataSheet);
-            case self::OUTPUT_MARKDOWN:
-                return $this->toMarkdown($dataSheet);
-            default:
-                throw new \InvalidArgumentException('Unsupported output mode "' . $this->outputMode . '" for DataSheetReadTool.');
+        try {
+            switch ($this->outputMode) {
+                case self::OUTPUT_JSON:
+                    $output = $dataSheet->exportUxonObject()->toJson(true);
+                    break;
+                case self::OUTPUT_MARKDOWN_TABLE:
+                    $output = $this->toMarkdownTable($dataSheet, $prompt);
+                    break;
+                case self::OUTPUT_MARKDOWN:
+                    $output = $this->toMarkdown($dataSheet, $prompt);
+                    break;
+                default:
+                    $this->warnings[] = new AiToolRuntimeWarning(
+                        $this,
+                        $prompt,
+                        'Unsupported output mode "' . $this->outputMode . '" for DataSheetReadTool. Falling back to markdown_table.'
+                    );
+                    $output = $this->toMarkdownTable($dataSheet, $prompt);
+                    break;
+            }
+        } catch (\Throwable $e) {
+            $warning = new AiToolRuntimeWarning(
+                $this,
+                $prompt,
+                'Failed to render markdown output for DataSheetReadTool. ' . $e->getMessage(),
+                null,
+                $e
+            );
+            $this->warnings[] = $warning;
+            $output = $this->toMarkdownTable($dataSheet, $prompt);
         }
+
+        if ($this->isObjectDescriptionEnabled()) {
+            $infoObject = $this->getInfoObjectMarkdown($dataSheet, null, $prompt);
+            if ($infoObject !== '') {
+                $output .= "\n\n" . $infoObject;
+            }
+        }
+
+        return $output;
     }
     
-    protected function toMarkdown(DataSheetInterface $dataSheet) : string
+    protected function toMarkdown(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
         $rows = $dataSheet->getRows();
         $columns = [];
@@ -335,14 +427,11 @@ No rows found.
 MD;
         }
 
-        $header = <<<MD
-## Data
-
-Read data of object {$dataSheet->getMetaObject()->__toString()}.
-MD;
+        $header = MarkdownDataType::buildMarkdownHeader('Data', $this->headerLevel);
 
         if (count($rows) === 1) {
-            $lines = [$header, ''];
+            $lines = [$header];
+            $lines[] = '';
             foreach ($columns as $columnName) {
                 $value = $rows[0][$columnName] ?? null;
                 $lines[] = '- **' . $columnName . '**: ' . $this->formatMarkdownValue($value);
@@ -350,13 +439,16 @@ MD;
             return implode("\n", $lines);
         }
 
-        $sections = [$header, ''];
+        $sections = [$header];
+        $sections[] = '';
+
+        $entryLevel = min(6, max(2, $this->headerLevel + 1));
         foreach ($rows as $index => $row) {
             $title = $this->getMarkdownRowTitle($row, $columns);
             if ($title === null || trim($title) === '') {
                 $title = 'Entry ' . ($index + 1);
             }
-            $sections[] = '### ' . $title;
+            $sections[] = MarkdownDataType::buildMarkdownHeader($title, $entryLevel);
             foreach ($columns as $columnName) {
                 $value = $row[$columnName] ?? null;
                 $sections[] = '- **' . $columnName . '**: ' . $this->formatMarkdownValue($value);
@@ -386,6 +478,35 @@ MD;
         return null;
     }
 
+    protected function getInfoObjectMarkdown(DataSheetInterface $dataSheet, ?string $filters = null, ?AiPromptInterface $prompt = null) : string
+    {
+        if (! $this->isObjectDescriptionEnabled()) {
+            return '';
+        }
+
+        $baseText = 'Read data of object ' . $dataSheet->getMetaObject()->__toString();
+        if ($filters !== null && trim($filters) !== '') {
+            $baseText .= ' ' . $filters;
+        }
+
+        try {
+            $description = (new ObjectMarkdownPrinter($this->getWorkbench(), $dataSheet->getMetaObject()->getId(), 0, 2))->getMarkdown();
+            if (! empty(trim((string) $description))) {
+                return $baseText . "\n\n" . $description;
+            }
+            return $baseText;
+        } catch (\Throwable $e) {
+            $this->warnings[] = new AiToolRuntimeWarning(
+                $this,
+                $prompt,
+                'Failed to render object information for object ' . $dataSheet->getMetaObject()->__toString() . '. ' . $e->getMessage(),
+                null,
+                $e
+            );
+            return '';
+        }
+    }
+
     protected function formatMarkdownValue($value) : string
     {
         if ($value === null) {
@@ -411,7 +532,7 @@ MD;
         return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?? 'null';
     }
     
-    protected function toMarkdownTable(DataSheetInterface $dataSheet) : string
+    protected function toMarkdownTable(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
         $colNames = [];
         foreach ($dataSheet->getColumns() as $column) {
@@ -423,16 +544,11 @@ MD;
         } else {
             $filters = 'filtered by `' . $dataSheet->getFilters()->__toString() . '`';
         }
-        $description = (new ObjectMarkdownPrinter($this->getWorkbench(), $dataSheet->getMetaObject()->getId(), 0, 2))->getMarkdown();
-        return <<<MD
-## Data
-
-Read data of object {$dataSheet->getMetaObject()->__toString()} {$filters}
-
-{$table}
-
-{$description}
-MD;
+        $header = MarkdownDataType::buildMarkdownHeader('Data', $this->headerLevel);
+        $parts = [$header];
+        $parts[] = '';
+        $parts[] = $table;
+        return implode("\n", $parts);
 
     }
 
