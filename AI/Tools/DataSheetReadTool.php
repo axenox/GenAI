@@ -352,7 +352,11 @@ MD;
 
         $sections = [$header, ''];
         foreach ($rows as $index => $row) {
-            $sections[] = '### Record ' . ($index + 1);
+            $title = $this->getMarkdownRowTitle($row, $columns);
+            if ($title === null || trim($title) === '') {
+                $title = 'Entry ' . ($index + 1);
+            }
+            $sections[] = '### ' . $title;
             foreach ($columns as $columnName) {
                 $value = $row[$columnName] ?? null;
                 $sections[] = '- **' . $columnName . '**: ' . $this->formatMarkdownValue($value);
@@ -361,6 +365,25 @@ MD;
         }
 
         return implode("\n", $sections);
+    }
+
+    protected function getMarkdownRowTitle(array $row, array $columns) : ?string
+    {
+        foreach ($columns as $columnName) {
+            $value = $row[$columnName] ?? null;
+            if ($value === null) {
+                continue;
+            }
+
+            $formatted = $this->formatMarkdownValue($value);
+            if ($formatted === 'null' || trim($formatted) === '') {
+                continue;
+            }
+
+            return trim((string) $formatted);
+        }
+
+        return null;
     }
 
     protected function formatMarkdownValue($value) : string
