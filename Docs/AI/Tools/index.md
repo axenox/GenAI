@@ -240,7 +240,19 @@ replacement text
 
 **Result and limits.** The result contains JSON-formatted rows and metadata in Markdown. Normal ExFace object permissions and DataSheet read restrictions apply. Invalid object aliases, expressions, or filters produce errors.
 
+**Configuration.** The tool exposes three UXON properties that control formatting and context:
+
+| UXON property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `output_mode` | enum | `markdown_table` | One of `markdown_table`, `markdown`, or `json`. |
+| `header_level` | integer | `2` | Markdown heading level used for section headers, allowed range 1-6. Invalid values trigger a warning and fall back to `2`. |
+| `include_object_description` | boolean | `true` for `markdown_table`, else `false` | Adds a short object description block after the rendered data if available. |
+
 **Output modes.** The tool supports three renderings: `markdown_table` (default), `markdown`, and `json`. `markdown_table` is best for multi-row result sets. `markdown` switches to a record-by-record summary for empty, single-row, or wide results, where a compact table is not the clearest representation.
+
+**Return value.** The tool returns a string result created by `renderOutput()`. The final output always starts with a brief sentence such as `Read data of object ...`, followed by the selected payload (`markdown_table`, `markdown`, or `json`), and then optionally appends the object description block if enabled.
+
+**Warnings and recoverable issues.** Unsupported or invalid configuration values are treated as warnings rather than fatal errors. The tool falls back to the safe default and keeps the response running. Empty result sets also produce a warning, while failed object-description rendering is swallowed and logged as a warning without breaking the tool result.
 
 ## `DataSheetImportTool`
 

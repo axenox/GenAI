@@ -365,6 +365,18 @@ class DataSheetReadTool extends AbstractAiTool
         return $result;
     }
     
+    /**
+     * Render the current data sheet in the configured output mode and return the final
+     * tool output string.
+     *
+     * The returned value always starts with a short sentence describing the object, then
+     * adds the rendered payload (JSON, markdown table or plain markdown), and optionally
+     * appends a more detailed object description block if enabled.
+     *
+     * @param DataSheetInterface $dataSheet
+     * @param AiPromptInterface|null $prompt
+     * @return string Final text for the tool result. Never returns null.
+     */
     protected function renderOutput(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
         $output = 'Read data of object ' . $dataSheet->getMetaObject()->__toString();
@@ -415,6 +427,17 @@ class DataSheetReadTool extends AbstractAiTool
         return $output;
     }
     
+    /**
+     * Create a plain markdown representation of the data sheet.
+     *
+     * Returns a markdown document with a heading and either a single-item bullet list or
+     * one section per row. The method is intended for human-readable output and returns
+     * the markdown text only; it does not attach warnings or modify the tool result.
+     *
+     * @param DataSheetInterface $dataSheet
+     * @param AiPromptInterface|null $prompt
+     * @return string Markdown text generated from the data sheet rows.
+     */
     protected function toMarkdown(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
         $rows = $dataSheet->getRows();
@@ -465,6 +488,17 @@ MD;
         return implode("\n", $sections);
     }
 
+    /**
+     * Determine a readable title for a markdown row section.
+     *
+     * The first non-empty, non-null value from the row is used as a display title. If no
+     * meaningful value exists, the method returns null and the caller can fall back to a
+     * generic entry label such as "Entry 1".
+     *
+     * @param array $row
+     * @param array $columns
+     * @return string|null Human readable row title or null if no useful value was found.
+     */
     protected function getMarkdownRowTitle(array $row, array $columns) : ?string
     {
         foreach ($columns as $columnName) {
@@ -484,6 +518,18 @@ MD;
         return null;
     }
 
+    /**
+     * Try to fetch a markdown description for the meta object behind the data sheet.
+     *
+     * This method is optional and can be disabled via configuration. When available, it
+     * returns a markdown block describing the object; otherwise it returns an empty string.
+     * Recoverable failures are captured as warnings and do not break the tool response.
+     *
+     * @param DataSheetInterface $dataSheet
+     * @param string|null $filters
+     * @param AiPromptInterface|null $prompt
+     * @return string Object description markdown or an empty string if unavailable.
+     */
     protected function getInfoObjectMarkdown(DataSheetInterface $dataSheet, ?string $filters = null, ?AiPromptInterface $prompt = null) : string
     {
         if (! $this->isObjectDescriptionEnabled()) {
@@ -513,6 +559,16 @@ MD;
         }
     }
 
+    /**
+     * Normalize a scalar, array or object value into a markdown-safe string.
+     *
+     * This is used for table and list output so values can be inserted into markdown without
+     * causing formatting issues. The method always returns a string; null values are rendered
+     * as "null".
+     *
+     * @param mixed $value
+     * @return string String representation safe to embed in markdown output.
+     */
     protected function formatMarkdownValue($value) : string
     {
         if ($value === null) {
@@ -538,6 +594,17 @@ MD;
         return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?? 'null';
     }
     
+    /**
+     * Create a markdown table from the data sheet rows.
+     *
+     * Returns a markdown header plus a table body generated from the selected columns. This
+     * is the default output mode for the tool and is intended to produce compact, LLM-friendly
+     * data output.
+     *
+     * @param DataSheetInterface $dataSheet
+     * @param AiPromptInterface|null $prompt
+     * @return string Markdown table string with a heading section.
+     */
     protected function toMarkdownTable(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
     {
         $colNames = [];
