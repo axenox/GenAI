@@ -17,7 +17,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Create or completely replace a file | `FileWriteTool` |
 | Run a tightly controlled local command | `CommandLineTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
-| Find objects by object name | `ObjectSearchTool` |
+| Find objects by object name | `ModelObjectSearchTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Understand the menu and screens of an app | `UiOverviewTool` |
@@ -241,9 +241,9 @@ replacement text
 
 **Result and limits.** The result contains JSON-formatted rows and metadata in Markdown. Normal ExFace object permissions and DataSheet read restrictions apply. Invalid object aliases, expressions, or filters produce errors.
 
-## `ObjectSearchTool`
+## `ModelObjectSearchTool`
 
-**Alias:** `axenox.GenAI.ObjectSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CObjectSearchTool)
+**Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
 
 **Purpose.** Performs a simple DataSheet read on `exface.Core.OBJECT` filtered by object `NAME`.
 

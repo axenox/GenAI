@@ -22,7 +22,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * This is a lightweight helper to find objects by their `NAME` value using
  * a DataSheet filter and return a compact markdown table.
  */
-class ObjectSearchTool extends AbstractAiTool
+class ModelObjectSearchTool extends AbstractAiTool
 {
     public const ARG_OBJECT_NAME = 'object_name';
 
@@ -154,9 +154,9 @@ MD;
      * @uxon-template ["UID","NAME","ALIAS_WITH_NS","APP","DATA_SOURCE"]
      *
      * @param string[] $columns
-     * @return ObjectSearchTool
+     * @return ModelObjectSearchTool
      */
-    protected function setResultColumns(array $columns): ObjectSearchTool
+    protected function setResultColumns(array $columns): ModelObjectSearchTool
     {
         $sanitized = [];
         foreach ($columns as $column) {

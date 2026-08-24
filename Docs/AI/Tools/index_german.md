@@ -17,7 +17,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
-| Objekte nach Objektname finden | `ObjectSearchTool` |
+| Objekte nach Objektname finden | `ModelObjectSearchTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -241,9 +241,9 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Ergebnis enthält JSON-formatierte Zeilen und Metadaten in Markdown. Es gelten die üblichen ExFace-Objektberechtigungen und DataSheet-Lesebeschränkungen. Ungültige Objektaliasse, Ausdrücke oder Filter führen zu Fehlern.
 
-## `ObjectSearchTool`
+## `ModelObjectSearchTool`
 
-**Alias:** `axenox.GenAI.ObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CObjectSearchTool)
+**Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
 
 **Zweck.** Führt ein einfaches DataSheet-Read auf `exface.Core.OBJECT` aus, gefiltert nach dem Objekt-`NAME`.
 
