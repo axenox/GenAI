@@ -250,14 +250,120 @@ replacement text
 
 | UXON-Eigenschaft | Beschreibung |
 | --- | --- |
-| `save_as` | Definiert ein zulässiges Ziel-DataSheet-Schema. |
-| `data_schemas` | Definiert mehrere zulässige Zielschemata. Jedes Schema kann ein Objekt, Spalten und Sub-Sheets angeben. |
+| `save_as` | Definiert standardmäßig genau ein zulässiges Ziel-DataSheet-Schema. Es kann alternativ auch als Array mehrerer Schemata konfiguriert werden. |
 
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `data_sheet` | Ja | Ein DataSheet-UXON-Objekt oder ein Array aus DataSheet-Objekten. |
 
-**Verwendung.** Konfigurieren Sie entweder `save_as` für ein einzelnes Zielschema oder `data_schemas` für mehrere zulässige Schemata. Beschränken Sie jedes Schema auf genau die Objekte, Spalten und Sub-Sheets, die der Agent ändern darf. Das Modell übergibt anschließend ein passendes DataSheet-Objekt oder ein Array von Objekten.
+**Konfiguration.** `save_as` steht im Standardfall für genau ein Zielschema. Wenn mehrere zulässige Zielstrukturen erlaubt sein sollen, kann `save_as` als Array von Schemata angegeben werden. Jedes Schema begrenzt, welche Objekte, Spalten und Sub-Sheets zulässig sind. Die KI erzeugt anschließend ein passendes DataSheet-Objekt oder ein Array von Objekten.
+
+**Einfach erklärt.** Dieses Tool erwartet eine DataSheet-Nutzlast. Die KI erzeugt diese Nutzlast. Das Tool übergibt sie anschließend an den normalen DataSheet-Speichervorgang des gewünschten oder vorgegebenen Objekts.
+
+Wenn `save_as` gesetzt ist, gibt Power UI der KI eine genaue Vorlage vor. Diese Vorlage ist nicht nur eine Hilfe, sondern eine klare Zielstruktur, an die sich die KI halten muss.
+
+Wenn `save_as` nicht gesetzt ist, besteht mehr Freiheit. Dann muss die KI selbst angeben, für welches Objekt die DataSheet-Nutzlast bestimmt ist. Dazu wird `object_alias` direkt im JSON gesetzt.
+
+Der eigentliche Inhalt heißt immer `data_sheet`. Darin stehen vor allem zwei Dinge:
+
+- `object_alias`: In welches ExFace-Objekt gespeichert werden soll.
+- `rows`: Die eigentlichen Datensätze. Jede Zeile in `rows` ist ein Datensatz, also zum Beispiel ein Benutzer.
+
+**Die beiden Varianten im Vergleich.** Die folgenden Beispiele verwenden das Objekt `exface.Core.USER` und zeigen, wie die KI `data_sheet` in beiden Fällen ausfüllen würde.
+
+Beispielkonfiguration mit `save_as`:
+
+```json
+{
+  "tools": {
+    "import_user_with_save_as": {
+      "alias": "axenox.GenAI.DataSheetImportTool",
+      "description": "Erstellt einen Benutzer mit fest vorgegebenem Zielschema.",
+      "save_as": {
+        "object_alias": "exface.Core.USER"
+      }
+    }
+  }
+}
+```
+
+Beispielkonfiguration ohne `save_as`:
+
+```json
+{
+  "tools": {
+    "import_user_with_object_alias": {
+      "alias": "axenox.GenAI.DataSheetImportTool",
+      "description": "Erstellt einen Benutzer über eine vollständig übergebene DataSheet-Nutzlast."
+    }
+  }
+}
+```
+
+Beispielinhalt für `import_user_with_save_as(...)` in `data_sheet`:
+
+```json
+{
+  "object_alias": "exface.Core.USER",
+  "rows": [
+    {
+      "LOCALE": "de_DE",
+      "EMAIL": "test.user.saveas@example.com",
+      "COMPANY": "Test Company",
+      "POSITION": "QA Test User",
+      "DISABLE_DATE": "2027-12-31T23:59:59Z",
+      "DISABLED_COMMUNICATION_SETTING": false,
+      "FIRST_NAME": "Test",
+      "LAST_NAME": "SaveAs",
+      "USERNAME": "test.user.saveas"
+    }
+  ]
+}
+```
+
+Beispielinhalt für `import_user_with_object_alias(...)` in `data_sheet`:
+
+```json
+{
+  "object_alias": "exface.Core.USER",
+  "rows": [
+    {
+      "USERNAME": "test.user.objectalias",
+      "EMAIL": "test.user.objectalias@example.com",
+      "FIRST_NAME": "Test",
+      "LAST_NAME": "ObjectAlias",
+      "COMPANY": "Test Company",
+      "POSITION": "QA Test User",
+      "LOCALE": "de_DE",
+      "DISABLED_COMMUNICATION_SETTING": false
+    }
+  ]
+}
+```
+
+**Was damit passiert.** In beiden Fällen enthält `data_sheet` Daten für genau einen Benutzer. Das Tool verarbeitet diese DataSheet-Nutzlast für das angegebene oder vorgegebene Objekt `exface.Core.USER`.
+
+**Was die wichtigsten Teile bedeuten.**
+
+| Teil | Einfache Bedeutung | Beispiel |
+| --- | --- | --- |
+| `object_alias` | Der Name des Zielobjekts. Dort sollen die Daten gespeichert werden. | `exface.Core.USER` |
+| `rows` | Eine Liste von Datensätzen. | `[ {...} ]` |
+| Eine Zeile in `rows` | Ein einzelner Datensatz. Hier also ein Benutzer. | `{ "USERNAME": "test.user.objectalias", ... }` |
+| `USERNAME`, `EMAIL`, `FIRST_NAME` usw. | Die Felder, die gespeichert werden. | `"EMAIL": "test.user.objectalias@example.com"` |
+
+| Tool-Call | Quelle des Zielobjekts | Gespeicherte Felder |
+| --- | --- | --- |
+| `import_user_with_save_as(...)` | Durch `save_as` fest vorgegeben und im Beispiel zur Klarheit zusätzlich in der Nutzlast enthalten | `USERNAME`, `EMAIL`, `FIRST_NAME`, `LAST_NAME`, `COMPANY`, `POSITION`, `LOCALE`, `DISABLE_DATE`, `DISABLED_COMMUNICATION_SETTING` |
+| `import_user_with_object_alias(...)` | Vom Modell in `data_sheet.object_alias` geliefert | `USERNAME`, `EMAIL`, `FIRST_NAME`, `LAST_NAME`, `COMPANY`, `POSITION`, `LOCALE`, `DISABLED_COMMUNICATION_SETTING` |
+| Gemeinsames Speicherverhalten | Regulärer DataSheet-Speichervorgang | ExFace-Validierung, Berechtigungen, Standardwerte und Persistenzregeln bleiben aktiv |
+
+**Der eigentliche Unterschied.** Die beiden JSON-Beispiele sehen fast gleich aus. Der Unterschied liegt nicht im Benutzerdatensatz selbst, sondern darin, wie stark das Modell vorher geführt wird.
+
+- Mit `save_as`: Zielobjekt und Zielstruktur sind vorgegeben. Das Modell soll sich an diese Vorlage halten.
+- Ohne `save_as`: Es besteht mehr Freiheit, und das Zielobjekt muss im JSON selbst angegeben werden.
+
+**Einordnung.** `save_as` wird verwendet, wenn das Zielobjekt und die Zielstruktur klar vorgegeben sind, also wenn bereits bekannt ist, was das Modell befüllen soll. Ohne `save_as` entsteht ein freierer Ablauf. Dann wird das vollständige DataSheet flexibler aufgebaut und das Zielobjekt direkt im JSON angegeben.
 
 **Ergebnis und Grenzen.** Das Tool verwendet den regulären DataSheet-Speichervorgang und gibt die Anzahl importierter Zeilen zurück. ExFace-Autorisierung und -Validierung bleiben aktiv. Ungültige Zeilen werden, sofern die Verarbeitung fortgesetzt werden kann, als Exceptions gemeldet; kritische Fehler brechen den Import ab.
 

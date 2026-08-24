@@ -250,14 +250,120 @@ replacement text
 
 | UXON property | Description |
 | --- | --- |
-| `save_as` | Defines one permitted target DataSheet schema. |
-| `data_schemas` | Defines multiple permitted target schemas. Each schema can specify an object, columns, and subsheets. |
+| `save_as` | Defines one permitted target DataSheet schema by default. It can also be configured as an array of schemas to allow multiple targets. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
 | `data_sheet` | Yes | One DataSheet UXON object or an array of DataSheet objects. |
 
-**How to use.** Configure either `save_as` for one target schema or `data_schemas` for several permitted schemas. Restrict each schema to the exact objects, columns, and subsheets the agent may modify. The model then supplies a matching DataSheet object or array of objects.
+**How to use.** `save_as` defines one target schema in the default single-target mode. If several target shapes should be allowed, `save_as` can be passed as an array of schemas. Each schema limits which objects, columns, and subsheets are allowed. The AI then supplies a matching DataSheet object or array of objects.
+
+**Explained simply.** This tool expects a DataSheet payload. The AI generates that payload. The tool then hands it to the normal DataSheet save flow for the desired or predefined object.
+
+If `save_as` is configured, Power UI gives the AI an exact template. That template is not only a hint. It defines the target structure the AI is expected to follow.
+
+If `save_as` is not configured, there is more freedom. Then the AI must also state which object the DataSheet payload is meant for. It does that through `object_alias` in the JSON itself.
+
+The content is always called `data_sheet`. Inside it, two parts matter most:
+
+- `object_alias`: which ExFace object should receive the data.
+- `rows`: the actual records. Each entry in `rows` is one record, for example one user.
+
+**The two variants compared.** The examples below use the object `exface.Core.USER` and show how the AI would fill `data_sheet` in both cases.
+
+Example tool configuration with `save_as`:
+
+```json
+{
+  "tools": {
+    "import_user_with_save_as": {
+      "alias": "axenox.GenAI.DataSheetImportTool",
+      "description": "Create one user using a fixed target schema.",
+      "save_as": {
+        "object_alias": "exface.Core.USER"
+      }
+    }
+  }
+}
+```
+
+Example tool configuration without `save_as`:
+
+```json
+{
+  "tools": {
+    "import_user_with_object_alias": {
+      "alias": "axenox.GenAI.DataSheetImportTool",
+      "description": "Create one user by passing a complete DataSheet payload."
+    }
+  }
+}
+```
+
+Example content for `import_user_with_save_as(...)` in `data_sheet`:
+
+```json
+{
+  "object_alias": "exface.Core.USER",
+  "rows": [
+    {
+      "LOCALE": "de_DE",
+      "EMAIL": "test.user.saveas@example.com",
+      "COMPANY": "Test Company",
+      "POSITION": "QA Test User",
+      "DISABLE_DATE": "2027-12-31T23:59:59Z",
+      "DISABLED_COMMUNICATION_SETTING": false,
+      "FIRST_NAME": "Test",
+      "LAST_NAME": "SaveAs",
+      "USERNAME": "test.user.saveas"
+    }
+  ]
+}
+```
+
+Example content for `import_user_with_object_alias(...)` in `data_sheet`:
+
+```json
+{
+  "object_alias": "exface.Core.USER",
+  "rows": [
+    {
+      "USERNAME": "test.user.objectalias",
+      "EMAIL": "test.user.objectalias@example.com",
+      "FIRST_NAME": "Test",
+      "LAST_NAME": "ObjectAlias",
+      "COMPANY": "Test Company",
+      "POSITION": "QA Test User",
+      "LOCALE": "de_DE",
+      "DISABLED_COMMUNICATION_SETTING": false
+    }
+  ]
+}
+```
+
+**What happens with this.** In both cases, `data_sheet` contains data for exactly one user. The tool processes that DataSheet payload for the given or predefined object `exface.Core.USER`.
+
+**What the main parts mean.**
+
+| Part | Plain meaning | Example |
+| --- | --- | --- |
+| `object_alias` | The name of the target object. This says where the data should be saved. | `exface.Core.USER` |
+| `rows` | A list of records. | `[ {...} ]` |
+| One entry inside `rows` | One single record. Here it is one user. | `{ "USERNAME": "test.user.objectalias", ... }` |
+| `USERNAME`, `EMAIL`, `FIRST_NAME`, etc. | The fields that will be stored. | `"EMAIL": "test.user.objectalias@example.com"` |
+
+| Tool call | Target object source | Stored fields |
+| --- | --- | --- |
+| `import_user_with_save_as(...)` | Fixed by `save_as` and repeated in the payload example for clarity | `USERNAME`, `EMAIL`, `FIRST_NAME`, `LAST_NAME`, `COMPANY`, `POSITION`, `LOCALE`, `DISABLE_DATE`, `DISABLED_COMMUNICATION_SETTING` |
+| `import_user_with_object_alias(...)` | Provided by the model in `data_sheet.object_alias` | `USERNAME`, `EMAIL`, `FIRST_NAME`, `LAST_NAME`, `COMPANY`, `POSITION`, `LOCALE`, `DISABLED_COMMUNICATION_SETTING` |
+| Common save behavior | Normal DataSheet save operation | ExFace validation, permissions, defaults, and persistence rules still apply |
+
+**The real difference.** The two JSON examples look almost the same. The difference is not the user record itself. The difference is how much guidance the model gets before filling the data.
+
+- With `save_as`: target object and target structure are predefined. The model is expected to follow that template.
+- Without `save_as`: there is more freedom, and the target object must be named in the JSON itself.
+
+**Interpretation.** Use `save_as` when object and structure must be predefined. Omit `save_as` when the model should build the full DataSheet more flexibly.
 
 **Result and limits.** The tool uses the normal DataSheet save operation and returns imported row counts. ExFace authorization and validation remain active. Invalid rows are reported as exceptions where processing can continue; critical failures stop the import.
 

@@ -23,6 +23,17 @@ use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * Save data to the data source by passing a UXON model for a DataSheet
+ *
+ * Usage notes:
+ * - If `save_as` is configured, `getArguments()` exposes a
+ *   generated `json_schema` for `data_sheet` so the LLM sees the target shape.
+ * - Without schema configuration, the tool keeps the generic `data_sheet`
+ *   argument and the LLM must provide the full DataSheet payload itself.
+ * - In `OpenAiToolTester`, write the payload as a JSON string inside the
+ *   function call, e.g. `import_data('{"object_alias":"exface.Core.USER","rows":[...]}')`.
+ *
+ * For end-user examples and tool tester call formats, keep this class in sync
+ * with `Docs/AI/Tools/index.md` and `Docs/AI/Tools/index_german.md`.
  * 
  * @author Brookly Fränzschky, Andrej Kabachnik
  */
@@ -31,8 +42,6 @@ class DataSheetImportTool extends AbstractAiTool
     public const ARG_DATASHEET = 'data_sheet';
 
     private ?UxonObject $saveAsUxon = null;
-
-    private ?UxonObject $dataSchemasUxon = null;
 
     private ?DataSheetSchema $dataSchema = null;
 
@@ -99,7 +108,8 @@ class DataSheetImportTool extends AbstractAiTool
     }
 
     /**
-     * Target object schema used to validate and generate the `data_sheet` argument schema.
+     * One target object schema or an array of target schemas used to validate
+     * and generate the `data_sheet` argument schema.
      *
      * @uxon-property save_as
      * @uxon-type \axenox\GenAI\Common\DataSheetSchema
@@ -108,41 +118,6 @@ class DataSheetImportTool extends AbstractAiTool
     protected function setSaveAs(UxonObject $uxon): DataSheetImportTool
     {
         $this->saveAsUxon = $uxon;
-        $this->dataSchemasUxon = null;
-        $this->dataSchema = null;
-        $this->dataSchemas = null;
-
-        return $this;
-    }
-
-    /**
-     * Alternative to `save_as`: list of possible import target schemas.
-     *
-     * @uxon-property data_schemas
-     * @uxon-type \axenox\GenAI\Common\DataSheetSchema[]
-     * @uxon-template [
-     *   {
-     *     "object_alias": "my.App.REPORT",
-     *     "subsheets": []
-     *   },
-     *   {
-     *     "object_alias": "my.App.TOPIC",
-     *     "subsheets": []
-     *   }
-     * ]
-     */
-    protected function setDataSchemas(UxonObject $uxon): DataSheetImportTool
-    {
-        if (! $uxon->isArray()) {
-            throw new RuntimeException('UXON property "save_targets" must be an array of schema objects (same shape as "save_as").');
-        }
-
-        if ($uxon->isEmpty()) {
-            throw new RuntimeException('UXON property "save_targets" cannot be empty.');
-        }
-
-        $this->dataSchemasUxon = $uxon;
-        $this->saveAsUxon = null;
         $this->dataSchema = null;
         $this->dataSchemas = null;
 
@@ -158,7 +133,7 @@ class DataSheetImportTool extends AbstractAiTool
         return [
             (new ServiceParameter($this))
                 ->setName(self::ARG_DATASHEET)
-                ->setDescription('DataSheet payload to import. The JSON schema is generated from `save_as` or `save_targets`.')
+                ->setDescription('DataSheet payload to import. The JSON schema is generated from `save_as`.')
                 ->setDataType(new UxonObject(['alias' => 'exface.Core.Array']))
                 ->setCustomProperties(new UxonObject([
                     'json_schema' => json_encode($this->getDataSheetArgumentSchema(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -174,26 +149,28 @@ class DataSheetImportTool extends AbstractAiTool
         if ($this->dataSchemas === null) {
             $this->dataSchemas = [];
 
-            if ($this->dataSchemasUxon !== null) {
-                if (! $this->dataSchemasUxon->isArray()) {
-                    throw new RuntimeException('UXON property "save_targets" must be an array of schema objects.');
-                }
-
-                foreach ($this->dataSchemasUxon as $idx => $targetUxon) {
-                    if (! $targetUxon instanceof UxonObject) {
-                        throw new RuntimeException('Invalid schema entry at $.save_targets[' . $idx . ']. Expected UXON object.');
+            if ($this->saveAsUxon !== null) {
+                if ($this->saveAsUxon->isArray()) {
+                    if ($this->saveAsUxon->isEmpty()) {
+                        throw new RuntimeException('UXON property "save_as" cannot be empty.');
                     }
 
-                    $schema = new DataSheetSchema($this->getWorkbench(), $targetUxon);
-                    $this->validateSchemaNode($schema, '$.save_targets[' . $idx . ']');
+                    foreach ($this->saveAsUxon as $idx => $targetUxon) {
+                        if (! $targetUxon instanceof UxonObject) {
+                            throw new RuntimeException('Invalid schema entry at $.save_as[' . $idx . ']. Expected UXON object.');
+                        }
+
+                        $schema = new DataSheetSchema($this->getWorkbench(), $targetUxon);
+                        $this->validateSchemaNode($schema, '$.save_as[' . $idx . ']');
+                        $this->dataSchemas[] = $schema;
+                    }
+                } else {
+                    $schema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
+                    $this->validateSchemaNode($schema, '$.save_as');
                     $this->dataSchemas[] = $schema;
                 }
-            } elseif ($this->saveAsUxon !== null) {
-                $schema = new DataSheetSchema($this->getWorkbench(), $this->saveAsUxon);
-                $this->validateSchemaNode($schema, '$.save_as');
-                $this->dataSchemas[] = $schema;
             } else {
-                throw new RuntimeException('ImportTool requires UXON property "save_as" (object) or "save_targets" (array of save_as objects), each with at least "object_alias".');
+                throw new RuntimeException('ImportTool requires UXON property "save_as" as one schema object or an array of schema objects, each with at least "object_alias".');
             }
 
             if (empty($this->dataSchemas)) {
@@ -231,7 +208,7 @@ class DataSheetImportTool extends AbstractAiTool
 
     protected function hasSchemaConfiguration(): bool
     {
-        return $this->saveAsUxon !== null || $this->dataSchemasUxon !== null;
+        return $this->saveAsUxon !== null;
     }
 
     protected function validateSchemaNode(DataSheetSchema $schema, string $path): void
@@ -274,7 +251,7 @@ class DataSheetImportTool extends AbstractAiTool
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_DATASHEET)
-                ->setDescription('DataSheet payload to import. The JSON schema is generated from `save_as` or `save_targets`.')
+                ->setDescription('DataSheet payload to import. The JSON schema is generated from `save_as`.')
                 ->setDataType(new UxonObject(['alias' => 'exface.Core.Array'])),
         ];
     }
