@@ -53,14 +53,14 @@ class ModelComponentInfoTool extends AbstractAiTool
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
-        
+        $allComponents = $workbench->getComponentRegistry()->getComponentKeys();
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_COMPONENT)
                 ->setDescription('Component type (e.g. `action`) or the corresponding')
                 ->setDataType(new UxonObject([
                     'alias' => 'exface.Core.GenericStringEnum',
-                    'values' => array_combine($workbench->getComponentRegistry()->getComponentKeys(), $workbench->getComponentRegistry()->getComponentKeys())
+                    'values' => array_combine($allComponents, $allComponents)
                 ])),
             (new ServiceParameter($self))
                 ->setName(self::ARG_SELECTOR)
