@@ -223,6 +223,10 @@ class FolderReadTool extends AbstractAiTool
             $indent = str_repeat('  ', $level);
             $displayName = str_replace('`', '\\`', $name);
             $markdown .= "\n" . $indent . '- `' . $displayName . ($isDir ? '/' : '') . '`';
+            // Print the file size, so the LLM can decide, if it should read the file completely or chunked
+            if (! $isDir) {
+                $markdown .= ' - ' . filesize($path) . ' b';
+            }
 
             if ($isDir) {
                 $markdown .= $this->buildMdTreeLevel($path, $basePath, $level + 1);
