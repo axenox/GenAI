@@ -144,7 +144,7 @@ class FileReadTool extends AbstractAiTool
         }
 
         if ($this->includeInstructionsForGithubCopilot === true) {
-            $result .= $this->buildInstructionsChapter($fileInfo, $prompt);
+            $result .= $this->buildInstructionsChapter($fileInfo, $prompt, true);
         }
 
         return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
@@ -178,25 +178,50 @@ class FileReadTool extends AbstractAiTool
      * @param AiPromptInterface $prompt
      * @return string
      */
-    protected function buildInstructionsChapter(FileInfoInterface $fileInfo, AiPromptInterface $prompt) : string
+    protected function buildInstructionsChapter(FileInfoInterface $fileInfo, AiPromptInterface $prompt, bool $onlyMetadata = true) : string
     {
-        $instructions = $this->findInstructions($fileInfo);
+        $instructions = $this->findInstructionsMetadata($fileInfo);
         if (empty($instructions)) {
             return '';
         }
 
         $chapters = '';
-        foreach ($instructions as $instructionFile) {
+        foreach ($instructions as $instrData) {
+            $instructionFile = $instrData['file'];
             $knowledgeKey = $instructionFile->getPathAbsolute();
             if ($prompt->hasKnowledge($knowledgeKey)) {
                 continue;
             }
+            // Add matching instructions files
             $body = $instructionFile->openFile()->read();
             $body = trim(MarkdownDataType::stripFrontMatter($body));
             if ($body === '') {
                 continue;
             }
-            $chapters .= "\n\n" . MarkdownDataType::convertHeaderLevels($body, 2);
+            // We can include the entire file completely (burns lots of tokens) or just the metadata to
+            // allow the LLM to read the file separately.
+            if ($onlyMetadata === true) {
+                // Only add the frontmatter metadata of the instruction file, not the full content
+                $frontmatter = $instrData['frontmatter'] ?? [];
+                if ($frontmatter['name']) {
+                    // If there is meaningful frontmatter, paste it here
+                    $frontmatterList = implode("\n\t", array_map(fn($k, $v) => "- {$k}: {$v}", array_keys($frontmatter), $frontmatter));
+                    $chapters .= <<<MD
+
+- `{$instrData['path']}`: 
+    {$frontmatterList}
+MD;
+                } else {
+                    // If it is just the file, inlcude the path without any details
+                    $chapters .= <<<MD
+
+- `{$instrData['path']}`
+MD;
+                }                
+            } else {
+                $chapters .= "\n\n" . MarkdownDataType::convertHeaderLevels($body, 2);
+            }
+            
             $prompt->addKnowledge($knowledgeKey, $body);
         }
 
@@ -204,7 +229,7 @@ class FileReadTool extends AbstractAiTool
             return '';
         }
 
-        return "\n\n# Instructions\n\n" . $chapters . "\n";
+        return "\n\n# Applicable instructions\n\n" . $chapters . "\n";
     }
     
     /**
@@ -286,5 +311,4 @@ FM;
     {
         return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
-
 }
