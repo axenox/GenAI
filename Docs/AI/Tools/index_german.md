@@ -241,6 +241,20 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Ergebnis enthält JSON-formatierte Zeilen und Metadaten in Markdown. Es gelten die üblichen ExFace-Objektberechtigungen und DataSheet-Lesebeschränkungen. Ungültige Objektaliasse, Ausdrücke oder Filter führen zu Fehlern.
 
+**Konfiguration.** Das Tool stellt drei UXON-Eigenschaften zur Steuerung von Format und Kontext bereit:
+
+| UXON-Eigenschaft | Typ | Standard | Beschreibung |
+| --- | --- | --- | --- |
+| `output_mode` | enum | `markdown_table` | Einer von `markdown_table`, `markdown` oder `json`. |
+| `header_level` | integer | `2` | Markdown-Überschriftenebene für die Abschnittsüberschriften, zulässiger Bereich 1-6. Ungültige Werte erzeugen eine Warnung und fallen auf `2` zurück. |
+| `include_object_description` | boolean | `true` bei `markdown_table`, sonst `false` | Fügt nach den Daten einen kurzen Objektbeschreibungsblock hinzu, sofern verfügbar. |
+
+**Ausgabemodi.** Das Tool unterstützt drei Renderings: `markdown_table` (Standard), `markdown` und `json`. `markdown_table` eignet sich am besten für Mehrzeilergebnisse. `markdown` wechselt auf eine Datensatz-für-Datensatz-Zusammenfassung für leere, einzeilige oder breite Ergebnisse, wenn eine kompakte Tabelle keine klare Darstellung mehr ist.
+
+**Rückgabewert.** Das Tool liefert einen String, der durch `renderOutput()` erzeugt wird. Die Ausgabe beginnt immer mit einem kurzen Satz wie `Read data of object ...`, gefolgt vom gewählten Payload (`markdown_table`, `markdown` oder `json`) und optional einem Objektbeschreibungsblock, wenn das aktiviert ist.
+
+**Warnungen und behebbare Fehler.** Nicht unterstützte oder ungültige Konfigurationen werden als Warnungen behandelt, nicht als harte Fehler. Das Tool fällt auf den sicheren Standardwert zurück und setzt die Antwort fort. Leere Ergebnismengen erzeugen ebenfalls eine Warnung; das Rendern der Objektbeschreibung wird bei Fehlern abgefangen und als Warnung geloggt, ohne das Tool-Ergebnis zu brechen.
+
 ## `ModelObjectSearchTool`
 
 **Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)

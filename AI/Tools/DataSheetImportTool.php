@@ -66,6 +66,10 @@ class DataSheetImportTool extends AbstractAiTool
                     $sheet->dataSave();
                     $messages[] = 'Imported ' . count($sheet->getRows()) . ' row(s) into "' . $sheet->getMetaObject()->getAliasWithNamespace() . '".';
                 }
+            } else {
+                $sheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $uxon);
+                $sheet->dataSave();
+                $messages[] = 'Imported ' . count($sheet->getRows()) . ' row(s) into "' . $sheet->getMetaObject()->getAliasWithNamespace() . '".';
             }
 
             if(count($messages) === 0){
@@ -108,8 +112,6 @@ class DataSheetImportTool extends AbstractAiTool
         $this->dataSchema = null;
         $this->dataSchemas = null;
 
-        $this->ensureSchemaArgumentConfigured();
-
         return $this;
     }
 
@@ -144,51 +146,24 @@ class DataSheetImportTool extends AbstractAiTool
         $this->dataSchema = null;
         $this->dataSchemas = null;
 
-        $this->ensureSchemaArgumentConfigured();
-
         return $this;
     }
 
     public function getArguments(): array
     {
-        $this->ensureSchemaArgumentConfigured();
-        return parent::getArguments();
-    }
-
-    public function getArgumentSchema(string $argumentName): ?array
-    {
-        if ($argumentName !== self::ARG_DATASHEET) {
-            return null;
+        if (! $this->hasSchemaConfiguration()) {
+            return parent::getArguments();
         }
 
-        return $this->getDataSheetArgumentSchema();
-    }
-
-    protected function ensureSchemaArgumentConfigured(): void
-    {
-        if (! $this->hasSchemaConfiguration() || ! empty(parent::getArguments())) {
-            return;
-        }
-
-        $schemaJson = json_encode(
-            $this->getDataSheetArgumentSchema(),
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
-
-        $argUxon = new UxonObject([
-            'name' => self::ARG_DATASHEET,
-            'description' => 'DataSheet payload to import. The JSON schema is generated from `save_as` or `save_targets`.',
-            'data_type' => [
-                'alias' => 'exface.Core.Array',
-            ],
-            'custom_properties' => [
-                'json_schema' => $schemaJson,
-            ],
-        ]);
-
-        $argsUxon = new UxonObject();
-        $argsUxon->append($argUxon);
-        $this->setArguments($argsUxon);
+        return [
+            (new ServiceParameter($this))
+                ->setName(self::ARG_DATASHEET)
+                ->setDescription('DataSheet payload to import. The JSON schema is generated from `save_as` or `save_targets`.')
+                ->setDataType(new UxonObject(['alias' => 'exface.Core.Array']))
+                ->setCustomProperties(new UxonObject([
+                    'json_schema' => json_encode($this->getDataSheetArgumentSchema(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ])),
+        ];
     }
 
     /**
