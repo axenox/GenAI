@@ -46,33 +46,18 @@ class ModelObjectSearchTool extends AbstractAiTool
     ];
 
     /**
-     * Available result columns.
+     * Meta object to search in.
      */
-    private const AVAILABLE_RESULT_COLUMNS = [
-        'UID',
-        'ALIAS_WITH_NS',
-        'HAS_DEFAULT_EDITOR',
-        'INHERIT_DATA_SOURCE_BASE_OBJECT',
-        'NAME',
-        'DOCS',
-        'COMMENTS',
-        'READABLE_FLAG',
-        'WRITABLE_FLAG',
-        'ALIAS',
-        'APP',
-        'DATA_ADDRESS',
-        'DATA_ADDRESS_PROPS',
-        'DATA_SOURCE',
-        'DEFAULT_EDITOR_UXON',
-        'LABEL',
-        'PARENT_OBJECT',
-        'SHORT_DESCRIPTION'
-    ];
+    private string $objectAlias = 'exface.Core.OBJECT';
 
     /**
+     * Columns to print in the result table.
+     *
+     * These are DataTable-style `columns` names, not AI-supplied attribute aliases.
+     *
      * @var string[]
      */
-    private array $resultColumns = self::DEFAULT_RESULT_COLUMNS;
+    private array $columns = self::DEFAULT_RESULT_COLUMNS;
 
     /**
      * {@inheritDoc}
@@ -86,8 +71,8 @@ class ModelObjectSearchTool extends AbstractAiTool
         }
 
         try {
-            $resultColumns = $this->getResultColumns();
-            $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), 'exface.Core.OBJECT');
+            $resultColumns = $this->normalizeColumns($this->columns);
+            $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), $this->getObjectAlias());
             $ds->getColumns()->addMultiple($resultColumns);
             $ds->getFilters()->addConditionFromString('NAME', $objectName, ComparatorDataType::IS);
             $ds->setRowsLimit(100);
@@ -137,52 +122,86 @@ MD;
     }
 
     /**
+     * @uxon-property object_alias
+     * @uxon-type metamodel:object
+     * @uxon-default exface.Core.OBJECT
+     *
+     * @param string $objectAlias
+     * @return ModelObjectSearchTool
+     */
+    protected function setObjectAlias(string $objectAlias): ModelObjectSearchTool
+    {
+        $this->objectAlias = trim($objectAlias) !== '' ? trim($objectAlias) : 'exface.Core.OBJECT';
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getObjectAlias(): string
+    {
+        return $this->objectAlias;
+    }
+
+    //TODO
+    //setDataSheet
+
+    /**
      * Columns to include in the result table.
      *
-     * Configure this to reduce output or include additional object attributes.
-     * Unknown column names are ignored.
+     * This follows the DataTable widget style with a plain array of attribute
+     * aliases or column names, for example ["UID","NAME","APP__ALIAS"].
+     * The Power UI can therefore offer the same auto-suggest and prefill behavior
+     * as a DataTable column selector.
      *
-     * Supported columns:
-     * `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`,
-     * `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`,
-     * `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`,
-     * `LABEL`, `PARENT_OBJECT`, `SHORT_DESCRIPTION`.
-     *
-     * @uxon-property result_columns
-     * @uxon-type array
+     * @uxon-property columns
+     * @uxon-type metamodel:attribute[]
      * @uxon-default ["UID","NAME","ALIAS","ALIAS_WITH_NS","LABEL","SHORT_DESCRIPTION","APP","READABLE_FLAG","WRITABLE_FLAG","DATA_SOURCE","PARENT_OBJECT","HAS_DEFAULT_EDITOR","INHERIT_DATA_SOURCE_BASE_OBJECT"]
      * @uxon-template ["UID","NAME","ALIAS_WITH_NS","APP","DATA_SOURCE"]
      *
-     * @param string[] $columns
+     * @param string[]|array[] $columns
      * @return ModelObjectSearchTool
      */
-    protected function setResultColumns(array $columns): ModelObjectSearchTool
+    protected function setColumns(array $columns): ModelObjectSearchTool
     {
-        $sanitized = [];
-        foreach ($columns as $column) {
-            $column = trim((string) $column);
-            if ($column === '') {
-                continue;
-            }
-            $column = mb_strtoupper($column);
-            if (in_array($column, self::AVAILABLE_RESULT_COLUMNS, true)) {
-                $sanitized[$column] = $column;
-            }
-        }
-
-        if (! empty($sanitized)) {
-            $this->resultColumns = array_values($sanitized);
-        }
-
+        $this->columns = $this->normalizeColumns($columns);
         return $this;
     }
 
     /**
      * @return string[]
      */
-    protected function getResultColumns(): array
+    protected function getColumns(): array
     {
-        return $this->resultColumns;
+        return $this->columns;
+    }
+
+    /**
+     * @param mixed $columns
+     * @return string[]
+     */
+    protected function normalizeColumns($columns): array
+    {
+        if (! is_array($columns)) {
+            $columns = [$columns];
+        }
+
+        $sanitized = [];
+        foreach ($columns as $column) {
+            $column = trim((string) $column);
+            if ($column === '') {
+                continue;
+            }
+
+            $column = mb_strtoupper($column);
+            $sanitized[$column] = $column;
+        }
+
+        if (empty($sanitized)) {
+            return self::DEFAULT_RESULT_COLUMNS;
+        }
+
+        return array_values($sanitized);
     }
 
     /**

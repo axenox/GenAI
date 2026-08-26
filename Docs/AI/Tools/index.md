@@ -253,13 +253,14 @@ replacement text
 
 | UXON property | Default | Description |
 | --- | --- | --- |
-| `result_columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which `exface.Core.OBJECT` attributes are included in the result table. Unknown column names are ignored. |
+| `object_alias` | `exface.Core.OBJECT` | The meta object to query. This is a normal UXON property, so Power UI can prefill and auto-suggest it like a DataTable object selector. |
+| `columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which attributes are printed in the result table. This is configured in UXON, not passed by the AI. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `object_name` | Yes | Filter term for `exface.Core.OBJECT.NAME` (contains-style match). |
+| `object_name` | Yes | Filter term for `exface.Core.OBJECT.NAME` (exact match for the object name). |
 
-**How to use.** Pass one string argument with the object name term. The tool applies a DataSheet filter on `NAME` and reads up to 100 rows. Optionally configure `result_columns` in UXON to tailor visible attributes.
+**How to use.** Pass one string argument with the object name term. The tool applies a DataSheet filter on `NAME` and reads up to 100 rows. Configure `object_alias` and `columns` in UXON to tailor the query and displayed attributes; the AI does not supply a second argument for this.
 
 **Result and limits.** The tool returns a Markdown table. Supported columns are `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT`, and `SHORT_DESCRIPTION`. Empty matches are returned as a warning-style message.
 
