@@ -11,6 +11,7 @@ use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
@@ -45,19 +46,7 @@ class ModelObjectSearchTool extends AbstractAiTool
         'INHERIT_DATA_SOURCE_BASE_OBJECT'
     ];
 
-    /**
-     * Meta object to search in.
-     */
-    private string $objectAlias = 'exface.Core.OBJECT';
-
-    /**
-     * Columns to print in the result table.
-     *
-     * These are DataTable-style `columns` names, not AI-supplied attribute aliases.
-     *
-     * @var string[]
-     */
-    private array $columns = self::DEFAULT_RESULT_COLUMNS;
+    private ?UxonObject $dataSheetUxon = null;
 
     /**
      * {@inheritDoc}
@@ -71,11 +60,14 @@ class ModelObjectSearchTool extends AbstractAiTool
         }
 
         try {
-            $resultColumns = $this->normalizeColumns($this->columns);
-            $ds = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), $this->getObjectAlias());
-            $ds->getColumns()->addMultiple($resultColumns);
+            $ds = DataSheetFactory::createFromUxon($this->getWorkbench(), $this->getDataSheet());
+            if ($ds->getColumns()->isEmpty()) {
+                $ds->getColumns()->addMultiple(self::DEFAULT_RESULT_COLUMNS);
+            }
             $ds->getFilters()->addConditionFromString('NAME', $objectName, ComparatorDataType::IS);
-            $ds->setRowsLimit(100);
+            if ($ds->getRowsLimit() === null || $ds->getRowsLimit() > 100) {
+                $ds->setRowsLimit(100);
+            }
             $ds->dataRead();
         } catch (\Throwable $e) {
             throw new AiToolRuntimeError($this, $prompt, 'Failed to read objects: ' . $e->getMessage(), null, $e);
@@ -88,6 +80,10 @@ class ModelObjectSearchTool extends AbstractAiTool
             return new AiToolResultString($this, $arguments, $msg, $this->getReturnDataType(), [], [$warning]);
         }
 
+        $resultColumns = [];
+        foreach ($ds->getColumns() as $column) {
+            $resultColumns[] = $column->getName();
+        }
         $table = MarkdownDataType::buildMarkdownTableFromArray($rows, $resultColumns);
         $result = <<<MD
 # Object search result
@@ -122,86 +118,41 @@ MD;
     }
 
     /**
-     * @uxon-property object_alias
-     * @uxon-type metamodel:object
-     * @uxon-default exface.Core.OBJECT
+     * DataSheet configuration used to search and render model objects.
      *
-     * @param string $objectAlias
+     * The configured object and columns are imported by the standard DataSheet
+     * prototype. The tool adds its `NAME` filter and limits reads to 100 rows.
+     *
+     * @uxon-property data_sheet
+     * @uxon-type \exface\Core\CommonLogic\DataSheets\DataSheet
+     * @uxon-template {"object_alias":"exface.Core.OBJECT","columns":[{"attribute_alias":"UID"},{"attribute_alias":"NAME"},{"attribute_alias":"ALIAS_WITH_NS"},{"attribute_alias":"APP"},{"attribute_alias":"DATA_SOURCE"}]}
+     *
+     * @param UxonObject $dataSheetUxon
      * @return ModelObjectSearchTool
      */
-    protected function setObjectAlias(string $objectAlias): ModelObjectSearchTool
+    protected function setDataSheet(UxonObject $dataSheetUxon): ModelObjectSearchTool
     {
-        $this->objectAlias = trim($objectAlias) !== '' ? trim($objectAlias) : 'exface.Core.OBJECT';
+        $this->dataSheetUxon = $dataSheetUxon;
         return $this;
     }
 
     /**
-     * @return string
+     * @return UxonObject
      */
-    protected function getObjectAlias(): string
+    protected function getDataSheet(): UxonObject
     {
-        return $this->objectAlias;
-    }
-
-    //TODO
-    //setDataSheet
-
-    /**
-     * Columns to include in the result table.
-     *
-     * This follows the DataTable widget style with a plain array of attribute
-     * aliases or column names, for example ["UID","NAME","APP__ALIAS"].
-     * The Power UI can therefore offer the same auto-suggest and prefill behavior
-     * as a DataTable column selector.
-     *
-     * @uxon-property columns
-     * @uxon-type metamodel:attribute[]
-     * @uxon-default ["UID","NAME","ALIAS","ALIAS_WITH_NS","LABEL","SHORT_DESCRIPTION","APP","READABLE_FLAG","WRITABLE_FLAG","DATA_SOURCE","PARENT_OBJECT","HAS_DEFAULT_EDITOR","INHERIT_DATA_SOURCE_BASE_OBJECT"]
-     * @uxon-template ["UID","NAME","ALIAS_WITH_NS","APP","DATA_SOURCE"]
-     *
-     * @param string[]|array[] $columns
-     * @return ModelObjectSearchTool
-     */
-    protected function setColumns(array $columns): ModelObjectSearchTool
-    {
-        $this->columns = $this->normalizeColumns($columns);
-        return $this;
-    }
-
-    /**
-     * @return string[]
-     */
-    protected function getColumns(): array
-    {
-        return $this->columns;
-    }
-
-    /**
-     * @param mixed $columns
-     * @return string[]
-     */
-    protected function normalizeColumns($columns): array
-    {
-        if (! is_array($columns)) {
-            $columns = [$columns];
-        }
-
-        $sanitized = [];
-        foreach ($columns as $column) {
-            $column = trim((string) $column);
-            if ($column === '') {
-                continue;
+        if ($this->dataSheetUxon === null) {
+            $columns = [];
+            foreach (self::DEFAULT_RESULT_COLUMNS as $column) {
+                $columns[] = ['attribute_alias' => $column];
             }
-
-            $column = mb_strtoupper($column);
-            $sanitized[$column] = $column;
+            $this->dataSheetUxon = new UxonObject([
+                'object_alias' => 'exface.Core.OBJECT',
+                'columns' => $columns
+            ]);
         }
 
-        if (empty($sanitized)) {
-            return self::DEFAULT_RESULT_COLUMNS;
-        }
-
-        return array_values($sanitized);
+        return $this->dataSheetUxon;
     }
 
     /**

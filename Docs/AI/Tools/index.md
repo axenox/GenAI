@@ -253,16 +253,15 @@ replacement text
 
 | UXON property | Default | Description |
 | --- | --- | --- |
-| `object_alias` | `exface.Core.OBJECT` | The meta object to query. This is a normal UXON property, so Power UI can prefill and auto-suggest it like a DataTable object selector. |
-| `columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Controls which attributes are printed in the result table. This is configured in UXON, not passed by the AI. |
+| `data_sheet` | `exface.Core.OBJECT` with the standard result columns | Complete DataSheet UXON defining the queried object and result columns. It may also contain filters, sorters, and a row limit. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
 | `object_name` | Yes | Filter term for `exface.Core.OBJECT.NAME` (exact match for the object name). |
 
-**How to use.** Pass one string argument with the object name term. The tool applies a DataSheet filter on `NAME` and reads up to 100 rows. Configure `object_alias` and `columns` in UXON to tailor the query and displayed attributes; the AI does not supply a second argument for this.
+**How to use.** Pass one string argument with the object name term. Configure `data_sheet.object_alias` and `data_sheet.columns` in UXON to tailor the query and displayed attributes; the AI does not supply a second argument for this. The tool adds the exact `NAME` filter to the configured DataSheet and caps reads at 100 rows.
 
-**Result and limits.** The tool returns a Markdown table. Supported columns are `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT`, and `SHORT_DESCRIPTION`. Empty matches are returned as a warning-style message.
+**Result and limits.** The tool returns the configured DataSheet columns as a Markdown table. Available columns depend on the configured object's metamodel. Empty matches are returned as a warning-style message.
 
 ## `DataSheetImportTool`
 

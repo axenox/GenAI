@@ -253,16 +253,15 @@ replacement text
 
 | UXON-Eigenschaft | Standard | Beschreibung |
 | --- | --- | --- |
-| `object_alias` | `exface.Core.OBJECT` | Das Meta-Objekt, das abgefragt wird. Das ist eine normale UXON-Eigenschaft, daher kann Power UI sie wie bei einem DataTable-Objekt-Selector automatisch vorbefüllen und vorschlagen. |
-| `columns` | `UID`, `NAME`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT` | Steuert, welche Attribute aus dem Objekt in der Ergebnistabelle gedruckt werden. Das wird in UXON konfiguriert, nicht vom AI als zweites Argument übergeben. |
+| `data_sheet` | `exface.Core.OBJECT` mit den Standard-Ergebnisspalten | Vollständige DataSheet-UXON für das abgefragte Objekt und die Ergebnisspalten. Sie kann außerdem Filter, Sortierungen und ein Zeilenlimit enthalten. |
 
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `object_name` | Ja | Filterbegriff für `exface.Core.OBJECT.NAME` (exakter Vergleich des Objektnamens). |
 
-**Verwendung.** Übergeben Sie ein String-Argument mit dem Objektname-Begriff. Das Tool setzt einen DataSheet-Filter auf `NAME` und liest bis zu 100 Zeilen. Konfigurieren Sie `object_alias` und `columns` in UXON, um die Abfrage und sichtbaren Attribute festzulegen; der AI bekommt dafür kein zweites Argument.
+**Verwendung.** Übergeben Sie ein String-Argument mit dem Objektname-Begriff. Konfigurieren Sie `data_sheet.object_alias` und `data_sheet.columns` in UXON, um die Abfrage und sichtbaren Attribute festzulegen; die AI bekommt dafür kein zweites Argument. Das Tool ergänzt den exakten `NAME`-Filter in der konfigurierten DataSheet und begrenzt Lesevorgänge auf 100 Zeilen.
 
-**Ergebnis und Grenzen.** Das Tool gibt eine Markdown-Tabelle zurück. Unterstützte Spalten sind `UID`, `ALIAS_WITH_NS`, `HAS_DEFAULT_EDITOR`, `INHERIT_DATA_SOURCE_BASE_OBJECT`, `NAME`, `DOCS`, `COMMENTS`, `READABLE_FLAG`, `WRITABLE_FLAG`, `ALIAS`, `APP`, `DATA_ADDRESS`, `DATA_ADDRESS_PROPS`, `DATA_SOURCE`, `DEFAULT_EDITOR_UXON`, `LABEL`, `PARENT_OBJECT` und `SHORT_DESCRIPTION`. Leere Treffer werden als Warnhinweis zurückgegeben.
+**Ergebnis und Grenzen.** Das Tool gibt die konfigurierten DataSheet-Spalten als Markdown-Tabelle zurück. Die verfügbaren Spalten hängen vom Metamodell des konfigurierten Objekts ab. Leere Treffer werden als Warnhinweis zurückgegeben.
 
 ## `DataSheetImportTool`
 
