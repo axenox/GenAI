@@ -17,7 +17,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
-| Objekte nach Objektname finden | `ModelObjectSearchTool` |
+| Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -245,21 +245,23 @@ replacement text
 
 **Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
 
-**Zweck.** Führt ein einfaches DataSheet-Read auf `exface.Core.OBJECT` aus, gefiltert nach dem Objekt-`NAME`.
+**Zweck.** Durchsucht das in `data_sheet` konfigurierte Objekt anhand der ersten konfigurierten Spalte. Standardmäßig wird `exface.Core.OBJECT` anhand von `NAME` durchsucht.
 
-**Verwenden, wenn.** Der Agent eine kompakte Liste von Objekten benötigt, die zu einem vom Benutzer vorgegebenen Objektname-Begriff passen.
+**Verwenden, wenn.** Der Agent eine kompakte Liste von Zeilen benötigt, die zu einem vom Benutzer vorgegebenen Wert in einem festgelegten Attribut passen.
 
 **Nicht verwenden, wenn.** Verwenden Sie es nicht für erweiterte Modellanalyse oder Alias-/UID-Suche über viele Kriterien. Nutzen Sie `ModelObjectInfoTool` oder `DataSheetReadTool` für umfassendere Abfragen.
 
 | UXON-Eigenschaft | Standard | Beschreibung |
 | --- | --- | --- |
-| `data_sheet` | `exface.Core.OBJECT` mit den Standard-Ergebnisspalten | Vollständige DataSheet-UXON für das abgefragte Objekt und die Ergebnisspalten. Sie kann außerdem Filter, Sortierungen und ein Zeilenlimit enthalten. |
+| `data_sheet` | `exface.Core.OBJECT` mit `NAME` als erster Spalte | Vollständige DataSheet-UXON für das durchsuchte Objekt und die zurückgegebenen Attribute. Die erste Spalte ist das Suchattribut. Sie kann außerdem zusätzliche Filter, Sortierungen und ein Zeilenlimit enthalten. |
 
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
-| `object_name` | Ja | Filterbegriff für `exface.Core.OBJECT.NAME` (exakter Vergleich des Objektnamens). |
+| `object_name` | Ja | Wert, der exakt mit der ersten konfigurierten DataSheet-Spalte verglichen wird. |
 
-**Verwendung.** Übergeben Sie ein String-Argument mit dem Objektname-Begriff. Konfigurieren Sie `data_sheet.object_alias` und `data_sheet.columns` in UXON, um die Abfrage und sichtbaren Attribute festzulegen; die AI bekommt dafür kein zweites Argument. Das Tool ergänzt den exakten `NAME`-Filter in der konfigurierten DataSheet und begrenzt Lesevorgänge auf 100 Zeilen.
+**Standard-Suchkonfiguration.** Die erste konfigurierte Spalte wird immer als Suchattribut verwendet und ebenfalls im Ergebnis zurückgegeben. Das Standardobjekt ist `exface.Core.OBJECT`; seine erste Spalte und sein Suchattribut ist `NAME`. Die weiteren standardmäßig zurückgegebenen Attribute sind `UID`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR` und `INHERIT_DATA_SOURCE_BASE_OBJECT`.
+
+**Verwendung.** Setzen Sie das zu durchsuchende Attribut an die erste Stelle in `data_sheet.columns`, gefolgt von allen weiteren zurückzugebenden Attributen. Übergeben Sie seinen Suchwert in `object_name`. Eine DataSheet für `axenox.GenAI.AI_AGENT`, die mit `NAME` beginnt, sucht beispielsweise Agenten nach Namen; beginnt sie mit `UID`, sucht sie nach UID. In der DataSheet konfigurierte Filter werden zusätzlich zu diesem erzeugten Suchfilter angewendet. Lesevorgänge sind auf 100 Zeilen begrenzt. `ToolIntroductionConcept` listet für jede konfigurierte Instanz das effektive Suchobjekt, das Suchattribut der ersten Spalte und die zurückgegebenen Attribute oder Ausdrücke auf.
 
 **Ergebnis und Grenzen.** Das Tool gibt die konfigurierten DataSheet-Spalten als Markdown-Tabelle zurück. Die verfügbaren Spalten hängen vom Metamodell des konfigurierten Objekts ab. Leere Treffer werden als Warnhinweis zurückgegeben.
 

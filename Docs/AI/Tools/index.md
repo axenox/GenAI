@@ -17,7 +17,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Create or completely replace a file | `FileWriteTool` |
 | Run a tightly controlled local command | `CommandLineTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
-| Find objects by object name | `ModelObjectSearchTool` |
+| Find object data by a configured attribute | `ModelObjectSearchTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Understand the menu and screens of an app | `UiOverviewTool` |
@@ -245,21 +245,23 @@ replacement text
 
 **Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
 
-**Purpose.** Performs a simple DataSheet read on `exface.Core.OBJECT` filtered by object `NAME`.
+**Purpose.** Searches the object configured in `data_sheet` by the first configured column. By default, it searches `exface.Core.OBJECT` by `NAME`.
 
-**Use when.** The agent needs a compact list of objects matching a user-provided object name term.
+**Use when.** The agent needs a compact list of rows matching a user-provided value in one predefined attribute.
 
 **Do not use when.** Do not use it for advanced model analysis or alias/UID lookup across many criteria. Use `ModelObjectInfoTool` or `DataSheetReadTool` for richer or broader queries.
 
 | UXON property | Default | Description |
 | --- | --- | --- |
-| `data_sheet` | `exface.Core.OBJECT` with the standard result columns | Complete DataSheet UXON defining the queried object and result columns. It may also contain filters, sorters, and a row limit. |
+| `data_sheet` | `exface.Core.OBJECT` with `NAME` as its first column | Complete DataSheet UXON defining the searched object and returned attributes. The first column is the search attribute. It may also contain additional filters, sorters, and a row limit. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `object_name` | Yes | Filter term for `exface.Core.OBJECT.NAME` (exact match for the object name). |
+| `object_name` | Yes | Value matched exactly against the first configured DataSheet column. |
 
-**How to use.** Pass one string argument with the object name term. Configure `data_sheet.object_alias` and `data_sheet.columns` in UXON to tailor the query and displayed attributes; the AI does not supply a second argument for this. The tool adds the exact `NAME` filter to the configured DataSheet and caps reads at 100 rows.
+**Default search configuration.** The first configured column is always used as the search attribute and is also returned in the result. The default object is `exface.Core.OBJECT`; its first column and search attribute is `NAME`. The remaining default returned attributes are `UID`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, and `INHERIT_DATA_SOURCE_BASE_OBJECT`.
+
+**How to use.** Put the attribute to search first in `data_sheet.columns`, followed by any other attributes to return. Pass its search value in `object_name`. For example, an `axenox.GenAI.AI_AGENT` DataSheet beginning with `NAME` searches agents by name; one beginning with `UID` searches them by UID. Filters configured in the DataSheet are applied in addition to this generated search filter. Reads are capped at 100 rows. `ToolIntroductionConcept` lists the effective search object, first-column search attribute, and returned attributes or expressions for each configured instance.
 
 **Result and limits.** The tool returns the configured DataSheet columns as a Markdown table. Available columns depend on the configured object's metamodel. Empty matches are returned as a warning-style message.
 

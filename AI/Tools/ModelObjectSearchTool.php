@@ -14,14 +14,16 @@ use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * Reads entries from `exface.Core.OBJECT` filtered by object name.
+ * Searches a configured object by its first configured attribute.
  *
- * This is a lightweight helper to find objects by their `NAME` value using
- * a DataSheet filter and return a compact markdown table.
+ * The `data_sheet` configuration defines the object to search, additional
+ * filters and the attributes returned as a compact Markdown table. Its first
+ * column is used as the search attribute.
  */
 class ModelObjectSearchTool extends AbstractAiTool
 {
@@ -31,8 +33,8 @@ class ModelObjectSearchTool extends AbstractAiTool
      * Default columns returned for object search results.
      */
     private const DEFAULT_RESULT_COLUMNS = [
-        'UID',
         'NAME',
+        'UID',
         'ALIAS',
         'ALIAS_WITH_NS',
         'LABEL',
@@ -60,11 +62,9 @@ class ModelObjectSearchTool extends AbstractAiTool
         }
 
         try {
-            $ds = DataSheetFactory::createFromUxon($this->getWorkbench(), $this->getDataSheet());
-            if ($ds->getColumns()->isEmpty()) {
-                $ds->getColumns()->addMultiple(self::DEFAULT_RESULT_COLUMNS);
-            }
-            $ds->getFilters()->addConditionFromString('NAME', $objectName, ComparatorDataType::IS);
+            $ds = $this->createConfiguredDataSheet();
+            $filterAttribute = $this->getSearchAttribute($ds);
+            $ds->getFilters()->addConditionFromString($filterAttribute, $objectName, ComparatorDataType::IS);
             if ($ds->getRowsLimit() === null || $ds->getRowsLimit() > 100) {
                 $ds->setRowsLimit(100);
             }
@@ -88,7 +88,7 @@ class ModelObjectSearchTool extends AbstractAiTool
         $result = <<<MD
 # Object search result
 
-Filter: `NAME IS "{$objectName}"`
+    Filter: `{$filterAttribute} IS "{$objectName}"`
 
 {$table}
 MD;
@@ -107,7 +107,7 @@ MD;
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_OBJECT_NAME)
-                ->setDescription('Object name filter for exface.Core.OBJECT.NAME')
+                ->setDescription('Value matched exactly against the first configured DataSheet attribute.')
                 ->setRequired(true)
                 ->setExamples([
                     'User',
@@ -121,11 +121,12 @@ MD;
      * DataSheet configuration used to search and render model objects.
      *
      * The configured object and columns are imported by the standard DataSheet
-     * prototype. The tool adds its `NAME` filter and limits reads to 100 rows.
+     * prototype. The first column is used as search attribute and reads are
+     * limited to 100 rows.
      *
      * @uxon-property data_sheet
      * @uxon-type \exface\Core\CommonLogic\DataSheets\DataSheet
-     * @uxon-template {"object_alias":"exface.Core.OBJECT","columns":[{"attribute_alias":"UID"},{"attribute_alias":"NAME"},{"attribute_alias":"ALIAS_WITH_NS"},{"attribute_alias":"APP"},{"attribute_alias":"DATA_SOURCE"}]}
+      * @uxon-template {"object_alias":"exface.Core.OBJECT","columns":[{"attribute_alias":"NAME"},{"attribute_alias":"UID"},{"attribute_alias":"ALIAS_WITH_NS"},{"attribute_alias":"APP"},{"attribute_alias":"DATA_SOURCE"}]}
      *
      * @param UxonObject $dataSheetUxon
      * @return ModelObjectSearchTool
@@ -153,6 +154,59 @@ MD;
         }
 
         return $this->dataSheetUxon;
+    }
+
+    /**
+     * Creates the effective DataSheet used by the search and tool introduction.
+     *
+     * @return DataSheetInterface
+     */
+    private function createConfiguredDataSheet(): DataSheetInterface
+    {
+        $dataSheet = DataSheetFactory::createFromUxon($this->getWorkbench(), $this->getDataSheet());
+        if ($dataSheet->getColumns()->isEmpty()) {
+            $dataSheet->getColumns()->addMultiple(self::DEFAULT_RESULT_COLUMNS);
+        }
+
+        return $dataSheet;
+    }
+
+    /**
+     * Returns the expression of the first configured column used for filtering.
+     *
+     * @param DataSheetInterface|null $dataSheet
+     * @return string
+     */
+    protected function getSearchAttribute(?DataSheetInterface $dataSheet = null): string
+    {
+        $dataSheet = $dataSheet ?? $this->createConfiguredDataSheet();
+        foreach ($dataSheet->getColumns() as $column) {
+            return $column->getExpressionObj()->__toString();
+        }
+
+        throw new \LogicException('The search DataSheet must contain at least one column.');
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiToolInterface::getRules()
+     */
+    public function getRules(): ?string
+    {
+        $dataSheet = $this->createConfiguredDataSheet();
+        $filterAttribute = $this->getSearchAttribute($dataSheet);
+        $resultAttributes = [];
+        foreach ($dataSheet->getColumns() as $column) {
+            $resultAttributes[] = '`' . $column->getExpressionObj()->__toString() . '`';
+        }
+
+        return implode("\n", [
+            '- Searches object `' . $dataSheet->getMetaObject()->getAliasWithNamespace() . '`.',
+            '- Uses the first configured attribute `' . $filterAttribute . '` as the search attribute.',
+            '- Matches the value of argument `' . self::ARG_OBJECT_NAME . '` exactly against that attribute.',
+            '- Returns these configured attributes or expressions: ' . implode(', ', $resultAttributes) . '.',
+            '- Also applies filters configured in `data_sheet` and returns at most 100 rows.'
+        ]);
     }
 
     /**
