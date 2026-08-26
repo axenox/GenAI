@@ -28,7 +28,18 @@ trait FileAccessToolTrait
     private array $allowedPaths = [];
     
     /**
-     * Cache of discovered instruction files: [absolutePath => ['file' => FileInfoInterface, 'frontmatter' => array]].
+     * Cache of discovered instruction files: 
+     * 
+     * ```
+     * [
+     *  absolutePath => [
+     *      'file' => FileInfoInterface, 
+     *      'path' => string // relative to vendor folder, e.g. `exface/core/Formulas/Concat.php`
+     *      'frontmatter' => array
+     *  ]
+     * ]
+     * 
+     * ```
      * `null` means the vendor folders have not been scanned yet.
      *
      * @var array<string,array>|null
@@ -209,12 +220,36 @@ trait FileAccessToolTrait
      * @param FileInfoInterface $fileInfo
      * @return array<string,FileInfoInterface> [absolutePathToInstructionFile => FileInfoInterface]
      */
-    protected function findInstructions(FileInfoInterface $fileInfo) : array
+    protected function findInstructionsFiles(FileInfoInterface $fileInfo) : array
+    {
+        $matches = $this->findInstructionsMetadata($fileInfo);
+        foreach ($matches as $absPath => $cached) {
+            $matches[$absPath] = $cached['file'];
+        }
+        return $matches;
+    }
+
+    /**
+     * Finds AI instruction files (e.g. `.github/instructions/*.instructions.md`) applicable to the given file.
+     *
+     * Instruction files are discovered once across all installed packages (cached statically) and matched
+     * against the requested file using their `applyTo` frontmatter pattern. An `applyTo` pattern is defined
+     * relative to the package containing the instructions (e.g. `Formulas/*.php` in the core app), but is
+     * matched against the path of the requested file relative to ITS OWN package. This way the formula
+     * instructions from the core also apply to formula classes in other packages.
+     *
+     * Instruction files without front matter or without an `applyTo` pattern apply to every file - just like
+     * `applyTo: '**'` in VS Code.
+     *
+     * @param FileInfoInterface $fileInfo
+     * @return array [absolutePathToInstructionFile => ['file' => FileInfoInterface, 'frontmatter' => array, 'pathInPackage' => string]]
+     */
+    protected function findInstructionsMetadata(FileInfoInterface $fileInfo) : array
     {
         if (self::$instructionFiles === null) {
             $this->loadInstructionFiles();
         }
-        
+
         if (empty(self::$instructionFiles)) {
             return [];
         }
@@ -227,7 +262,7 @@ trait FileAccessToolTrait
             $applyTo = $cached['frontmatter']['applyTo'] ?? null;
             // No `applyTo` (or an empty one) means the instructions apply to every file - just like in VS Code.
             if ($applyTo === null || $applyTo === '') {
-                $matched[$path] = $cached['file'];
+                $matched[$path] = $cached;
                 continue;
             }
             $patterns = is_array($applyTo) ? $applyTo : preg_split('/\s*,\s*/', (string) $applyTo);
@@ -238,7 +273,7 @@ trait FileAccessToolTrait
                 if (($packageRelativePath !== null && $this->matchesInstructionPattern($packageRelativePath, $pattern))
                     || $this->matchesInstructionPattern($absolutePath, $pattern)
                 ) {
-                    $matched[$path] = $cached['file'];
+                    $matched[$path] = $cached;
                     break;
                 }
             }
@@ -280,6 +315,7 @@ trait FileAccessToolTrait
             $relativeToVendor = ltrim(mb_substr($absPath, strlen($vendorNeedle)), '/');
             self::$instructionFiles[$absPath] = [
                 'file' => new LocalFileInfo($relativeToVendor, $vendorPath, '/'),
+                'path' => $relativeToVendor,
                 'frontmatter' => $frontmatter
             ];
         }

@@ -1,5 +1,4 @@
 <?php
-
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
