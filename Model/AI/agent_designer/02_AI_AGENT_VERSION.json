@@ -109,7 +109,7 @@
                         "description": "Load information about the any metaobject. "
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -281,7 +281,7 @@
                         "description": "Load information about the any metaobject. "
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -627,7 +627,7 @@
                         "description": "Load information about the any metaobject. "
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",

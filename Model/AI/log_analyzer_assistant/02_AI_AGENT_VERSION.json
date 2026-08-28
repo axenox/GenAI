@@ -111,7 +111,7 @@
                         "description": "Request a log entry"
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -254,7 +254,7 @@
                         ]
                     },
                     "get_uxon_prototype_info": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "description": [
                             "// Multiline text delimited by `\n`",
                             "This tool provides documentation for any UXON prototype - widgets, actions, behaviors, data connectors, etc. UXON prototypes are PHP classes, that can be configured via UXON. Prototypes are referenced using different selectors: most common selector types are:",
