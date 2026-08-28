@@ -1,9 +1,10 @@
 # AI agent framework for ExFace no-code platform
 
 The app `axenox.GenAI` adds the possibility to configure AI agents in the 
-ExFace platform. Read the [platform instructions](../../../exface/core/.github/copilot-instructions.md) 
-to understand the platform. The goal is to let app designers add agents to 
-their apps easily and gradually improve them over time based on information 
+ExFace platform. Read the [core intro](../../../exface/core/.github/copilot-instructions.md) 
+and follow [component-specific instructions](../../../exface/core/.github/instructions/*)
+if applicable. The goal is to let app designers add agents to their apps 
+easily and gradually improve them over time based on information 
 collected by the app about their use and efficiency.
 
 This apps adds the `Administration > AI` menu with a convenient user 

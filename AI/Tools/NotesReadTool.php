@@ -20,6 +20,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *
  * The UID is always combined with hidden user and agent filters to prevent
  * notes from another scope being disclosed.
+ * 
+ * @author Andrej Kabachnik
  */
 class NotesReadTool extends AbstractAiTool
 {

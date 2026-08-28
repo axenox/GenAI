@@ -321,11 +321,15 @@ replacement text
 
 **Nicht verwenden, wenn.** Ist eine Notiz-UID bereits bekannt, verwenden Sie direkt `NotesReadTool`.
 
+| Konfiguration | Standardwert | Beschreibung |
+| --- | --- | --- |
+| `excerpt_length` | `300` | Maximale Anzahl an Zeichen des Notiztextes in jedem Treffer. Muss größer als null sein. |
+
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
 
-**Ergebnis und Grenzen.** Das Tool gibt nur die UIDs passender Notizen aus, jeweils eine pro Zeile. Es durchsucht niemals Notizen eines anderen Benutzers oder Agenten. Rufen Sie `NotesReadTool` auf, um den Inhalt eines ausgewählten Treffers zu laden.
+**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
 
 ## `GetTimeTool`
 

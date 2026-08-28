@@ -321,11 +321,15 @@ replacement text
 
 **Do not use when.** If a note UID is already known, use `NotesReadTool` directly.
 
+| Configuration | Default | Description |
+| --- | --- | --- |
+| `excerpt_length` | `300` | Maximum number of note-body characters included in each result. Must be greater than zero. |
+
 | Argument | Required | Description |
 | --- | --- | --- |
 | `query` | Yes | Text to find in either note topics or note bodies. |
 
-**Result and limits.** The tool returns only matching note UIDs, one per line. It never searches notes belonging to another user or agent. Call `NotesReadTool` for the content of a selected match.
+**Result and limits.** Each match includes its UID, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
 
 ## `GetTimeTool`
 
