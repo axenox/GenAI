@@ -16,10 +16,16 @@ use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * Search for UXON prototypes of certain components (e.g. `action`, `behavior`, `data_type`, etc.) by alias.
+ * Searches for UXON prototypes of a component type by alias and returns their selectors.
  * 
+ * Use this tool to discover prototypes for components such as `action`, `behavior`, or `data_type` before
+ * generating UXON. The result is a Markdown table containing the selectors accepted by
+ * `ModelUxonPrototypeTool`.
  * 
- *
+ * By default, a single search result is automatically followed by its full UXON prototype documentation.
+ * Configure `include_prototype_info_if_not_more_results_than` with a higher result threshold to include
+ * details for broader searches, or set it to `0` to return only the search table.
+ * 
  * @author Andrej Kabachnik
  */
 class ModelPrototypeSearchTool extends AbstractAiTool
@@ -28,6 +34,8 @@ class ModelPrototypeSearchTool extends AbstractAiTool
     public const ARG_COMPONENT = 'component';
     public const ARG_ROWS_LIMIT = 'rows_limit';
     public const ARG_ROWS_OFFSET = 'rows_offset';
+
+    private int $includePrototypeInfoIfNotMoreResultsThan = 1;
 
     /**
      * {@inheritDoc}
@@ -45,7 +53,16 @@ class ModelPrototypeSearchTool extends AbstractAiTool
         }
         
         $resultSheet = $this->getWorkbench()->getComponentRegistry()->searchPrototypes($query, $component, $rowsLimit, $rowsOffset);
-        return new AiToolResultString($this, $arguments, $this->buildMarkdownSearchResult($resultSheet, $query, $component), $this->getReturnDataType());
+        $markdown = $this->buildMarkdownSearchResult($resultSheet, $query, $component);
+        if ($this->includePrototypeInfoIfNotMoreResultsThan > 0
+            && $resultSheet->countRows() > 0
+            && $resultSheet->countRows() <= $this->includePrototypeInfoIfNotMoreResultsThan
+        ) {
+            $selector = $resultSheet->getRows()[0]['Selector'];
+            $prototypeResult = (new ModelUxonPrototypeTool($this->getWorkbench()))->invoke($agent, $prompt, [$selector]);
+            $markdown .= "\n\n## Prototype details\n\n" . $prototypeResult->getValueAsMarkdown();
+        }
+        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
     }
     
     protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet, string $query, string $component) : string
@@ -77,6 +94,7 @@ class ModelPrototypeSearchTool extends AbstractAiTool
         }
         $md = <<<MD
 Search results for "{$query}" in prototypes of component "{$component}". {$selectorHint}
+
 
 MD;
 
@@ -126,5 +144,22 @@ MD;
     public function getReturnDataType(): DataTypeInterface
     {
         return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
+    }
+
+    /**
+     * Append component details if the search result was very narrow - this saves a very probably next call to ModelUxonPrototypeTool.
+     * 
+     * Set to 0 to NEVER include prototype details, or to a higher number to include them if the search result has that many or fewer rows.
+     * 
+     * @uxon-property include_prototype_info_if_not_more_results_than
+     * @uxon-type integer
+    * @uxon-default 1
+     * 
+     * @param int $count
+     * @return void
+     */
+    protected function setIncludePrototypeInfoIfNotMoreResultsThan(int $count): void
+    {
+        $this->includePrototypeInfoIfNotMoreResultsThan = $count;
     }
 }
