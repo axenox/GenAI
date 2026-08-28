@@ -20,6 +20,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *
  * Existing notes with the same topic are replaced. User and agent identifiers
  * are taken from the current request and cannot be supplied by the LLM.
+ * 
+ * @author Andrej Kabachnik
  */
 class NotesWriteTool extends AbstractAiTool
 {

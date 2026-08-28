@@ -10,21 +10,27 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\StringDataType;
+use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * Searches note topics and bodies for the current agent and user.
+ * Searches notes (long-term memory) for the current agent and user.
  *
- * Only note UIDs are returned. Use NotesReadTool to load a selected result.
+ * The tool searches note topics and bodies. Use `excerpt_length` to control how much context each result includes,
+ * then use the note UID to load a selected result completely.
+ *
+ * @author Andrej Kabachnik
  */
 class NotesSearchTool extends AbstractAiTool
 {
     use NotesToolTrait;
 
     public const ARG_QUERY = 'query';
+    private const DEFAULT_EXCERPT_LENGTH = 300;
+
+    private int $excerptLength = self::DEFAULT_EXCERPT_LENGTH;
 
     /**
      * {@inheritDoc}
@@ -39,18 +45,62 @@ class NotesSearchTool extends AbstractAiTool
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->getColumns()->addMultiple(['TOPIC', 'NOTE']);
         $searchFilters = $sheet->getFilters()->addNestedOR();
         $searchFilters->addConditionFromString('TOPIC', $query, ComparatorDataType::IS);
         $searchFilters->addConditionFromString('NOTE', $query, ComparatorDataType::IS);
         $sheet->dataRead();
 
-        $uids = [];
+        $matches = [];
         foreach ($sheet->getRows() as $rowNumber => $row) {
-            $uids[] = $sheet->getUidColumn()->getValue($rowNumber);
+            $matches[] = MarkdownDataType::buildMarkdownHeader($sheet->getCellValue('TOPIC', $rowNumber), 3) . "\n"
+                . 'UID: `' . $sheet->getUidColumn()->getValue($rowNumber) . "`\n\n"
+                . MarkdownDataType::escapeCodeBlock($this->createExcerpt((string) $sheet->getCellValue('NOTE', $rowNumber), $query), 'markdown');
         }
 
-        $result = empty($uids) ? 'No matching notes found.' : implode("\n", $uids);
+        $result = empty($matches) ? 'No matching notes found.' : implode("\n\n", $matches);
         return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+    }
+
+    /**
+     * Creates a compact, single-line excerpt around the matching query.
+     *
+     * @param string $note
+     * @param string $query
+     * @return string
+     */
+    private function createExcerpt(string $note, string $query) : string
+    {
+        $note = trim((string) preg_replace('/\s+/u', ' ', $note));
+        if (mb_strlen($note) <= $this->excerptLength) {
+            return $note;
+        }
+
+        $matchPosition = mb_stripos($note, $query);
+        $start = $matchPosition === false ? 0 : max(0, $matchPosition - (int) ($this->excerptLength / 3));
+        $excerpt = mb_substr($note, $start, $this->excerptLength);
+
+        return ($start > 0 ? '...' : '') . rtrim($excerpt) . '...';
+    }
+
+    /**
+     * Maximum number of note-body characters included in each search result.
+     *
+     * @uxon-property excerpt_length
+     * @uxon-type integer
+     * @uxon-default 300
+     *
+     * @param int $length
+     * @return NotesSearchTool
+     */
+    protected function setExcerptLength(int $length) : NotesSearchTool
+    {
+        if ($length < 1) {
+            throw new \InvalidArgumentException('The excerpt_length of NotesSearchTool must be greater than 0.');
+        }
+
+        $this->excerptLength = $length;
+        return $this;
     }
 
     /**
@@ -74,6 +124,6 @@ class NotesSearchTool extends AbstractAiTool
      */
     public function getReturnDataType(): DataTypeInterface
     {
-        return DataTypeFactory::createFromPrototype($this->getWorkbench(), StringDataType::class);
+        return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);
     }
 }
