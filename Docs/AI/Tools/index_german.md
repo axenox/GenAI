@@ -404,6 +404,31 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Ergebnis ist die von der Komponenten-Registry zurückgegebene Dokumentation. Unbekannte Komponententypen oder Selektoren können nicht aufgelöst werden.
 
+## `ModelPrototypeSearchTool`
+
+**Alias:** `axenox.GenAI.ModelPrototypeSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeSearchTool)
+
+**Zweck.** Sucht UXON-Prototypklassen eines Komponententyps anhand ihres Alias.
+
+**Verwenden, wenn.** Der Agent die Art der Komponente kennt, beispielsweise Aktion, Behavior oder Datentyp, aber den Prototypselektor ermitteln muss, bevor er UXON erstellt.
+
+**Nicht verwenden, wenn.** Ist die PHP-Klasse oder der Pfad zur Prototypdatei bereits bekannt, verwenden Sie direkt `ModelUxonPrototypeTool`.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `include_prototype_info_if_not_more_results_than` | `1` | Hängt automatisch die Ausgabe von `ModelUxonPrototypeTool` an, wenn die Suche höchstens so viele Treffer liefert. Mit `0` wird die Erweiterung deaktiviert. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `search_query` | Ja | Prototypalias ohne Namespace. |
+| `component` | Ja | Durchsuchbarer Komponententyp, beispielsweise `action`, `behavior` oder `data_type`. |
+| `rows_limit` | Nein | Optionale maximale Zeilenanzahl. Standard ist `50`. |
+| `rows_offset` | Nein | Optionaler Pagination-Offset. Standard ist `0`. |
+
+**Verwendung.** Übergeben Sie einen Komponententyp und das spezifischste bekannte Aliasfragment. Standardmäßig enthält ein einzelner Treffer sowohl die Suchzeile als auch die UXON-Dokumentation des Prototyps, sodass kein zweiter Tool-Aufruf erforderlich ist.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist eine Markdown-Tabelle mit Prototypselektoren. Wird der konfigurierte Trefferschwellwert eingehalten, wird die zugehörige UXON-Prototypdokumentation angehängt. Breite Suchen geben nur die Tabelle zurück, sofern der Schwellwert nicht erhöht wurde.
+
 ## `ModelUxonPrototypeTool`
 
 **Alias:** `axenox.GenAI.ModelUxonPrototypeTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelUxonPrototypeTool)

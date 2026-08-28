@@ -404,6 +404,31 @@ replacement text
 
 **Result and limits.** The result is the documentation returned by the component registry. Unknown component types or selectors cannot be resolved.
 
+## `ModelPrototypeSearchTool`
+
+**Alias:** `axenox.GenAI.ModelPrototypeSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeSearchTool)
+
+**Purpose.** Searches for UXON prototype classes of a component type by alias.
+
+**Use when.** The agent knows the kind of component, such as an action, behavior, or data type, but needs to discover its prototype selector before creating UXON.
+
+**Do not use when.** If the PHP class or prototype file path is already known, use `ModelUxonPrototypeTool` directly.
+
+| UXON property | Default | Description |
+| --- | --- | --- |
+| `include_prototype_info_if_not_more_results_than` | `1` | Automatically appends the output of `ModelUxonPrototypeTool` when the search returns no more than this number of results. Set to `0` to disable enrichment. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `search_query` | Yes | Prototype alias without namespace. |
+| `component` | Yes | Searchable component type, such as `action`, `behavior`, or `data_type`. |
+| `rows_limit` | No | Optional maximum row count. Defaults to `50`. |
+| `rows_offset` | No | Optional pagination offset. Defaults to `0`. |
+
+**How to use.** Pass a component type and the most specific known alias fragment. By default, a single match includes both the search row and the prototype's UXON documentation, avoiding a second tool call.
+
+**Result and limits.** The result is a Markdown table containing prototype selectors. When the configured result threshold is met, the corresponding UXON prototype documentation is appended. Broad searches return only the table unless the threshold is raised.
+
 ## `ModelUxonPrototypeTool`
 
 **Alias:** `axenox.GenAI.ModelUxonPrototypeTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelUxonPrototypeTool)
