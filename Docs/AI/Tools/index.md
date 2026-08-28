@@ -412,11 +412,11 @@ replacement text
 
 **Use when.** The agent knows the kind of component, such as an action, behavior, or data type, but needs to discover its prototype selector before creating UXON.
 
-**Do not use when.** If the PHP class or prototype file path is already known, use `ModelUxonPrototypeTool` directly.
+**Do not use when.** If the PHP class or prototype file path is already known, use `ModelPrototypeInfoTool` directly.
 
 | UXON property | Default | Description |
 | --- | --- | --- |
-| `include_prototype_info_if_not_more_results_than` | `1` | Automatically appends the output of `ModelUxonPrototypeTool` when the search returns no more than this number of results. Set to `0` to disable enrichment. |
+| `include_prototype_info_if_not_more_results_than` | `1` | Automatically appends the output of `ModelPrototypeInfoTool` when the search returns no more than this number of results. Set to `0` to disable enrichment. |
 
 | Argument | Required | Description |
 | --- | --- | --- |
@@ -429,9 +429,9 @@ replacement text
 
 **Result and limits.** The result is a Markdown table containing prototype selectors. When the configured result threshold is met, the corresponding UXON prototype documentation is appended. Broad searches return only the table unless the threshold is raised.
 
-## `ModelUxonPrototypeTool`
+## `ModelPrototypeInfoTool`
 
-**Alias:** `axenox.GenAI.ModelUxonPrototypeTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelUxonPrototypeTool)
+**Alias:** `axenox.GenAI.ModelPrototypeInfoTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeInfoTool)
 
 **Purpose.** Generates documentation for the configurable UXON properties of a PHP prototype.
 

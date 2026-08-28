@@ -20,7 +20,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * Use this tool to discover prototypes for components such as `action`, `behavior`, or `data_type` before
  * generating UXON. The result is a Markdown table containing the selectors accepted by
- * `ModelUxonPrototypeTool`.
+ * `ModelPrototypeInfoTool`.
  * 
  * By default, a single search result is automatically followed by its full UXON prototype documentation.
  * Configure `include_prototype_info_if_not_more_results_than` with a higher result threshold to include
@@ -59,7 +59,7 @@ class ModelPrototypeSearchTool extends AbstractAiTool
             && $resultSheet->countRows() <= $this->includePrototypeInfoIfNotMoreResultsThan
         ) {
             $selector = $resultSheet->getRows()[0]['Selector'];
-            $prototypeResult = (new ModelUxonPrototypeTool($this->getWorkbench()))->invoke($agent, $prompt, [$selector]);
+            $prototypeResult = (new ModelPrototypeInfoTool($this->getWorkbench()))->invoke($agent, $prompt, [$selector]);
             $markdown .= "\n\n## Prototype details\n\n" . $prototypeResult->getValueAsMarkdown();
         }
         return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
@@ -147,13 +147,13 @@ MD;
     }
 
     /**
-     * Append component details if the search result was very narrow - this saves a very probably next call to ModelUxonPrototypeTool.
+     * Append component details if the search result was very narrow - this saves a very probably next call to ModelPrototypeInfoTool.
      * 
      * Set to 0 to NEVER include prototype details, or to a higher number to include them if the search result has that many or fewer rows.
      * 
      * @uxon-property include_prototype_info_if_not_more_results_than
      * @uxon-type integer
-    * @uxon-default 1
+        * @uxon-default 1
      * 
      * @param int $count
      * @return void

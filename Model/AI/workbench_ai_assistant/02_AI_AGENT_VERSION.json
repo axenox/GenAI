@@ -111,7 +111,7 @@
                         "description": "Read the log"
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
