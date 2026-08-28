@@ -1,5 +1,4 @@
 <?php
-
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Common\AbstractAiTool;
@@ -22,16 +21,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  */
 class ModelComponentInfoTool extends AbstractAiTool
 {
-    /**
-     *
-     * @var string
-     */
     const ARG_COMPONENT = 'component';
-    
-    /**
-     *
-     * @var string
-     */
     const ARG_SELECTOR = 'selector';
 
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface

@@ -14,7 +14,15 @@ use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
-class ModelUxonPrototypeTool extends AbstractAiTool
+/**
+ * Returns the UXON configuration documentation for a prototype class.
+ *
+ * Use the fully qualified PHP class name or its file path relative to the
+ * vendor folder to inspect the prototype's properties, types, and defaults.
+ *
+ * @author Andrej Kabachnik
+ */
+class ModelPrototypeInfoTool extends AbstractAiTool
 {
     /**
      *
@@ -28,6 +36,10 @@ class ModelUxonPrototypeTool extends AbstractAiTool
      */
     const ARG_OBJECT_SELECTOR_TYPE = 'selector_type';
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
+     */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($selector) = $arguments;
@@ -38,6 +50,10 @@ class ModelUxonPrototypeTool extends AbstractAiTool
         return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
     }
 
+    /**
+     * {@inheritDoc}
+     * @see \axenox\GenAI\Common\AbstractAiTool::getArgumentsTemplates()
+     */
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
@@ -50,7 +66,7 @@ class ModelUxonPrototypeTool extends AbstractAiTool
 
     /**
      * {@inheritDoc}
-     * @see AiToolInterface::getReturnDataType()
+     * @see \axenox\GenAI\Interfaces\AiToolInterface::getReturnDataType()
      */
     public function getReturnDataType(): DataTypeInterface
     {

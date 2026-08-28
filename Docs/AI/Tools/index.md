@@ -18,6 +18,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Run a tightly controlled local command | `CommandLineTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
 | Find object data by a configured attribute | `ModelObjectSearchTool` |
+| Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Understand the menu and screens of an app | `UiOverviewTool` |
@@ -147,11 +148,8 @@ Paths are validated against the configured base and allowlist before access. Thi
 | `patch` | Yes | Patch containing exact search and replacement blocks. |
 
 ```text
-<<<<<<< SEARCH
 exact text, including whitespace
-=======
 replacement text
->>>>>>> REPLACE
 ```
 
 **How to use.** The model supplies a relative path and one or more patch blocks. Search text is case-sensitive and whitespace-sensitive, so each block should be copied from the current file and be small enough to review but unique enough to identify one location. An empty search section can create a file or append content.
@@ -302,6 +300,59 @@ replacement text
 
 **Result and limits.** The tool uses the normal DataSheet save operation and returns imported row counts. ExFace authorization and validation remain active. Invalid rows are reported as exceptions where processing can continue; critical failures stop the import.
 
+## `NotesWriteTool`
+
+**Alias:** `axenox.GenAI.NotesWriteTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
+
+**Purpose.** Stores a long-term note for the invoking agent and authenticated user.
+
+**Use when.** An agent should remember a stable preference, decision, or other reusable fact across conversations. Use a short, stable topic so later writes can intentionally replace the same note.
+
+**Do not use when.** Do not store secrets, transient conversation details, or information the user did not ask or expect the agent to retain.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `topic` | Yes | Short topic that identifies the note within the current user and agent scope. |
+| `note` | Yes | Complete note body. It replaces the existing body when the topic already exists. |
+
+**Result and limits.** The tool writes through a DataSheet and returns the saved note UID. User and agent UIDs are derived from the current request and cannot be supplied by the model. A user can therefore have one note per topic for each agent.
+
+## `NotesReadTool`
+
+**Alias:** `axenox.GenAI.NotesReadTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesReadTool)
+
+**Purpose.** Reads one long-term note by UID for the invoking agent and authenticated user.
+
+**Use when.** `NotesSearchTool` or `NotesWriteTool` supplied a note UID and the agent needs the complete topic and body.
+
+**Do not use when.** Do not guess UIDs or use this tool to discover notes. Search first when the relevant UID is unknown.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `note_uid` | Yes | UID of the note to read. |
+
+**Result and limits.** The result contains the topic and complete note body as Markdown. The lookup always includes hidden user and agent filters. Missing and out-of-scope UIDs produce the same not-found error to prevent information disclosure.
+
+## `NotesSearchTool`
+
+**Alias:** `axenox.GenAI.NotesSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesSearchTool)
+
+**Purpose.** Searches long-term note topics and bodies for the invoking agent and authenticated user.
+
+**Use when.** The agent needs to discover whether it has relevant memory before answering or updating a note.
+
+**Do not use when.** If a note UID is already known, use `NotesReadTool` directly.
+
+| Configuration | Default | Description |
+| --- | --- | --- |
+| `excerpt_length` | `300` | Maximum number of note-body characters included in each result. Must be greater than zero. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `query` | Yes | Text to find in either note topics or note bodies. |
+
+**Result and limits.** Each match includes its UID, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
+
 ## `GetTimeTool`
 
 **Alias:** `axenox.GenAI.GetTimeTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CGetTimeTool)
@@ -429,9 +480,34 @@ replacement text
 
 **Result and limits.** The result is the documentation returned by the component registry. Unknown component types or selectors cannot be resolved.
 
-## `ModelUxonPrototypeTool`
+## `ModelPrototypeSearchTool`
 
-**Alias:** `axenox.GenAI.ModelUxonPrototypeTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelUxonPrototypeTool)
+**Alias:** `axenox.GenAI.ModelPrototypeSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeSearchTool)
+
+**Purpose.** Searches for UXON prototype classes of a component type by alias.
+
+**Use when.** The agent knows the kind of component, such as an action, behavior, or data type, but needs to discover its prototype selector before creating UXON.
+
+**Do not use when.** If the PHP class or prototype file path is already known, use `ModelPrototypeInfoTool` directly.
+
+| UXON property | Default | Description |
+| --- | --- | --- |
+| `include_prototype_info_if_not_more_results_than` | `1` | Automatically appends the output of `ModelPrototypeInfoTool` when the search returns no more than this number of results. Set to `0` to disable enrichment. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `search_query` | Yes | Prototype alias without namespace. |
+| `component` | Yes | Searchable component type, such as `action`, `behavior`, or `data_type`. |
+| `rows_limit` | No | Optional maximum row count. Defaults to `50`. |
+| `rows_offset` | No | Optional pagination offset. Defaults to `0`. |
+
+**How to use.** Pass a component type and the most specific known alias fragment. By default, a single match includes both the search row and the prototype's UXON documentation, avoiding a second tool call.
+
+**Result and limits.** The result is a Markdown table containing prototype selectors. When the configured result threshold is met, the corresponding UXON prototype documentation is appended. Broad searches return only the table unless the threshold is raised.
+
+## `ModelPrototypeInfoTool`
+
+**Alias:** `axenox.GenAI.ModelPrototypeInfoTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeInfoTool)
 
 **Purpose.** Generates documentation for the configurable UXON properties of a PHP prototype.
 

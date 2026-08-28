@@ -18,6 +18,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
 | Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
+| Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -147,11 +148,8 @@ Pfade werden vor dem Zugriff gegen die konfigurierte Basis und Positivliste vali
 | `patch` | Ja | Patch mit exakten Such- und Ersetzungsblöcken. |
 
 ```text
-<<<<<<< SEARCH
 exact text, including whitespace
-=======
 replacement text
->>>>>>> REPLACE
 ```
 
 **Verwendung.** Das Modell übergibt einen relativen Pfad und einen oder mehrere Patch-Blöcke. Beim Suchtext wird zwischen Groß- und Kleinschreibung unterschieden und Leerraum exakt berücksichtigt. Daher sollte jeder Block aus der aktuellen Datei kopiert, klein genug für eine einfache Prüfung und zugleich eindeutig genug zur Identifikation genau einer Stelle sein. Ein leerer Suchabschnitt kann eine Datei erstellen oder Inhalt anhängen.
@@ -302,6 +300,59 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Tool verwendet den regulären DataSheet-Speichervorgang und gibt die Anzahl importierter Zeilen zurück. ExFace-Autorisierung und -Validierung bleiben aktiv. Ungültige Zeilen werden, sofern die Verarbeitung fortgesetzt werden kann, als Exceptions gemeldet; kritische Fehler brechen den Import ab.
 
+## `NotesWriteTool`
+
+**Alias:** `axenox.GenAI.NotesWriteTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
+
+**Zweck.** Speichert eine langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge dieselbe Notiz gezielt ersetzen können.
+
+**Nicht verwenden, wenn.** Speichern Sie keine Geheimnisse, vorübergehenden Gesprächsdetails oder Informationen, deren dauerhafte Speicherung der Benutzer weder angefordert hat noch erwarten würde.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `topic` | Ja | Kurzes Thema, das die Notiz innerhalb des aktuellen Benutzer- und Agentenbereichs identifiziert. |
+| `note` | Ja | Vollständiger Notiztext. Er ersetzt den bestehenden Text, wenn das Thema bereits vorhanden ist. |
+
+**Ergebnis und Grenzen.** Das Tool schreibt über ein DataSheet und gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden. Ein Benutzer kann daher je Agent und Thema genau eine Notiz besitzen.
+
+## `NotesReadTool`
+
+**Alias:** `axenox.GenAI.NotesReadTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesReadTool)
+
+**Zweck.** Liest eine langfristige Notiz anhand ihrer UID für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** `NotesSearchTool` oder `NotesWriteTool` eine Notiz-UID geliefert hat und der Agent das vollständige Thema und den Text benötigt.
+
+**Nicht verwenden, wenn.** Erraten Sie keine UIDs und verwenden Sie dieses Tool nicht zum Ermitteln von Notizen. Suchen Sie zuerst, wenn die relevante UID unbekannt ist.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `note_uid` | Ja | UID der zu lesenden Notiz. |
+
+**Ergebnis und Grenzen.** Das Ergebnis enthält Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
+
+## `NotesSearchTool`
+
+**Alias:** `axenox.GenAI.NotesSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesSearchTool)
+
+**Zweck.** Durchsucht Themen und Texte langfristiger Notizen für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** Der Agent vor einer Antwort oder Aktualisierung feststellen muss, ob ein relevantes Gedächtnis vorhanden ist.
+
+**Nicht verwenden, wenn.** Ist eine Notiz-UID bereits bekannt, verwenden Sie direkt `NotesReadTool`.
+
+| Konfiguration | Standardwert | Beschreibung |
+| --- | --- | --- |
+| `excerpt_length` | `300` | Maximale Anzahl an Zeichen des Notiztextes in jedem Treffer. Muss größer als null sein. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
+
+**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
+
 ## `GetTimeTool`
 
 **Alias:** `axenox.GenAI.GetTimeTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CGetTimeTool)
@@ -429,9 +480,34 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Ergebnis ist die von der Komponenten-Registry zurückgegebene Dokumentation. Unbekannte Komponententypen oder Selektoren können nicht aufgelöst werden.
 
-## `ModelUxonPrototypeTool`
+## `ModelPrototypeSearchTool`
 
-**Alias:** `axenox.GenAI.ModelUxonPrototypeTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelUxonPrototypeTool)
+**Alias:** `axenox.GenAI.ModelPrototypeSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeSearchTool)
+
+**Zweck.** Sucht UXON-Prototypklassen eines Komponententyps anhand ihres Alias.
+
+**Verwenden, wenn.** Der Agent die Art der Komponente kennt, beispielsweise Aktion, Behavior oder Datentyp, aber den Prototypselektor ermitteln muss, bevor er UXON erstellt.
+
+**Nicht verwenden, wenn.** Ist die PHP-Klasse oder der Pfad zur Prototypdatei bereits bekannt, verwenden Sie direkt `ModelPrototypeInfoTool`.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `include_prototype_info_if_not_more_results_than` | `1` | Hängt automatisch die Ausgabe von `ModelPrototypeInfoTool` an, wenn die Suche höchstens so viele Treffer liefert. Mit `0` wird die Erweiterung deaktiviert. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `search_query` | Ja | Prototypalias ohne Namespace. |
+| `component` | Ja | Durchsuchbarer Komponententyp, beispielsweise `action`, `behavior` oder `data_type`. |
+| `rows_limit` | Nein | Optionale maximale Zeilenanzahl. Standard ist `50`. |
+| `rows_offset` | Nein | Optionaler Pagination-Offset. Standard ist `0`. |
+
+**Verwendung.** Übergeben Sie einen Komponententyp und das spezifischste bekannte Aliasfragment. Standardmäßig enthält ein einzelner Treffer sowohl die Suchzeile als auch die UXON-Dokumentation des Prototyps, sodass kein zweiter Tool-Aufruf erforderlich ist.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist eine Markdown-Tabelle mit Prototypselektoren. Wird der konfigurierte Trefferschwellwert eingehalten, wird die zugehörige UXON-Prototypdokumentation angehängt. Breite Suchen geben nur die Tabelle zurück, sofern der Schwellwert nicht erhöht wurde.
+
+## `ModelPrototypeInfoTool`
+
+**Alias:** `axenox.GenAI.ModelPrototypeInfoTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelPrototypeInfoTool)
 
 **Zweck.** Erzeugt Dokumentation für die konfigurierbaren UXON-Eigenschaften eines PHP-Prototyps.
 

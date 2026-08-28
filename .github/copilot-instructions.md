@@ -1,15 +1,18 @@
-The app `axenox.GenAI` adds the possibility to configure AI agents, as 
-integral parts of our apps. It provides a framework to develop, monitor and 
-test these agents. The goal is to let app designers add agents to their apps 
-easily and gradually improve them over time based on information collected 
-by the app about their use and efficiency.
+# AI agent framework for ExFace no-code platform
+
+The app `axenox.GenAI` adds the possibility to configure AI agents in the 
+ExFace platform. Read the [core intro](../../../exface/core/.github/copilot-instructions.md) 
+and follow [component-specific instructions](../../../exface/core/.github/instructions/*)
+if applicable. The goal is to let app designers add agents to their apps 
+easily and gradually improve them over time based on information 
+collected by the app about their use and efficiency.
 
 This apps adds the `Administration > AI` menu with a convenient user 
 interface to create, test and monitor agents.
 
 ## AI components
 
-The AI framework consists of these main compinents:
+The AI framework consists of these main components:
 
 - At its heart, agents having a prototype and a UXON model handle prompts 
   (similar to action tasks) and return `AIPromptResult` containers - 
