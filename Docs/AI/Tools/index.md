@@ -17,6 +17,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Create or completely replace a file | `FileWriteTool` |
 | Run a tightly controlled local command | `CommandLineTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
+| Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Understand the menu and screens of an app | `UiOverviewTool` |
@@ -276,6 +277,55 @@ replacement text
 **How to use.** Configure either `save_as` for one target schema or `data_schemas` for several permitted schemas. Restrict each schema to the exact objects, columns, and subsheets the agent may modify. The model then supplies a matching DataSheet object or array of objects.
 
 **Result and limits.** The tool uses the normal DataSheet save operation and returns imported row counts. ExFace authorization and validation remain active. Invalid rows are reported as exceptions where processing can continue; critical failures stop the import.
+
+## `NotesWriteTool`
+
+**Alias:** `axenox.GenAI.NotesWriteTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
+
+**Purpose.** Stores a long-term note for the invoking agent and authenticated user.
+
+**Use when.** An agent should remember a stable preference, decision, or other reusable fact across conversations. Use a short, stable topic so later writes can intentionally replace the same note.
+
+**Do not use when.** Do not store secrets, transient conversation details, or information the user did not ask or expect the agent to retain.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `topic` | Yes | Short topic that identifies the note within the current user and agent scope. |
+| `note` | Yes | Complete note body. It replaces the existing body when the topic already exists. |
+
+**Result and limits.** The tool writes through a DataSheet and returns the saved note UID. User and agent UIDs are derived from the current request and cannot be supplied by the model. A user can therefore have one note per topic for each agent.
+
+## `NotesReadTool`
+
+**Alias:** `axenox.GenAI.NotesReadTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesReadTool)
+
+**Purpose.** Reads one long-term note by UID for the invoking agent and authenticated user.
+
+**Use when.** `NotesSearchTool` or `NotesWriteTool` supplied a note UID and the agent needs the complete topic and body.
+
+**Do not use when.** Do not guess UIDs or use this tool to discover notes. Search first when the relevant UID is unknown.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `note_uid` | Yes | UID of the note to read. |
+
+**Result and limits.** The result contains the topic and complete note body as Markdown. The lookup always includes hidden user and agent filters. Missing and out-of-scope UIDs produce the same not-found error to prevent information disclosure.
+
+## `NotesSearchTool`
+
+**Alias:** `axenox.GenAI.NotesSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesSearchTool)
+
+**Purpose.** Searches long-term note topics and bodies for the invoking agent and authenticated user.
+
+**Use when.** The agent needs to discover whether it has relevant memory before answering or updating a note.
+
+**Do not use when.** If a note UID is already known, use `NotesReadTool` directly.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `query` | Yes | Text to find in either note topics or note bodies. |
+
+**Result and limits.** The tool returns only matching note UIDs, one per line. It never searches notes belonging to another user or agent. Call `NotesReadTool` for the content of a selected match.
 
 ## `GetTimeTool`
 

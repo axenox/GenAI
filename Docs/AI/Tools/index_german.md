@@ -17,6 +17,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -276,6 +277,55 @@ replacement text
 **Verwendung.** Konfigurieren Sie entweder `save_as` für ein einzelnes Zielschema oder `data_schemas` für mehrere zulässige Schemata. Beschränken Sie jedes Schema auf genau die Objekte, Spalten und Sub-Sheets, die der Agent ändern darf. Das Modell übergibt anschließend ein passendes DataSheet-Objekt oder ein Array von Objekten.
 
 **Ergebnis und Grenzen.** Das Tool verwendet den regulären DataSheet-Speichervorgang und gibt die Anzahl importierter Zeilen zurück. ExFace-Autorisierung und -Validierung bleiben aktiv. Ungültige Zeilen werden, sofern die Verarbeitung fortgesetzt werden kann, als Exceptions gemeldet; kritische Fehler brechen den Import ab.
+
+## `NotesWriteTool`
+
+**Alias:** `axenox.GenAI.NotesWriteTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
+
+**Zweck.** Speichert eine langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge dieselbe Notiz gezielt ersetzen können.
+
+**Nicht verwenden, wenn.** Speichern Sie keine Geheimnisse, vorübergehenden Gesprächsdetails oder Informationen, deren dauerhafte Speicherung der Benutzer weder angefordert hat noch erwarten würde.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `topic` | Ja | Kurzes Thema, das die Notiz innerhalb des aktuellen Benutzer- und Agentenbereichs identifiziert. |
+| `note` | Ja | Vollständiger Notiztext. Er ersetzt den bestehenden Text, wenn das Thema bereits vorhanden ist. |
+
+**Ergebnis und Grenzen.** Das Tool schreibt über ein DataSheet und gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden. Ein Benutzer kann daher je Agent und Thema genau eine Notiz besitzen.
+
+## `NotesReadTool`
+
+**Alias:** `axenox.GenAI.NotesReadTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesReadTool)
+
+**Zweck.** Liest eine langfristige Notiz anhand ihrer UID für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** `NotesSearchTool` oder `NotesWriteTool` eine Notiz-UID geliefert hat und der Agent das vollständige Thema und den Text benötigt.
+
+**Nicht verwenden, wenn.** Erraten Sie keine UIDs und verwenden Sie dieses Tool nicht zum Ermitteln von Notizen. Suchen Sie zuerst, wenn die relevante UID unbekannt ist.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `note_uid` | Ja | UID der zu lesenden Notiz. |
+
+**Ergebnis und Grenzen.** Das Ergebnis enthält Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
+
+## `NotesSearchTool`
+
+**Alias:** `axenox.GenAI.NotesSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesSearchTool)
+
+**Zweck.** Durchsucht Themen und Texte langfristiger Notizen für den aufrufenden Agenten und den authentifizierten Benutzer.
+
+**Verwenden, wenn.** Der Agent vor einer Antwort oder Aktualisierung feststellen muss, ob ein relevantes Gedächtnis vorhanden ist.
+
+**Nicht verwenden, wenn.** Ist eine Notiz-UID bereits bekannt, verwenden Sie direkt `NotesReadTool`.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
+
+**Ergebnis und Grenzen.** Das Tool gibt nur die UIDs passender Notizen aus, jeweils eine pro Zeile. Es durchsucht niemals Notizen eines anderen Benutzers oder Agenten. Rufen Sie `NotesReadTool` auf, um den Inhalt eines ausgewählten Treffers zu laden.
 
 ## `GetTimeTool`
 

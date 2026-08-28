@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-06-12 23:21:49",
+            "MODIFIED_ON": "2026-08-28 17:56:20",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
@@ -202,6 +202,52 @@
                                     },
                                     {
                                         "action_alias": "exface.Core.DeleteObject"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "Notes",
+                        "width": "max",
+                        "height": "max",
+                        "widgets": [
+                            {
+                                "widget_type": "DataTable",
+                                "object_alias": "axenox.GenAI.AI_NOTE",
+                                "filters": [
+                                    {
+                                        "attribute_alias": "AI_AGENT",
+                                        "comparator": "==",
+                                        "required": true,
+                                        "hidden": true
+                                    }
+                                ],
+                                "columns": [
+                                    {
+                                        "attribute_alias": "USER__LABEL"
+                                    },
+                                    {
+                                        "attribute_alias": "TOPIC"
+                                    },
+                                    {
+                                        "attribute_alias": "MODIFIED_ON"
+                                    }
+                                ],
+                                "sorters": [
+                                    {
+                                        "attribute_alias": "MODIFIED_ON",
+                                        "direction": "desc"
+                                    }
+                                ],
+                                "buttons": [
+                                    {
+                                        "action_alias": "exface.Core.ShowObjectEditDialog",
+                                        "bind_to_double_click": true
+                                    },
+                                    {
+                                        "action_alias": "exface.core.DeleteObject"
                                     }
                                 ]
                             }
