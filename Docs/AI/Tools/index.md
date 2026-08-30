@@ -282,9 +282,9 @@ replacement text
 
 **Alias:** `axenox.GenAI.NotesWriteTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
 
-**Purpose.** Stores a long-term note for the invoking agent and authenticated user.
+**Purpose.** Stores a typed long-term note for the invoking agent and authenticated user. Memories retain reusable context; suggestions record potential improvements, missing tools, or other opportunities to improve work on a topic.
 
-**Use when.** An agent should remember a stable preference, decision, or other reusable fact across conversations. Use a short, stable topic so later writes can intentionally replace the same note.
+**Use when.** An agent should remember a stable preference, decision, or other reusable fact across conversations. Use a short, stable topic so later writes can replace the note by exact topic, or supply a UID returned by a notes tool to overwrite a known note explicitly.
 
 **Do not use when.** Do not store secrets, transient conversation details, or information the user did not ask or expect the agent to retain.
 
@@ -292,8 +292,10 @@ replacement text
 | --- | --- | --- |
 | `topic` | Yes | Short topic that identifies the note within the current user and agent scope. |
 | `note` | Yes | Complete note body. It replaces the existing body when the topic already exists. |
+| `uid` | No | UID of a known note to overwrite explicitly. The note must belong to the current user and agent. |
+| `type` | No | `memory` (default) for reusable context or `suggestion` for potential improvements and missing capabilities. |
 
-**Result and limits.** The tool writes through a DataSheet and returns the saved note UID. User and agent UIDs are derived from the current request and cannot be supplied by the model. A user can therefore have one note per topic for each agent.
+**Result and limits.** When `uid` is supplied, the matching scoped note is overwritten with the supplied topic and body; an unknown or out-of-scope UID produces a not-found error. Without `uid`, the tool updates an exact topic match or creates a new note. Updates carry all system attributes read with the note so timestamp conflict checks remain active. The tool returns the saved note UID. User and agent UIDs are derived from the current request and cannot be supplied by the model.
 
 ## `NotesReadTool`
 
@@ -309,7 +311,7 @@ replacement text
 | --- | --- | --- |
 | `note_uid` | Yes | UID of the note to read. |
 
-**Result and limits.** The result contains the topic and complete note body as Markdown. The lookup always includes hidden user and agent filters. Missing and out-of-scope UIDs produce the same not-found error to prevent information disclosure.
+**Result and limits.** The result contains the type, topic, and complete note body as Markdown. The lookup always includes hidden user and agent filters. Missing and out-of-scope UIDs produce the same not-found error to prevent information disclosure.
 
 ## `NotesSearchTool`
 
@@ -328,8 +330,9 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `query` | Yes | Text to find in either note topics or note bodies. |
+| `type` | No | `all` (default), `memory`, or `suggestion`. Concrete types restrict the search results. |
 
-**Result and limits.** Each match includes its UID, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
+**Result and limits.** Each match includes its UID, type, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
 
 ## `GetTimeTool`
 

@@ -41,7 +41,7 @@ class NotesReadTool extends AbstractAiTool
         }
 
         $sheet = $this->createScopedNotesSheet($agent);
-        $sheet->getColumns()->addMultiple(['TOPIC', 'NOTE']);
+        $sheet->getColumns()->addMultiple(['TOPIC', 'NOTE', 'TYPE']);
         $sheet->getFilters()->addConditionFromString('UID', $noteUid, ComparatorDataType::EQUALS);
         $sheet->dataRead();
 
@@ -49,7 +49,9 @@ class NotesReadTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'No note with this UID exists for the current agent and user.');
         }
 
-        $result = '## ' . $sheet->getCellValue('TOPIC', 0) . "\n\n" . $sheet->getCellValue('NOTE', 0);
+        $result = '## ' . $sheet->getCellValue('TOPIC', 0) . "\n\n"
+            . 'Type: `' . $sheet->getCellValue('TYPE', 0) . "`\n\n"
+            . $sheet->getCellValue('NOTE', 0);
         return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
     }
 
