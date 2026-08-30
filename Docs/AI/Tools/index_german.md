@@ -282,9 +282,9 @@ replacement text
 
 **Alias:** `axenox.GenAI.NotesWriteTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
 
-**Zweck.** Speichert eine langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer.
+**Zweck.** Speichert eine typisierte langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer. Erinnerungen halten wiederverwendbaren Kontext fest; Vorschläge dokumentieren mögliche Verbesserungen, fehlende Tools oder andere Optimierungsmöglichkeiten für die Arbeit an einem Thema.
 
-**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge dieselbe Notiz gezielt ersetzen können.
+**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge die Notiz über ein exakt übereinstimmendes Thema ersetzen können, oder übergeben Sie die von einem Notiz-Tool gelieferte UID, um eine bekannte Notiz gezielt zu überschreiben.
 
 **Nicht verwenden, wenn.** Speichern Sie keine Geheimnisse, vorübergehenden Gesprächsdetails oder Informationen, deren dauerhafte Speicherung der Benutzer weder angefordert hat noch erwarten würde.
 
@@ -292,8 +292,10 @@ replacement text
 | --- | --- | --- |
 | `topic` | Ja | Kurzes Thema, das die Notiz innerhalb des aktuellen Benutzer- und Agentenbereichs identifiziert. |
 | `note` | Ja | Vollständiger Notiztext. Er ersetzt den bestehenden Text, wenn das Thema bereits vorhanden ist. |
+| `uid` | Nein | UID einer bekannten Notiz, die gezielt überschrieben werden soll. Die Notiz muss zum aktuellen Benutzer und Agenten gehören. |
+| `type` | Nein | `memory` (Standardwert) für wiederverwendbaren Kontext oder `suggestion` für mögliche Verbesserungen und fehlende Fähigkeiten. |
 
-**Ergebnis und Grenzen.** Das Tool schreibt über ein DataSheet und gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden. Ein Benutzer kann daher je Agent und Thema genau eine Notiz besitzen.
+**Ergebnis und Grenzen.** Wenn `uid` übergeben wird, überschreibt das Tool die passende Notiz im aktuellen Bereich mit dem übergebenen Thema und Text; eine unbekannte oder nicht zum Bereich gehörende UID erzeugt einen Nicht-gefunden-Fehler. Ohne `uid` aktualisiert das Tool eine exakte Themenübereinstimmung oder erstellt eine neue Notiz. Aktualisierungen enthalten alle mit der Notiz gelesenen Systemattribute, damit Zeitstempel-Konfliktprüfungen aktiv bleiben. Das Tool gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden.
 
 ## `NotesReadTool`
 
@@ -309,7 +311,7 @@ replacement text
 | --- | --- | --- |
 | `note_uid` | Ja | UID der zu lesenden Notiz. |
 
-**Ergebnis und Grenzen.** Das Ergebnis enthält Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
+**Ergebnis und Grenzen.** Das Ergebnis enthält Typ, Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
 
 ## `NotesSearchTool`
 
@@ -328,8 +330,9 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
+| `type` | Nein | `all` (Standardwert), `memory` oder `suggestion`. Konkrete Typen schränken die Suchergebnisse ein. |
 
-**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
+**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Typ, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
 
 ## `GetTimeTool`
 
