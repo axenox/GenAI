@@ -16,6 +16,8 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Change a small part of an existing file | `FilePatchTool` |
 | Create or completely replace a file | `FileWriteTool` |
 | Run a tightly controlled local command | `CommandLineTool` |
+| Inspect Git changes and history | `GitTool` |
+| Validate PHP syntax | `DevLintPHPTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
 | Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
@@ -53,7 +55,7 @@ The built-in argument templates are used when `arguments` is omitted. Override t
 
 ## File access configuration
 
-`CommandLineTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool`, and `FileSearchTool` share these properties:
+`CommandLineTool`, `GitTool`, `DevLintPHPTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool`, and `FileSearchTool` share these properties:
 
 | Property | Default | Description |
 | --- | --- | --- |
@@ -87,6 +89,48 @@ Paths are validated against the configured base and allowlist before access. Thi
 **How to use.** Configure an explicit `allowed_commands` list, a defensive `blocked_commands` list, and narrow file access settings. The model supplies the complete command and, optionally, a working folder. Block rules take precedence over allow rules; an empty allowlist otherwise permits every command not explicitly blocked.
 
 **Result and limits.** The tool returns captured console output in a Markdown code block. Invalid commands, denied folders, failures, and timeouts produce a tool error. Keep the timeout finite and never rely on the model to decide whether an unrestricted command is safe.
+
+## `GitTool`
+
+**Alias:** `axenox.GenAI.GitTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CGitTool)
+
+**Purpose.** Runs predefined Git operations in a validated repository folder. Its safe defaults let an agent inspect current changes and search commit history without enabling file-changing operations.
+
+**Use when.** The agent needs to validate a working tree, inspect diffs, find previous work, or view an earlier version of a file. Prefer this tool over `CommandLineTool` for Git because designers configure operation names instead of command regexes.
+
+**Do not use when.** Do not enable mutating operations unless the agent explicitly needs them and its workflow includes suitable review safeguards. The default configuration does not allow staging, commits, branch changes, network synchronization, or other repository modifications.
+
+| UXON property | Default | Description |
+| --- | --- | --- |
+| `allowed_commands` | `["status", "diff", "log", "show", "blame", "grep"]` | Predefined Git operation names. Supported read operations also include `rev-list`, `rev-parse`, `ls-files`, `ls-tree`, `shortlog`, and `describe`. Mutating operations such as `stage`, `commit`, `switch`, `pull`, and `push` require explicit opt-in. An empty list denies every command. |
+| `command_timeout` | `60` | Maximum execution time in seconds. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `command` | Yes | Complete Git command beginning with `git` and an enabled operation. |
+| `folder` | No | Repository folder relative to the configured base path. |
+
+**How to use.** Usually keep the default operation list and restrict `allowed_paths` to the repositories the agent may inspect. To grant another operation, add its predefined name to `allowed_commands`; `stage` maps to `git add`. Unknown names are rejected as configuration errors. The generated validation patterns reject shell operators and options that write command output or invoke external diff and pager helpers.
+
+**Result and limits.** The tool returns Git output in a Markdown code block. It does not parse Git output into structured data. Explicitly enabled mutating commands retain their normal Git behavior and should only be exposed to agents designed to make repository changes.
+
+## `DevLintPHPTool`
+
+**Alias:** `axenox.GenAI.DevLintPHPTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CDevLintPHPTool)
+
+**Purpose.** Validates one PHP file with the current PHP runtime's built-in lint mode without executing the file.
+
+**Use when.** An autonomous development agent has created or changed a PHP file. Run it before considering the change complete to catch parse errors cheaply and locally.
+
+**Do not use when.** PHP lint only checks syntax. It does not verify types, dependencies, coding standards, tests, or runtime behavior, and it does not accept JavaScript or other file types.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `path` | Yes | Path to a `.php` file relative to the configured base path. |
+
+**How to use.** Restrict `allowed_paths` to the source trees the agent may validate. The tool fixes the executable and lint option internally; the model can only provide a validated relative file path and cannot add PHP or shell options.
+
+**Result and limits.** The tool returns PHP's lint output in a Markdown code block. A syntax error is a normal diagnostic result so the agent can repair it. Missing, unreadable, denied, and non-PHP files produce a tool error, as does failure to start the PHP process.
 
 ## `FileReadTool`
 
