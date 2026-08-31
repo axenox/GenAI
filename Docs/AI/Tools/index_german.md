@@ -16,6 +16,8 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Einen kleinen Teil einer bestehenden Datei ändern | `FilePatchTool` |
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
+| Git-Änderungen und Historie untersuchen | `GitTool` |
+| PHP-Syntax validieren | `DevLintPHPTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
 | Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
@@ -53,7 +55,7 @@ Werden `arguments` weggelassen, kommen die integrierten Argumentvorlagen zum Ein
 
 ## Dateizugriff konfigurieren
 
-`CommandLineTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool` und `FileSearchTool` verwenden gemeinsam die folgenden Eigenschaften:
+`CommandLineTool`, `GitTool`, `DevLintPHPTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool` und `FileSearchTool` verwenden gemeinsam die folgenden Eigenschaften:
 
 | Eigenschaft | Standard | Beschreibung |
 | --- | --- | --- |
@@ -87,6 +89,48 @@ Pfade werden vor dem Zugriff gegen die konfigurierte Basis und Positivliste vali
 **Verwendung.** Konfigurieren Sie eine explizite Liste `allowed_commands`, eine defensive Liste `blocked_commands` und eng begrenzte Dateizugriffseinstellungen. Das Modell übergibt den vollständigen Befehl und optional ein Arbeitsverzeichnis. Sperrregeln haben Vorrang vor Freigaberegeln; eine leere Positivliste erlaubt ansonsten jeden nicht ausdrücklich gesperrten Befehl.
 
 **Ergebnis und Grenzen.** Das Tool gibt die erfasste Konsolenausgabe in einem Markdown-Codeblock zurück. Ungültige Befehle, abgelehnte Verzeichnisse, Fehler und Zeitüberschreitungen führen zu einem Tool-Fehler. Begrenzen Sie die Ausführungszeit und verlassen Sie sich niemals darauf, dass das Modell entscheidet, ob ein uneingeschränkter Befehl sicher ist.
+
+## `GitTool`
+
+**Alias:** `axenox.GenAI.GitTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CGitTool)
+
+**Zweck.** Führt vordefinierte Git-Operationen in einem validierten Repository-Verzeichnis aus. Die sicheren Standardeinstellungen erlauben einem Agenten, aktuelle Änderungen und die Commit-Historie zu untersuchen, ohne dateiverändernde Operationen freizuschalten.
+
+**Verwenden, wenn.** Der Agent einen Arbeitsbaum validieren, Diffs untersuchen, frühere Arbeiten finden oder eine ältere Version einer Datei ansehen muss. Bevorzugen Sie dieses Tool für Git gegenüber dem `CommandLineTool`, da Designer Operationsnamen statt Befehlsregex konfigurieren.
+
+**Nicht verwenden, wenn.** Aktivieren Sie verändernde Operationen nur, wenn der Agent sie ausdrücklich benötigt und sein Arbeitsablauf geeignete Prüfmechanismen enthält. Die Standardkonfiguration erlaubt weder Staging und Commits noch Branch-Wechsel, Netzwerksynchronisierung oder andere Repository-Änderungen.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `allowed_commands` | `["status", "diff", "log", "show", "blame", "grep"]` | Vordefinierte Namen von Git-Operationen. Zusätzlich unterstützte Leseoperationen sind `rev-list`, `rev-parse`, `ls-files`, `ls-tree`, `shortlog` und `describe`. Verändernde Operationen wie `stage`, `commit`, `switch`, `pull` und `push` müssen ausdrücklich aktiviert werden. Eine leere Liste sperrt alle Befehle. |
+| `command_timeout` | `60` | Maximale Ausführungszeit in Sekunden. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `command` | Ja | Vollständiger Git-Befehl, der mit `git` und einer aktivierten Operation beginnt. |
+| `folder` | Nein | Repository-Verzeichnis relativ zum konfigurierten Basispfad. |
+
+**Verwendung.** Behalten Sie üblicherweise die standardmäßige Operationsliste bei und beschränken Sie `allowed_paths` auf die Repositorys, die der Agent untersuchen darf. Um eine weitere Operation freizugeben, fügen Sie ihren vordefinierten Namen zu `allowed_commands` hinzu; `stage` wird auf `git add` abgebildet. Unbekannte Namen werden als Konfigurationsfehler abgelehnt. Die erzeugten Validierungsmuster sperren Shell-Operatoren sowie Optionen, die Befehlsausgaben schreiben oder externe Diff- und Pager-Hilfsprogramme aufrufen.
+
+**Ergebnis und Grenzen.** Das Tool gibt die Git-Ausgabe in einem Markdown-Codeblock zurück. Es wandelt die Git-Ausgabe nicht in strukturierte Daten um. Ausdrücklich aktivierte verändernde Befehle behalten ihr normales Git-Verhalten und sollten nur Agenten bereitgestellt werden, die Repository-Änderungen durchführen sollen.
+
+## `DevLintPHPTool`
+
+**Alias:** `axenox.GenAI.DevLintPHPTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CDevLintPHPTool)
+
+**Zweck.** Validiert eine PHP-Datei mit dem eingebauten Lint-Modus der aktuellen PHP-Laufzeit, ohne die Datei auszuführen.
+
+**Verwenden, wenn.** Ein autonomer Entwicklungsagent eine PHP-Datei erstellt oder verändert hat. Führen Sie das Tool aus, bevor die Änderung als abgeschlossen gilt, um Syntaxfehler schnell und lokal zu erkennen.
+
+**Nicht verwenden, wenn.** PHP-Lint prüft ausschließlich die Syntax. Das Tool validiert weder Typen, Abhängigkeiten und Coding-Standards noch Tests oder Laufzeitverhalten und akzeptiert kein JavaScript oder andere Dateitypen.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `path` | Ja | Pfad zu einer `.php`-Datei relativ zum konfigurierten Basispfad. |
+
+**Verwendung.** Beschränken Sie `allowed_paths` auf die Quellbäume, die der Agent validieren darf. Das Tool legt das ausführbare Programm und die Lint-Option intern fest; das Modell kann nur einen validierten relativen Dateipfad übergeben und keine PHP- oder Shell-Optionen ergänzen.
+
+**Ergebnis und Grenzen.** Das Tool gibt die PHP-Lint-Ausgabe in einem Markdown-Codeblock zurück. Ein Syntaxfehler ist ein normales Diagnoseergebnis, damit der Agent ihn beheben kann. Fehlende, nicht lesbare, abgelehnte und Nicht-PHP-Dateien erzeugen einen Tool-Fehler, ebenso ein Fehler beim Starten des PHP-Prozesses.
 
 ## `FileReadTool`
 
