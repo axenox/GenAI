@@ -4,6 +4,7 @@
 
 The GenAI framework consists of agents, tools, and concepts. Agents define the behavior of an AI assistant, tools let it retrieve information or perform operations on demand, and concepts add required context to its instructions automatically.
 
+- [Actions](Actions/index.md)
 - [Agents](Agents/index.md)
 - [Tools](Tools/index.md)
 - [Concepts](Concepts/index.md)
