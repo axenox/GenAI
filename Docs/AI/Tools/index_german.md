@@ -16,11 +16,15 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Einen kleinen Teil einer bestehenden Datei ändern | `FilePatchTool` |
 | Eine Datei erstellen oder vollständig ersetzen | `FileWriteTool` |
 | Einen streng kontrollierten lokalen Befehl ausführen | `CommandLineTool` |
+| Git-Änderungen und Historie untersuchen | `GitTool` |
+| PHP-Syntax validieren | `DevLintPHPTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
 | Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
+| Erzeugtes UXON validieren | `UxonValidateTool` |
 | Menü und Bildschirme einer App verstehen | `UiOverviewTool` |
 | Eine konkrete Seiten- oder Widget-Instanz untersuchen | `UiWidgetInfoTool` |
 | Deterministische Testausgaben bereitstellen | `MockTool` |
@@ -53,7 +57,7 @@ Werden `arguments` weggelassen, kommen die integrierten Argumentvorlagen zum Ein
 
 ## Dateizugriff konfigurieren
 
-`CommandLineTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool` und `FileSearchTool` verwenden gemeinsam die folgenden Eigenschaften:
+`CommandLineTool`, `GitTool`, `DevLintPHPTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool` und `FileSearchTool` verwenden gemeinsam die folgenden Eigenschaften:
 
 | Eigenschaft | Standard | Beschreibung |
 | --- | --- | --- |
@@ -87,6 +91,48 @@ Pfade werden vor dem Zugriff gegen die konfigurierte Basis und Positivliste vali
 **Verwendung.** Konfigurieren Sie eine explizite Liste `allowed_commands`, eine defensive Liste `blocked_commands` und eng begrenzte Dateizugriffseinstellungen. Das Modell übergibt den vollständigen Befehl und optional ein Arbeitsverzeichnis. Sperrregeln haben Vorrang vor Freigaberegeln; eine leere Positivliste erlaubt ansonsten jeden nicht ausdrücklich gesperrten Befehl.
 
 **Ergebnis und Grenzen.** Das Tool gibt die erfasste Konsolenausgabe in einem Markdown-Codeblock zurück. Ungültige Befehle, abgelehnte Verzeichnisse, Fehler und Zeitüberschreitungen führen zu einem Tool-Fehler. Begrenzen Sie die Ausführungszeit und verlassen Sie sich niemals darauf, dass das Modell entscheidet, ob ein uneingeschränkter Befehl sicher ist.
+
+## `GitTool`
+
+**Alias:** `axenox.GenAI.GitTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CGitTool)
+
+**Zweck.** Führt vordefinierte Git-Operationen in einem validierten Repository-Verzeichnis aus. Die sicheren Standardeinstellungen erlauben einem Agenten, aktuelle Änderungen und die Commit-Historie zu untersuchen, ohne dateiverändernde Operationen freizuschalten.
+
+**Verwenden, wenn.** Der Agent einen Arbeitsbaum validieren, Diffs untersuchen, frühere Arbeiten finden oder eine ältere Version einer Datei ansehen muss. Bevorzugen Sie dieses Tool für Git gegenüber dem `CommandLineTool`, da Designer Operationsnamen statt Befehlsregex konfigurieren.
+
+**Nicht verwenden, wenn.** Aktivieren Sie verändernde Operationen nur, wenn der Agent sie ausdrücklich benötigt und sein Arbeitsablauf geeignete Prüfmechanismen enthält. Die Standardkonfiguration erlaubt weder Staging und Commits noch Branch-Wechsel, Netzwerksynchronisierung oder andere Repository-Änderungen.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `allowed_commands` | `["status", "diff", "log", "show", "blame", "grep"]` | Vordefinierte Namen von Git-Operationen. Zusätzlich unterstützte Leseoperationen sind `rev-list`, `rev-parse`, `ls-files`, `ls-tree`, `shortlog` und `describe`. Verändernde Operationen wie `stage`, `commit`, `switch`, `pull` und `push` müssen ausdrücklich aktiviert werden. Eine leere Liste sperrt alle Befehle. |
+| `command_timeout` | `60` | Maximale Ausführungszeit in Sekunden. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `command` | Ja | Vollständiger Git-Befehl, der mit `git` und einer aktivierten Operation beginnt. |
+| `folder` | Nein | Repository-Verzeichnis relativ zum konfigurierten Basispfad. |
+
+**Verwendung.** Behalten Sie üblicherweise die standardmäßige Operationsliste bei und beschränken Sie `allowed_paths` auf die Repositorys, die der Agent untersuchen darf. Um eine weitere Operation freizugeben, fügen Sie ihren vordefinierten Namen zu `allowed_commands` hinzu; `stage` wird auf `git add` abgebildet. Unbekannte Namen werden als Konfigurationsfehler abgelehnt. Die erzeugten Validierungsmuster sperren Shell-Operatoren sowie Optionen, die Befehlsausgaben schreiben oder externe Diff- und Pager-Hilfsprogramme aufrufen.
+
+**Ergebnis und Grenzen.** Das Tool gibt die Git-Ausgabe in einem Markdown-Codeblock zurück. Es wandelt die Git-Ausgabe nicht in strukturierte Daten um. Ausdrücklich aktivierte verändernde Befehle behalten ihr normales Git-Verhalten und sollten nur Agenten bereitgestellt werden, die Repository-Änderungen durchführen sollen.
+
+## `DevLintPHPTool`
+
+**Alias:** `axenox.GenAI.DevLintPHPTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CDevLintPHPTool)
+
+**Zweck.** Validiert eine PHP-Datei mit dem eingebauten Lint-Modus der aktuellen PHP-Laufzeit, ohne die Datei auszuführen.
+
+**Verwenden, wenn.** Ein autonomer Entwicklungsagent eine PHP-Datei erstellt oder verändert hat. Führen Sie das Tool aus, bevor die Änderung als abgeschlossen gilt, um Syntaxfehler schnell und lokal zu erkennen.
+
+**Nicht verwenden, wenn.** PHP-Lint prüft ausschließlich die Syntax. Das Tool validiert weder Typen, Abhängigkeiten und Coding-Standards noch Tests oder Laufzeitverhalten und akzeptiert kein JavaScript oder andere Dateitypen.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `path` | Ja | Pfad zu einer `.php`-Datei relativ zum konfigurierten Basispfad. |
+
+**Verwendung.** Beschränken Sie `allowed_paths` auf die Quellbäume, die der Agent validieren darf. Das Tool legt das ausführbare Programm und die Lint-Option intern fest; das Modell kann nur einen validierten relativen Dateipfad übergeben und keine PHP- oder Shell-Optionen ergänzen.
+
+**Ergebnis und Grenzen.** Das Tool gibt die PHP-Lint-Ausgabe in einem Markdown-Codeblock zurück. Ein Syntaxfehler ist ein normales Diagnoseergebnis, damit der Agent ihn beheben kann. Fehlende, nicht lesbare, abgelehnte und Nicht-PHP-Dateien erzeugen einen Tool-Fehler, ebenso ein Fehler beim Starten des PHP-Prozesses.
 
 ## `FileReadTool`
 
@@ -147,11 +193,8 @@ Pfade werden vor dem Zugriff gegen die konfigurierte Basis und Positivliste vali
 | `patch` | Ja | Patch mit exakten Such- und Ersetzungsblöcken. |
 
 ```text
-<<<<<<< SEARCH
 exact text, including whitespace
-=======
 replacement text
->>>>>>> REPLACE
 ```
 
 **Verwendung.** Das Modell übergibt einen relativen Pfad und einen oder mehrere Patch-Blöcke. Beim Suchtext wird zwischen Groß- und Kleinschreibung unterschieden und Leerraum exakt berücksichtigt. Daher sollte jeder Block aus der aktuellen Datei kopiert, klein genug für eine einfache Prüfung und zugleich eindeutig genug zur Identifikation genau einer Stelle sein. Ein leerer Suchabschnitt kann eine Datei erstellen oder Inhalt anhängen.
@@ -253,7 +296,31 @@ replacement text
 
 **Rückgabewert.** Das Tool liefert einen String, der durch `renderOutput()` erzeugt wird. Die Ausgabe beginnt immer mit einem kurzen Satz wie `Read data of object ...`, gefolgt vom gewählten Payload (`markdown_table`, `markdown` oder `json`) und optional einem Objektbeschreibungsblock, wenn das aktiviert ist.
 
-**Warnungen und behebbar Fehler.** Nicht unterstützte oder ungültige Konfigurationen werden als Warnungen behandelt, nicht als harte Fehler. Das Tool fällt auf den sicheren Standardwert zurück und setzt die Antwort fort. Leere Ergebnismengen erzeugen ebenfalls eine Warnung; das Rendern der Objektbeschreibung wird bei Fehlern abgefangen und als Warnung geloggt, ohne das Tool-Ergebnis zu brechen.
+**Warnungen und behebbare Fehler.** Nicht unterstützte oder ungültige Konfigurationen werden als Warnungen behandelt, nicht als harte Fehler. Das Tool fällt auf den sicheren Standardwert zurück und setzt die Antwort fort. Leere Ergebnismengen erzeugen ebenfalls eine Warnung; das Rendern der Objektbeschreibung wird bei Fehlern abgefangen und als Warnung geloggt, ohne das Tool-Ergebnis zu brechen.
+
+## `ModelObjectSearchTool`
+
+**Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
+
+**Zweck.** Durchsucht das in `data_sheet` konfigurierte Objekt anhand der ersten konfigurierten Spalte. Standardmäßig wird `exface.Core.OBJECT` anhand von `NAME` durchsucht.
+
+**Verwenden, wenn.** Der Agent eine kompakte Liste von Zeilen benötigt, die zu einem vom Benutzer vorgegebenen Wert in einem festgelegten Attribut passen.
+
+**Nicht verwenden, wenn.** Verwenden Sie es nicht für erweiterte Modellanalyse oder Alias-/UID-Suche über viele Kriterien. Nutzen Sie `ModelObjectInfoTool` oder `DataSheetReadTool` für umfassendere Abfragen.
+
+| UXON-Eigenschaft | Standard | Beschreibung |
+| --- | --- | --- |
+| `data_sheet` | `exface.Core.OBJECT` mit `NAME` als erster Spalte | Vollständige DataSheet-UXON für das durchsuchte Objekt und die zurückgegebenen Attribute. Die erste Spalte ist das Suchattribut. Sie kann außerdem zusätzliche Filter, Sortierungen und ein Zeilenlimit enthalten. |
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `object_name` | Ja | Wert, der exakt mit der ersten konfigurierten DataSheet-Spalte verglichen wird. |
+
+**Standard-Suchkonfiguration.** Die erste konfigurierte Spalte wird immer als Suchattribut verwendet und ebenfalls im Ergebnis zurückgegeben. Das Standardobjekt ist `exface.Core.OBJECT`; seine erste Spalte und sein Suchattribut ist `NAME`. Die weiteren standardmäßig zurückgegebenen Attribute sind `UID`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR` und `INHERIT_DATA_SOURCE_BASE_OBJECT`.
+
+**Verwendung.** Setzen Sie das zu durchsuchende Attribut an die erste Stelle in `data_sheet.columns`, gefolgt von allen weiteren zurückzugebenden Attributen. Übergeben Sie seinen Suchwert in `object_name`. Eine DataSheet für `axenox.GenAI.AI_AGENT`, die mit `NAME` beginnt, sucht beispielsweise Agenten nach Namen; beginnt sie mit `UID`, sucht sie nach UID. In der DataSheet konfigurierte Filter werden zusätzlich zu diesem erzeugten Suchfilter angewendet. Lesevorgänge sind auf 100 Zeilen begrenzt. `ToolIntroductionConcept` listet für jede konfigurierte Instanz das effektive Suchobjekt, das Suchattribut der ersten Spalte und die zurückgegebenen Attribute oder Ausdrücke auf.
+
+**Ergebnis und Grenzen.** Das Tool gibt die konfigurierten DataSheet-Spalten als Markdown-Tabelle zurück. Die verfügbaren Spalten hängen vom Metamodell des konfigurierten Objekts ab. Leere Treffer werden als Warnhinweis zurückgegeben.
 
 ## `DataSheetImportTool`
 
@@ -282,9 +349,9 @@ replacement text
 
 **Alias:** `axenox.GenAI.NotesWriteTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
 
-**Zweck.** Speichert eine langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer.
+**Zweck.** Speichert eine typisierte langfristige Notiz für den aufrufenden Agenten und den authentifizierten Benutzer. Erinnerungen halten wiederverwendbaren Kontext fest; Vorschläge dokumentieren mögliche Verbesserungen, fehlende Tools oder andere Optimierungsmöglichkeiten für die Arbeit an einem Thema.
 
-**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge dieselbe Notiz gezielt ersetzen können.
+**Verwenden, wenn.** Ein Agent eine beständige Präferenz, Entscheidung oder andere wiederverwendbare Information über mehrere Unterhaltungen hinweg behalten soll. Verwenden Sie ein kurzes, stabiles Thema, damit spätere Schreibvorgänge die Notiz über ein exakt übereinstimmendes Thema ersetzen können, oder übergeben Sie die von einem Notiz-Tool gelieferte UID, um eine bekannte Notiz gezielt zu überschreiben.
 
 **Nicht verwenden, wenn.** Speichern Sie keine Geheimnisse, vorübergehenden Gesprächsdetails oder Informationen, deren dauerhafte Speicherung der Benutzer weder angefordert hat noch erwarten würde.
 
@@ -292,8 +359,10 @@ replacement text
 | --- | --- | --- |
 | `topic` | Ja | Kurzes Thema, das die Notiz innerhalb des aktuellen Benutzer- und Agentenbereichs identifiziert. |
 | `note` | Ja | Vollständiger Notiztext. Er ersetzt den bestehenden Text, wenn das Thema bereits vorhanden ist. |
+| `uid` | Nein | UID einer bekannten Notiz, die gezielt überschrieben werden soll. Die Notiz muss zum aktuellen Benutzer und Agenten gehören. |
+| `type` | Nein | `memory` (Standardwert) für wiederverwendbaren Kontext oder `suggestion` für mögliche Verbesserungen und fehlende Fähigkeiten. |
 
-**Ergebnis und Grenzen.** Das Tool schreibt über ein DataSheet und gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden. Ein Benutzer kann daher je Agent und Thema genau eine Notiz besitzen.
+**Ergebnis und Grenzen.** Wenn `uid` übergeben wird, überschreibt das Tool die passende Notiz im aktuellen Bereich mit dem übergebenen Thema und Text; eine unbekannte oder nicht zum Bereich gehörende UID erzeugt einen Nicht-gefunden-Fehler. Ohne `uid` aktualisiert das Tool eine exakte Themenübereinstimmung oder erstellt eine neue Notiz. Aktualisierungen enthalten alle mit der Notiz gelesenen Systemattribute, damit Zeitstempel-Konfliktprüfungen aktiv bleiben. Das Tool gibt die UID der gespeicherten Notiz zurück. Benutzer- und Agenten-UID werden aus der aktuellen Anfrage abgeleitet und können vom Modell nicht übergeben werden.
 
 ## `NotesReadTool`
 
@@ -309,7 +378,7 @@ replacement text
 | --- | --- | --- |
 | `note_uid` | Ja | UID der zu lesenden Notiz. |
 
-**Ergebnis und Grenzen.** Das Ergebnis enthält Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
+**Ergebnis und Grenzen.** Das Ergebnis enthält Typ, Thema und vollständigen Notiztext als Markdown. Die Abfrage enthält immer verborgene Benutzer- und Agentenfilter. Fehlende und nicht zum Bereich gehörende UIDs erzeugen denselben Nicht-gefunden-Fehler, um Informationslecks zu verhindern.
 
 ## `NotesSearchTool`
 
@@ -328,8 +397,9 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
+| `type` | Nein | `all` (Standardwert), `memory` oder `suggestion`. Konkrete Typen schränken die Suchergebnisse ein. |
 
-**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
+**Ergebnis und Grenzen.** Jeder Treffer enthält UID, Typ, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
 
 ## `GetTimeTool`
 
@@ -500,6 +570,27 @@ replacement text
 **Verwendung.** Das Modell übergibt entweder eine vollständig qualifizierte PHP-Klasse, die mit `\` beginnt, oder einen PHP-Dateipfad relativ zum Vendor-Verzeichnis. Aliasse werden derzeit nicht als Selektoren unterstützt.
 
 **Ergebnis und Grenzen.** `UxonPrototypeMarkdownPrinter` gibt die Prototypbeschreibung und indizierte UXON-Eigenschaften zurück. Die Qualität des Ergebnisses hängt davon ab, ob die Annotationen des Prototyps im Modell verfügbar sind.
+
+## `UxonValidateTool`
+
+**Alias:** `axenox.GenAI.UxonValidateTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUxonValidateTool)
+
+**Zweck.** Validiert erzeugtes UXON und gibt strukturierte Diagnosen zurück, mit denen ein Agent wahrscheinliche Konfigurationsfehler korrigieren kann.
+
+**Verwenden, wenn.** Ein Agent UXON für ein Widget, eine Aktion, ein Behavior, einen Connector oder einen anderen konfigurierbaren Prototyp erstellt oder verändert hat. Rufen Sie das Tool vor der Rückgabe oder Anwendung des UXON auf, wenn das relevante Schema oder der Prototypkontext bekannt ist.
+
+**Nicht verwenden, wenn.** Behandeln Sie das Ergebnis nicht als verbindliche Laufzeitvalidierung. Der Validator erzeugt Modellkomponenten als Attrappen und kann dadurch Fehlalarme melden oder kontextabhängige Fehler übersehen.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `uxon` | Ja | Zu validierendes UXON-Objekt. |
+| `schema` | Nein | UXON-Schemaklasse oder Schemaname zur Interpretation des UXON. |
+| `object` | Nein | Alias oder UID des Wurzel-Metaobjekts, das den Objektkontext bereitstellt. |
+| `prototype` | Nein | Vollqualifizierte Wurzel-Prototypklasse oder PHP-Dateipfad relativ zum Vendor-Verzeichnis. |
+
+**Verwendung.** Übergeben Sie das erzeugte UXON und so viel verlässlichen Kontext wie verfügbar. Ein Prototyp kann als `\exface\Core\Widgets\DataTable` oder `exface/core/Widgets/DataTable.php` angegeben werden. Der explizite Tool-Aufruf führt die Validierung immer aus und wird nicht durch die vom Editor-Action verwendete Einstellung `DEBUG.AUTOMATIC_UXON_VALIDATION` deaktiviert.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist ein JSON-Array aus Objekten mit den Eigenschaften `path` und `message`. Ein leeres Array bedeutet, dass keine Probleme erkannt wurden, nicht dass das UXON garantiert funktioniert. Ungültige Tool-Eingaben oder ein Fehler des Validators werden als Tool-Fehler zurückgegeben.
 
 ## `ModelWidgetTypeInfoTool`
 

@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI note [axenox.GenAI.AI_NOTE]",
             "CREATED_ON": "2026-08-28 17:32:51",
-            "MODIFIED_ON": "2026-08-28 17:58:16",
+            "MODIFIED_ON": "2026-08-29 09:38:29",
             "CREATED_BY_USER": "0x11eba2828d04fc0aa282025041000001",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f1a01fbafdd450a01f025041000001",
@@ -110,6 +110,9 @@
                     },
                     {
                         "attribute_alias": "USER"
+                    },
+                    {
+                        "attribute_alias": "TYPE"
                     },
                     {
                         "attribute_alias": "TOPIC",

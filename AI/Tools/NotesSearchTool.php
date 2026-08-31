@@ -9,6 +9,7 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
@@ -28,6 +29,11 @@ class NotesSearchTool extends AbstractAiTool
     use NotesToolTrait;
 
     public const ARG_QUERY = 'query';
+    public const ARG_TYPE = 'type';
+
+    private const TYPE_ALL = 'all';
+    private const TYPE_MEMORY = 'memory';
+    private const TYPE_SUGGESTION = 'suggestion';
     private const DEFAULT_EXCERPT_LENGTH = 300;
 
     private int $excerptLength = self::DEFAULT_EXCERPT_LENGTH;
@@ -39,13 +45,17 @@ class NotesSearchTool extends AbstractAiTool
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
         $query = trim((string) ($arguments[0] ?? ''));
+        $type = (string) ($arguments[1] ?? self::TYPE_ALL);
         if ($query === '') {
             throw new AiToolRuntimeError($this, $prompt, 'A search query is required.');
         }
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
-        $sheet->getColumns()->addMultiple(['TOPIC', 'NOTE']);
+        $sheet->getColumns()->addMultiple(['TOPIC', 'NOTE', 'TYPE']);
+        if ($type !== self::TYPE_ALL) {
+            $sheet->getFilters()->addConditionFromString('TYPE', $type, ComparatorDataType::EQUALS);
+        }
         $searchFilters = $sheet->getFilters()->addNestedOR();
         $searchFilters->addConditionFromString('TOPIC', $query, ComparatorDataType::IS);
         $searchFilters->addConditionFromString('NOTE', $query, ComparatorDataType::IS);
@@ -54,7 +64,8 @@ class NotesSearchTool extends AbstractAiTool
         $matches = [];
         foreach ($sheet->getRows() as $rowNumber => $row) {
             $matches[] = MarkdownDataType::buildMarkdownHeader($sheet->getCellValue('TOPIC', $rowNumber), 3) . "\n"
-                . 'UID: `' . $sheet->getUidColumn()->getValue($rowNumber) . "`\n\n"
+                . 'UID: `' . $sheet->getUidColumn()->getValue($rowNumber) . "`\n"
+                . 'Type: `' . $sheet->getCellValue('TYPE', $rowNumber) . "`\n\n"
                 . MarkdownDataType::escapeCodeBlock($this->createExcerpt((string) $sheet->getCellValue('NOTE', $rowNumber), $query), 'markdown');
         }
 
@@ -114,7 +125,20 @@ class NotesSearchTool extends AbstractAiTool
             (new ServiceParameter($self))
                 ->setName(self::ARG_QUERY)
                 ->setDescription('Text to find in note topics or note bodies.')
-                ->setRequired(true)
+                ->setRequired(true),
+            (new ServiceParameter($self))
+                ->setDataType(new UxonObject([
+                    'alias' => 'exface.Core.GenericStringEnum',
+                    'values' => [
+                        self::TYPE_ALL => self::TYPE_ALL,
+                        self::TYPE_MEMORY => self::TYPE_MEMORY,
+                        self::TYPE_SUGGESTION => self::TYPE_SUGGESTION
+                    ]
+                ]))
+                ->setName(self::ARG_TYPE)
+                ->setDescription('Type of notes to search, or `all` to search every note type.')
+                ->setDefaultValue(self::TYPE_ALL)
+                ->setRequired(false)
         ];
     }
 
