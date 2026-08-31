@@ -144,7 +144,32 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         AiPromptInterface $prompt,
         string $placeholder
     ) : AiSkillInterface {
-        $skillData = static::readSkillData($selector);
+        $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
+            $selector->getWorkbench(),
+            'axenox.GenAI.AI_SKILL'
+        );
+        $dataSheet->getFilters()->addConditionFromString(
+            'ALIAS_WITH_NS',
+            $selector->toString(),
+            ComparatorDataType::EQUALS
+        );
+        $dataSheet->getFilters()->addConditionFromString(
+            'AI_AGENT__ALIAS_WITH_NS',
+            $agent->getAliasWithNamespace(),
+            ComparatorDataType::EQUALS
+        );
+        $dataSheet->getColumns()->addMultiple([
+            'CONFIG_UXON',
+            'INSTRUCTIONS',
+            'PROTOTYPE_CLASS'
+        ]);
+        $dataSheet->dataRead();
+
+        if ($dataSheet->countRows() !== 1) {
+            throw new AiSkillNotFoundError('AI skill "' . $selector->toString() . '" not found');
+        }
+
+        $skillData = $dataSheet->getRow(0);
         $configValue = $skillData['CONFIG_UXON'] ?? null;
         $uxon = $configValue === null || $configValue === ''
             ? new UxonObject()
@@ -179,34 +204,6 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
 
         return $skill;
-    }
-
-    /**
-     * Reads the persisted configuration for a namespaced skill alias.
-     */
-    protected static function readSkillData(AiSkillSelectorInterface $selector) : array
-    {
-        $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
-            $selector->getWorkbench(),
-            'axenox.GenAI.AI_SKILL'
-        );
-        $dataSheet->getFilters()->addConditionFromString(
-            'ALIAS_WITH_NS',
-            $selector->toString(),
-            ComparatorDataType::EQUALS
-        );
-        $dataSheet->getColumns()->addMultiple([
-            'CONFIG_UXON',
-            'INSTRUCTIONS',
-            'PROTOTYPE_CLASS'
-        ]);
-        $dataSheet->dataRead();
-
-        if ($dataSheet->countRows() !== 1) {
-            throw new AiSkillNotFoundError('AI skill "' . $selector->toString() . '" not found');
-        }
-
-        return $dataSheet->getRow(0);
     }
 
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface

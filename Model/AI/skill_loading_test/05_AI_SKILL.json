@@ -39,8 +39,8 @@
             "attribute_alias": "ALIAS"
         },
         {
-            "name": "APP",
-            "attribute_alias": "APP"
+            "name": "AI_AGENT",
+            "attribute_alias": "AI_AGENT"
         },
         {
             "name": "PROTOTYPE_CLASS",
@@ -66,7 +66,7 @@
             "NAME": "Test skill without instructions",
             "DESCRIPTION": "Test skill with empty instructions that contributes the empty_skill_time tool.",
             "ALIAS": "test_skill_empty",
-            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "AI_AGENT": "0x49c3565f84e54aeea32a90097a760340",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php",
             "INSTRUCTIONS": "",
             "CONFIG_UXON": {
@@ -88,7 +88,7 @@
             "NAME": "Test skill with instructions",
             "DESCRIPTION": "Test skill whose instructions can be inserted through its local agent placeholder.",
             "ALIAS": "test_skill_with_instructions",
-            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "AI_AGENT": "0x49c3565f84e54aeea32a90097a760340",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php",
             "INSTRUCTIONS": "This text comes from the test skill with instructions.",
             "CONFIG_UXON": {
@@ -110,7 +110,7 @@
             "NAME": "Nested test skill",
             "DESCRIPTION": "Test skill combining a concept with two nested skills and a colliding parent tool.",
             "ALIAS": "test_skill_nested",
-            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "AI_AGENT": "0x49c3565f84e54aeea32a90097a760340",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php",
             "INSTRUCTIONS": "Parent concept: [#parent_context#] Child instructions: [#instruction_child#]",
             "CONFIG_UXON": {
@@ -143,7 +143,7 @@
         "base_object_alias": "axenox.GenAI.AI_SKILL",
         "conditions": [
             {
-                "expression": "APP",
+                "expression": "AI_AGENT__APP",
                 "comparator": "=",
                 "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
                 "object_alias": "axenox.GenAI.AI_SKILL"

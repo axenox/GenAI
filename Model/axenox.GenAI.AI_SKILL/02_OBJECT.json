@@ -132,7 +132,7 @@
                                                 "hint": "Alias of the skill. If not set, it will be generated automatically from the skill name."
                                             },
                                             {
-                                                "attribute_alias": "APP"
+                                                "attribute_alias": "AI_AGENT"
                                             },
                                             {
                                                 "attribute_alias": "PROTOTYPE_CLASS",
