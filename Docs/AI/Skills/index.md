@@ -37,11 +37,32 @@ A skill is configured similarly to a normal agent: its instructions contain the 
 The standard `GenericSkill` accepts these optional properties in `CONFIG_UXON`:
 
 - `concepts`: named concept configurations used inside the skill instructions.
+- `skills`: named skills whose rendered instructions can be inserted through local placeholders.
 - `tools`: named tool configurations contributed to the agent.
 
-Concept placeholders can be used in the skill's Markdown instructions in the same way as in an agent. Concepts may also contribute tools. A skill with empty instructions, no concepts, and no tools is valid and resolves to an empty string.
+Concepts add background information to a skill. Other skills can be configured below `skills` in the same way as on an agent:
 
-When tool names collide, a later skill in the agent's `skills` map overrides an earlier skill. Tools configured directly on the agent override tools contributed by skills.
+```json
+{
+    "skills": {
+        "lookup": {
+            "alias": "my.App.lookup"
+        }
+    }
+}
+```
+
+The tools of `my.App.lookup` are imported automatically into the current skill. To also use its instructions, insert the local name `lookup` into the current skill instructions like a concept:
+
+```markdown
+Use the following lookup instructions:
+
+[#lookup#]
+```
+
+The included skill prepares its own concepts and nested skills before its instructions are inserted. The current skill can then use the imported instructions and tools exactly as an agent can. If the placeholder is omitted, the tools are still imported.
+
+Tool names should be unique where possible. If the same name occurs more than once, the later nested skill takes precedence. A tool configured directly in the current skill takes precedence over its included skills, and a tool configured directly on the agent takes precedence over all skill tools. A warning is stored in the conversation when a tool is replaced this way.
 
 ## Custom prototypes
 

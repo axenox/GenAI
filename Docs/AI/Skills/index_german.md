@@ -37,11 +37,32 @@ Ein Skill wird ähnlich wie ein normaler Agent konfiguriert: Die Instructions en
 Der Standardprototyp `GenericSkill` akzeptiert folgende optionale Eigenschaften in `CONFIG_UXON`:
 
 - `concepts`: benannte Concept-Konfigurationen für die Skill-Instructions.
+- `skills`: benannte Skills, deren gerenderte Instructions über lokale Platzhalter eingefügt werden können.
 - `tools`: benannte Tool-Konfigurationen, die dem Agenten bereitgestellt werden.
 
-Concept-Platzhalter können in den Markdown-Instructions des Skills genauso wie in einem Agenten verwendet werden. Concepts können zusätzlich Tools bereitstellen. Ein Skill mit leeren Instructions, ohne Concepts und ohne Tools ist gültig und liefert einen leeren String.
+Concepts ergänzen einen Skill um Hintergrundinformationen. Andere Skills können unter `skills` genauso wie bei einem Agenten konfiguriert werden:
 
-Bei gleichen Tool-Namen überschreibt ein späterer Skill in der `skills`-Map einen früheren Skill. Direkt am Agenten konfigurierte Tools überschreiben Tools aus Skills.
+```json
+{
+    "skills": {
+        "lookup": {
+            "alias": "my.App.lookup"
+        }
+    }
+}
+```
+
+Die Tools aus `my.App.lookup` werden automatisch in den aktuellen Skill übernommen. Um zusätzlich seine Instructions zu verwenden, wird der lokale Name `lookup` wie ein Concept in die Instructions des aktuellen Skills eingefügt:
+
+```markdown
+Verwende die folgenden Anweisungen für die Suche:
+
+[#lookup#]
+```
+
+Der eingebundene Skill bereitet zuerst seine eigenen Concepts und verschachtelten Skills auf, bevor seine Instructions eingefügt werden. Der aktuelle Skill kann die übernommenen Instructions und Tools danach genauso wie ein Agent verwenden. Fehlt der Platzhalter, werden die Tools trotzdem übernommen.
+
+Tool-Namen sollten möglichst eindeutig sein. Kommt derselbe Name mehrfach vor, hat der später eingebundene Skill Vorrang. Ein direkt im aktuellen Skill konfiguriertes Tool hat Vorrang vor seinen eingebundenen Skills. Ein direkt am Agenten konfiguriertes Tool hat Vorrang vor allen Skill-Tools. Wenn dabei ein Tool ersetzt wird, wird eine Warnung in der Conversation gespeichert.
 
 ## Eigene Prototypen
 

@@ -99,6 +99,42 @@
                     }
                 }
             }
+        },
+        {
+            "_EXPORT_SUMMARY": "Nested test skill",
+            "CREATED_ON": "2026-08-31 22:00:00",
+            "MODIFIED_ON": "2026-08-31 22:00:00",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x58b5a480043a48f8a4067d5e31b4b67e",
+            "NAME": "Nested test skill",
+            "DESCRIPTION": "Test skill combining a concept with two nested skills and a colliding parent tool.",
+            "ALIAS": "test_skill_nested",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php",
+            "INSTRUCTIONS": "Parent concept: [#parent_context#] Child instructions: [#instruction_child#]",
+            "CONFIG_UXON": {
+                "concepts": {
+                    "parent_context": {
+                        "alias": "axenox.GenAI.MockConcept",
+                        "value": "Parent concept rendered first."
+                    }
+                },
+                "skills": {
+                    "empty_child": {
+                        "alias": "axenox.GenAI.test_skill_empty"
+                    },
+                    "instruction_child": {
+                        "alias": "axenox.GenAI.test_skill_with_instructions"
+                    }
+                },
+                "tools": {
+                    "instruction_skill_time": {
+                        "alias": "axenox.GenAI.GetTimeTool",
+                        "description": "Parent skill override marker."
+                    }
+                }
+            }
         }
     ],
     "totals_rows": [],

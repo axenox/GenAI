@@ -20,4 +20,11 @@ interface AiSkillInterface extends PlaceholderResolverInterface, iCanBeConverted
      * @return AiToolInterface[]
      */
     public function getTools() : array;
+
+    /**
+     * Returns warnings produced while preparing this skill.
+     *
+     * @return \Throwable[]
+     */
+    public function getWarnings() : array;
 }

@@ -147,6 +147,41 @@
                 "Expected tools: `empty_skill_time`, `instruction_skill_time`, and `agent_time`.",
                 "When asked about your tools, list the available tool names exactly."
             ]
+        },
+        {
+            "_EXPORT_SUMMARY": "Skill loading test v3.0 - nested skills",
+            "CREATED_ON": "2026-08-31 22:01:00",
+            "MODIFIED_ON": "2026-08-31 22:01:00",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x6d28729f84fb4878979d7f6ce5633868",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
+            "DATA_CONNECTION_DEFAULT": null,
+            "CONFIG_UXON": {
+                "skills": {
+                    "nested_skill": {
+                        "alias": "axenox.GenAI.test_skill_nested"
+                    }
+                },
+                "tools": {
+                    "agent_time": {
+                        "alias": "axenox.GenAI.GetTimeTool",
+                        "description": "Returns the current server time configured directly on the test agent."
+                    }
+                }
+            },
+            "VERSION": "3.0",
+            "DESCRIPTION": "A parent skill renders a concept and nested skill instructions, exposes nested tools, and overrides a colliding child tool.",
+            "AI_AGENT": "0x49c3565f84e54aeea32a90097a760340",
+            "ENABLED_FLAG": 1,
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "You are testing nested AI skills.",
+                "",
+                "[#nested_skill#]",
+                "",
+                "Expected tools: `empty_skill_time`, `instruction_skill_time`, and `agent_time`."
+            ]
         }
     ],
     "totals_rows": [],

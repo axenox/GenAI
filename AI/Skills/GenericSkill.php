@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Skills;
 
 use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -30,10 +31,14 @@ class GenericSkill implements AiSkillInterface
     private UxonObject $uxon;
     private string $instructions = '';
     private UxonObject $conceptsUxon;
+    /** @var AiSkillInterface[] */
+    private array $skills = [];
     private UxonObject $toolsUxon;
     private ?string $renderedInstructions = null;
     private ?array $renderedConcepts = null;
     private ?array $tools = null;
+    /** @var \Throwable[] */
+    private array $warnings = [];
     private ?string $alias = null;
 
     /**
@@ -86,19 +91,64 @@ class GenericSkill implements AiSkillInterface
     {
         if ($this->tools === null) {
             $conceptTools = $this->renderConcepts()['tools'];
-            $toolModels = array_replace($conceptTools, $this->toolsUxon->getPropertiesAll());
             $this->tools = [];
+            $toolSources = [];
+            $this->warnings = [];
 
-            foreach ($toolModels as $toolName => $toolUxon) {
+            foreach ($conceptTools as $toolName => $toolUxon) {
                 $this->tools[$toolName] = AiFactory::createToolFromUxon(
                     $this->agent->getWorkbench(),
                     $toolUxon,
                     $toolName
                 );
+                $toolSources[$toolName] = 'concept in skill "' . $this->getPlaceholder() . '"';
+            }
+
+            foreach ($this->skills as $skill) {
+                foreach ($skill->getTools() as $toolName => $tool) {
+                    $source = 'nested skill "' . $skill->getPlaceholder() . '"';
+                    if (isset($this->tools[$toolName])) {
+                        $this->warnings[] = new AiToolConfigurationWarning(
+                            'AI tool "' . $toolName . '" from ' . $source
+                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
+                        );
+                    }
+                    $this->tools[$toolName] = $tool;
+                    $toolSources[$toolName] = $source;
+                }
+                $this->warnings = array_merge($this->warnings, $skill->getWarnings());
+            }
+
+            foreach ($this->toolsUxon as $toolName => $toolUxon) {
+                $tool = AiFactory::createToolFromUxon(
+                    $this->agent->getWorkbench(),
+                    $toolUxon,
+                    $toolName
+                );
+                $source = 'skill "' . $this->getPlaceholder() . '"';
+                if (isset($this->tools[$toolName])) {
+                    $this->warnings[] = new AiToolConfigurationWarning(
+                        'AI tool "' . $toolName . '" from ' . $source
+                        . ' overrides the tool from ' . $toolSources[$toolName] . '.'
+                    );
+                }
+                $this->tools[$toolName] = $tool;
+                $toolSources[$toolName] = $source;
             }
         }
 
         return $this->tools;
+    }
+
+    /**
+     * Returns tool configuration warnings from this skill and its nested skills.
+     *
+     * @return \Throwable[]
+     */
+    public function getWarnings() : array
+    {
+        $this->getTools();
+        return $this->warnings;
     }
 
     /**
@@ -160,6 +210,30 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
+     * Sets reusable skills used inside this skill.
+     *
+     * @uxon-property skills
+     * @uxon-type \axenox\GenAI\AI\Skills\GenericSkill[]
+     * @uxon-template {"placeholder_name": {"alias": ""}}
+     */
+    protected function setSkills(UxonObject $skills) : AiSkillInterface
+    {
+        $this->skills = [];
+        foreach ($skills as $placeholder => $skillUxon) {
+            $this->skills[] = AiFactory::createSkillFromUxon(
+                $this->agent,
+                $this->prompt,
+                $placeholder,
+                $skillUxon
+            );
+        }
+        $this->renderedInstructions = null;
+        $this->renderedConcepts = null;
+        $this->tools = null;
+        return $this;
+    }
+
+    /**
      * Sets optional tools contributed by this skill.
      *
      * @uxon-property tools
@@ -200,6 +274,10 @@ class GenericSkill implements AiSkillInterface
             foreach ($concept->getToolModels() as $toolName => $toolUxon) {
                 $conceptTools[$toolName] = $toolUxon;
             }
+        }
+
+        foreach ($this->skills as $skill) {
+            $renderer->addPlaceholder($skill);
         }
 
         $this->renderedConcepts = ['renderer' => $renderer, 'tools' => $conceptTools];

@@ -912,6 +912,7 @@ class GenericAssistant implements AiAgentInterface
                     $this->tools[$toolName] = $tool;
                     $toolSources[$toolName] = $source;
                 }
+                $warnings = array_merge($warnings, $skill->getWarnings());
             }
 
             foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
