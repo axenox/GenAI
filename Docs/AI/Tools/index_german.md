@@ -23,6 +23,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
+| Erzeugtes UXON validieren | `UxonValidateTool` |
 | Menü und Bildschirme einer App verstehen | `UiOverviewTool` |
 | Eine konkrete Seiten- oder Widget-Instanz untersuchen | `UiWidgetInfoTool` |
 | Deterministische Testausgaben bereitstellen | `MockTool` |
@@ -547,6 +548,27 @@ replacement text
 **Verwendung.** Das Modell übergibt entweder eine vollständig qualifizierte PHP-Klasse, die mit `\` beginnt, oder einen PHP-Dateipfad relativ zum Vendor-Verzeichnis. Aliasse werden derzeit nicht als Selektoren unterstützt.
 
 **Ergebnis und Grenzen.** `UxonPrototypeMarkdownPrinter` gibt die Prototypbeschreibung und indizierte UXON-Eigenschaften zurück. Die Qualität des Ergebnisses hängt davon ab, ob die Annotationen des Prototyps im Modell verfügbar sind.
+
+## `UxonValidateTool`
+
+**Alias:** `axenox.GenAI.UxonValidateTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUxonValidateTool)
+
+**Zweck.** Validiert erzeugtes UXON und gibt strukturierte Diagnosen zurück, mit denen ein Agent wahrscheinliche Konfigurationsfehler korrigieren kann.
+
+**Verwenden, wenn.** Ein Agent UXON für ein Widget, eine Aktion, ein Behavior, einen Connector oder einen anderen konfigurierbaren Prototyp erstellt oder verändert hat. Rufen Sie das Tool vor der Rückgabe oder Anwendung des UXON auf, wenn das relevante Schema oder der Prototypkontext bekannt ist.
+
+**Nicht verwenden, wenn.** Behandeln Sie das Ergebnis nicht als verbindliche Laufzeitvalidierung. Der Validator erzeugt Modellkomponenten als Attrappen und kann dadurch Fehlalarme melden oder kontextabhängige Fehler übersehen.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `uxon` | Ja | Zu validierendes UXON-Objekt. |
+| `schema` | Nein | UXON-Schemaklasse oder Schemaname zur Interpretation des UXON. |
+| `object` | Nein | Alias oder UID des Wurzel-Metaobjekts, das den Objektkontext bereitstellt. |
+| `prototype` | Nein | Vollqualifizierte Wurzel-Prototypklasse oder PHP-Dateipfad relativ zum Vendor-Verzeichnis. |
+
+**Verwendung.** Übergeben Sie das erzeugte UXON und so viel verlässlichen Kontext wie verfügbar. Ein Prototyp kann als `\exface\Core\Widgets\DataTable` oder `exface/core/Widgets/DataTable.php` angegeben werden. Der explizite Tool-Aufruf führt die Validierung immer aus und wird nicht durch die vom Editor-Action verwendete Einstellung `DEBUG.AUTOMATIC_UXON_VALIDATION` deaktiviert.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist ein JSON-Array aus Objekten mit den Eigenschaften `path` und `message`. Ein leeres Array bedeutet, dass keine Probleme erkannt wurden, nicht dass das UXON garantiert funktioniert. Ungültige Tool-Eingaben oder ein Fehler des Validators werden als Tool-Fehler zurückgegeben.
 
 ## `ModelWidgetTypeInfoTool`
 
