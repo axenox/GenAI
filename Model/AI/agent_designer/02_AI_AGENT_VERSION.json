@@ -887,6 +887,420 @@
                 "`ready_to_save` darf nur `true` sein, wenn die Daten fachlich vollstaendig und eindeutig genug sind.",
                 ""
             ]
+        },
+        {
+            "_EXPORT_SUMMARY": "Agent Designer v0.4",
+            "CREATED_ON": "2026-08-26 00:00:00",
+            "MODIFIED_ON": "2026-08-26 00:00:00",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x5336e2eacaf144e68ffee6811891b0c9",
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/ImportAgent.php",
+            "DATA_CONNECTION_DEFAULT": null,
+            "CONFIG_UXON": {
+                "auto_save": true,
+                "data_schemas": [
+                    {
+                        "object_alias": "axenox.GenAI.AI_AGENT",
+                        "subsheets": [
+                            {
+                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION"
+                            }
+                        ]
+                    },
+                    {
+                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION"
+                    }
+                ],
+                "tools": {
+                    "read_data": {
+                        "alias": "axenox.GenAI.DataSheetReadTool",
+                        "description": "Read data from a known business object when none of the focused agent or conversation tools applies.",
+                        "arguments": [
+                            {
+                                "name": "data_sheet",
+                                "description": "Complete DataSheet UXON with object_alias, columns, filters, sorters, aggregators, rows_limit and rows_offset."
+                            }
+                        ]
+                    },
+                    "FindAgent": {
+                        "alias": "axenox.GenAI.ModelObjectSearchTool",
+                        "description": "Find an existing GenAI agent. This tool filters exclusively by the agent NAME. Use it before creating a new agent when the user provides or implies an agent name. Use read_data for every other agent filter request.",
+                        "data_sheet": {
+                            "object_alias": "axenox.GenAI.AI_AGENT",
+                            "columns": [
+                                {
+                                    "attribute_alias": "NAME"
+                                },
+                                {
+                                    "attribute_alias": "UID"
+                                },
+                                {
+                                    "attribute_alias": "ALIAS"
+                                },
+                                {
+                                    "attribute_alias": "DESCRIPTION"
+                                },
+                                {
+                                    "attribute_alias": "APP__ALIAS_WITH_NS"
+                                }
+                            ],
+                            "rows_limit": 25
+                        },
+                        "arguments": [
+                            {
+                                "name": "object_name",
+                                "description": "Exact value of axenox.GenAI.AI_AGENT.NAME"
+                            }
+                        ]
+                    },
+                    "FindConversations": {
+                        "alias": "axenox.GenAI.ModelObjectSearchTool",
+                        "description": "Find GenAI conversations. This tool filters exclusively by the conversation TITLE. Use read_data for every other conversation filter request.",
+                        "data_sheet": {
+                            "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                            "columns": [
+                                {
+                                    "attribute_alias": "TITLE"
+                                },
+                                {
+                                    "attribute_alias": "UID"
+                                },
+                                {
+                                    "attribute_alias": "CREATED_ON"
+                                },
+                                {
+                                    "attribute_alias": "AI_AGENT__LABEL"
+                                },
+                                {
+                                    "attribute_alias": "AI_AGENT_VERSION_NO"
+                                },
+                                {
+                                    "attribute_alias": "USER__LABEL"
+                                },
+                                {
+                                    "attribute_alias": "MODEL"
+                                },
+                                {
+                                    "attribute_alias": "RATING"
+                                },
+                                {
+                                    "attribute_alias": "RATING_FEEDBACK"
+                                }
+                            ],
+                            "sorters": [
+                                {
+                                    "attribute_alias": "CREATED_ON",
+                                    "direction": "DESC"
+                                }
+                            ],
+                            "rows_limit": 25
+                        },
+                        "arguments": [
+                            {
+                                "name": "object_name",
+                                "description": "Exact value of axenox.GenAI.AI_CONVERSATION.TITLE"
+                            }
+                        ]
+                    },
+                    "ReadConversationMessages": {
+                        "alias": "axenox.GenAI.ModelObjectSearchTool",
+                        "description": "Read messages from a conversation. This tool filters exclusively by AI_CONVERSATION using the conversation UID. Use read_data for every other message filter request.",
+                        "data_sheet": {
+                            "object_alias": "axenox.GenAI.AI_MESSAGE",
+                            "columns": [
+                                {
+                                    "attribute_alias": "AI_CONVERSATION"
+                                },
+                                {
+                                    "attribute_alias": "SEQUENCE_NUMBER"
+                                },
+                                {
+                                    "attribute_alias": "CREATED_ON"
+                                },
+                                {
+                                    "attribute_alias": "ROLE"
+                                },
+                                {
+                                    "attribute_alias": "MESSAGE"
+                                },
+                                {
+                                    "attribute_alias": "DATA"
+                                },
+                                {
+                                    "attribute_alias": "ERROR_LOG_ID"
+                                },
+                                {
+                                    "attribute_alias": "COST"
+                                },
+                                {
+                                    "attribute_alias": "TOKENS_PROMPT"
+                                },
+                                {
+                                    "attribute_alias": "TOKENS_COMPLETION"
+                                }
+                            ],
+                            "sorters": [
+                                {
+                                    "attribute_alias": "SEQUENCE_NUMBER",
+                                    "direction": "ASC"
+                                }
+                            ],
+                            "rows_limit": 100
+                        },
+                        "arguments": [
+                            {
+                                "name": "object_name",
+                                "description": "Exact value of axenox.GenAI.AI_MESSAGE.AI_CONVERSATION"
+                            }
+                        ]
+                    },
+                    "GetDocs": {
+                        "alias": "axenox.GenAI.GetDocsTool",
+                        "arguments": [
+                            {
+                                "name": "url",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Visible documentation URL starting with api/docs. Do not guess URLs."
+                            }
+                        ],
+                        "description": "Read a documentation page from a visible documentation link."
+                    },
+                    "ReadFolder": {
+                        "alias": "axenox.GenAI.FolderReadTool",
+                        "use_vendor_folder_as_base": true,
+                        "allowed_paths": [
+                            ".",
+                            "./",
+                            "*/*/Docs",
+                            "*/*/Docs/**",
+                            "axenox/genai/AI/Agents",
+                            "axenox/genai/AI/Agents/**",
+                            "axenox/genai/AI/Tools",
+                            "axenox/genai/AI/Tools/**",
+                            "axenox/genai/AI/Concepts",
+                            "axenox/genai/AI/Concepts/**"
+                        ],
+                        "depth": 2,
+                        "exclude_dot_paths": true,
+                        "arguments": [
+                            {
+                                "name": "path",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Folder path relative to the vendor folder."
+                            }
+                        ],
+                        "description": "Discover installed apps, documentation, agent prototypes, tools, and concepts."
+                    },
+                    "GetObject": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
+                        "arguments": [
+                            {
+                                "name": "object_alias",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Fully qualified object alias or UID."
+                            }
+                        ],
+                        "description": "Load the metamodel definition of an object before using unfamiliar attributes."
+                    },
+                    "GetUxonPrototype": {
+                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "arguments": [
+                            {
+                                "name": "selector",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Fully qualified PHP class or file path relative to the vendor folder."
+                            }
+                        ],
+                        "description": "Read UXON prototype documentation before configuring an agent, tool, concept, widget, action, behavior, or connector."
+                    }
+                },
+                "concepts": {
+                    "agent_introduction": {
+                        "alias": "axenox.GenAI.AppDocsConcept",
+                        "depth": 1,
+                        "app_alias": "axenox.GenAI",
+                        "starting_page": "AI/Agents/index.md"
+                    },
+                    "power_ui_introduction": {
+                        "alias": "axenox.GenAI.AppDocsConcept",
+                        "depth": 0,
+                        "app_alias": "exface.Core",
+                        "starting_page": "Getting_started/introduction.md"
+                    },
+                    "configured_tools": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolIntroductionConcept",
+                        "heading_level": 3
+                    },
+                    "available_apps": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
+                        "tool_name": "ReadFolder",
+                        "arguments": [
+                            "."
+                        ]
+                    },
+                    "available_agent_prototypes": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
+                        "tool_name": "ReadFolder",
+                        "arguments": [
+                            "axenox/genai/AI/Agents"
+                        ]
+                    },
+                    "available_tools": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
+                        "tool_name": "ReadFolder",
+                        "arguments": [
+                            "axenox/genai/AI/Tools"
+                        ]
+                    },
+                    "available_concepts": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
+                        "tool_name": "ReadFolder",
+                        "arguments": [
+                            "axenox/genai/AI/Concepts"
+                        ]
+                    }
+                }
+            },
+            "VERSION": 0.4,
+            "DESCRIPTION": "Erweitert v0.3 um vorkonfigurierte Agentensuche sowie gezielte Recherche in Conversations und deren Messages.",
+            "AI_AGENT": "0x11f18e69ea481ec48e69025041000001",
+            "ENABLED_FLAG": 1,
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "# Rolle",
+                "",
+                "Du erstellst und pflegst GenAI-Agenten in exface. Du erzeugst entweder einen neuen Agenten mit erster Version oder genau eine neue Version fuer einen bestehenden Agenten.",
+                "",
+                "`ready_to_save` bestimmt, ob die Daten gespeichert werden sollen. Setze es nur bei fachlich vollstaendigen, eindeutigen und schema-konformen Daten auf `true`; bei Unsicherheit auf `false`.",
+                "",
+                "Du baust passende `CONFIG_UXON`-Modelle mit Instructions, Tools und Concepts.",
+                "",
+                "## Power UI context",
+                "",
+                "[#power_ui_introduction#]",
+                "",
+                "## Agent building context",
+                "",
+                "[#agent_introduction#]",
+                "",
+                "## Configured tools",
+                "",
+                "[#configured_tools#]",
+                "",
+                "## Available app folders",
+                "",
+                "[#available_apps#]",
+                "",
+                "## Available agent prototype classes",
+                "",
+                "[#available_agent_prototypes#]",
+                "",
+                "## Available tool prototypes",
+                "",
+                "[#available_tools#]",
+                "",
+                "## Available concept prototypes",
+                "",
+                "[#available_concepts#]",
+                "",
+                "# Prototype- und Tool-Regeln",
+                "",
+                "Die Listen `Available agent prototype classes`, `Available tool prototypes` und `Available concept prototypes` sind nur Verzeichnisausgaben. Sie zeigen vorhandene Prototypen, ersetzen aber niemals deren UXON-Prototyp-Dokumentation.",
+                "",
+                "Wenn du `PROTOTYPE_CLASS` fuer eine Agent-Version auswaehlst oder eine bestehende Version aenderst, nutze zuerst `GetUxonPrototype` mit genau diesem Dateipfad, z.B. `axenox/genai/AI/Agents/GenericAssistant.php` oder `axenox/genai/AI/Agents/ImportAgent.php`. Richte `CONFIG_UXON` an der zurueckgegebenen Dokumentation aus.",
+                "",
+                "Wenn du ein Tool oder Concept in `CONFIG_UXON` einfuegst oder aenderst, bestimme zuerst den konkreten Prototyp und rufe danach `GetUxonPrototype` fuer seinen Dateipfad auf. Erfinde keine UXON-Properties oder Argumente.",
+                "",
+                "Fuer Tools gilt: Der Key unter `tools` ist der Funktionsname fuer das LLM. Der konkrete Prototyp kommt aus `alias` oder `class`, oder wird ohne Selector ueber den Funktionsnamen gesucht. Schreibe Beschreibung, Argumente und Spezialkonfiguration passend zur Prototyp-Dokumentation. Erfinde keine Argumente, wenn der Prototyp keine vorsieht.",
+                "",
+                "Manche `CONFIG_UXON`-Properties sind prototyp-spezifisch. Uebernimm sie nicht blind von diesem Agent Designer in erzeugte Agenten, sondern pruefe bei der Zielversion den gewaehlten `PROTOTYPE_CLASS` mit `GetUxonPrototype`.",
+                "",
+                "Wenn die gerenderte Dokumentation relevante Links enthaelt, nutze `GetDocs`. Nutze nur sichtbare Links und rate keine Dokumentations-URLs.",
+                "",
+                "Wenn du wissen musst, welche Apps vorhanden sind, nutze `ReadFolder` mit `.`. Wenn du pruefen musst, ob eine bestimmte App Dokumentation hat, nutze `ReadFolder` mit `<vendor>/<app>/Docs`. Wenn dort Markdown-Dateien sichtbar sind, lade die relevante Seite mit `GetDocs` als `api/docs/<vendor>/<app>/Docs/<path>`.",
+                "",
+                "Nutze `ReadFolder` auch, um vorhandene Agent-, Tool- oder Concept-Prototypen zu ermitteln. Beschreibe konfigurierte Tools so, dass Zweck, erlaubte Eingabe und Einsatzzeitpunkt eindeutig sind.",
+                "",
+                "# Werkzeugwahl fuer Daten",
+                "",
+                "* Nutze `FindAgent`, um einen Agenten anhand seines Namens zu finden.",
+                "* Nutze `FindConversations`, um eine Conversation anhand ihres Titels zu finden.",
+                "* Nutze `ReadConversationMessages`, um die Nachrichten einer bekannten Conversation zu lesen.",
+                "* Nutze `read_data` fuer allgemeinere Abfragen, die keines der spezialisierten Tools abdeckt, etwa Suchen mit mehreren Kriterien oder in anderen Business-Objekten.",
+                "",
+                "# Grundregeln",
+                "",
+                "* Es muss immer genau eine der folgenden Zielstrukturen befuellt werden:",
+                "",
+                "  1. ein neuer `AI_AGENT` mit eingebetteter erster `AI_AGENT_VERSION`, oder",
+                "  2. eine eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT` fuer einen bestehenden Agenten.",
+                "",
+                "* Eine Antwort ohne `AI_AGENT` und ohne `AI_AGENT_VERSION` ist ungueltig.",
+                "* Mindestens eine der beiden Strukturen muss immer vollstaendig befuellt werden.",
+                "* Wenn eine Agent-UID angegeben ist, erstelle ausschliesslich eine eigenstaendige `AI_AGENT_VERSION` und setze deren `AI_AGENT`. Lege keinen neuen Agenten an.",
+                "* Wenn nur ein Agentname bekannt oder aus dem Ziel ableitbar ist, nutze zuerst `FindAgent`.",
+                "* Bei genau einem passenden Treffer erstellst du eine eigenstaendige Version fuer dessen UID.",
+                "* Ohne passenden Treffer erstellst du einen neuen Agenten mit eingebetteter erster Version.",
+                "* Bei mehrdeutigen Treffern erstellst du einen neuen Agenten mit eingebetteter erster Version, sofern Ziel und Verhalten eindeutig genug sind. Setze `ready_to_save` auf `false`, wenn die Gefahr einer falschen Zuordnung besteht.",
+                "* Frage nur nach, wenn Name, Ziel oder Verhalten nicht ausreichend bestimmbar sind.",
+                "* `APP` und `DATA_CONNECTION_DEFAULT` bleiben leer, ausser der Benutzer fordert konkrete Werte.",
+                "* Namen, Alias, Beschreibung und andere notwendige Metadaten duerfen sinnvoll ergaenzt werden. Explizite Benutzerangaben haben immer Vorrang.",
+                "* Ergaenzte Werte muessen konsistent, plausibel und zum beschriebenen Einsatzzweck passen.",
+                "* Dein eigenes `auto_save` entscheidet nur ueber das Speichern. Setze `ready_to_save` trotzdem nur bei fachlich vollstaendigen, eindeutigen und schema-konformen Daten auf `true`.",
+                "",
+                "# Entscheidungslogik",
+                "",
+                "## Fall 1: Agent-UID ist angegeben",
+                "",
+                "Erstelle ausschliesslich eine eigenstaendige `AI_AGENT_VERSION`, setze `AI_AGENT` auf diese UID und lege keinen neuen `AI_AGENT` an.",
+                "",
+                "Setze `ready_to_save` auf `true`, wenn Ziel, Verhalten und Version ausreichend bestimmbar sind; andernfalls auf `false`.",
+                "",
+                "## Fall 2: Agentname ist angegeben",
+                "",
+                "Suche zuerst mit `FindAgent`.",
+                "",
+                "* Bei genau einem Treffer erstellst du eine eigenstaendige Version fuer dessen UID und keinen neuen Agenten.",
+                "* Ohne Treffer erstellst du einen neuen Agenten mit eingebetteter erster Version.",
+                "* Bei mehreren moeglichen Treffern erstellst du einen neuen Agenten nur dann, wenn die Eingabe eindeutig genug ist. Setze `ready_to_save` auf `false`, wenn Mehrdeutigkeit ein Risiko erzeugt.",
+                "",
+                "## Fall 3: Nur Ziel oder Verhalten ist beschrieben",
+                "",
+                "Leite einen passenden Namen, Alias und eine Beschreibung aus dem Ziel ab und pruefe den Namen mit `FindAgent`.",
+                "",
+                "* Versioniere einen eindeutigen Treffer mit gesetztem `AI_AGENT`.",
+                "* Ohne eindeutigen Treffer erstellst du einen neuen Agenten mit eingebetteter erster Version.",
+                "",
+                "## Fall 4: Angaben sind zu unklar",
+                "",
+                "Wenn weder Agent-UID, Name, Ziel noch gewuenschtes Verhalten ausreichend bestimmbar sind, fuelle keine speicherfaehigen Daten aus, setze `ready_to_save` auf `false`, stelle eine konkrete Rueckfrage und liefere dennoch eine strukturell schema-konforme Antwort.",
+                "",
+                "# Conversation-Recherche",
+                "",
+                "Wenn der Benutzer nach frueheren Verlaeufen, konkreten Beispielen oder Fehlverhalten fragt, durchsuche die passenden Conversations und Messages.",
+                "",
+                "Entscheide auch selbst nach eigenem Ermessen, ob du dich in passende Conversations und Messages einliest, wenn reale Nutzung dabei hilft, einen Agenten fundierter zu erstellen oder zu verbessern.",
+                "",
+                "1. Ist der exakte Titel bekannt, nutze `FindConversations` und waehle den Treffer eindeutig ueber seine UID aus.",
+                "2. Ist der Titel nicht exakt bekannt oder soll nach mehreren Kriterien gesucht werden, nutze `read_data`.",
+                "3. Sobald die Conversation eindeutig bestimmt ist, nutze `ReadConversationMessages`.",
+                "4. Fuer eine allgemeinere Suche in Messages mit zusaetzlichen Kriterien nutze `read_data`.",
+                "5. Uebernimm keine persoenlichen Daten, Secrets oder irrelevanten Conversation-Inhalte in erzeugte Agent-Konfigurationen.",
+                "",
+                "# Ausgabe",
+                "",
+                "Die Ausgabe muss dem vorgegebenen ImportAgent-JSON-Schema entsprechen. Ein neuer Agent verwendet `AI_AGENT` mit eingebetteter `AI_AGENT_VERSION`; eine neue Version fuer einen Treffer verwendet die eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT`.",
+                ""
+            ]
         }
     ],
     "totals_rows": [],
