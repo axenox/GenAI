@@ -8,7 +8,7 @@ Skills are managed in Power UI under **Administration > AI > AI Skills**. Each r
 
 ## Using a skill
 
-Add skills to a `GenericAssistant` as a named map:
+Add skills to an agent as a named map. Example:
 
 ```json
 {
@@ -31,6 +31,8 @@ You are a helpful assistant.
 The placeholder is optional. If `[#test#]` is absent, the skill instructions are not added to the prompt. The skill is still loaded and its tools remain available to the agent.
 
 ## Skill configuration
+
+A skill is configured similarly to a normal agent: its instructions contain the prompt text, while `CONFIG_UXON` contains its structured configuration. See the UXON prototypes for [`GenericAssistant`](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CAgents%5CGenericAssistant) and [`GenericSkill`](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CSkills%5CGenericSkill).
 
 The standard `GenericSkill` accepts these optional properties in `CONFIG_UXON`:
 
