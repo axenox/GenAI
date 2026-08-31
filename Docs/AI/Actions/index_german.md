@@ -4,7 +4,7 @@
 
 ## Call Agent
 
-Die Action `axenox.GenAI.CallAgent` sendet ihr Input-DataSheet an einen konfigurierten KI-Agenten und gibt dessen Antwort als reguläre Erfolgsnachricht der Action zurück. Das DataSheet ist im Benutzer-Prompt immer als Markdown-Tabelle enthalten.
+Die Action `axenox.GenAI.CallAgent` sendet ihr Input-DataSheet an einen konfigurierten KI-Agenten und gibt die Antwort als reguläre, aus Markdown gerenderte Erfolgsnachricht zurück. Rohes HTML des Agenten wird vor dem Rendering escaped. Das DataSheet ist im Benutzer-Prompt immer als Markdown-Tabelle enthalten.
 
 ### UXON-Eigenschaften
 

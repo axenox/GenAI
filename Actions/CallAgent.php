@@ -40,7 +40,39 @@ class CallAgent extends AbstractAction
         $agent = AiFactory::createAgentFromString($this->getWorkbench(), $this->getAgentAlias());
         $response = $agent->handle($prompt);
 
-        return ResultFactory::createMessageResult($task, $response->getMessage());
+        return ResultFactory::createMessageResult(
+            $task,
+            $this->renderMarkdownMessage($response->getMessage())
+        );
+    }
+
+    /**
+     * Converts an untrusted Markdown response to HTML for a regular action message.
+     *
+     * @param string $markdown Agent response to render.
+     */
+    protected function renderMarkdownMessage(string $markdown) : string
+    {
+        $safeMarkdown = str_replace(['<', '>'], ['&lt;', '&gt;'], $markdown);
+        $html = MarkdownDataType::convertMarkdownToHtml($safeMarkdown);
+
+        $html = preg_replace_callback(
+            '/\s(href|src)="([^"]*)"/i',
+            static function (array $matches) : string {
+                $url = html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $scheme = parse_url($url, PHP_URL_SCHEME);
+                if ($scheme !== null && !in_array(strtolower($scheme), ['http', 'https', 'mailto'], true)) {
+                    return '';
+                }
+
+                return $matches[0];
+            },
+            $html
+        ) ?? '';
+
+        return '<div style="width: min(48rem, calc(100vw - 6rem)); max-height: 70vh; overflow: auto; overflow-wrap: anywhere; white-space: normal;">'
+            . $html
+            . '</div>';
     }
 
     /**
@@ -185,4 +217,5 @@ class CallAgent extends AbstractAction
         $this->additionalPromptPosition = $position;
         return $this;
     }
+
 }

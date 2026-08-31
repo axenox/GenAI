@@ -237,12 +237,6 @@
                                 "attribute_alias": "UID"
                             },
                             {
-                                "attribute_alias": "AGENT_VERSION_UID"
-                            },
-                            {
-                                "attribute_alias": "CONVERSATION_UID"
-                            },
-                            {
                                 "attribute_alias": "CONVERSATION_UID__LABEL"
                             },
                             {
@@ -272,16 +266,6 @@
                                 {
                                     "from": "''",
                                     "to": "UID",
-                                    "create_row_in_empty_data": false
-                                },
-                                {
-                                    "from": "''",
-                                    "to": "AGENT_VERSION_UID",
-                                    "create_row_in_empty_data": false
-                                },
-                                {
-                                    "from": "''",
-                                    "to": "CONVERSATION_UID",
                                     "create_row_in_empty_data": false
                                 },
                                 {
