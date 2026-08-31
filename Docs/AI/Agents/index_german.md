@@ -12,6 +12,7 @@ Dadurch kann ein Agent mehrere Versionen besitzen. Aufrufende Komponenten verwen
 ## Verwandte Themen
 
 - [Prompting, Concepts und Tools](prompting_german.md)
+- [Skill-Referenz](../Skills/index_german.md)
 - [Tool-Referenz](../Tools/index_german.md)
 - [Concept-Referenz](../Concepts/index_german.md)
 
@@ -46,6 +47,11 @@ Ein typischer Ausschnitt sieht wie folgt aus:
       ]
     }
   },
+  "skills": {
+    "test": {
+      "alias": "axenox.GenAI.test"
+    }
+  },
   "concepts": {
     "sitemap": {
       "alias": "axenox.GenAI.AppDocsConcept",
@@ -57,7 +63,7 @@ Ein typischer Ausschnitt sieht wie folgt aus:
 }
 ```
 
-Die Eigenschaftsnamen im UXON entsprechen den konfigurierbaren Eigenschaften des Prototyps. Bei `GenericAssistant` gehören `tools`, `concepts`, `response_json_schema` und weitere dokumentierte UXON-Eigenschaften zu den wichtigsten Eigenschaften.
+Die Eigenschaftsnamen im UXON entsprechen den konfigurierbaren Eigenschaften des Prototyps. Bei `GenericAssistant` gehören `skills`, `tools`, `concepts`, `response_json_schema` und weitere dokumentierte UXON-Eigenschaften zu den wichtigsten Eigenschaften.
 
 Für Agenten, die zusätzlich eine strukturierte Selbstreflexion liefern sollen, kann `feedback_mode` aktiviert werden. In diesem Modus wird das JSON-Antwortschema um ein `feedback`-Objekt erweitert, das `tool_reasoning`, `new_tools` und `improvement_suggestions` enthält. Dadurch kann das LLM den Ablauf begründen, Toolaufrufe erklären, fehlende Tools mit Begründung vorschlagen und konkrete Verbesserungen formulieren.
 
@@ -89,6 +95,12 @@ Das Concept kann anschließend in die Anweisungen eingebunden werden:
 ```
 
 Zur Laufzeit rendert der Agent zunächst die Concepts und ersetzt die Platzhalter im Prompt. Concepts eignen sich für Kontext, der aus Daten, Dokumentation, dem Metamodell oder Tool-Ausgaben erzeugt wird. Einige Concepts können außerdem eigene Tool-Modelle bereitstellen; beim Rendern werden diese der Tool-Konfiguration des Agenten hinzugefügt.
+
+## Skills konfigurieren
+
+Skills sind wiederverwendbare, nicht versionierte Konfigurationen, die unter `skills` per Alias referenziert werden. Der Schlüssel der Map ist ein lokaler Platzhaltername. Der konfigurierte Schlüssel `test` kann beispielsweise als `[#test#]` in die Agent-Instructions eingefügt werden.
+
+Die Verwendung des Platzhalters ist optional. Ohne `[#test#]` werden die Skill-Instructions nicht in den System-Prompt eingefügt, der Skill wird aber weiterhin geladen und seine Tools bleiben verfügbar. Konfiguration und Kollisionsregeln sind in der [Skill-Referenz](../Skills/index_german.md) beschrieben.
 
 ## Tools konfigurieren
 
@@ -123,8 +135,9 @@ Die Beschreibung sollte dem LLM eindeutig vermitteln, wann es das Tool verwenden
 4. Konfigurieren Sie das LLM oder die Datenverbindung.
 5. Verfassen Sie die Anweisungen und fügen Sie die erforderlichen Concept-Platzhalter hinzu.
 6. Konfigurieren Sie die Concepts in `CONFIG_UXON` und stimmen Sie die Platzhalternamen mit denen in den Anweisungen ab.
-7. Konfigurieren Sie Tools in `CONFIG_UXON`, wenn der Agent aktiv Daten laden oder Aktionen vorbereiten muss.
-8. Testen Sie den Agenten mit Testfällen und Konversationsprotokollen und pflegen Sie Verbesserungen als neue Versionen.
+7. Fügen Sie wiederverwendbare Skills in `CONFIG_UXON` hinzu und verwenden Sie deren Platzhalter nur, wenn der Skill-Text benötigt wird.
+8. Konfigurieren Sie Tools in `CONFIG_UXON`, wenn der Agent aktiv Daten laden oder Aktionen vorbereiten muss.
+9. Testen Sie den Agenten mit Testfällen und Konversationsprotokollen und pflegen Sie Verbesserungen als neue Versionen.
 
 ## Versionierung
 

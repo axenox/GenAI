@@ -2,14 +2,18 @@
 namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Common\Selectors\AiToolSelector;
+use axenox\GenAI\Common\Selectors\AiSkillSelector;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptNotFoundError;
+use axenox\GenAI\Exceptions\AiSkillNotFoundError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
 use axenox\GenAI\Common\Selectors\AiConceptSelector;
 use axenox\GenAI\Interfaces\Selectors\AiConceptSelectorInterface;
+use axenox\GenAI\Interfaces\Selectors\AiSkillSelectorInterface;
 use axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
@@ -107,6 +111,102 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
                 break;
         }
         return $class;
+    }
+
+    /**
+     * Creates a persisted skill referenced by an alias UXON model.
+     */
+    public static function createSkillFromUxon(
+        AiAgentInterface $agent,
+        AiPromptInterface $prompt,
+        string $placeholder,
+        UxonObject $uxon
+    ) : AiSkillInterface {
+        $alias = trim((string) $uxon->getProperty('alias'));
+        if ($alias === '') {
+            throw new UxonParserError($uxon, 'Cannot instantiate AI skill: no `alias` property found in UXON model');
+        }
+
+        return static::createSkillFromSelector(
+            new AiSkillSelector($agent->getWorkbench(), $alias),
+            $agent,
+            $prompt,
+            $placeholder
+        );
+    }
+
+    /**
+     * Loads a skill record and instantiates its configured prototype.
+     */
+    public static function createSkillFromSelector(
+        AiSkillSelectorInterface $selector,
+        AiAgentInterface $agent,
+        AiPromptInterface $prompt,
+        string $placeholder
+    ) : AiSkillInterface {
+        $skillData = static::readSkillData($selector);
+        $configValue = $skillData['CONFIG_UXON'] ?? null;
+        $uxon = $configValue === null || $configValue === ''
+            ? new UxonObject()
+            : UxonObject::fromAnything($configValue);
+        $uxon->setProperty('instructions', (string) ($skillData['INSTRUCTIONS'] ?? ''));
+
+        $prototypePath = trim((string) ($skillData['PROTOTYPE_CLASS'] ?? ''));
+        if ($prototypePath === '') {
+            throw new AiSkillNotFoundError('AI skill "' . $selector->toString() . '" has no prototype class');
+        }
+
+        try {
+            $class = PhpFilePathDataType::findClassInFile(
+                $selector->getWorkbench()->filemanager()->getPathToVendorFolder()
+                . DIRECTORY_SEPARATOR . $prototypePath
+            );
+            $skill = new $class($agent, $prompt, $placeholder, $uxon);
+        } catch (AiSkillNotFoundError $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new AiSkillNotFoundError(
+                'Cannot instantiate AI skill "' . $selector->toString() . '"',
+                null,
+                $e
+            );
+        }
+
+        if (! $skill instanceof AiSkillInterface) {
+            throw new AiSkillNotFoundError(
+                'Prototype of AI skill "' . $selector->toString() . '" must implement ' . AiSkillInterface::class
+            );
+        }
+
+        return $skill;
+    }
+
+    /**
+     * Reads the persisted configuration for a namespaced skill alias.
+     */
+    protected static function readSkillData(AiSkillSelectorInterface $selector) : array
+    {
+        $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
+            $selector->getWorkbench(),
+            'axenox.GenAI.AI_SKILL'
+        );
+        $dataSheet->getFilters()->addConditionFromString(
+            'ALIAS_WITH_NS',
+            $selector->toString(),
+            ComparatorDataType::EQUALS
+        );
+        $dataSheet->getColumns()->addMultiple([
+            'CONFIG_UXON',
+            'INSTRUCTIONS',
+            'PROTOTYPE_CLASS'
+        ]);
+        $dataSheet->dataRead();
+
+        if ($dataSheet->countRows() !== 1) {
+            throw new AiSkillNotFoundError('AI skill "' . $selector->toString() . '" not found');
+        }
+
+        return $dataSheet->getRow(0);
     }
 
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface

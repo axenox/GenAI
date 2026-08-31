@@ -12,6 +12,26 @@ CREATE TABLE IF NOT EXISTS exf_ai_agent (
     CONSTRAINT uq_exf_ai_agent_alias_app_oid UNIQUE (alias, app_oid)
 );
 
+CREATE TABLE IF NOT EXISTS exf_ai_skill (
+    oid                  uuid         NOT NULL,
+    created_on           timestamp    NOT NULL,
+    modified_on          timestamp    NOT NULL,
+    created_by_user_oid  uuid,
+    modified_by_user_oid uuid,
+    app_oid              uuid,
+    name                 varchar(100) NOT NULL,
+    alias                varchar(100) NOT NULL,
+    description          text,
+    instructions         text,
+    config_uxon          text,
+    prototype_class      varchar(255) NOT NULL,
+    CONSTRAINT pk_exf_ai_skill PRIMARY KEY (oid),
+    CONSTRAINT uq_exf_ai_skill_alias_app UNIQUE (alias, app_oid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exf_ai_skill_app
+    ON exf_ai_skill (app_oid);
+
 CREATE TABLE exf_ai_agent_version (
     oid uuid PRIMARY KEY,
     created_on timestamp NOT NULL,
@@ -139,6 +159,11 @@ CREATE TABLE exf_ai_test_result_rating (
 
 
 -- Foreign keys
+ALTER TABLE exf_ai_skill
+    ADD CONSTRAINT fk_exf_ai_skill_app
+        FOREIGN KEY (app_oid)
+            REFERENCES exf_app (oid);
+
 ALTER TABLE exf_ai_agent_version
     ADD CONSTRAINT fk_ai_agent_version_agent
         FOREIGN KEY (ai_agent_oid)

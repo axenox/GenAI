@@ -12,9 +12,11 @@ use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolCriticalError;
+use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
+use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\Traits\AliasTrait;
@@ -113,8 +115,16 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
+    /** @var AiToolInterface[]|null */
     private ?array $tools = null;
+
+    /** @var UxonObject[]|null */
     private ?array $toolsUxon = null;
+
+    /** @var AiSkillInterface[] */
+    private array $skills = [];
+
+    private UxonObject $skillsUxon;
     private ?AiConversationInterface $conversation = null;
 
     private $maxNumberOfCalls = 10;
@@ -133,6 +143,7 @@ class GenericAssistant implements AiAgentInterface
     {
         $this->workbench = $selector->getWorkbench();
         $this->selector = $selector;
+        $this->skillsUxon = new UxonObject();
         if ($uxon !== null) {
             $this->importUxonObject($uxon);
         }
@@ -331,8 +342,28 @@ class GenericAssistant implements AiAgentInterface
      */
     protected function setConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
     {
-        $this->conceptConfig = null;
         $this->conceptConfig = $arrayOfConcepts;
+        $this->systemPromptRendered = null;
+        $this->tools = null;
+        return $this;
+    }
+
+    /**
+     * Reusable skills addressed by local placeholders in the agent instructions.
+     *
+     * @uxon-property skills
+     * @uxon-type \axenox\GenAI\AI\Skills\GenericSkill[]
+     * @uxon-template {"placeholder_name": {"alias": ""}}
+     *
+     * @param UxonObject $skills
+     * @return AiAgentInterface
+     */
+    protected function setSkills(UxonObject $skills) : AiAgentInterface
+    {
+        $this->skillsUxon = $skills;
+        $this->skills = [];
+        $this->systemPromptRendered = null;
+        $this->tools = null;
         return $this;
     }
 
@@ -414,6 +445,13 @@ class GenericAssistant implements AiAgentInterface
                     }
                 }
             }
+            $this->skills = [];
+            foreach ($this->skillsUxon as $placeholder => $skillUxon) {
+                $skill = AiFactory::createSkillFromUxon($this, $prompt, $placeholder, $skillUxon);
+                $this->skills[] = $skill;
+                $renderer->addPlaceholder($skill);
+            }
+            $this->tools = null;
             
             try {
                 
@@ -847,6 +885,7 @@ class GenericAssistant implements AiAgentInterface
         foreach ($objectWithToolDefs as $toolName => $toolUxon) {
             $this->toolsUxon[$toolName] = $toolUxon;
         }
+        $this->tools = null;
         return $this;
     }
 
@@ -857,12 +896,42 @@ class GenericAssistant implements AiAgentInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            if ($this->toolsUxon === null) {
-                $this->tools = [];
-            } else {
-                foreach ($this->toolsUxon as $toolName => $uxon) {
-                    $tool = AiFactory::createToolFromUxon($this->workbench, $uxon, $toolName);
-                    $this->addTool($tool);
+            $this->tools = [];
+            $toolSources = [];
+            $warnings = [];
+
+            foreach ($this->skills as $skill) {
+                $source = 'skill "' . $skill->getPlaceholder() . '"';
+                foreach ($skill->getTools() as $toolName => $tool) {
+                    if (isset($this->tools[$toolName])) {
+                        $warnings[] = new AiToolConfigurationWarning(
+                            'AI tool "' . $toolName . '" from ' . $source
+                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
+                        );
+                    }
+                    $this->tools[$toolName] = $tool;
+                    $toolSources[$toolName] = $source;
+                }
+            }
+
+            foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
+                if (isset($this->tools[$toolName])) {
+                    $warnings[] = new AiToolConfigurationWarning(
+                        'AI tool "' . $toolName . '" configured on agent "'
+                        . $this->getAliasWithNamespace() . '" overrides the tool from ' . $toolSources[$toolName] . '.'
+                    );
+                }
+                $this->tools[$toolName] = AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName);
+                $toolSources[$toolName] = 'agent configuration';
+            }
+
+            if ($warnings !== []) {
+                if ($this->conversation !== null) {
+                    $this->conversation->saveWarnings($warnings);
+                } else {
+                    foreach ($warnings as $warning) {
+                        $this->workbench->getLogger()->logException($warning);
+                    }
                 }
             }
         }
