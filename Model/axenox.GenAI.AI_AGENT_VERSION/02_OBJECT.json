@@ -231,6 +231,71 @@
                                         "height": "100%"
                                     }
                                 ]
+                            },
+                            {
+                                "caption": "Feedback",
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.FEEDBACK",
+                                        "width": "max",
+                                        "height": "max",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AGENT_VERSION_UID",
+                                                "value": "=uid_field",
+                                                "comparator": "==",
+                                                "required": true,
+                                                "hidden": true
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "CONVERSATION_UID__LABEL"
+                                            },
+                                            {
+                                                "attribute_alias": "GENERAL_FEEDBACK"
+                                            },
+                                            {
+                                                "attribute_alias": "SUGGESTED_TOOLS"
+                                            },
+                                            {
+                                                "attribute_alias": "FEEDBACK_CHECKED"
+                                            },
+                                            {
+                                                "attribute_alias": "CREATED_ON"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "CREATED_ON",
+                                                "direction": "desc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Create feedback",
+                                                "action": {
+                                                    "alias": "exface.Core.ShowObjectCreateDialog",
+                                                    "object_alias": "axenox.GenAI.FEEDBACK",
+                                                    "prefill_with_input_data": true,
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "filter_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "from_comparator": "==",
+                                                                "to": "AGENT_VERSION_UID",
+                                                                "to_single_row": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
                             }
                         ]
                     }

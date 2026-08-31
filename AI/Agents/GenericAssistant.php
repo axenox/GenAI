@@ -209,11 +209,13 @@ class GenericAssistant implements AiAgentInterface
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
         try {
+            $responseJson = $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null;
             $conversation->saveResponse(
                 $performedQuery,
                 $performedQuery->getAnswerMarkdown($performedQuery),
-                $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null
+                $responseJson
             );
+            $this->saveFeedback($responseJson, $conversation->getConversationId());
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
@@ -577,10 +579,12 @@ class GenericAssistant implements AiAgentInterface
         if($this-> versionDataSheet === null){
             $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT_VERSION');
             $sheet->getColumns()->addMultiple([
+                    'UID',
                     'VERSION',
                     'ENABLED_FLAG',
                     'DATA_CONNECTION'
                 ]);
+            $sheet->getFilters()->addConditionFromString('AI_AGENT', $this->getUid(), ComparatorDataType::EQUALS);
             $sheet->dataRead();
             $this->versionDataSheet = $sheet;
         }
@@ -590,7 +594,10 @@ class GenericAssistant implements AiAgentInterface
 
     protected function getVersionRow()  {
         if($this->versionRow === null){
-            $this->versionRow = $this->getVersionModelData()->getRow($this->getVersionModelData()->getColumn('VERSION')->findRowByValue($this->getVersion()));
+            $this->versionRow = $this->getVersionModelData()->getRowByColumnValue('VERSION', $this->getVersion());
+            if ($this->versionRow === null) {
+                throw new AiAgentRuntimeError($this, 'AI agent version "' . $this->getVersion() . '" not found for agent "' . $this->getAliasWithNamespace() . '"!');
+            }
         }
         return $this->versionRow;
     }
@@ -681,6 +688,37 @@ class GenericAssistant implements AiAgentInterface
     public function getFeedbackMode() : bool
     {
         return $this->feedbackMode;
+    }
+
+    /**
+     * Persists structured self-feedback from the final model response.
+     *
+     * @param array|null $responseJson Structured response returned by the model.
+     * @param string $conversationId Conversation associated with the response.
+     */
+    protected function saveFeedback(?array $responseJson, string $conversationId) : void
+    {
+        if ($this->feedbackMode === false || !is_array($responseJson['feedback'] ?? null)) {
+            return;
+        }
+
+        $feedback = $responseJson['feedback'];
+        $reasoning = trim((string) ($feedback['reasoning'] ?? ''));
+        $improvements = trim((string) ($feedback['improvement_suggestions'] ?? ''));
+        $generalFeedback = implode("\n\n", array_filter([
+            $reasoning === '' ? null : "Reasoning:\n" . $reasoning,
+            $improvements === '' ? null : "Improvement suggestions:\n" . $improvements
+        ]));
+
+        $feedbackSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.FEEDBACK');
+        $feedbackSheet->addRow([
+            'AGENT_VERSION_UID' => $this->getVersionRow()['UID'],
+            'CONVERSATION_UID' => $conversationId,
+            'GENERAL_FEEDBACK' => StringDataType::truncate($generalFeedback, 65535, false, false, true),
+            'SUGGESTED_TOOLS' => StringDataType::truncate(trim((string) ($feedback['new_tools'] ?? '')), 65535, false, false, true),
+            'FEEDBACK_CHECKED' => 0
+        ]);
+        $feedbackSheet->dataCreate();
     }
 
     protected function enrichResponseJsonSchemaWithFeedback(array $schema) : array
