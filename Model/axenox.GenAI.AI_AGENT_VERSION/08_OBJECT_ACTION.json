@@ -208,6 +208,123 @@
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "USE_IN_OBJECT_BASKET_FLAG": 0,
             "DOCS": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "AI agent version: Create Ticket [AiAgentVersionCreateFeedbackPlan]",
+            "CREATED_ON": "2026-08-31 00:00:00",
+            "MODIFIED_ON": "2026-08-31 00:00:00",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1a6fefc2a4bc8a6fe025041000001",
+            "OBJECT": "0x11f0a47972e1dbf6a479025041000001",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ActionChain.php",
+            "ALIAS": "AiAgentVersionCreateFeedbackPlan",
+            "NAME": "Create Ticket",
+            "SHORT_DESCRIPTION": "Creates a detailed improvement plan from all feedback and marks the feedback as checked",
+            "CONFIG_UXON": {
+                "input_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                "input_rows_min": 1,
+                "input_rows_max": 1,
+                "icon": "tasks",
+                "use_result_of_action": 1,
+                "actions": [
+                    {
+                        "alias": "exface.Core.ReadData",
+                        "object_alias": "axenox.GenAI.FEEDBACK",
+                        "update_filter_context": false,
+                        "columns": [
+                            {
+                                "attribute_alias": "UID"
+                            },
+                            {
+                                "attribute_alias": "CONVERSATION_UID__LABEL"
+                            },
+                            {
+                                "attribute_alias": "GENERAL_FEEDBACK"
+                            },
+                            {
+                                "attribute_alias": "SUGGESTED_TOOLS"
+                            },
+                            {
+                                "attribute_alias": "FEEDBACK_CHECKED"
+                            },
+                            {
+                                "attribute_alias": "CREATED_ON"
+                            }
+                        ],
+                        "input_mapper": {
+                            "from_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                            "to_object_alias": "axenox.GenAI.FEEDBACK",
+                            "column_to_filter_mappings": [
+                                {
+                                    "from": "UID",
+                                    "to": "AGENT_VERSION_UID",
+                                    "comparator": "=="
+                                }
+                            ],
+                            "column_to_column_mappings": [
+                                {
+                                    "from": "''",
+                                    "to": "UID",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "CONVERSATION_UID__LABEL",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "GENERAL_FEEDBACK",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "SUGGESTED_TOOLS",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "FEEDBACK_CHECKED",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "CREATED_ON",
+                                    "create_row_in_empty_data": false
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "alias": "axenox.GenAI.CallAgent",
+                        "object_alias": "axenox.GenAI.FEEDBACK",
+                        "agent_alias": "axenox.GenAI.agent_designer:0.3",
+                        "additional_prompt": "Erstelle anhand der folgenden Feedbacks einen detaillierten Plan zur Verbesserung dieser Agent-Version.",
+                        "additional_prompt_position": "before_data_sheet"
+                    },
+                    {
+                        "alias": "exface.Core.UpdateData",
+                        "object_alias": "axenox.GenAI.FEEDBACK",
+                        "input_rows_min": 0,
+                        "input_mapper": {
+                            "from_object_alias": "axenox.GenAI.FEEDBACK",
+                            "to_object_alias": "axenox.GenAI.FEEDBACK",
+                            "inherit_columns": "own_system_attributes",
+                            "column_to_column_mappings": [
+                                {
+                                    "from": 1,
+                                    "to": "FEEDBACK_CHECKED",
+                                    "create_row_in_empty_data": false
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
         }
     ],
     "totals_rows": [],

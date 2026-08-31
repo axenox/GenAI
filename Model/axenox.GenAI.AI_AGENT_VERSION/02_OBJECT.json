@@ -240,6 +240,7 @@
                                         "object_alias": "axenox.GenAI.FEEDBACK",
                                         "width": "max",
                                         "height": "max",
+                                        "multi_select": true,
                                         "filters": [
                                             {
                                                 "attribute_alias": "AGENT_VERSION_UID",
@@ -250,6 +251,10 @@
                                             }
                                         ],
                                         "columns": [
+                                            {
+                                                "attribute_alias": "AGENT_VERSION_UID",
+                                                "hidden": true
+                                            },
                                             {
                                                 "attribute_alias": "CONVERSATION_UID__LABEL"
                                             },
@@ -274,6 +279,32 @@
                                         ],
                                         "buttons": [
                                             {
+                                                "caption": "Create Ticket",
+                                                "visibility": "promoted",
+                                                "action": {
+                                                    "alias": "axenox.GenAI.AiAgentVersionCreateFeedbackPlan",
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                                        "inherit_columns": "none",
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "to": "UID"
+                                                            }
+                                                        ],
+                                                        "filter_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "from_comparator": "==",
+                                                                "to": "UID",
+                                                                "to_single_row": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
                                                 "caption": "Create feedback",
                                                 "action": {
                                                     "alias": "exface.Core.ShowObjectCreateDialog",
@@ -292,6 +323,10 @@
                                                         ]
                                                     }
                                                 }
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
                                             }
                                         ]
                                     }

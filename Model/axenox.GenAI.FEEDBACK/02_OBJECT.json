@@ -102,7 +102,63 @@
             "SHORT_DESCRIPTION": "Feedback for an AI agent version and optionally a conversation.",
             "PARENT_OBJECT": null,
             "DATA_ADDRESS_PROPS": null,
-            "DEFAULT_EDITOR_UXON": null,
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "Dialog",
+                "width": 3,
+                "widgets": [
+                    {
+                        "attribute_alias": "UID",
+                        "widget_type": "InputHidden"
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "Context",
+                        "width": "max",
+                        "columns_in_grid": 2,
+                        "widgets": [
+                            {
+                                "attribute_alias": "AGENT_VERSION_UID"
+                            },
+                            {
+                                "attribute_alias": "CONVERSATION_UID"
+                            },
+                            {
+                                "attribute_alias": "FEEDBACK_CHECKED",
+                                "widget_type": "InputCheckBox",
+                                "caption": "Checked"
+                            }
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "General feedback",
+                        "width": "max",
+                        "height": 8,
+                        "widgets": [
+                            {
+                                "attribute_alias": "GENERAL_FEEDBACK",
+                                "hide_caption": true,
+                                "width": "max",
+                                "height": "100%"
+                            }
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "Suggested tools",
+                        "width": "max",
+                        "height": 6,
+                        "widgets": [
+                            {
+                                "attribute_alias": "SUGGESTED_TOOLS",
+                                "hide_caption": true,
+                                "width": "max",
+                                "height": "100%"
+                            }
+                        ]
+                    }
+                ]
+            },
             "ALIAS": "FEEDBACK",
             "DATA_ADDRESS": "exf_ai_feedback"
         }
