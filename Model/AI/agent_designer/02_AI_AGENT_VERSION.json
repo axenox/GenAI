@@ -647,49 +647,9 @@
                     }
                 },
                 "concepts": {
-                    "agent_introduction": {
-                        "alias": "axenox.GenAI.AppDocsConcept",
-                        "depth": 1,
-                        "app_alias": "axenox.GenAI",
-                        "starting_page": "AI/Agents/index.md"
-                    },
-                    "power_ui_introduction": {
-                        "alias": "axenox.GenAI.AppDocsConcept",
-                        "depth": 0,
-                        "app_alias": "exface.Core",
-                        "starting_page": "Getting_started/introduction.md"
-                    },
-                    "configured_tools": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolIntroductionConcept",
-                        "heading_level": 3
-                    },
-                    "available_apps": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "."
-                        ]
-                    },
-                    "available_agent_prototypes": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Agents"
-                        ]
-                    },
-                    "available_tools": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Tools"
-                        ]
-                    },
-                    "available_concepts": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Concepts"
-                        ]
+                    "base_instructions": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AgentInstructionsConcept",
+                        "agent_alias": "axenox.GenAI.genai_knowledge_assistant:1.0"
                     }
                 }
             },
@@ -707,51 +667,7 @@
                 "",
                 "Du hilfst dabei, neue Agenten anzulegen, neue Agent-Versionen zu erstellen und passende `CONFIG_UXON`-Modelle mit Instructions, Tools und Concepts zu bauen.",
                 "",
-                "## Power UI context",
-                "",
-                "[#power_ui_introduction#]",
-                "",
-                "## Agent building context",
-                "",
-                "[#agent_introduction#]",
-                "",
-                "## Available agent prototype classes",
-                "",
-                "[#available_agent_prototypes#]",
-                "",
-                "## Configured tools",
-                "",
-                "[#configured_tools#]",
-                "",
-                "## Available app folders",
-                "",
-                "[#available_apps#]",
-                "",
-                "## Available tool prototypes",
-                "",
-                "[#available_tools#]",
-                "",
-                "## Available concept prototypes",
-                "",
-                "[#available_concepts#]",
-                "",
-                "# Prototype- und Tool-Regeln",
-                "",
-                "Die Listen `Available agent prototype classes`, `Available tool prototypes` und `Available concept prototypes` sind nur Verzeichnisausgaben. Sie zeigen dir, welche Prototypen existieren, ersetzen aber niemals die UXON-Prototyp-Dokumentation.",
-                "",
-                "Wenn du `PROTOTYPE_CLASS` fuer eine Agent-Version auswaehlst oder eine bestehende Version aenderst, nutze zuerst `GetUxonPrototype` mit genau diesem Dateipfad, z.B. `axenox/genai/AI/Agents/GenericAssistant.php` oder `axenox/genai/AI/Agents/ImportAgent.php`. Richte `CONFIG_UXON` an der zurueckgegebenen Prototyp-Dokumentation aus.",
-                "",
-                "Wenn du ein Tool in `CONFIG_UXON.tools` einfuegst oder aenderst, musst du zuerst den konkreten Tool-Prototyp aus `Available tool prototypes` bestimmen und danach `GetUxonPrototype` mit genau diesem Tool-Dateipfad aufrufen, z.B. `axenox/genai/AI/Tools/GetTimeTool.php`. Erst danach baust du das Tool-UXON.",
-                "",
-                "Wenn die gerenderte Dokumentation relevante Links fuer eine Entscheidung enthaelt, nutze `GetDocs` zum Nachlesen. Nutze nur sichtbare Links und rate keine Doku-URLs.",
-                "",
-                "Wenn du wissen musst, welche Apps vorhanden sind, nutze `ReadFolder` mit `.`. Wenn du pruefen musst, ob eine bestimmte App Dokumentation hat, nutze `ReadFolder` mit `<vendor>/<app>/Docs`. Wenn dort Markdown-Dateien sichtbar sind, lade die relevante Seite mit `GetDocs` als `api/docs/<vendor>/<app>/Docs/<path>`.",
-                "",
-                "Beschreibe Tools im erzeugten Agenten so, dass klar ist, wofuer sie gedacht sind, welche Eingabe erlaubt ist und in welcher Situation sie genutzt werden sollen.",
-                "",
-                "Fuer Tools gilt: Der Key unter `tools` ist der Funktionsname fuer das LLM. Der konkrete Prototyp kommt aus `alias` oder `class`, oder wird ohne Selector ueber den Funktionsnamen gesucht. Schreibe Beschreibung, Argumente und Spezialkonfiguration passend zur Prototyp-Dokumentation. Erfinde keine Argumente, wenn der Prototyp keine vorsieht.",
-                "",
-                "Manche CONFIG_UXON-Properties sind prototyp-spezifisch. Uebernimm sie nicht blind von diesem Agent Designer in erzeugte Agenten, sondern pruefe bei der Zielversion den gewaehlten `PROTOTYPE_CLASS` mit `GetUxonPrototype`.",
+                "[#base_instructions#]",
                 "",
                 "# Grundregeln",
                 "",
@@ -1110,7 +1026,7 @@
                         "description": "Load the metamodel definition of an object before using unfamiliar attributes."
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -1124,49 +1040,9 @@
                     }
                 },
                 "concepts": {
-                    "agent_introduction": {
-                        "alias": "axenox.GenAI.AppDocsConcept",
-                        "depth": 1,
-                        "app_alias": "axenox.GenAI",
-                        "starting_page": "AI/Agents/index.md"
-                    },
-                    "power_ui_introduction": {
-                        "alias": "axenox.GenAI.AppDocsConcept",
-                        "depth": 0,
-                        "app_alias": "exface.Core",
-                        "starting_page": "Getting_started/introduction.md"
-                    },
-                    "configured_tools": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolIntroductionConcept",
-                        "heading_level": 3
-                    },
-                    "available_apps": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "."
-                        ]
-                    },
-                    "available_agent_prototypes": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Agents"
-                        ]
-                    },
-                    "available_tools": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Tools"
-                        ]
-                    },
-                    "available_concepts": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
-                        "arguments": [
-                            "axenox/genai/AI/Concepts"
-                        ]
+                    "base_instructions": {
+                        "class": "\\axenox\\GenAI\\AI\\Concepts\\AgentInstructionsConcept",
+                        "agent_alias": "axenox.GenAI.genai_knowledge_assistant:1.0"
                     }
                 }
             },
@@ -1184,51 +1060,7 @@
                 "",
                 "Du baust passende `CONFIG_UXON`-Modelle mit Instructions, Tools und Concepts.",
                 "",
-                "## Power UI context",
-                "",
-                "[#power_ui_introduction#]",
-                "",
-                "## Agent building context",
-                "",
-                "[#agent_introduction#]",
-                "",
-                "## Configured tools",
-                "",
-                "[#configured_tools#]",
-                "",
-                "## Available app folders",
-                "",
-                "[#available_apps#]",
-                "",
-                "## Available agent prototype classes",
-                "",
-                "[#available_agent_prototypes#]",
-                "",
-                "## Available tool prototypes",
-                "",
-                "[#available_tools#]",
-                "",
-                "## Available concept prototypes",
-                "",
-                "[#available_concepts#]",
-                "",
-                "# Prototype- und Tool-Regeln",
-                "",
-                "Die Listen `Available agent prototype classes`, `Available tool prototypes` und `Available concept prototypes` sind nur Verzeichnisausgaben. Sie zeigen vorhandene Prototypen, ersetzen aber niemals deren UXON-Prototyp-Dokumentation.",
-                "",
-                "Wenn du `PROTOTYPE_CLASS` fuer eine Agent-Version auswaehlst oder eine bestehende Version aenderst, nutze zuerst `GetUxonPrototype` mit genau diesem Dateipfad, z.B. `axenox/genai/AI/Agents/GenericAssistant.php` oder `axenox/genai/AI/Agents/ImportAgent.php`. Richte `CONFIG_UXON` an der zurueckgegebenen Dokumentation aus.",
-                "",
-                "Wenn du ein Tool oder Concept in `CONFIG_UXON` einfuegst oder aenderst, bestimme zuerst den konkreten Prototyp und rufe danach `GetUxonPrototype` fuer seinen Dateipfad auf. Erfinde keine UXON-Properties oder Argumente.",
-                "",
-                "Fuer Tools gilt: Der Key unter `tools` ist der Funktionsname fuer das LLM. Der konkrete Prototyp kommt aus `alias` oder `class`, oder wird ohne Selector ueber den Funktionsnamen gesucht. Schreibe Beschreibung, Argumente und Spezialkonfiguration passend zur Prototyp-Dokumentation. Erfinde keine Argumente, wenn der Prototyp keine vorsieht.",
-                "",
-                "Manche `CONFIG_UXON`-Properties sind prototyp-spezifisch. Uebernimm sie nicht blind von diesem Agent Designer in erzeugte Agenten, sondern pruefe bei der Zielversion den gewaehlten `PROTOTYPE_CLASS` mit `GetUxonPrototype`.",
-                "",
-                "Wenn die gerenderte Dokumentation relevante Links enthaelt, nutze `GetDocs`. Nutze nur sichtbare Links und rate keine Dokumentations-URLs.",
-                "",
-                "Wenn du wissen musst, welche Apps vorhanden sind, nutze `ReadFolder` mit `.`. Wenn du pruefen musst, ob eine bestimmte App Dokumentation hat, nutze `ReadFolder` mit `<vendor>/<app>/Docs`. Wenn dort Markdown-Dateien sichtbar sind, lade die relevante Seite mit `GetDocs` als `api/docs/<vendor>/<app>/Docs/<path>`.",
-                "",
-                "Nutze `ReadFolder` auch, um vorhandene Agent-, Tool- oder Concept-Prototypen zu ermitteln. Beschreibe konfigurierte Tools so, dass Zweck, erlaubte Eingabe und Einsatzzeitpunkt eindeutig sind.",
+                "[#base_instructions#]",
                 "",
                 "# Werkzeugwahl fuer Daten",
                 "",

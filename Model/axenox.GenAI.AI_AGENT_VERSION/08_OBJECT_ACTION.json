@@ -237,6 +237,12 @@
                                 "attribute_alias": "UID"
                             },
                             {
+                                "attribute_alias": "AGENT_VERSION_UID"
+                            },
+                            {
+                                "attribute_alias": "CONVERSATION_UID"
+                            },
+                            {
                                 "attribute_alias": "CONVERSATION_UID__LABEL"
                             },
                             {
@@ -270,6 +276,16 @@
                                 },
                                 {
                                     "from": "''",
+                                    "to": "AGENT_VERSION_UID",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
+                                    "to": "CONVERSATION_UID",
+                                    "create_row_in_empty_data": false
+                                },
+                                {
+                                    "from": "''",
                                     "to": "CONVERSATION_UID__LABEL",
                                     "create_row_in_empty_data": false
                                 },
@@ -299,7 +315,7 @@
                     {
                         "alias": "axenox.GenAI.CallAgent",
                         "object_alias": "axenox.GenAI.FEEDBACK",
-                        "agent_alias": "axenox.GenAI.agent_designer:0.3",
+                        "agent_alias": "axenox.GenAI.feedback_ticket_assistant:1.0",
                         "additional_prompt": "Erstelle anhand der folgenden Feedbacks einen detaillierten Plan zur Verbesserung dieser Agent-Version.",
                         "additional_prompt_position": "before_data_sheet"
                     },
