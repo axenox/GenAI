@@ -241,6 +241,7 @@
                                         "width": "max",
                                         "height": "max",
                                         "multi_select": true,
+                                        "show_filter_row": true,
                                         "filters": [
                                             {
                                                 "attribute_alias": "AGENT_VERSION_UID",
@@ -248,6 +249,39 @@
                                                 "comparator": "==",
                                                 "required": true,
                                                 "hidden": true
+                                            },
+                                            {
+                                                "attribute_alias": "FEEDBACK_CHECKED",
+                                                "caption": "Checked",
+                                                "value": 0,
+                                                "comparator": "==",
+                                                "apply_on_change": true
+                                            },
+                                            {
+                                                "attribute_alias": "CONVERSATION_UID"
+                                            },
+                                            {
+                                                "caption": "Feedback / suggested tools",
+                                                "condition_group": {
+                                                    "operator": "OR",
+                                                    "conditions": [
+                                                        {
+                                                            "expression": "GENERAL_FEEDBACK",
+                                                            "value": "[#value#]",
+                                                            "comparator": "=",
+                                                            "ignore_empty_values": true
+                                                        },
+                                                        {
+                                                            "expression": "SUGGESTED_TOOLS",
+                                                            "value": "[#value#]",
+                                                            "comparator": "=",
+                                                            "ignore_empty_values": true
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "attribute_alias": "CREATED_ON"
                                             }
                                         ],
                                         "columns": [
@@ -256,19 +290,27 @@
                                                 "hidden": true
                                             },
                                             {
-                                                "attribute_alias": "CONVERSATION_UID__LABEL"
+                                                "attribute_alias": "FEEDBACK_CHECKED",
+                                                "caption": "Checked",
+                                                "width": 1
                                             },
                                             {
-                                                "attribute_alias": "GENERAL_FEEDBACK"
+                                                "attribute_alias": "CONVERSATION_UID",
+                                                "hidden": true
                                             },
                                             {
-                                                "attribute_alias": "SUGGESTED_TOOLS"
+                                                "attribute_alias": "GENERAL_FEEDBACK",
+                                                "width": 4,
+                                                "nowrap": false
                                             },
                                             {
-                                                "attribute_alias": "FEEDBACK_CHECKED"
+                                                "attribute_alias": "SUGGESTED_TOOLS",
+                                                "width": 3,
+                                                "nowrap": false
                                             },
                                             {
-                                                "attribute_alias": "CREATED_ON"
+                                                "attribute_alias": "CREATED_ON",
+                                                "width": 2
                                             }
                                         ],
                                         "sorters": [
@@ -299,6 +341,27 @@
                                                                 "from_comparator": "==",
                                                                 "to": "UID",
                                                                 "to_single_row": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "caption": "Open conversation",
+                                                "icon": "comments",
+                                                "action": {
+                                                    "alias": "exface.Core.ShowObjectInfoDialog",
+                                                    "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                    "input_rows_min": 1,
+                                                    "input_rows_max": 1,
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                        "inherit_columns": "none",
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "CONVERSATION_UID",
+                                                                "to": "UID"
                                                             }
                                                         ]
                                                     }
