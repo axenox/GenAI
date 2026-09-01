@@ -59,7 +59,7 @@ A typical excerpt looks like this:
 
 The property names in the UXON correspond to the prototype's configurable properties. For `GenericAssistant`, the most relevant properties include `tools`, `concepts`, `response_json_schema`, and other documented UXON properties.
 
-For agents that should also provide structured self-reflection, `feedback_mode` can be enabled. When active, the JSON response schema is extended with a `feedback` object containing `tool_reasoning`, `new_tools`, and `improvement_suggestions`. This allows the LLM to explain a workflow, justify tool calls, suggest missing tools with a rationale, and propose concrete improvements.
+For agents that should also provide structured self-reflection, `feedback_mode` can be enabled. When active, the JSON response schema is extended with a `feedback` object containing `reasoning`, `new_tools`, and `improvement_suggestions`. After the final response is saved, this data is persisted as `axenox.GenAI.FEEDBACK` for the current agent version and conversation. Reasoning and improvement suggestions are stored as general feedback, suggested tools are stored separately, and new feedback is initially marked as unchecked.
 
 ## Instructions and concepts
 

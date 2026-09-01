@@ -59,7 +59,7 @@ Ein typischer Ausschnitt sieht wie folgt aus:
 
 Die Eigenschaftsnamen im UXON entsprechen den konfigurierbaren Eigenschaften des Prototyps. Bei `GenericAssistant` gehören `tools`, `concepts`, `response_json_schema` und weitere dokumentierte UXON-Eigenschaften zu den wichtigsten Eigenschaften.
 
-Für Agenten, die zusätzlich eine strukturierte Selbstreflexion liefern sollen, kann `feedback_mode` aktiviert werden. In diesem Modus wird das JSON-Antwortschema um ein `feedback`-Objekt erweitert, das `tool_reasoning`, `new_tools` und `improvement_suggestions` enthält. Dadurch kann das LLM den Ablauf begründen, Toolaufrufe erklären, fehlende Tools mit Begründung vorschlagen und konkrete Verbesserungen formulieren.
+Für Agenten, die zusätzlich eine strukturierte Selbstreflexion liefern sollen, kann `feedback_mode` aktiviert werden. In diesem Modus wird das JSON-Antwortschema um ein `feedback`-Objekt mit `reasoning`, `new_tools` und `improvement_suggestions` erweitert. Nach dem Speichern der finalen Antwort werden diese Daten als `axenox.GenAI.FEEDBACK` für die aktuelle Agent-Version und Conversation persistiert. Begründung und Verbesserungsvorschläge werden als allgemeines Feedback gespeichert, vorgeschlagene Tools separat; neues Feedback ist zunächst ungeprüft.
 
 ## Anweisungen und Concepts
 

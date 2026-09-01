@@ -231,6 +231,169 @@
                                         "height": "100%"
                                     }
                                 ]
+                            },
+                            {
+                                "caption": "Feedback",
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.FEEDBACK",
+                                        "width": "max",
+                                        "height": "max",
+                                        "multi_select": true,
+                                        "show_filter_row": true,
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AGENT_VERSION_UID",
+                                                "value": "=uid_field",
+                                                "comparator": "==",
+                                                "required": true,
+                                                "hidden": true
+                                            },
+                                            {
+                                                "attribute_alias": "FEEDBACK_CHECKED",
+                                                "caption": "Checked",
+                                                "value": 0,
+                                                "comparator": "==",
+                                                "apply_on_change": true
+                                            },
+                                            {
+                                                "attribute_alias": "CONVERSATION_UID"
+                                            },
+                                            {
+                                                "caption": "Feedback / suggested tools",
+                                                "condition_group": {
+                                                    "operator": "OR",
+                                                    "conditions": [
+                                                        {
+                                                            "expression": "GENERAL_FEEDBACK",
+                                                            "value": "[#value#]",
+                                                            "comparator": "=",
+                                                            "ignore_empty_values": true
+                                                        },
+                                                        {
+                                                            "expression": "SUGGESTED_TOOLS",
+                                                            "value": "[#value#]",
+                                                            "comparator": "=",
+                                                            "ignore_empty_values": true
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "attribute_alias": "CREATED_ON"
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "AGENT_VERSION_UID",
+                                                "hidden": true
+                                            },
+                                            {
+                                                "attribute_alias": "FEEDBACK_CHECKED",
+                                                "caption": "Checked",
+                                                "width": 1
+                                            },
+                                            {
+                                                "attribute_alias": "CONVERSATION_UID",
+                                                "hidden": true
+                                            },
+                                            {
+                                                "attribute_alias": "GENERAL_FEEDBACK",
+                                                "width": 4,
+                                                "nowrap": false
+                                            },
+                                            {
+                                                "attribute_alias": "SUGGESTED_TOOLS",
+                                                "width": 3,
+                                                "nowrap": false
+                                            },
+                                            {
+                                                "attribute_alias": "CREATED_ON",
+                                                "width": 2
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "CREATED_ON",
+                                                "direction": "desc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Create Ticket",
+                                                "visibility": "promoted",
+                                                "action": {
+                                                    "alias": "axenox.GenAI.AiAgentVersionCreateFeedbackPlan",
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                                        "inherit_columns": "none",
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "to": "UID"
+                                                            }
+                                                        ],
+                                                        "filter_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "from_comparator": "==",
+                                                                "to": "UID",
+                                                                "to_single_row": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "caption": "Open conversation",
+                                                "icon": "comments",
+                                                "action": {
+                                                    "alias": "exface.Core.ShowObjectInfoDialog",
+                                                    "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                    "input_rows_min": 1,
+                                                    "input_rows_max": 1,
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                        "inherit_columns": "none",
+                                                        "column_to_column_mappings": [
+                                                            {
+                                                                "from": "CONVERSATION_UID",
+                                                                "to": "UID"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "caption": "Create feedback",
+                                                "action": {
+                                                    "alias": "exface.Core.ShowObjectCreateDialog",
+                                                    "object_alias": "axenox.GenAI.FEEDBACK",
+                                                    "prefill_with_input_data": true,
+                                                    "input_mapper": {
+                                                        "from_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "to_object_alias": "axenox.GenAI.FEEDBACK",
+                                                        "filter_to_column_mappings": [
+                                                            {
+                                                                "from": "AGENT_VERSION_UID",
+                                                                "from_comparator": "==",
+                                                                "to": "AGENT_VERSION_UID",
+                                                                "to_single_row": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            }
+                                        ]
+                                    }
+                                ]
                             }
                         ]
                     }
