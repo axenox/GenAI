@@ -121,6 +121,7 @@
                                     {
                                         "widget_type": "DataTable",
                                         "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                        "id": "conversations_table",
                                         "caption": "Conversations with selected agent",
                                         "filters": [
                                             {
@@ -243,6 +244,10 @@
                             {
                                 "widget_link": "=agents_table!ALIAS_WITH_VERSION",
                                 "on_change_script": "document.getElementById('[#~id#]_deepchat').connect.url = 'api/aichat/' + [#~value#] + '/deepchat'; \nresetDeepChat('[#~id#]_deepchat');"
+                            },
+                            {
+                                "widget_link": "=conversations_table!UID",
+                                "on_change_script": "const chat = document.getElementById('[#~id#]_deepchat');\nconst conversationId = [#~value#];\nif (conversationId && chat.conversationId !== conversationId) {\n    resetDeepChat('[#~id#]_deepchat');\n    chat.conversationId = conversationId;\n}"
                             }
                         ]
                     }
