@@ -319,6 +319,20 @@ class AiConversation implements AiConversationInterface
             ]);
 
             $message->dataCreate(false, $transaction);
+            $messageUid = $message->getUidColumn()->getValue(0);
+            $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
+            foreach ($toolCalls as $index => $toolCall) {
+                $toolCallSheet->addRow([
+                    'AI_CONVERSATION' => $this->conversationId,
+                    'AI_MESSAGE' => $messageUid,
+                    'CALL_INDEX' => $index + 1,
+                    'CALL_ID' => $toolCall->getCallId(),
+                    'TOOL_NAME' => $toolCall->getToolName(),
+                    'CALL_DISPLAY' => $toolCall->__toString(),
+                    'ARGUMENTS' => UxonObject::fromArray($toolCall->getArguments())->toJson(true)
+                ]);
+            }
+            $toolCallSheet->dataCreate(false, $transaction);
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollback();
@@ -397,6 +411,21 @@ class AiConversation implements AiConversationInterface
         }
 
         try {
+            foreach ($responses as $response) {
+                $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
+                $toolCallSheet->getColumns()->addFromSystemAttributes();
+                $toolCallSheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId);
+                $toolCallSheet->getFilters()->addConditionFromString('CALL_ID', $response->getCallId());
+                $toolCallSheet->dataRead();
+
+                if ($toolCallSheet->countRows() === 1) {
+                    $toolCallSheet->getColumns()->addMultiple(['RESULT', 'FAILED']);
+                    $toolCallSheet->setCellValue('RESULT', 0, $response->getToolResult()->getValue());
+                    $toolCallSheet->setCellValue('FAILED', 0, $response->getToolResult()->isFailed() ? 1 : 0);
+                    $toolCallSheet->dataUpdate(false, $transaction);
+                }
+            }
+
             $message->addRow([
                 'AI_CONVERSATION' => $this->conversationId,
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
