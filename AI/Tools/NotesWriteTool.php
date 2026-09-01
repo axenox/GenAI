@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\AI\Traits\NotesToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\DataTypes\AiNoteTypeDataType;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -33,9 +34,6 @@ class NotesWriteTool extends AbstractAiTool
     public const ARG_UID = 'uid';
     public const ARG_TYPE = 'type';
 
-    private const TYPE_MEMORY = 'memory';
-    private const TYPE_SUGGESTION = 'suggestion';
-
     /**
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
@@ -45,7 +43,7 @@ class NotesWriteTool extends AbstractAiTool
         $topic = trim((string) ($arguments[0] ?? ''));
         $note = (string) ($arguments[1] ?? '');
         $uid = trim((string) ($arguments[2] ?? ''));
-        $type = (string) ($arguments[3] ?? self::TYPE_MEMORY);
+        $type = (string) ($arguments[3] ?? AiNoteTypeDataType::MEMORY);
         if ($topic === '') {
             throw new AiToolRuntimeError($this, $prompt, 'A topic is required to write a note.');
         }
@@ -110,15 +108,11 @@ class NotesWriteTool extends AbstractAiTool
                 ->setRequired(false),
             (new ServiceParameter($self))
                 ->setDataType(new UxonObject([
-                    'alias' => 'exface.Core.GenericStringEnum',
-                    'values' => [
-                        self::TYPE_MEMORY => self::TYPE_MEMORY,
-                        self::TYPE_SUGGESTION => self::TYPE_SUGGESTION
-                    ]
+                    'alias' => 'axenox.GenAI.AiNoteType'
                 ]))
                 ->setName(self::ARG_TYPE)
-                ->setDescription('Type of note to save. Use `memory` for reusable facts and `suggestion` for potential improvements or missing capabilities.')
-                ->setDefaultValue(self::TYPE_MEMORY)
+                ->setDescription('Type of note to save. Use `memory` for reusable facts (long-term memory) and `suggestion` for potential improvements or missing capabilities.')
+                ->setDefaultValue(AiNoteTypeDataType::MEMORY)
                 ->setRequired(false)
         ];
     }
