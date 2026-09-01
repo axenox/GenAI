@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\AI\Traits\NotesToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\DataTypes\AiNoteTypeDataType;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -32,8 +33,6 @@ class NotesSearchTool extends AbstractAiTool
     public const ARG_TYPE = 'type';
 
     private const TYPE_ALL = 'all';
-    private const TYPE_MEMORY = 'memory';
-    private const TYPE_SUGGESTION = 'suggestion';
     private const DEFAULT_EXCERPT_LENGTH = 300;
 
     private int $excerptLength = self::DEFAULT_EXCERPT_LENGTH;
@@ -131,8 +130,8 @@ class NotesSearchTool extends AbstractAiTool
                     'alias' => 'exface.Core.GenericStringEnum',
                     'values' => [
                         self::TYPE_ALL => self::TYPE_ALL,
-                        self::TYPE_MEMORY => self::TYPE_MEMORY,
-                        self::TYPE_SUGGESTION => self::TYPE_SUGGESTION
+                        AiNoteTypeDataType::MEMORY => AiNoteTypeDataType::MEMORY,
+                        AiNoteTypeDataType::SUGGESTION => AiNoteTypeDataType::SUGGESTION
                     ]
                 ]))
                 ->setName(self::ARG_TYPE)

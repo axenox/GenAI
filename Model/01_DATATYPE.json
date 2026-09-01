@@ -142,6 +142,33 @@
             },
             "ALIAS": "AiMessageRole",
             "SHORT_DESCRIPTION": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "AI note type",
+            "CREATED_ON": "2026-09-01 11:49:40",
+            "MODIFIED_ON": "2026-09-01 12:00:57",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1a00e7354a456a00e025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "NAME": "AI note type",
+            "PROTOTYPE": "axenox/genai/DataTypes/AiNoteTypeDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "suggestion": "~WARNING",
+                    "memory": ""
+                }
+            },
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
+            "ALIAS": "AiNoteType",
+            "SHORT_DESCRIPTION": ""
         }
     ],
     "totals_rows": [],
