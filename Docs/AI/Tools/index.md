@@ -19,6 +19,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Inspect Git changes and history | `GitTool` |
 | Validate PHP syntax | `DevLintPHPTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
+| Find object data by a configured attribute | `ModelObjectSearchTool` |
 | Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
@@ -192,11 +193,8 @@ Paths are validated against the configured base and allowlist before access. Thi
 | `patch` | Yes | Patch containing exact search and replacement blocks. |
 
 ```text
-<<<<<<< SEARCH
 exact text, including whitespace
-=======
 replacement text
->>>>>>> REPLACE
 ```
 
 **How to use.** The model supplies a relative path and one or more patch blocks. Search text is case-sensitive and whitespace-sensitive, so each block should be copied from the current file and be small enough to review but unique enough to identify one location. An empty search section can create a file or append content.
@@ -299,6 +297,30 @@ replacement text
 **Return value.** The tool returns a string result created by `renderOutput()`. The final output always starts with a brief sentence such as `Read data of object ...`, followed by the selected payload (`markdown_table`, `markdown`, or `json`), and then optionally appends the object description block if enabled.
 
 **Warnings and recoverable issues.** Unsupported or invalid configuration values are treated as warnings rather than fatal errors. The tool falls back to the safe default and keeps the response running. Empty result sets also produce a warning, while failed object-description rendering is swallowed and logged as a warning without breaking the tool result.
+
+## `ModelObjectSearchTool`
+
+**Alias:** `axenox.GenAI.ModelObjectSearchTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelObjectSearchTool)
+
+**Purpose.** Searches the object configured in `data_sheet` by the first configured column. By default, it searches `exface.Core.OBJECT` by `NAME`.
+
+**Use when.** The agent needs a compact list of rows matching a user-provided value in one predefined attribute.
+
+**Do not use when.** Do not use it for advanced model analysis or alias/UID lookup across many criteria. Use `ModelObjectInfoTool` or `DataSheetReadTool` for richer or broader queries.
+
+| UXON property | Default | Description |
+| --- | --- | --- |
+| `data_sheet` | `exface.Core.OBJECT` with `NAME` as its first column | Complete DataSheet UXON defining the searched object and returned attributes. The first column is the search attribute. It may also contain additional filters, sorters, and a row limit. |
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `object_name` | Yes | Value matched exactly against the first configured DataSheet column. |
+
+**Default search configuration.** The first configured column is always used as the search attribute and is also returned in the result. The default object is `exface.Core.OBJECT`; its first column and search attribute is `NAME`. The remaining default returned attributes are `UID`, `ALIAS`, `ALIAS_WITH_NS`, `LABEL`, `SHORT_DESCRIPTION`, `APP`, `READABLE_FLAG`, `WRITABLE_FLAG`, `DATA_SOURCE`, `PARENT_OBJECT`, `HAS_DEFAULT_EDITOR`, and `INHERIT_DATA_SOURCE_BASE_OBJECT`.
+
+**How to use.** Put the attribute to search first in `data_sheet.columns`, followed by any other attributes to return. Pass its search value in `object_name`. For example, an `axenox.GenAI.AI_AGENT` DataSheet beginning with `NAME` searches agents by name; one beginning with `UID` searches them by UID. Filters configured in the DataSheet are applied in addition to this generated search filter. Reads are capped at 100 rows. `ToolIntroductionConcept` lists the effective search object, first-column search attribute, and returned attributes or expressions for each configured instance.
+
+**Result and limits.** The tool returns the configured DataSheet columns as a Markdown table. Available columns depend on the configured object's metamodel. Empty matches are returned as a warning-style message.
 
 ## `DataSheetImportTool`
 
