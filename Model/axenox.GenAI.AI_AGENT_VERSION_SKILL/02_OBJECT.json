@@ -104,20 +104,39 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
-                "width": 2,
+                "width": 3,
                 "widgets": [
                     {
                         "attribute_alias": "UID",
                         "widget_type": "InputHidden"
                     },
                     {
-                        "attribute_alias": "AI_AGENT_VERSION"
+                        "widget_type": "WidgetGroup",
+                        "width": "max",
+                        "columns_in_grid": 2,
+                        "widgets": [
+                            {
+                                "attribute_alias": "AI_AGENT_VERSION"
+                            },
+                            {
+                                "attribute_alias": "AI_SKILL"
+                            },
+                            {
+                                "attribute_alias": "SORT_INDEX"
+                            }
+                        ]
                     },
                     {
-                        "attribute_alias": "AI_SKILL"
-                    },
-                    {
-                        "attribute_alias": "SORT_INDEX"
+                        "widget_type": "WidgetGroup",
+                        "caption": "Description",
+                        "width": "max",
+                        "widgets": [
+                            {
+                                "attribute_alias": "DESCRIPTION",
+                                "height": 5,
+                                "hide_caption": true
+                            }
+                        ]
                     }
                 ]
             },

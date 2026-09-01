@@ -126,31 +126,22 @@
                                                 "attribute_alias": "NAME"
                                             },
                                             {
+                                                "attribute_alias": "DESCRIPTION",
+                                                "height": 3
+                                            },
+                                            {
                                                 "attribute_alias": "ALIAS",
                                                 "widget_type": "Input",
                                                 "required": false,
                                                 "hint": "Alias of the skill. If not set, it will be generated automatically from the skill name."
                                             },
                                             {
-                                                "widget_type": "WidgetGroup",
-                                                "caption": "Owner (App or global)",
-                                                "width": "max",
-                                                "columns_in_grid": 2,
-                                                "widgets": [
-                                                    {
-                                                        "attribute_alias": "APP",
-                                                        "hint": "Optional app owner. Leave empty for global skills."
-                                                    }
-                                                ]
+                                                "attribute_alias": "APP",
+                                                "hint": "Optional app. Leave empty for global skills."
                                             },
                                             {
                                                 "attribute_alias": "PROTOTYPE_CLASS",
                                                 "id": "prototype_field"
-                                            },
-                                            {
-                                                "attribute_alias": "DESCRIPTION",
-                                                "width": "max",
-                                                "height": 2
                                             }
                                         ]
                                     },

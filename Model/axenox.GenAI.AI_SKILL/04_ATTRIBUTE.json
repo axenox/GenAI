@@ -339,7 +339,7 @@
             }
         },
         {
-            "_EXPORT_SUMMARY": "App owner [APP]",
+            "_EXPORT_SUMMARY": "App [APP]",
             "CREATED_ON": "2026-09-01 00:00:00",
             "MODIFIED_ON": "2026-09-01 00:00:00",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -358,7 +358,7 @@
             "DELETE_WITH_RELATED_OBJECT": 0,
             "DEFAULT_DISPLAY_UXON": null,
             "COMMENTS": "",
-            "NAME": "App owner",
+            "NAME": "App",
             "RELATION_CARDINALITY": "",
             "TYPE": "D",
             "COPYABLEFLAG": 1,
@@ -380,7 +380,7 @@
             "SORTERPOS": null,
             "SORTERDIR": "",
             "RELATED_OBJ_ATTR": null,
-            "SHORT_DESCRIPTION": "Optional owner for app-specific skills. Leave empty for global skills.",
+            "SHORT_DESCRIPTION": "Optional app for app-specific skills. Leave empty for global skills.",
             "DATA_ADDRESS_PROPS": {
                 "SQL_DATA_TYPE": "binary"
             },
