@@ -39,8 +39,8 @@
             "attribute_alias": "ALIAS"
         },
         {
-            "name": "AI_AGENT",
-            "attribute_alias": "AI_AGENT"
+            "name": "APP",
+            "attribute_alias": "APP"
         },
         {
             "name": "PROTOTYPE_CLASS",
@@ -66,7 +66,7 @@
             "NAME": "Power UI Knowledge",
             "DESCRIPTION": "Provides Power UI and ExFace documentation knowledge together with lookup tools for documentation, metaobjects, UXON prototypes and widgets.",
             "ALIAS": "power_ui_knowledge",
-            "AI_AGENT": "0x11f1a3edf5a506e2a3ed025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
@@ -298,7 +298,7 @@
         "base_object_alias": "axenox.GenAI.AI_SKILL",
         "conditions": [
             {
-                "expression": "AI_AGENT__APP",
+                "expression": "APP",
                 "comparator": "=",
                 "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
                 "object_alias": "axenox.GenAI.AI_SKILL"

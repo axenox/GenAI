@@ -71,11 +71,6 @@
             "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "tool_calls_max": 8,
-                "skills": {
-                    "power_ui_knowledge": {
-                        "alias": "axenox.GenAI.power_ui_knowledge"
-                    }
-                },
                 "prompt_suggestions": [
                     "Erkläre mir kurz, wie Pages, Widgets und UXON zusammenhängen.",
                     "Was ist ein Metaobjekt und wie hängen Attribute und Relationen daran?",
@@ -104,11 +99,6 @@
             "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
                 "tool_calls_max": 8,
-                "skills": {
-                    "power_ui_knowledge": {
-                        "alias": "axenox.GenAI.power_ui_knowledge"
-                    }
-                },
                 "concepts": {
                     "configured_tools": {
                         "alias": "axenox.GenAI.ToolIntroductionConcept",

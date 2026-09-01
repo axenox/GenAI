@@ -20,7 +20,7 @@
                 "attribute_alias": "NAME"
             },
             {
-                "attribute_alias": "AI_AGENT"
+                "attribute_alias": "APP"
             },
             {
                 "attribute_alias": "ALIAS"
@@ -34,7 +34,7 @@
                 "attribute_alias": "NAME"
             },
             {
-                "attribute_alias": "AI_AGENT__ALIAS"
+                "attribute_alias": "APP__ALIAS"
             },
             {
                 "attribute_alias": "ALIAS"

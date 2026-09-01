@@ -153,11 +153,6 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             $selector->toString(),
             ComparatorDataType::EQUALS
         );
-        $dataSheet->getFilters()->addConditionFromString(
-            'AI_AGENT__ALIAS_WITH_NS',
-            $agent->getAliasWithNamespace(),
-            ComparatorDataType::EQUALS
-        );
         $dataSheet->getColumns()->addMultiple([
             'CONFIG_UXON',
             'INSTRUCTIONS',
@@ -238,6 +233,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
         // Prepare the agent UXON
         $uxon = UxonObject::fromAnything($agentRow['CONFIG_UXON']);
+        $uxon->unsetProperty('skills');
+        $skillsUxon = static::loadAgentVersionSkills($workbench, $agentRow['UID']);
+        if (! $skillsUxon->isEmpty()) {
+            $uxon->setProperty('skills', $skillsUxon);
+        }
         
         // Add required props from the data row
         $uxon->setProperty('name', $agentRow['AI_AGENT__NAME']);
@@ -275,6 +275,56 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $agent = new $prototypeClass($selectorWithVersion, $uxon);
 
         return $agent;
+    }
+
+    /**
+     * Builds the transient skill map consumed by agent prototypes.
+     *
+     * @param WorkbenchInterface $workbench
+     * @param string $agentVersionUid
+     * @return UxonObject
+     */
+    protected static function loadAgentVersionSkills(
+        WorkbenchInterface $workbench,
+        string $agentVersionUid
+    ) : UxonObject {
+        $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
+            $workbench,
+            'axenox.GenAI.AI_AGENT_VERSION_SKILL'
+        );
+        $dataSheet->getFilters()->addConditionFromString(
+            'AI_AGENT_VERSION',
+            $agentVersionUid,
+            ComparatorDataType::EQUALS
+        );
+        $dataSheet->getColumns()->addMultiple([
+            'AI_SKILL__ALIAS',
+            'AI_SKILL__ALIAS_WITH_NS'
+        ]);
+        $dataSheet->getSorters()->addFromString(
+            'SORT_INDEX',
+            SortingDirectionsDataType::ASC
+        );
+        $dataSheet->dataRead();
+
+        $skills = [];
+        foreach ($dataSheet->getRows() as $skillRow) {
+            $alias = trim((string) ($skillRow['AI_SKILL__ALIAS'] ?? ''));
+            $aliasWithNamespace = trim((string) ($skillRow['AI_SKILL__ALIAS_WITH_NS'] ?? ''));
+            if ($alias === '' || $aliasWithNamespace === '') {
+                throw new AiSkillNotFoundError(
+                    'Cannot load skills for AI agent version "' . $agentVersionUid . '": invalid skill assignment'
+                );
+            }
+            if (isset($skills[$alias])) {
+                throw new AiSkillNotFoundError(
+                    'Cannot load skills for AI agent version "' . $agentVersionUid . '": duplicate skill alias "' . $alias . '"'
+                );
+            }
+            $skills[$alias] = new UxonObject(['alias' => $aliasWithNamespace]);
+        }
+
+        return new UxonObject($skills);
     }
     
     protected static function findAgentConnection(string $currentVersion, DataSheetInterface $allVersions) : ?string

@@ -132,7 +132,16 @@
                                                 "hint": "Alias of the skill. If not set, it will be generated automatically from the skill name."
                                             },
                                             {
-                                                "attribute_alias": "AI_AGENT"
+                                                "widget_type": "WidgetGroup",
+                                                "caption": "Owner (App or global)",
+                                                "width": "max",
+                                                "columns_in_grid": 2,
+                                                "widgets": [
+                                                    {
+                                                        "attribute_alias": "APP",
+                                                        "hint": "Optional app owner. Leave empty for global skills."
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "attribute_alias": "PROTOTYPE_CLASS",

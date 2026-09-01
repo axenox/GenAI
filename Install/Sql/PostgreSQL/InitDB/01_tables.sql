@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS exf_ai_skill (
     created_by_user_oid  uuid,
     modified_by_user_oid uuid,
     app_oid              uuid,
+    ai_agent_oid         uuid,
     name                 varchar(100) NOT NULL,
     alias                varchar(100) NOT NULL,
     description          text,
@@ -26,11 +27,27 @@ CREATE TABLE IF NOT EXISTS exf_ai_skill (
     config_uxon          text,
     prototype_class      varchar(255) NOT NULL,
     CONSTRAINT pk_exf_ai_skill PRIMARY KEY (oid),
-    CONSTRAINT uq_exf_ai_skill_alias_app UNIQUE (alias, app_oid)
+    CONSTRAINT ck_exf_ai_skill_single_owner
+        CHECK (app_oid IS NULL OR ai_agent_oid IS NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_exf_ai_skill_app
     ON exf_ai_skill (app_oid);
+
+CREATE INDEX IF NOT EXISTS idx_exf_ai_skill_ai_agent
+    ON exf_ai_skill (ai_agent_oid);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exf_ai_skill_alias_global
+    ON exf_ai_skill (alias)
+    WHERE app_oid IS NULL AND ai_agent_oid IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exf_ai_skill_alias_app
+    ON exf_ai_skill (app_oid, alias)
+    WHERE app_oid IS NOT NULL AND ai_agent_oid IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exf_ai_skill_alias_agent
+    ON exf_ai_skill (ai_agent_oid, alias)
+    WHERE ai_agent_oid IS NOT NULL AND app_oid IS NULL;
 
 CREATE TABLE exf_ai_agent_version (
     oid uuid PRIMARY KEY,
@@ -46,6 +63,27 @@ CREATE TABLE exf_ai_agent_version (
     data_connection_default_oid uuid,
     enabled_flag smallint NOT NULL DEFAULT 0
 );
+
+CREATE TABLE exf_ai_agent_version_skill (
+    oid uuid PRIMARY KEY,
+    created_on timestamp NOT NULL,
+    modified_on timestamp NOT NULL,
+    created_by_user_oid uuid,
+    modified_by_user_oid uuid,
+    ai_agent_version_oid uuid NOT NULL,
+    ai_skill_oid uuid NOT NULL,
+    sort_index integer NOT NULL DEFAULT 0,
+    CONSTRAINT uq_exf_ai_agent_version_skill
+        UNIQUE (ai_agent_version_oid, ai_skill_oid),
+    CONSTRAINT ck_exf_ai_agent_version_skill_sort
+        CHECK (sort_index >= 0)
+);
+
+CREATE INDEX idx_exf_ai_agent_version_skill_order
+    ON exf_ai_agent_version_skill (ai_agent_version_oid, sort_index);
+
+CREATE INDEX idx_exf_ai_agent_version_skill_skill
+    ON exf_ai_agent_version_skill (ai_skill_oid);
 
 CREATE TABLE exf_ai_conversation (
                                      oid uuid PRIMARY KEY,
@@ -164,6 +202,11 @@ ALTER TABLE exf_ai_skill
         FOREIGN KEY (app_oid)
             REFERENCES exf_app (oid);
 
+ALTER TABLE exf_ai_skill
+    ADD CONSTRAINT fk_exf_ai_skill_ai_agent
+        FOREIGN KEY (ai_agent_oid)
+            REFERENCES exf_ai_agent (oid);
+
 ALTER TABLE exf_ai_agent_version
     ADD CONSTRAINT fk_ai_agent_version_agent
         FOREIGN KEY (ai_agent_oid)
@@ -173,6 +216,16 @@ ALTER TABLE exf_ai_agent_version
     ADD CONSTRAINT fk_ai_agent_version_data_connection_default
         FOREIGN KEY (data_connection_default_oid)
             REFERENCES exf_data_connection (oid);
+
+ALTER TABLE exf_ai_agent_version_skill
+    ADD CONSTRAINT fk_exf_ai_agent_version_skill_version
+        FOREIGN KEY (ai_agent_version_oid)
+            REFERENCES exf_ai_agent_version (oid);
+
+ALTER TABLE exf_ai_agent_version_skill
+    ADD CONSTRAINT fk_exf_ai_agent_version_skill_skill
+        FOREIGN KEY (ai_skill_oid)
+            REFERENCES exf_ai_skill (oid);
 
 ALTER TABLE exf_ai_conversation
     ADD CONSTRAINT fk_exf_ai_conversation_agent

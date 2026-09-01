@@ -349,14 +349,12 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
-     * Reusable skills addressed by local placeholders in the agent instructions.
-     *
-     * @uxon-property skills
-     * @uxon-type \axenox\GenAI\AI\Skills\GenericSkill[]
-     * @uxon-template {"placeholder_name": {"alias": ""}}
+        * Imports the transient skill map assembled by the agent factory.
+        * This runtime property is not persisted in the agent version configuration.
      *
      * @param UxonObject $skills
      * @return AiAgentInterface
+        * @internal
      */
     protected function setSkills(UxonObject $skills) : AiAgentInterface
     {

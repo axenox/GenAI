@@ -4,23 +4,11 @@
 
 AI skills are reusable, non-versioned building blocks for agents. A skill can contain instructions, concepts, and tools. All three parts are optional.
 
-Skills are managed in Power UI under **Administration > AI > AI Skills**. Each record has an app-scoped alias, a PHP prototype, optional Markdown instructions, and optional UXON configuration. `GenericSkill` is the standard prototype.
+Skills are managed in Power UI under **Administration > AI > AI Skills**. A skill can be global or owned by an app. Each record also has a PHP prototype, optional Markdown instructions, and optional UXON configuration. `GenericSkill` is the standard prototype.
 
 ## Using a skill
 
-Add skills to an agent as a named map. Example:
-
-```json
-{
-    "skills": {
-        "test": {
-            "alias": "axenox.GenAI.test"
-        }
-    }
-}
-```
-
-The map key is the local placeholder name. To include the skill instructions in the agent prompt, use it like a concept:
+Assign skills in the skill list of an agent version. The local skill alias automatically becomes the placeholder. To include the instructions of a skill with alias `test` in the agent prompt, use it like a concept:
 
 ```markdown
 You are a helpful assistant.
@@ -40,7 +28,7 @@ The standard `GenericSkill` accepts these optional properties in `CONFIG_UXON`:
 - `skills`: named skills whose rendered instructions can be inserted through local placeholders.
 - `tools`: named tool configurations contributed to the agent.
 
-Concepts add background information to a skill. Other skills can be configured below `skills` in the same way as on an agent:
+Concepts add background information to a skill. Nested skills can still be configured below `skills` inside the skill's own `CONFIG_UXON`:
 
 ```json
 {

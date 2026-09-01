@@ -4,23 +4,11 @@
 
 KI-Skills sind wiederverwendbare, nicht versionierte Bausteine für Agenten. Ein Skill kann Instructions, Concepts und Tools enthalten. Alle drei Bestandteile sind optional.
 
-Skills werden in Power UI unter **Administration > AI > AI Skills** verwaltet. Jeder Datensatz besitzt einen App-bezogenen Alias, einen PHP-Prototyp sowie optionale Markdown-Instructions und eine optionale UXON-Konfiguration. `GenericSkill` ist der Standardprototyp.
+Skills werden in Power UI unter **Administration > AI > AI Skills** verwaltet. Ein Skill kann global oder einer App zugeordnet sein. Jeder Datensatz besitzt außerdem einen PHP-Prototyp sowie optionale Markdown-Instructions und eine optionale UXON-Konfiguration. `GenericSkill` ist der Standardprototyp.
 
 ## Skill verwenden
 
-Skills werden einem Agenten als benannte Map hinzugefügt. Beispiel:
-
-```json
-{
-    "skills": {
-        "test": {
-            "alias": "axenox.GenAI.test"
-        }
-    }
-}
-```
-
-Der Schlüssel der Map ist der lokale Platzhaltername. Um die Skill-Instructions in den Agent-Prompt einzufügen, wird der Skill wie ein Concept verwendet:
+Skills werden in der Skill-Liste einer Agent-Version zugeordnet. Der lokale Skill-Alias wird automatisch zum Placeholder. Um die Instructions eines Skills mit Alias `test` in den Agent-Prompt einzufügen, wird er wie ein Concept verwendet:
 
 ```markdown
 Du bist ein hilfreicher Assistent.
@@ -40,7 +28,7 @@ Der Standardprototyp `GenericSkill` akzeptiert folgende optionale Eigenschaften 
 - `skills`: benannte Skills, deren gerenderte Instructions über lokale Platzhalter eingefügt werden können.
 - `tools`: benannte Tool-Konfigurationen, die dem Agenten bereitgestellt werden.
 
-Concepts ergänzen einen Skill um Hintergrundinformationen. Andere Skills können unter `skills` genauso wie bei einem Agenten konfiguriert werden:
+Concepts ergänzen einen Skill um Hintergrundinformationen. Verschachtelte Skills können weiterhin unter `skills` im eigenen `CONFIG_UXON` des Skills konfiguriert werden:
 
 ```json
 {

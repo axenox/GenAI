@@ -47,11 +47,6 @@ A typical excerpt looks like this:
       ]
     }
   },
-  "skills": {
-    "test": {
-      "alias": "axenox.GenAI.test"
-    }
-  },
   "concepts": {
     "sitemap": {
       "alias": "axenox.GenAI.AppDocsConcept",
@@ -63,7 +58,7 @@ A typical excerpt looks like this:
 }
 ```
 
-The property names in the UXON correspond to the prototype's configurable properties. For `GenericAssistant`, the most relevant properties include `skills`, `tools`, `concepts`, `response_json_schema`, and other documented UXON properties.
+The property names in the UXON correspond to the prototype's configurable properties. For `GenericAssistant`, the most relevant properties include `tools`, `concepts`, `response_json_schema`, and other documented UXON properties. Skills are assigned separately to the agent version and are not stored in `CONFIG_UXON`.
 
 For agents that should also provide structured self-reflection, `feedback_mode` can be enabled. When active, the JSON response schema is extended with a `feedback` object containing `tool_reasoning`, `new_tools`, and `improvement_suggestions`. This allows the LLM to explain a workflow, justify tool calls, suggest missing tools with a rationale, and propose concrete improvements.
 
@@ -98,7 +93,7 @@ At runtime, the agent first renders the concepts and replaces the placeholders i
 
 ## Configuring skills
 
-Skills are reusable, non-versioned configurations referenced under `skills` by alias. The map key is a local placeholder name. For example, the configured key `test` can be inserted into the agent instructions as `[#test#]`.
+Skills are reusable, non-versioned configurations assigned in the skill list of an agent version. The local skill alias automatically becomes its prompt placeholder. A skill with alias `test` can therefore be inserted into the agent instructions as `[#test#]` without adding a `skills` property to `CONFIG_UXON`.
 
 Using the placeholder is optional. Without `[#test#]`, the skill instructions are not inserted into the system prompt, but the skill is still loaded and its tools remain available. See the [skill reference](../Skills/index.md) for configuration and collision rules.
 
@@ -135,7 +130,7 @@ The description should clearly tell the LLM when to use the tool and which value
 4. Configure the LLM or data connection.
 5. Write the instructions and add the required concept placeholders.
 6. Configure concepts in `CONFIG_UXON` and match the placeholder names to those in the instructions.
-7. Add reusable skills in `CONFIG_UXON`; include their placeholders in the instructions only when their text is needed.
+7. Assign reusable skills in the agent version's skill list; include their alias placeholders in the instructions only when their text is needed.
 8. Configure tools in `CONFIG_UXON` if the agent needs to actively load data or prepare actions.
 9. Test the agent with test cases and conversation logs, and maintain improvements as new versions.
 
