@@ -24,6 +24,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
+| Kontextabhängige UXON-Eigenschaften und Werte finden | `UxonAutosuggestTool` |
 | Erzeugtes UXON validieren | `UxonValidateTool` |
 | Menü und Bildschirme einer App verstehen | `UiOverviewTool` |
 | Eine konkrete Seiten- oder Widget-Instanz untersuchen | `UiWidgetInfoTool` |
@@ -570,6 +571,30 @@ replacement text
 **Verwendung.** Das Modell übergibt entweder eine vollständig qualifizierte PHP-Klasse, die mit `\` beginnt, oder einen PHP-Dateipfad relativ zum Vendor-Verzeichnis. Aliasse werden derzeit nicht als Selektoren unterstützt.
 
 **Ergebnis und Grenzen.** `UxonPrototypeMarkdownPrinter` gibt die Prototypbeschreibung und indizierte UXON-Eigenschaften zurück. Die Qualität des Ergebnisses hängt davon ab, ob die Annotationen des Prototyps im Modell verfügbar sind.
+
+## `UxonAutosuggestTool`
+
+**Alias:** `axenox.GenAI.UxonAutosuggestTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUxonAutosuggestTool)
+
+**Zweck.** Gibt dieselben kontextabhängigen Eigenschaftsnamen, Werte, Vorlagen, Presets, Details und Modelleinträge zurück wie die Autosuggest-Funktion des UXON-Editors.
+
+**Verwenden, wenn.** Ein Agent UXON erstellt oder bearbeitet und gültige Eigenschaften oder Werte für einen bestimmten Knoten ermitteln muss. Das Tool ist besonders hilfreich vor dem Erzeugen von Attributen, Relationen, Komponenten-Aliassen, Enum-Werten oder verschachtelten UXON-Strukturen.
+
+**Nicht verwenden, wenn.** Verwenden Sie Autosuggest nicht als abschließende Validierung und gehen Sie nicht davon aus, dass jeder Vorschlag außerhalb des übergebenen Kontexts gültig ist. Verwenden Sie nach dem Zusammenstellen des UXON das `UxonValidateTool`.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `uxon` | Ja | Vollständiges UXON-Objekt, das bearbeitet wird. |
+| `path` | Ja | Array aus Eigenschaftsnamen und Array-Indizes vom Wurzelknoten bis zum bearbeiteten Knoten. |
+| `input` | Ja | Vorschlagstyp: `field`, `value`, `preset`, `details` oder `modelbrowser`. |
+| `text` | Nein | Bisher eingegebener Text zum Filtern von Wert- und Model-Browser-Vorschlägen. |
+| `object` | Nein | Alias oder UID des Wurzel-Metaobjekts, das den Objektkontext bereitstellt. |
+| `prototype` | Nein | Vollqualifizierte Wurzel-Prototypklasse oder PHP-Dateipfad relativ zum Vendor-Verzeichnis. |
+| `schema` | Nein | UXON-Schemaklasse oder Schemaname zur Interpretation des UXON. |
+
+**Verwendung.** Übergeben Sie das vollständige aktuelle UXON, da Eigenschaften auf derselben oder einer übergeordneten Ebene den zutreffenden Prototyp und gültige Werte bestimmen können. Verwenden Sie `field` für Eigenschaftsnamen und Vorlagen sowie `value` für Werte der durch `path` adressierten Eigenschaft. `preset` liefert vordefinierte Strukturen, `details` Eigenschaftsdokumentation und `modelbrowser` strukturierte Metamodell-Einträge. Geben Sie verlässlichen Objekt- und Prototypkontext an, wann immer dieser verfügbar ist.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist das vom Core-Action `UxonAutosuggest` erzeugte JSON. Feldvorschläge enthalten `values` und `templates`, Wertvorschläge enthalten `values`; Preset-, Detail- und Model-Browser-Aufrufe liefern modusspezifische Strukturen. Leere Vorschläge können bedeuten, dass für den übergebenen Kontext kein Wert bekannt ist. Fehler des Actions werden als Tool-Fehler zurückgegeben.
 
 ## `UxonValidateTool`
 

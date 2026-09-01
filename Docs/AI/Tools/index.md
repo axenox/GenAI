@@ -23,6 +23,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
+| Find context-aware UXON properties and values | `UxonAutosuggestTool` |
 | Validate generated UXON | `UxonValidateTool` |
 | Understand the menu and screens of an app | `UiOverviewTool` |
 | Inspect a concrete page or widget instance | `UiWidgetInfoTool` |
@@ -570,6 +571,30 @@ replacement text
 **How to use.** The model passes either a fully qualified PHP class beginning with `\` or a PHP file path relative to the vendor directory. Aliases are not currently supported as selectors.
 
 **Result and limits.** `UxonPrototypeMarkdownPrinter` returns the prototype description and indexed UXON properties. The quality of the result depends on the prototype's annotations being available in the model.
+
+## `UxonAutosuggestTool`
+
+**Alias:** `axenox.GenAI.UxonAutosuggestTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUxonAutosuggestTool)
+
+**Purpose.** Returns the same context-aware property names, values, templates, presets, details, and model entries as the UXON editor autosuggest.
+
+**Use when.** An agent is creating or editing UXON and needs to discover valid properties or values for a specific node. It is particularly useful before generating attributes, relations, component aliases, enum values, or nested UXON structures.
+
+**Do not use when.** Do not use autosuggest as final validation or assume every suggestion is valid outside the supplied context. Use `UxonValidateTool` after assembling the UXON.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `uxon` | Yes | Complete UXON object being edited. |
+| `path` | Yes | Array of property names and array indexes from the root to the node being edited. |
+| `input` | Yes | Suggestion type: `field`, `value`, `preset`, `details`, or `modelbrowser`. |
+| `text` | No | Text typed so far, used to filter value and model-browser suggestions. |
+| `object` | No | Alias or UID of the root metaobject that supplies object context. |
+| `prototype` | No | Fully qualified root prototype class or PHP file path relative to the vendor folder. |
+| `schema` | No | UXON schema class or schema name used to interpret the UXON. |
+
+**How to use.** Pass the complete current UXON because sibling and parent properties can determine the applicable prototype and valid values. Use `field` to request property names and templates, and `value` to request values for the property addressed by `path`. Use `preset` for predefined structures, `details` for property documentation, and `modelbrowser` for structured metamodel entries. Supply reliable object and prototype context whenever available.
+
+**Result and limits.** The result is JSON produced by the core `UxonAutosuggest` action. Field suggestions contain `values` and `templates`; value suggestions contain `values`; presets, details, and model-browser calls return their mode-specific structures. Empty suggestions can mean that no value is known for the supplied context. Action failures are returned as tool errors.
 
 ## `UxonValidateTool`
 
