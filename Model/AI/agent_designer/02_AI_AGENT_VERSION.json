@@ -904,12 +904,25 @@
                         "object_alias": "axenox.GenAI.AI_AGENT",
                         "subsheets": [
                             {
-                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION"
+                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                "subsheets": [
+                                    {
+                                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL"
+                                    }
+                                ]
                             }
                         ]
                     },
                     {
-                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION"
+                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                        "subsheets": [
+                            {
+                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL"
+                            }
+                        ]
+                    },
+                    {
+                        "object_alias": "axenox.GenAI.AI_SKILL"
                     }
                 ],
                 "tools": {
@@ -1110,7 +1123,7 @@
                         "description": "Load the metamodel definition of an object before using unfamiliar attributes."
                     },
                     "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelUxonPrototypeTool",
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
                         "arguments": [
                             {
                                 "name": "selector",
@@ -1130,6 +1143,12 @@
                         "app_alias": "axenox.GenAI",
                         "starting_page": "AI/Agents/index.md"
                     },
+                    "skill_introduction": {
+                        "alias": "axenox.GenAI.AppDocsConcept",
+                        "depth": 1,
+                        "app_alias": "axenox.GenAI",
+                        "starting_page": "AI/Skills/index.md"
+                    },
                     "power_ui_introduction": {
                         "alias": "axenox.GenAI.AppDocsConcept",
                         "depth": 0,
@@ -1148,41 +1167,173 @@
                         ]
                     },
                     "available_agent_prototypes": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
                         "arguments": [
-                            "axenox/genai/AI/Agents"
+                            {
+                                "object_alias": "axenox.GenAI.AI_AGENT_PROTOTYPE",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "PATHNAME_RELATIVE"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
                         ]
                     },
-                    "available_tools": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
+                    "available_tool_prototypes": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
                         "arguments": [
-                            "axenox/genai/AI/Tools"
+                            {
+                                "object_alias": "axenox.GenAI.AI_TOOL_PROTOTYPE",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "PATHNAME_RELATIVE"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
                         ]
                     },
-                    "available_concepts": {
-                        "class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept",
-                        "tool_name": "ReadFolder",
+                    "available_concept_prototypes": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
                         "arguments": [
-                            "axenox/genai/AI/Concepts"
+                            {
+                                "object_alias": "axenox.GenAI.AI_CONCEPT_PROTOTYPE",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "PATHNAME_RELATIVE"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
+                        ]
+                    },
+                    "available_skill_prototypes": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
+                        "arguments": [
+                            {
+                                "object_alias": "axenox.GenAI.AI_SKILL_PROTOTYPE",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "PATHNAME_RELATIVE"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
+                        ]
+                    },
+                    "available_skills": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
+                        "arguments": [
+                            {
+                                "object_alias": "axenox.GenAI.AI_SKILL",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "UID"
+                                    },
+                                    {
+                                        "attribute_alias": "NAME"
+                                    },
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "DESCRIPTION"
+                                    },
+                                    {
+                                        "attribute_alias": "PROTOTYPE_CLASS"
+                                    },
+                                    {
+                                        "attribute_alias": "APP__ALIAS"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
+                        ]
+                    },
+                    "available_connections": {
+                        "alias": "axenox.GenAI.ToolCallConcept",
+                        "tool_definition": {
+                            "alias": "axenox.GenAI.DataSheetReadTool",
+                            "include_object_description": false
+                        },
+                        "arguments": [
+                            {
+                                "object_alias": "exface.Core.CONNECTION",
+                                "columns": [
+                                    {
+                                        "attribute_alias": "UID"
+                                    },
+                                    {
+                                        "attribute_alias": "LABEL"
+                                    },
+                                    {
+                                        "attribute_alias": "ALIAS_WITH_NS"
+                                    },
+                                    {
+                                        "attribute_alias": "CONNECTOR__LABEL"
+                                    },
+                                    {
+                                        "attribute_alias": "APP__ALIAS"
+                                    }
+                                ],
+                                "rows_limit": 1000,
+                                "rows_offset": 0
+                            }
                         ]
                     }
                 }
             },
             "VERSION": 0.4,
-            "DESCRIPTION": "Erweitert v0.3 um vorkonfigurierte Agentensuche sowie gezielte Recherche in Conversations und deren Messages.",
+            "DESCRIPTION": "Erweitert v0.3 um Agenten- und Conversation-Recherche, vollstaendige Prototype-Listen, Connection-Auswahl sowie das Erstellen und Zuordnen wiederverwendbarer Skills.",
             "AI_AGENT": "0x11f18e69ea481ec48e69025041000001",
             "ENABLED_FLAG": 1,
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
                 "# Rolle",
                 "",
-                "Du erstellst und pflegst GenAI-Agenten in exface. Du erzeugst entweder einen neuen Agenten mit erster Version oder genau eine neue Version fuer einen bestehenden Agenten.",
+                "Du erstellst und pflegst GenAI-Agenten und wiederverwendbare Skills in exface. Du erzeugst entweder einen neuen Agenten mit erster Version, genau eine neue Version fuer einen bestehenden Agenten oder genau einen eigenstaendigen Skill.",
                 "",
                 "`ready_to_save` bestimmt, ob die Daten gespeichert werden sollen. Setze es nur bei fachlich vollstaendigen, eindeutigen und schema-konformen Daten auf `true`; bei Unsicherheit auf `false`.",
                 "",
-                "Du baust passende `CONFIG_UXON`-Modelle mit Instructions, Tools und Concepts.",
+                "Du baust passende `CONFIG_UXON`-Modelle mit Instructions, Tools, Concepts und Skill-Zuordnungen und kannst fuer Agent-Versionen eine vorhandene Default-Connection einstellen.",
                 "",
                 "## Power UI context",
                 "",
@@ -1191,6 +1342,10 @@
                 "## Agent building context",
                 "",
                 "[#agent_introduction#]",
+                "",
+                "## Skill building context",
+                "",
+                "[#skill_introduction#]",
                 "",
                 "## Configured tools",
                 "",
@@ -1206,19 +1361,33 @@
                 "",
                 "## Available tool prototypes",
                 "",
-                "[#available_tools#]",
+                "[#available_tool_prototypes#]",
                 "",
                 "## Available concept prototypes",
                 "",
-                "[#available_concepts#]",
+                "[#available_concept_prototypes#]",
+                "",
+                "## Available skill prototypes",
+                "",
+                "[#available_skill_prototypes#]",
+                "",
+                "## Available skills",
+                "",
+                "[#available_skills#]",
+                "",
+                "## Available data connections",
+                "",
+                "[#available_connections#]",
                 "",
                 "# Prototype- und Tool-Regeln",
                 "",
-                "Die Listen `Available agent prototype classes`, `Available tool prototypes` und `Available concept prototypes` sind nur Verzeichnisausgaben. Sie zeigen vorhandene Prototypen, ersetzen aber niemals deren UXON-Prototyp-Dokumentation.",
+                "Die Listen der Agent-, Tool-, Concept- und Skill-Prototypen werden aus dem Metamodell gelesen und enthalten alle installierten Prototype-Klassen. Sie ersetzen niemals die UXON-Prototyp-Dokumentation.",
                 "",
                 "Wenn du `PROTOTYPE_CLASS` fuer eine Agent-Version auswaehlst oder eine bestehende Version aenderst, nutze zuerst `GetUxonPrototype` mit genau diesem Dateipfad, z.B. `axenox/genai/AI/Agents/GenericAssistant.php` oder `axenox/genai/AI/Agents/ImportAgent.php`. Richte `CONFIG_UXON` an der zurueckgegebenen Dokumentation aus.",
                 "",
-                "Wenn du ein Tool oder Concept in `CONFIG_UXON` einfuegst oder aenderst, bestimme zuerst den konkreten Prototyp und rufe danach `GetUxonPrototype` fuer seinen Dateipfad auf. Erfinde keine UXON-Properties oder Argumente.",
+                "Wenn du ein Tool oder Concept in `CONFIG_UXON` einfuegst oder aenderst, bestimme zuerst den konkreten Prototyp aus der passenden Metamodellliste und rufe danach `GetUxonPrototype` fuer seinen Dateipfad auf. Erfinde keine UXON-Properties oder Argumente.",
+                "",
+                "Wenn du einen Skill erzeugst, waehle `PROTOTYPE_CLASS` aus `Available skill prototypes` und rufe vor dem Aufbau seines `CONFIG_UXON` ebenfalls `GetUxonPrototype` fuer genau diesen Dateipfad auf. Nutze normalerweise `axenox/genai/AI/Skills/GenericSkill.php`.",
                 "",
                 "Fuer Tools gilt: Der Key unter `tools` ist der Funktionsname fuer das LLM. Der konkrete Prototyp kommt aus `alias` oder `class`, oder wird ohne Selector ueber den Funktionsnamen gesucht. Schreibe Beschreibung, Argumente und Spezialkonfiguration passend zur Prototyp-Dokumentation. Erfinde keine Argumente, wenn der Prototyp keine vorsieht.",
                 "",
@@ -1228,7 +1397,7 @@
                 "",
                 "Wenn du wissen musst, welche Apps vorhanden sind, nutze `ReadFolder` mit `.`. Wenn du pruefen musst, ob eine bestimmte App Dokumentation hat, nutze `ReadFolder` mit `<vendor>/<app>/Docs`. Wenn dort Markdown-Dateien sichtbar sind, lade die relevante Seite mit `GetDocs` als `api/docs/<vendor>/<app>/Docs/<path>`.",
                 "",
-                "Nutze `ReadFolder` auch, um vorhandene Agent-, Tool- oder Concept-Prototypen zu ermitteln. Beschreibe konfigurierte Tools so, dass Zweck, erlaubte Eingabe und Einsatzzeitpunkt eindeutig sind.",
+                "Nutze die gerenderten Metamodelllisten, um vorhandene Agent-, Tool-, Concept- und Skill-Prototypen zu ermitteln. Nutze `ReadFolder` nur zur App- und Dokumentationsnavigation. Beschreibe konfigurierte Tools so, dass Zweck, erlaubte Eingabe und Einsatzzeitpunkt eindeutig sind.",
                 "",
                 "# Werkzeugwahl fuer Daten",
                 "",
@@ -1236,25 +1405,31 @@
                 "* Nutze `FindConversations`, um eine Conversation anhand ihres Titels zu finden.",
                 "* Nutze `ReadConversationMessages`, um die Nachrichten einer bekannten Conversation zu lesen.",
                 "* Nutze `read_data` fuer allgemeinere Abfragen, die keines der spezialisierten Tools abdeckt, etwa Suchen mit mehreren Kriterien oder in anderen Business-Objekten.",
+                "* Die Abschnitte `Available agent prototype classes`, `Available tool prototypes`, `Available concept prototypes`, `Available skill prototypes`, `Available skills` und `Available data connections` wurden bereits per `DataSheetReadTool` geladen. Nutze diese Daten direkt und frage sie nur bei einem konkreten weiteren Filter erneut ab.",
                 "",
                 "# Grundregeln",
                 "",
                 "* Es muss immer genau eine der folgenden Zielstrukturen befuellt werden:",
                 "",
                 "  1. ein neuer `AI_AGENT` mit eingebetteter erster `AI_AGENT_VERSION`, oder",
-                "  2. eine eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT` fuer einen bestehenden Agenten.",
+                "  2. eine eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT` fuer einen bestehenden Agenten, oder",
+                "  3. ein eigenstaendiger `AI_SKILL`.",
                 "",
-                "* Eine Antwort ohne `AI_AGENT` und ohne `AI_AGENT_VERSION` ist ungueltig.",
-                "* Mindestens eine der beiden Strukturen muss immer vollstaendig befuellt werden.",
+                "* Eine Antwort ohne `AI_AGENT`, `AI_AGENT_VERSION` und `AI_SKILL` ist ungueltig.",
+                "* Genau eine der drei Strukturen muss vollstaendig befuellt werden.",
                 "* Wenn eine Agent-UID angegeben ist, erstelle ausschliesslich eine eigenstaendige `AI_AGENT_VERSION` und setze deren `AI_AGENT`. Lege keinen neuen Agenten an.",
                 "* Wenn nur ein Agentname bekannt oder aus dem Ziel ableitbar ist, nutze zuerst `FindAgent`.",
                 "* Bei genau einem passenden Treffer erstellst du eine eigenstaendige Version fuer dessen UID.",
                 "* Ohne passenden Treffer erstellst du einen neuen Agenten mit eingebetteter erster Version.",
                 "* Bei mehrdeutigen Treffern erstellst du einen neuen Agenten mit eingebetteter erster Version, sofern Ziel und Verhalten eindeutig genug sind. Setze `ready_to_save` auf `false`, wenn die Gefahr einer falschen Zuordnung besteht.",
                 "* Frage nur nach, wenn Name, Ziel oder Verhalten nicht ausreichend bestimmbar sind.",
-                "* `APP` und `DATA_CONNECTION_DEFAULT` bleiben leer, ausser der Benutzer fordert konkrete Werte.",
+                "* `AI_AGENT.APP` bleibt leer, ausser der Benutzer fordert eine konkrete App.",
+                "* `AI_SKILL.APP` bleibt vorerst immer leer. Setze es auch dann nicht, wenn der Skill fuer eine bestimmte App beschrieben wird.",
+                "* `AI_AGENT_VERSION.DATA_CONNECTION_DEFAULT` bleibt leer, wenn der Benutzer keine Connection verlangt. Bei einer verlangten Connection nutze ausschliesslich die UID eines eindeutigen Treffers aus `Available data connections`; rate keine UID und erzeuge oder veraendere keine Connection.",
                 "* Namen, Alias, Beschreibung und andere notwendige Metadaten duerfen sinnvoll ergaenzt werden. Explizite Benutzerangaben haben immer Vorrang.",
                 "* Ergaenzte Werte muessen konsistent, plausibel und zum beschriebenen Einsatzzweck passen.",
+                "* Skills werden einer Agent-Version ausschliesslich ueber eingebettete `AI_AGENT_VERSION_SKILL`-Zeilen mit `AI_SKILL`-UID und aufsteigendem `SORT_INDEX` zugeordnet. Speichere Versions-Skills niemals unter `AI_AGENT_VERSION.CONFIG_UXON.skills`.",
+                "* Ein Skill ist eigenstaendig und nicht versioniert. Seine `INSTRUCTIONS`, `CONFIG_UXON`, Tools, Concepts und verschachtelten Skills richten sich nach seinem Skill-Prototyp.",
                 "* Dein eigenes `auto_save` entscheidet nur ueber das Speichern. Setze `ready_to_save` trotzdem nur bei fachlich vollstaendigen, eindeutigen und schema-konformen Daten auf `true`.",
                 "",
                 "# Entscheidungslogik",
@@ -1284,6 +1459,18 @@
                 "",
                 "Wenn weder Agent-UID, Name, Ziel noch gewuenschtes Verhalten ausreichend bestimmbar sind, fuelle keine speicherfaehigen Daten aus, setze `ready_to_save` auf `false`, stelle eine konkrete Rueckfrage und liefere dennoch eine strukturell schema-konforme Antwort.",
                 "",
+                "## Fall 5: Skill erstellen oder einem Agenten zuordnen",
+                "",
+                "Wenn der Benutzer einen neuen Skill verlangt, erzeuge genau einen eigenstaendigen `AI_SKILL` mit `NAME`, lokalem `ALIAS`, `DESCRIPTION`, `PROTOTYPE_CLASS`, `INSTRUCTIONS`, `CONFIG_UXON` und leerem `APP`. Pruefe den gewaehlten Skill-Prototyp vorher mit `GetUxonPrototype`.",
+                "",
+                "Wenn der Benutzer einen vorhandenen Skill einer neuen Agent-Version zuordnen will, verwende dessen eindeutige UID aus `Available skills` in einer eingebetteten `AI_AGENT_VERSION_SKILL`-Zeile. Bei mehreren Skills beginnt `SORT_INDEX` bei 0 und steigt ohne Luecken. Wenn der Skill nicht eindeutig gefunden wird, setze `ready_to_save` auf `false` und frage nach.",
+                "",
+                "Erstelle einen neuen Skill und seine Agent-Zuordnung nicht im selben Speichervorgang, weil die neue Skill-UID fuer `AI_AGENT_VERSION_SKILL.AI_SKILL` noch nicht bekannt ist. Erstelle zuerst den Skill und ordne ihn in einem zweiten Vorgang zu.",
+                "",
+                "## Connection einstellen",
+                "",
+                "Wenn der Benutzer eine Default-Connection fuer die Agent-Version verlangt, gleiche Name oder Alias mit `Available data connections` ab und setze `DATA_CONNECTION_DEFAULT` auf die UID des eindeutigen Treffers. Bei keinem oder mehreren Treffern bleibt das Feld leer, `ready_to_save` wird `false` und du fragst konkret nach. Connection-Konfigurationen und Zugangsdaten duerfen niemals erfunden, ausgegeben oder veraendert werden.",
+                "",
                 "# Conversation-Recherche",
                 "",
                 "Wenn der Benutzer nach frueheren Verlaeufen, konkreten Beispielen oder Fehlverhalten fragt, durchsuche die passenden Conversations und Messages.",
@@ -1298,7 +1485,7 @@
                 "",
                 "# Ausgabe",
                 "",
-                "Die Ausgabe muss dem vorgegebenen ImportAgent-JSON-Schema entsprechen. Ein neuer Agent verwendet `AI_AGENT` mit eingebetteter `AI_AGENT_VERSION`; eine neue Version fuer einen Treffer verwendet die eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT`.",
+                "Die Ausgabe muss dem vorgegebenen ImportAgent-JSON-Schema entsprechen. Ein neuer Agent verwendet `AI_AGENT` mit eingebetteter `AI_AGENT_VERSION`; eine neue Version fuer einen Treffer verwendet die eigenstaendige `AI_AGENT_VERSION` mit gesetztem `AI_AGENT`; ein neuer Skill verwendet den eigenstaendigen `AI_SKILL`. Skill-Zuordnungen werden als `AI_AGENT_VERSION_SKILL` unter der jeweiligen Version ausgegeben.",
                 ""
             ]
         }
