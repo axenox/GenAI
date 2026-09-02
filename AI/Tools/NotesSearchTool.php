@@ -45,9 +45,6 @@ class NotesSearchTool extends AbstractAiTool
     {
         $query = trim((string) ($arguments[0] ?? ''));
         $type = (string) ($arguments[1] ?? self::TYPE_ALL);
-        if ($query === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'A search query is required.');
-        }
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
@@ -55,9 +52,11 @@ class NotesSearchTool extends AbstractAiTool
         if ($type !== self::TYPE_ALL) {
             $sheet->getFilters()->addConditionFromString('TYPE', $type, ComparatorDataType::EQUALS);
         }
-        $searchFilters = $sheet->getFilters()->addNestedOR();
-        $searchFilters->addConditionFromString('TOPIC', $query, ComparatorDataType::IS);
-        $searchFilters->addConditionFromString('NOTE', $query, ComparatorDataType::IS);
+        if ($query !== '') {
+            $searchFilters = $sheet->getFilters()->addNestedOR();
+            $searchFilters->addConditionFromString('TOPIC', $query, ComparatorDataType::IS);
+            $searchFilters->addConditionFromString('NOTE', $query, ComparatorDataType::IS);
+        }
         $sheet->dataRead();
 
         $matches = [];
@@ -123,9 +122,12 @@ class NotesSearchTool extends AbstractAiTool
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_QUERY)
-                ->setDescription('Text to find in note topics or note bodies.')
-                ->setRequired(true),
+                ->setDescription('Text to find in note topics or note bodies. Leave empty to read all notes.'),
             (new ServiceParameter($self))
+                ->setName(self::ARG_TYPE)
+                ->setDescription('Type of notes to search, or `all` to search every note type.')
+                ->setDefaultValue(self::TYPE_ALL)
+                ->setRequired(false)
                 ->setDataType(new UxonObject([
                     'alias' => 'exface.Core.GenericStringEnum',
                     'values' => [
@@ -134,10 +136,6 @@ class NotesSearchTool extends AbstractAiTool
                         AiNoteTypeDataType::SUGGESTION => AiNoteTypeDataType::SUGGESTION
                     ]
                 ]))
-                ->setName(self::ARG_TYPE)
-                ->setDescription('Type of notes to search, or `all` to search every note type.')
-                ->setDefaultValue(self::TYPE_ALL)
-                ->setRequired(false)
         ];
     }
 
