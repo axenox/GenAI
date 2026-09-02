@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-09-01 17:05:33",
+            "MODIFIED_ON": "2026-09-02 11:04:08",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -229,12 +229,22 @@
                                                 "value": "=uid_field"
                                             },
                                             {
-                                                "attribute_alias": "CALL_DISPLAY"
+                                                "attribute_alias": "TOOL_ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "CALL_DISPLAY",
+                                                "caption": "Tool Call Text"
+                                            },
+                                            {
+                                                "attribute_alias": "FAILED"
                                             }
                                         ],
                                         "columns": [
                                             {
                                                 "attribute_alias": "CREATED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "TOOL_ALIAS"
                                             },
                                             {
                                                 "attribute_alias": "CALL_DISPLAY",
