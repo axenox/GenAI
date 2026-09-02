@@ -302,7 +302,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
             'AI_SKILL__ALIAS_WITH_NS'
         ]);
         $dataSheet->getSorters()->addFromString(
-            'SORT_INDEX',
+            'UID',
             SortingDirectionsDataType::ASC
         );
         $dataSheet->dataRead();

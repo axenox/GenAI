@@ -42,6 +42,7 @@ class MarkdownFilesConcept extends AbstractConcept
     private ?string $basePath = null;
     private ?int $headingLevel = null;
     private bool $stripFrontMatter = false;
+    private array $stripChapters = [];
 
     /**
      * Renders the configured markdown file contents for this placeholder.
@@ -228,8 +229,69 @@ class MarkdownFilesConcept extends AbstractConcept
         if ($this->willStripFrontMatter()) {
             $markdown = MarkdownDataType::stripFrontMatter($markdown);
         }
+        
+        if ($this->getStripChapters() !== []) {
+            $markdown = $this->stripChapters($markdown);
+        }
 
         return $markdown;
+    }
+
+    /**
+     * Removes the chapters configured in `strip_chapters` from the given markdown.
+     *
+     * A chapter is considered to start at any heading line (e.g. `# Title`, `## Title`, ...) whose
+     * text matches (case-insensitively, after trimming whitespace) one of the configured
+     * `strip_chapters` titles. The chapter - including its heading - is removed up to, but not
+     * including, the next heading of the same or a higher level (i.e. with the same or fewer `#`
+     * characters), or the end of the document if no such heading follows.
+     *
+     * @param string $markdown
+     * @return string
+     */
+    protected function stripChapters(string $markdown): string
+    {
+        $titles = $this->getStripChapters();
+        if ($titles === []) {
+            return $markdown;
+        }
+
+        $titlesToStrip = array_map(static function (string $title): string {
+            return mb_strtolower(trim($title));
+        }, $titles);
+
+        $lines = preg_split("/\r\n|\r|\n/", $markdown);
+        $outputLines = [];
+        // NULL = currently keeping lines. Otherwise, holds the heading level (number of `#`)
+        // of the chapter currently being stripped.
+        $strippingLevel = null;
+
+        foreach ($lines as $line) {
+            if (preg_match('/^(#{1,6})\s+(.*?)\s*#*\s*$/', $line, $matches) === 1) {
+                $headingLevel = strlen($matches[1]);
+                $headingText = mb_strtolower(trim($matches[2]));
+
+                if ($strippingLevel !== null && $headingLevel <= $strippingLevel) {
+                    // We reached the next heading that is not part of the stripped chapter anymore.
+                    $strippingLevel = null;
+                }
+
+                if ($strippingLevel === null && in_array($headingText, $titlesToStrip, true)) {
+                    // This heading starts a chapter that should be stripped, so skip it too.
+                    $strippingLevel = $headingLevel;
+                    continue;
+                }
+            }
+
+            if ($strippingLevel !== null) {
+                // We are inside a chapter that is being stripped, so skip this line.
+                continue;
+            }
+
+            $outputLines[] = $line;
+        }
+
+        return implode("\n", $outputLines);
     }
 
     /**
@@ -271,5 +333,30 @@ class MarkdownFilesConcept extends AbstractConcept
     protected function willStripFrontMatter() : bool
     {
         return $this->stripFrontMatter;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getStripChapters(): array
+    {
+        return $this->stripChapters;
+    }
+
+    /**
+     * Array of chapter titles to strip from the imported markdown files. 
+     * 
+     * If a chapter title is found, the entire chapter will be removed from the imported content.
+     * 
+     * @uxon-property strip_chapters
+     * @uxon-type string[]
+     * 
+     * @param UxonObject $arrayOfTitles
+     * @return $this
+     */
+    protected function setStripChapters(UxonObject $arrayOfTitles): MarkdownFilesConcept
+    {
+        $this->stripChapters = $arrayOfTitles->toArray();
+        return $this;
     }
 }

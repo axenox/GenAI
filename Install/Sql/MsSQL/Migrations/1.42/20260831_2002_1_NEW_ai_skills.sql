@@ -1,35 +1,48 @@
 /*
- * Create table exf_ai_skill
- *
- * Stores reusable AI skills assigned to an AI agent.
+ * Create reusable AI skills and ordered AI agent version assignments.
  */
 -- UP
 
-IF OBJECT_ID ('dbo.exf_ai_skill', N'U') IS NULL
+IF OBJECT_ID(N'dbo.exf_ai_skill', N'U') IS NULL
 CREATE TABLE dbo.exf_ai_skill (
-  oid binary(16) NOT NULL,
-  created_on datetime NOT NULL,
-  modified_on datetime NOT NULL,
-  created_by_user_oid binary(16),
-  modified_by_user_oid binary(16),
-  app_oid binary(16),
-  ai_agent_oid binary(16),
-  name nvarchar(100) NOT NULL,
-  alias nvarchar(100) NOT NULL,
-  description nvarchar(max),
-  instructions nvarchar(max),
-  config_uxon nvarchar(max),
-  prototype_class nvarchar(255) NOT NULL,
-  CONSTRAINT PK_exf_ai_skill PRIMARY KEY (oid),
-  INDEX IDX_dbo_exf_ai_skill_app (app_oid),
-  INDEX IDX_dbo_exf_ai_skill_ai_agent (ai_agent_oid),
-  CONSTRAINT FK_dbo_exf_ai_skill_app FOREIGN KEY (app_oid) REFERENCES dbo.exf_app (oid),
-  CONSTRAINT FK_dbo_exf_ai_skill_ai_agent FOREIGN KEY (ai_agent_oid) REFERENCES dbo.exf_ai_agent (oid)
+    oid binary(16) NOT NULL,
+    created_on datetime NOT NULL,
+    modified_on datetime NOT NULL,
+    created_by_user_oid binary(16),
+    modified_by_user_oid binary(16),
+    app_oid binary(16),
+    name nvarchar(100) NOT NULL,
+    alias nvarchar(100) NOT NULL,
+    description nvarchar(max),
+    instructions nvarchar(max),
+    config_uxon nvarchar(max),
+    prototype_class nvarchar(255) NOT NULL,
+    PRIMARY KEY (oid),
+    INDEX exf_ai_skill_app (app_oid),
+    CONSTRAINT exf_ai_skill_app
+        FOREIGN KEY (app_oid) REFERENCES dbo.exf_app (oid)
 );
 
-CREATE UNIQUE INDEX UQ_exf_ai_skill_alias_ai_agent
-  ON dbo.exf_ai_skill (alias, ai_agent_oid)
-  WHERE ai_agent_oid IS NOT NULL;
+IF OBJECT_ID(N'dbo.exf_ai_agent_version_skill', N'U') IS NULL
+CREATE TABLE dbo.exf_ai_agent_version_skill (
+    oid binary(16) NOT NULL,
+    created_on datetime NOT NULL,
+    modified_on datetime NOT NULL,
+    created_by_user_oid binary(16),
+    modified_by_user_oid binary(16),
+    ai_agent_version_oid binary(16) NOT NULL,
+    ai_skill_oid binary(16) NOT NULL,
+    description nvarchar(max),
+    PRIMARY KEY (oid),
+    CONSTRAINT uq_exf_ai_agent_version_skill
+        UNIQUE (ai_agent_version_oid, ai_skill_oid),
+    INDEX idx_exf_ai_agent_version_skill_skill (ai_skill_oid),
+    CONSTRAINT fk_exf_ai_agent_version_skill_skill
+        FOREIGN KEY (ai_skill_oid) REFERENCES dbo.exf_ai_skill (oid),
+    CONSTRAINT fk_exf_ai_agent_version_skill_version
+        FOREIGN KEY (ai_agent_version_oid)
+        REFERENCES dbo.exf_ai_agent_version (oid)
+);
 
 -- DOWN
 
