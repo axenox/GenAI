@@ -132,6 +132,14 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
             $schema['description'] = $description;
         }
 
+        /*
+        if ($argument->hasDefaultValue()) {
+            $defaultInstruction = 'Use the default value '
+                . JsonDataType::encodeJson($argument->getDefaultValue())
+                . ' when no value is specified.';
+            $schema['description'] = trim(($schema['description'] ?? '') . "\n\n" . $defaultInstruction);
+        }*/
+
         return $this->normalizeStrictFunctionSchema($schema);
     }
 

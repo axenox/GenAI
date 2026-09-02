@@ -32,10 +32,6 @@
         {
             "name": "AI_SKILL",
             "attribute_alias": "AI_SKILL"
-        },
-        {
-            "name": "SORT_INDEX",
-            "attribute_alias": "SORT_INDEX"
         }
     ],
     "rows": [
@@ -47,8 +43,7 @@
             "UID": "0x5e4246bb161d1339c5aef6388bb7c1c8",
             "DESCRIPTION": "",
             "AI_AGENT_VERSION": "0x11f1ae7188d9d748ae71025041000001",
-            "AI_SKILL": "0x90f383b5104a4c68baecf766bed551d0",
-            "SORT_INDEX": 0
+            "AI_SKILL": "0x90f383b5104a4c68baecf766bed551d0"
         },
         {
             "CREATED_ON": "2026-09-01 12:00:00",
@@ -58,8 +53,7 @@
             "UID": "0x6b2008aeb395153bdc795557a827ee3f",
             "DESCRIPTION": "",
             "AI_AGENT_VERSION": "0x11f197fe6301c3e297fe025041000001",
-            "AI_SKILL": "0x90f383b5104a4c68baecf766bed551d0",
-            "SORT_INDEX": 0
+            "AI_SKILL": "0x90f383b5104a4c68baecf766bed551d0"
         }
     ],
     "totals_rows": [],
