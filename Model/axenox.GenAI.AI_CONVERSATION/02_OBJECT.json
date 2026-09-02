@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-07-07 00:27:42",
+            "MODIFIED_ON": "2026-09-02 11:04:08",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ef91a72e443c7491a7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -207,6 +207,73 @@
                                             {
                                                 "attribute_alias": "SEQUENCE_NUMBER",
                                                 "direction": "desc"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "caption": "Tool calls",
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                        "hide_caption": true,
+                                        "width": "max",
+                                        "height": "max",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AI_CONVERSATION",
+                                                "widget_type": "InputHidden",
+                                                "required": true,
+                                                "value": "=uid_field"
+                                            },
+                                            {
+                                                "attribute_alias": "TOOL_ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "CALL_DISPLAY",
+                                                "caption": "Tool Call Text"
+                                            },
+                                            {
+                                                "attribute_alias": "FAILED"
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "CREATED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "TOOL_ALIAS"
+                                            },
+                                            {
+                                                "attribute_alias": "CALL_DISPLAY",
+                                                "cell_widget": {
+                                                    "widget_type": "Text"
+                                                }
+                                            },
+                                            {
+                                                "attribute_alias": "FAILED"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "AI_MESSAGE__SEQUENCE_NUMBER",
+                                                "direction": "asc"
+                                            },
+                                            {
+                                                "attribute_alias": "CALL_INDEX",
+                                                "direction": "asc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Tool call details",
+                                                "bind_to_double_click": true,
+                                                "action": {
+                                                    "alias": "exface.core.ShowObjectInfoDialog",
+                                                    "disable_buttons": true
+                                                }
                                             }
                                         ]
                                     }
