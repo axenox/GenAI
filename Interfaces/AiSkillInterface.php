@@ -22,6 +22,12 @@ interface AiSkillInterface extends PlaceholderResolverInterface, iCanBeConverted
     public function getTools() : array;
 
     /**
+     * Returns TRUE if this skill may be appended to the system prompt automatically when its
+     * placeholder is not explicitly used inside the agent's (or parent skill's) instructions.
+     */
+    public function isAutoAppendEnabled() : bool;
+
+    /**
      * Returns warnings produced while preparing this skill.
      *
      * @return \Throwable[]

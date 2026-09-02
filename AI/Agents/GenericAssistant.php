@@ -127,6 +127,8 @@ class GenericAssistant implements AiAgentInterface
     private UxonObject $skillsUxon;
     private ?AiConversationInterface $conversation = null;
 
+    private bool $appendUnusedSkills = true;
+
     private $maxNumberOfCalls = 10;
 
     /** @var AiToolCallResponse[] */
@@ -365,6 +367,27 @@ class GenericAssistant implements AiAgentInterface
         return $this;
     }
 
+    /**
+     * Set to FALSE to disable appending skills to the system prompt automatically when their
+     * placeholder is not used explicitly inside the instructions
+     *
+     * By default, skills that allow it (see `auto_append` property of a skill) are appended to
+     * the end of the system prompt if their placeholder was not used inside the instructions text.
+     *
+     * @uxon-property append_unused_skills
+     * @uxon-type boolean
+     * @uxon-default true
+     *
+     * @param bool $value
+     * @return AiAgentInterface
+     */
+    protected function setAppendUnusedSkills(bool $value) : AiAgentInterface
+    {
+        $this->appendUnusedSkills = $value;
+        $this->systemPromptRendered = null;
+        return $this;
+    }
+
     public function getRawConcepts() : ?UxonObject
     {
         if ($this->conceptConfig instanceof UxonObject) {
@@ -459,11 +482,41 @@ class GenericAssistant implements AiAgentInterface
                     $systemPrompt = $this->systemPrompt;
                 }
                 $this->systemPromptRendered = $renderer->render($systemPrompt ?? '');
+                if ($this->appendUnusedSkills === true) {
+                    $this->systemPromptRendered .= $this->renderUnusedSkills($systemPrompt ?? '');
+                }
             } catch (\Throwable $e) {
                 throw new AiConceptRenderingError($renderer, 'Cannot apply AI concepts. ' . $e->getMessage(), null, $e, $systemPrompt);
             }
         }
         return $this->systemPromptRendered;
+    }
+
+    /**
+     * Renders skills, whose placeholder was not used in the instructions, but which allow to be
+     * appended automatically (see `auto_append` property of a skill).
+     *
+     * @param string $rawInstructions
+     * @return string
+     */
+    protected function renderUnusedSkills(string $rawInstructions) : string
+    {
+        $usedPlaceholders = StringDataType::findPlaceholders($rawInstructions);
+        $appendix = '';
+        foreach ($this->skills as $skill) {
+            if (in_array($skill->getPlaceholder(), $usedPlaceholders, true)) {
+                continue;
+            }
+            if (! $skill->isAutoAppendEnabled()) {
+                continue;
+            }
+            $skillText = $skill->resolve([$skill->getPlaceholder()])[$skill->getPlaceholder()] ?? '';
+            if (trim($skillText) === '') {
+                continue;
+            }
+            $appendix .= "\n\n" . $skillText;
+        }
+        return $appendix;
     }
 
     protected function getApp(AiPromptInterface $prompt) : ?AppInterface

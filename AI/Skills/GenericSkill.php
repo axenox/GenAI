@@ -40,6 +40,7 @@ class GenericSkill implements AiSkillInterface
     /** @var \Throwable[] */
     private array $warnings = [];
     private ?string $alias = null;
+    private bool $autoAppend = true;
 
     /**
      * Creates a skill in the context of the consuming agent and prompt.
@@ -80,6 +81,29 @@ class GenericSkill implements AiSkillInterface
     public function getPlaceholder() : string
     {
         return $this->placeholder;
+    }
+
+    /**
+     * Returns TRUE if this skill may be appended to the system prompt automatically when its
+     * placeholder is not explicitly used.
+     */
+    public function isAutoAppendEnabled() : bool
+    {
+        return $this->autoAppend;
+    }
+
+    /**
+     * Set to FALSE to prevent this skill from being appended automatically when its placeholder
+     * is not explicitly used inside the instructions text.
+     *
+     * @uxon-property auto_append
+     * @uxon-type boolean
+     * @uxon-default true
+     */
+    protected function setAutoAppend(bool $value) : AiSkillInterface
+    {
+        $this->autoAppend = $value;
+        return $this;
     }
 
     /**
