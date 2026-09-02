@@ -87,14 +87,14 @@
         {
             "_EXPORT_SUMMARY": "AI tool call [axenox.GenAI.AI_TOOL_CALL]",
             "CREATED_ON": "2026-09-01 16:39:47",
-            "MODIFIED_ON": "2026-09-01 16:39:47",
+            "MODIFIED_ON": "2026-09-02 10:40:58",
             "CREATED_BY_USER": "0x11f0a52882c8e6b0a528025041000001",
-            "MODIFIED_BY_USER": "0x11f0a52882c8e6b0a528025041000001",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f19f09fab867de9f09025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
-            "COMMENTS": null,
-            "DOCS": null,
+            "COMMENTS": "",
+            "DOCS": "",
             "NAME": "AI tool call",
             "INHERIT_DATA_SOURCE_BASE_OBJECT": 1,
             "DATA_SOURCE": "0x32000000000000000000000000000000",
@@ -105,6 +105,11 @@
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
                 "widgets": [
+                    {
+                        "attribute_alias": "TOOL_ALIAS",
+                        "widget_type": "Display",
+                        "width": "100%"
+                    },
                     {
                         "attribute_alias": "RESULT",
                         "widget_type": "Markdown",

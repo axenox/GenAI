@@ -39,6 +39,13 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
     public function getName() : string;
 
     /**
+     * Returns the canonical namespaced alias of the tool prototype.
+     *
+     * @return string
+     */
+    public function getAliasWithNamespace() : string;
+
+    /**
      * 
      * @return string|null
      */
