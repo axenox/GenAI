@@ -320,20 +320,8 @@ class AiConversation implements AiConversationInterface
 
             $message->dataCreate(false, $transaction);
             $messageUid = $message->getUidColumn()->getValue(0);
-            $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
-            foreach ($toolCalls as $index => $toolCall) {
-                $toolCallSheet->addRow([
-                    'AI_CONVERSATION' => $this->conversationId,
-                    'AI_MESSAGE' => $messageUid,
-                    'CALL_INDEX' => $index + 1,
-                    'CALL_ID' => $toolCall->getCallId(),
-                    'TOOL_NAME' => $toolCall->getToolName(),
-                    'CALL_DISPLAY' => $toolCall->__toString(),
-                    'ARGUMENTS' => UxonObject::fromArray($toolCall->getArguments())->toJson(true)
-                ]);
-            }
-            $toolCallSheet->dataCreate(false, $transaction);
             $transaction->commit();
+            $this->saveToolCallRecords($toolCalls, $messageUid);
         } catch (\Throwable $e) {
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
@@ -442,6 +430,40 @@ class AiConversation implements AiConversationInterface
             $transaction->rollback();
             $this->workbench->getLogger()->logException($e);
             return $responses;
+        }
+    }
+
+    /**
+     * Saves individual tool-call request records without affecting message persistence.
+     *
+     * @param array $toolCalls
+     * @param string $messageUid
+     * @return void
+     */
+    protected function saveToolCallRecords(array $toolCalls, string $messageUid) : void
+    {
+        try {
+            $transaction = $this->workbench->data()->startTransaction();
+            $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
+            foreach ($toolCalls as $index => $toolCall) {
+                $toolCallSheet->addRow([
+                    'AI_CONVERSATION' => $this->conversationId,
+                    'AI_MESSAGE' => $messageUid,
+                    'CALL_INDEX' => $index + 1,
+                    'CALL_ID' => $toolCall->getCallId(),
+                    'TOOL_NAME' => $toolCall->getToolName(),
+                    'TOOL_ALIAS' => $this->assistant->getTool($toolCall->getToolName())->getAliasWithNamespace(),
+                    'CALL_DISPLAY' => $toolCall->__toString(),
+                    'ARGUMENTS' => UxonObject::fromArray($toolCall->getArguments())->toJson(true)
+                ]);
+            }
+            $toolCallSheet->dataCreate(false, $transaction);
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            if (isset($transaction)) {
+                $transaction->rollback();
+            }
+            $this->workbench->getLogger()->logException($e);
         }
     }
 
