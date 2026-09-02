@@ -228,13 +228,16 @@
                                                 ],
                                                 "columns": [
                                                     {
-                                                        "attribute_alias": "AI_SKILL__NAME"
+                                                    "attribute_alias": "SORT_INDEX"
                                                     },
                                                     {
-                                                        "attribute_alias": "DESCRIPTION"
+                                                    "attribute_alias": "AI_SKILL__NAME"
                                                     },
                                                     {
-                                                        "attribute_alias": "SORT_INDEX"
+                                                    "attribute_alias": "AI_SKILL__ALIAS"
+                                                    },
+                                                    {
+                                                    "attribute_alias": "DESCRIPTION"
                                                     }
                                                 ],
                                                 "sorters": [

@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version skill [axenox.GenAI.AI_AGENT_VERSION_SKILL]",
             "CREATED_ON": "2026-09-01 00:00:00",
-            "MODIFIED_ON": "2026-09-01 00:00:00",
+            "MODIFIED_ON": "2026-09-02 10:43:06",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x6f5345f3527048d79ae7077fb5847d01",
@@ -133,6 +133,7 @@
                         "widgets": [
                             {
                                 "attribute_alias": "DESCRIPTION",
+                                "width": "100%",
                                 "height": 5,
                                 "hide_caption": true
                             }

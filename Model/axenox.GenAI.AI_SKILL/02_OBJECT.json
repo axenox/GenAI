@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI skill [axenox.GenAI.AI_SKILL]",
             "CREATED_ON": "2026-08-31 20:02:39",
-            "MODIFIED_ON": "2026-08-31 20:02:39",
+            "MODIFIED_ON": "2026-09-02 10:45:53",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x99ca35b4f8fa45b4a6a417ea928eda5a",
@@ -104,14 +104,13 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
-                "width": 4,
+                "width": 5,
                 "widgets": [
                     {
                         "widget_type": "Tabs",
                         "tabs": [
                             {
                                 "caption": "Instructions & config",
-                                "columns_in_grid": 2,
                                 "widgets": [
                                     {
                                         "widget_type": "WidgetGroup",
@@ -146,20 +145,29 @@
                                         ]
                                     },
                                     {
-                                        "widget_type": "InputMarkdown",
-                                        "attribute_alias": "INSTRUCTIONS",
-                                        "hide_caption": true,
-                                        "width": 1,
-                                        "height": "100%"
-                                    },
-                                    {
-                                        "widget_type": "InputUxon",
-                                        "caption": "Skill configuration",
-                                        "attribute_alias": "CONFIG_UXON",
-                                        "hide_caption": true,
-                                        "root_prototype": "=prototype_field",
-                                        "width": 1,
-                                        "height": "100%"
+                                        "widget_type": "WidgetGroup",
+                                        "caption": "Instructions & config",
+                                        "width": "max",
+                                        "height": "max",
+                                        "columns_in_grid": 2,
+                                        "widgets": [
+                                            {
+                                                "widget_type": "InputMarkdown",
+                                                "attribute_alias": "INSTRUCTIONS",
+                                                "hide_caption": true,
+                                                "width": 1,
+                                                "height": "100%"
+                                            },
+                                            {
+                                                "widget_type": "InputUxon",
+                                                "caption": "Skill configuration",
+                                                "attribute_alias": "CONFIG_UXON",
+                                                "hide_caption": true,
+                                                "root_prototype": "=prototype_field",
+                                                "width": 1,
+                                                "height": "100%"
+                                            }
+                                        ]
                                     }
                                 ]
                             }
