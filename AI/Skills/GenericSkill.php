@@ -35,7 +35,8 @@ class GenericSkill implements AiSkillInterface
     private array $skills = [];
     private UxonObject $toolsUxon;
     private ?string $renderedInstructions = null;
-    private ?array $renderedConcepts = null;
+    /** @var AiConceptInterface[]|null */
+    private ?array $concepts = null;
     private ?array $tools = null;
     /** @var \Throwable[] */
     private array $warnings = [];
@@ -114,18 +115,19 @@ class GenericSkill implements AiSkillInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $conceptTools = $this->renderConcepts()['tools'];
             $this->tools = [];
             $toolSources = [];
             $this->warnings = [];
 
-            foreach ($conceptTools as $toolName => $toolUxon) {
-                $this->tools[$toolName] = AiFactory::createToolFromUxon(
-                    $this->agent->getWorkbench(),
-                    $toolUxon,
-                    $toolName
-                );
-                $toolSources[$toolName] = 'concept in skill "' . $this->getPlaceholder() . '"';
+            foreach ($this->getConcepts() as $concept) {
+                foreach ($concept->getToolModels() as $toolName => $toolUxon) {
+                    $this->tools[$toolName] = AiFactory::createToolFromUxon(
+                        $this->agent->getWorkbench(),
+                        $toolUxon,
+                        $toolName
+                    );
+                    $toolSources[$toolName] = 'concept in skill "' . $this->getPlaceholder() . '"';
+                }
             }
 
             foreach ($this->skills as $skill) {
@@ -228,7 +230,7 @@ class GenericSkill implements AiSkillInterface
     {
         $this->conceptsUxon = $concepts;
         $this->renderedInstructions = null;
-        $this->renderedConcepts = null;
+        $this->concepts = null;
         $this->tools = null;
         return $this;
     }
@@ -252,7 +254,6 @@ class GenericSkill implements AiSkillInterface
             );
         }
         $this->renderedInstructions = null;
-        $this->renderedConcepts = null;
         $this->tools = null;
         return $this;
     }
@@ -272,40 +273,27 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Renders skill concepts and collects their suggested tools.
+     * Returns the configured concept instances without rendering their output.
      *
-     * @return array{renderer: BracketHashStringTemplateRenderer, tools: UxonObject[]}
+     * @return AiConceptInterface[]
      */
-    private function renderConcepts() : array
+    private function getConcepts() : array
     {
-        if ($this->renderedConcepts !== null) {
-            return $this->renderedConcepts;
-        }
-
-        $renderer = $this->createRenderer();
-        $conceptTools = [];
-
-        foreach ($this->conceptsUxon as $placeholder => $conceptUxon) {
-            $renderedUxon = UxonObject::fromJson($renderer->render($conceptUxon->toJson()));
-            $concept = AiFactory::createConceptFromUxon(
-                $this->agent,
-                $this->prompt,
-                $placeholder,
-                $renderedUxon
-            );
-            $renderer->addPlaceholder($concept);
-
-            foreach ($concept->getToolModels() as $toolName => $toolUxon) {
-                $conceptTools[$toolName] = $toolUxon;
+        if ($this->concepts === null) {
+            $this->concepts = [];
+            $configRenderer = $this->createRenderer();
+            foreach ($this->conceptsUxon as $placeholder => $conceptUxon) {
+                $renderedUxon = UxonObject::fromJson($configRenderer->render($conceptUxon->toJson()));
+                $this->concepts[] = AiFactory::createConceptFromUxon(
+                    $this->agent,
+                    $this->prompt,
+                    $placeholder,
+                    $renderedUxon
+                );
             }
         }
 
-        foreach ($this->skills as $skill) {
-            $renderer->addPlaceholder($skill);
-        }
-
-        $this->renderedConcepts = ['renderer' => $renderer, 'tools' => $conceptTools];
-        return $this->renderedConcepts;
+        return $this->concepts;
     }
 
     /**
@@ -314,8 +302,14 @@ class GenericSkill implements AiSkillInterface
     private function renderInstructions() : string
     {
         if ($this->renderedInstructions === null) {
-            $rendered = $this->renderConcepts();
-            $this->renderedInstructions = $rendered['renderer']->render($this->instructions);
+            $renderer = $this->createRenderer();
+            foreach ($this->getConcepts() as $concept) {
+                $renderer->addPlaceholder($concept);
+            }
+            foreach ($this->skills as $skill) {
+                $renderer->addPlaceholder($skill);
+            }
+            $this->renderedInstructions = $renderer->render($this->instructions);
         }
 
         return $this->renderedInstructions;
