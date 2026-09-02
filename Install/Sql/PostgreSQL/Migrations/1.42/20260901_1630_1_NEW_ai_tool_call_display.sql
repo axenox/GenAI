@@ -12,5 +12,3 @@ ALTER TABLE exf_ai_tool_call
 
 -- DOWN
 
-ALTER TABLE exf_ai_tool_call
-    DROP COLUMN call_display;

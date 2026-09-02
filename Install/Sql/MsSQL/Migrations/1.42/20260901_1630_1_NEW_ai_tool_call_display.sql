@@ -11,6 +11,3 @@ ALTER TABLE dbo.exf_ai_tool_call
   ADD call_display nvarchar(max) NULL;
 
 -- DOWN
-
-ALTER TABLE dbo.exf_ai_tool_call
-  DROP COLUMN call_display;

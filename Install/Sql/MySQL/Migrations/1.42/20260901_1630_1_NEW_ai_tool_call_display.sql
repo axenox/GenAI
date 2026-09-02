@@ -11,6 +11,3 @@ ALTER TABLE `exf_ai_tool_call`
   ADD `call_display` mediumtext NULL AFTER `tool_name`;
 
 -- DOWN
-
-ALTER TABLE `exf_ai_tool_call`
-  DROP COLUMN `call_display`;
