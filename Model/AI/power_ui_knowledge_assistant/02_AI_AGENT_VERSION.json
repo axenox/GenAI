@@ -61,7 +61,7 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Power UI Knowledge Assistant v1.0 - ohne ToolIntroduction",
+            "_EXPORT_SUMMARY": "Power UI Knowledge Assistant v1",
             "CREATED_ON": "2026-08-19 08:45:15",
             "MODIFIED_ON": "2026-09-01 00:00:00",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
@@ -83,13 +83,10 @@
             "DESCRIPTION": "Power UI knowledge without an embedded introduction to the available tools.",
             "AI_AGENT": "0x11f1a3edf5a506e2a3ed025041000001",
             "ENABLED_FLAG": 1,
-            "INSTRUCTIONS": [
-                "// Multiline text delimited by `\n`",
-                "[#power_ui_knowledge#]"
-            ]
+            "INSTRUCTIONS": "[#power_ui_knowledge#]"
         },
         {
-            "_EXPORT_SUMMARY": "Power UI Knowledge Assistant v1.1 - mit ToolIntroduction",
+            "_EXPORT_SUMMARY": "Power UI Knowledge Assistant v1.1",
             "CREATED_ON": "2026-08-19 09:12:49",
             "MODIFIED_ON": "2026-09-01 00:00:00",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
