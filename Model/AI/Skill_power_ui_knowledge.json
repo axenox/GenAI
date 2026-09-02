@@ -1,0 +1,322 @@
+{
+    "object_alias":  "axenox.GenAI.AI_SKILL",
+    "columns":  [
+                    {
+                        "name":  "_EXPORT_SUMMARY",
+                        "hidden":  true,
+                        "attribute_alias":  "NAME"
+                    },
+                    {
+                        "name":  "CREATED_ON",
+                        "attribute_alias":  "CREATED_ON"
+                    },
+                    {
+                        "name":  "MODIFIED_ON",
+                        "attribute_alias":  "MODIFIED_ON"
+                    },
+                    {
+                        "name":  "CREATED_BY_USER",
+                        "attribute_alias":  "CREATED_BY_USER"
+                    },
+                    {
+                        "name":  "MODIFIED_BY_USER",
+                        "attribute_alias":  "MODIFIED_BY_USER"
+                    },
+                    {
+                        "name":  "UID",
+                        "attribute_alias":  "UID"
+                    },
+                    {
+                        "name":  "NAME",
+                        "attribute_alias":  "NAME"
+                    },
+                    {
+                        "name":  "DESCRIPTION",
+                        "attribute_alias":  "DESCRIPTION"
+                    },
+                    {
+                        "name":  "ALIAS",
+                        "attribute_alias":  "ALIAS"
+                    },
+                    {
+                        "name":  "APP",
+                        "attribute_alias":  "APP"
+                    },
+                    {
+                        "name":  "PROTOTYPE_CLASS",
+                        "attribute_alias":  "PROTOTYPE_CLASS"
+                    },
+                    {
+                        "name":  "INSTRUCTIONS",
+                        "attribute_alias":  "INSTRUCTIONS"
+                    },
+                    {
+                        "name":  "CONFIG_UXON",
+                        "attribute_alias":  "CONFIG_UXON"
+                    }
+                ],
+    "rows":  [
+                 {
+                     "_EXPORT_SUMMARY":  "Power UI Knowledge",
+                     "CREATED_ON":  "2026-09-01 00:00:00",
+                     "MODIFIED_ON":  "2026-09-01 00:00:00",
+                     "CREATED_BY_USER":  "0x11e8fe1c902c8ebea23ee4b318306b9a",
+                     "MODIFIED_BY_USER":  "0x11e8fe1c902c8ebea23ee4b318306b9a",
+                     "UID":  "0x90f383b5104a4c68baecf766bed551d0",
+                     "NAME":  "Power UI Knowledge",
+                     "DESCRIPTION":  "Provides Power UI and ExFace documentation knowledge together with lookup tools for documentation, metaobjects, UXON prototypes and widgets.",
+                     "ALIAS":  "power_ui_knowledge",
+                     "APP":  "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                     "PROTOTYPE_CLASS":  "axenox/genai/AI/Skills/GenericSkill.php",
+                     "INSTRUCTIONS":  [
+                                          "// Multiline text delimited by `\n`",
+                                          "# Power UI",
+                                          "",
+                                          "Power UI ist die no-code Plattform auf Basis des ExFace-Metamodells.",
+                                          "Im folgenden finden sich jegliche Informationen ÃƒÂ¼ber diese Platform.",
+                                          "Falls Daten nicht vorhanden sind bitte an passender Stelle anmercken das Dokumentation erweitert werden soll,",
+                                          "",
+                                          "## Was ist Power UI?",
+                                          "",
+                                          "[#power_ui_overview#]",
+                                          "",
+                                          "## DokumentationsÃƒÂ¼bersicht",
+                                          "",
+                                          "[#sitemap#]",
+                                          "",
+                                          "## Einstieg / Getting Started",
+                                          "",
+                                          "[#getting_started#]",
+                                          "",
+                                          "## UXON",
+                                          "",
+                                          "[#uxon_docs#]",
+                                          "",
+                                          "## Pages, UIs und Widgets",
+                                          "",
+                                          "[#ui_docs#]",
+                                          "",
+                                          "## Metamodell verstehen",
+                                          "",
+                                          "[#metamodel_docs#]",
+                                          "",
+                                          "## Metamodelle erstellen und nutzen",
+                                          "",
+                                          "[#creating_metamodels_docs#]",
+                                          "",
+                                          "## Apps im Metamodell",
+                                          "",
+                                          "[#apps_docs#]",
+                                          "",
+                                          "## Aliase und Selektoren",
+                                          "",
+                                          "[#aliases_selectors_docs#]",
+                                          "",
+                                          "## Datenquellen und Connections",
+                                          "",
+                                          "[#data_sources_docs#]",
+                                          "",
+                                          "## Behaviors",
+                                          "",
+                                          "[#behaviors_docs#]",
+                                          "",
+                                          "## Prototypen",
+                                          "",
+                                          "[#prototypes_docs#]",
+                                          "",
+                                          "## Facades",
+                                          "",
+                                          "[#facades_docs#]"
+                                      ],
+                     "CONFIG_UXON":  {
+                                         "concepts":  {
+                                                          "sitemap":  {
+                                                                          "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                          "app_alias":  "exface.Core",
+                                                                          "starting_page":  "sitemap.md",
+                                                                          "depth":  0,
+                                                                          "heading_level":  3,
+                                                                          "hide_title":  true
+                                                                      },
+                                                          "power_ui_overview":  {
+                                                                                    "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                    "app_alias":  "exface.Core",
+                                                                                    "starting_page":  "index.md",
+                                                                                    "depth":  1,
+                                                                                    "heading_level":  3,
+                                                                                    "hide_title":  false
+                                                                                },
+                                                          "getting_started":  {
+                                                                                  "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                  "app_alias":  "exface.Core",
+                                                                                  "starting_page":  "Getting_started/index.md",
+                                                                                  "depth":  1,
+                                                                                  "heading_level":  3,
+                                                                                  "hide_title":  false
+                                                                              },
+                                                          "uxon_docs":  {
+                                                                            "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                            "app_alias":  "exface.Core",
+                                                                            "starting_page":  "UXON/index.md",
+                                                                            "depth":  1,
+                                                                            "heading_level":  3,
+                                                                            "hide_title":  false
+                                                                        },
+                                                          "ui_docs":  {
+                                                                          "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                          "app_alias":  "exface.Core",
+                                                                          "starting_page":  "Creating_UIs/index.md",
+                                                                          "depth":  1,
+                                                                          "heading_level":  3,
+                                                                          "hide_title":  false
+                                                                      },
+                                                          "metamodel_docs":  {
+                                                                                 "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                 "app_alias":  "exface.Core",
+                                                                                 "starting_page":  "understanding_the_metamodel/index.md",
+                                                                                 "depth":  1,
+                                                                                 "heading_level":  3,
+                                                                                 "hide_title":  false
+                                                                             },
+                                                          "creating_metamodels_docs":  {
+                                                                                           "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                           "app_alias":  "exface.Core",
+                                                                                           "starting_page":  "creating_metamodels/index.md",
+                                                                                           "depth":  1,
+                                                                                           "heading_level":  3,
+                                                                                           "hide_title":  false
+                                                                                       },
+                                                          "apps_docs":  {
+                                                                            "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                            "app_alias":  "exface.Core",
+                                                                            "starting_page":  "understanding_the_metamodel/App_metamodel.md",
+                                                                            "depth":  1,
+                                                                            "heading_level":  3,
+                                                                            "hide_title":  false
+                                                                        },
+                                                          "aliases_selectors_docs":  {
+                                                                                         "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                         "app_alias":  "exface.Core",
+                                                                                         "starting_page":  "understanding_the_metamodel/Aliases_and_selectors.md",
+                                                                                         "depth":  1,
+                                                                                         "heading_level":  3,
+                                                                                         "hide_title":  false
+                                                                                     },
+                                                          "data_sources_docs":  {
+                                                                                    "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                    "app_alias":  "exface.Core",
+                                                                                    "starting_page":  "understanding_the_metamodel/data_sources_and_connections.md",
+                                                                                    "depth":  1,
+                                                                                    "heading_level":  3,
+                                                                                    "hide_title":  false
+                                                                                },
+                                                          "behaviors_docs":  {
+                                                                                 "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                 "app_alias":  "exface.Core",
+                                                                                 "starting_page":  "understanding_the_metamodel/Behaviors_of_meta_objects.md",
+                                                                                 "depth":  1,
+                                                                                 "heading_level":  3,
+                                                                                 "hide_title":  false
+                                                                             },
+                                                          "prototypes_docs":  {
+                                                                                  "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                                  "app_alias":  "exface.Core",
+                                                                                  "starting_page":  "understanding_the_metamodel/prototypes.md",
+                                                                                  "depth":  1,
+                                                                                  "heading_level":  3,
+                                                                                  "hide_title":  false
+                                                                              },
+                                                          "facades_docs":  {
+                                                                               "alias":  "axenox.GenAI.AppDocsConcept",
+                                                                               "app_alias":  "exface.Core",
+                                                                               "starting_page":  "developer_docs/Facades/index.md",
+                                                                               "depth":  1,
+                                                                               "heading_level":  3,
+                                                                               "hide_title":  false
+                                                                           }
+                                                      },
+                                         "tools":  {
+                                                       "get_docs":  {
+                                                                        "alias":  "axenox.GenAI.GetDocsTool",
+                                                                        "description":  "Load a concrete markdown documentation page from a visible Power UI / ExFace documentation link. Use this only when the embedded concepts or sitemap show a relevant documentation link and the user asks for details or an explanation needs verification. Do not guess documentation URLs; use only links visible in the embedded documentation or previously loaded docs.",
+                                                                        "arguments":  [
+                                                                                          {
+                                                                                              "name":  "url",
+                                                                                              "description":  "Markdown documentation URL. Use local URLs starting with api/docs or another documentation link that is visibly present in the embedded or loaded docs. Do not invent paths.",
+                                                                                              "data_type":  {
+                                                                                                                "alias":  "exface.Core.String"
+                                                                                                            }
+                                                                                          }
+                                                                                      ]
+                                                                    },
+                                                       "GetObject":  {
+                                                                         "alias":  "axenox.GenAI.ModelObjectInfoTool",
+                                                                         "description":  "Load metamodel information for a metaobject by fully qualified alias, UID, object name or search term. Use this when explaining concrete Power UI objects, attributes, relations or installation-specific aliases, for example exface.Core.PAGE, exface.Core.OBJECT, exface.Core.ATTRIBUTE or an app-specific business object.",
+                                                                         "arguments":  [
+                                                                                           {
+                                                                                               "name":  "object_alias",
+                                                                                               "description":  "Fully qualified object alias like exface.Core.PAGE, an object UID like 0x..., or a search term from an object name or alias.",
+                                                                                               "data_type":  {
+                                                                                                                 "alias":  "exface.Core.String"
+                                                                                                             }
+                                                                                           }
+                                                                                       ]
+                                                                     },
+                                                       "GetUxonPrototype":  {
+                                                                                "alias":  "axenox.GenAI.ModelPrototypeInfoTool",
+                                                                                "description":  "Load UXON prototype documentation for configurable PHP classes. Use this before explaining concrete UXON properties of actions, behaviors, data connectors, data types or other non-widget prototypes. The selector must be a PHP class starting with backslash or a file path relative to the vendor folder; alias selectors are not supported.",
+                                                                                "arguments":  [
+                                                                                                  {
+                                                                                                      "name":  "selector",
+                                                                                                      "description":  "PHP class beginning with backslash or file path relative to the vendor folder, for example exface/core/Actions/ShowDialog.php or \\exface\\Core\\Actions\\ShowDialog.",
+                                                                                                      "data_type":  {
+                                                                                                                        "alias":  "exface.Core.String"
+                                                                                                                    }
+                                                                                                  }
+                                                                                              ]
+                                                                            },
+                                                       "GetWidgetType":  {
+                                                                             "alias":  "axenox.GenAI.ModelWidgetTypeInfoTool",
+                                                                             "description":  "Load detailed documentation for a widget prototype, including supported UXON properties, widget functions and presets. Use this when explaining or sketching widgets such as DataTable, Form, Dialog, Tabs, Button, Chart or other Page/UXON widgets.",
+                                                                             "arguments":  [
+                                                                                               {
+                                                                                                   "name":  "path",
+                                                                                                   "description":  "Widget type or widget PHP file path relative to the vendor folder, for example DataTable, Form, Dialog, Tabs or exface/core/Widgets/DataTable.php.",
+                                                                                                   "data_type":  {
+                                                                                                                     "alias":  "exface.Core.String"
+                                                                                                                 }
+                                                                                               }
+                                                                                           ]
+                                                                         }
+                                                   }
+                                     }
+                 }
+             ],
+    "totals_rows":  [
+
+                    ],
+    "filters":  {
+                    "operator":  "AND",
+                    "base_object_alias":  "axenox.GenAI.AI_SKILL",
+                    "conditions":  [
+                                       {
+                                           "expression":  "APP",
+                                           "comparator":  "=",
+                                           "value":  "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                                           "object_alias":  "axenox.GenAI.AI_SKILL"
+                                       }
+                                   ]
+                },
+    "rows_limit":  null,
+    "rows_offset":  0,
+    "sorters":  [
+                    {
+                        "attribute_alias":  "CREATED_ON",
+                        "direction":  "ASC"
+                    },
+                    {
+                        "attribute_alias":  "UID",
+                        "direction":  "ASC"
+                    }
+                ]
+}

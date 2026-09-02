@@ -197,6 +197,69 @@
                                                 ]
                                             }
                                         ]
+                                    },
+                                    {
+                                        "widget_type": "WidgetGroup",
+                                        "caption": "Skills",
+                                        "width": "max",
+                                        "height": "max",
+                                        "hidden_if": {
+                                            "operator": "AND",
+                                            "conditions": [
+                                                {
+                                                    "value_left": "=uid_field",
+                                                    "comparator": "==",
+                                                    "value_right": ""
+                                                }
+                                            ]
+                                        },
+                                        "widgets": [
+                                            {
+                                                "widget_type": "DataTable",
+                                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+                                                "filters": [
+                                                    {
+                                                        "attribute_alias": "AI_AGENT_VERSION",
+                                                        "comparator": "==",
+                                                        "value": "=uid_field",
+                                                        "required": true,
+                                                        "hidden": true
+                                                    }
+                                                ],
+                                                "columns": [
+                                                    {
+                                                    "attribute_alias": "SORT_INDEX"
+                                                    },
+                                                    {
+                                                    "attribute_alias": "AI_SKILL__NAME"
+                                                    },
+                                                    {
+                                                    "attribute_alias": "AI_SKILL__ALIAS"
+                                                    },
+                                                    {
+                                                    "attribute_alias": "DESCRIPTION"
+                                                    }
+                                                ],
+                                                "sorters": [
+                                                    {
+                                                        "attribute_alias": "SORT_INDEX",
+                                                        "direction": "asc"
+                                                    }
+                                                ],
+                                                "buttons": [
+                                                    {
+                                                        "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                                    },
+                                                    {
+                                                        "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                        "bind_to_double_click": true
+                                                    },
+                                                    {
+                                                        "action_alias": "exface.Core.DeleteObject"
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     }
                                 ]
                             },

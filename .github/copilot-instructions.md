@@ -25,6 +25,10 @@ The AI framework consists of these main components:
   concept also has a prototype and a model. Concept prototypes are easy to 
   add to apps too. In fact, using the `ToolCallConcept`, you can include any 
   tool output in the instructions right away.
+- AI skills are persisted, non-versioned building blocks that bundle optional
+   instructions, concepts, and tools. Agents reference skills by alias. Skill
+   instructions are inserted through an optional local placeholder, while skill
+   tools are loaded whether or not that placeholder is used.
 
 Messages exchanged with LLMs are tracked in Ai conversations. A complete and 
 easy to read conversation log is very important for the continuous 
@@ -90,9 +94,10 @@ more data from the Ai prompt.
 
 ## Documentation maintenance
 
-Changes to agent, tool, or concept prototypes must include the corresponding documentation update in the same change:
+Changes to agent, skill, tool, or concept prototypes must include the corresponding documentation update in the same change:
 
 - Agent behavior and configuration: `Docs/AI/Agents/`
+- Skill behavior and configuration: `Docs/AI/Skills/`
 - Tool prototypes: `Docs/AI/Tools/index.md`
 - Concept prototypes: `Docs/AI/Concepts/index.md`
 
