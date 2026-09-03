@@ -298,7 +298,21 @@ class FilePatchTool extends AbstractAiTool
     
     public function getRules(): ?string
     {
+        $markerSearch = self::MARKER_SEARCH;
+        $markerDivider = self::MARKER_DIVIDER;
+        $markerReplace = self::MARKER_REPLACE;
         return <<<MD
+
+The tool accepts one or more SEARCH/REPLACE blocks. Each block: "$markerSearch" line, the exact text to find,
+a "$markerDivider" divider, the replacement text and a closing "$markerReplace" line:
+
+```
+<<<<<<< SEARCH
+exact lines from the current file
+=======
+replacement lines
+>>>>>>> REPLACE
+```
 
 - The SEARCH section must match the current file content EXACTLY (including indentation and whitespace).
 - Keep SEARCH blocks small and include just enough surrounding context to be unique within the file.
