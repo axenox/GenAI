@@ -59,7 +59,7 @@
         {
             "_EXPORT_SUMMARY": "Note Skill",
             "CREATED_ON": "2026-09-02 14:17:16",
-            "MODIFIED_ON": "2026-09-02 17:00:15",
+            "MODIFIED_ON": "2026-09-03 11:09:44",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f186473c855c8e8647025041000001",
@@ -154,56 +154,15 @@
                     "SearchNotes": {
                         "alias": "axenox.GenAI.NotesSearchTool",
                         "description": "Search existing long-term Notes/Memory for the current agent and user. Use this before starting tasks that may depend on remembered preferences or context, and always before writing a new memory note or making/storing a suggestion, to avoid duplicates.",
-                        "excerpt_length": 1000,
-                        "arguments": [
-                            {
-                                "name": "query",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Search text for note topics and bodies, e.g. user preference, workflow convention, agent name, skill name, or suggestion topic."
-                            }
-                        ]
+                        "excerpt_length": 1000
                     },
                     "ReadNote": {
                         "alias": "axenox.GenAI.NotesReadTool",
-                        "description": "Read one long-term Note completely by UID after SearchNotes returned a relevant result. Use this before relying on a found note, updating it, or deciding whether a memory/suggestion already exists.",
-                        "arguments": [
-                            {
-                                "name": "uid",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "UID of the note returned by SearchNotes."
-                            }
-                        ]
+                        "description": "Read one long-term Note completely by UID after SearchNotes returned a relevant result. Use this before relying on a found note, updating it, or deciding whether a memory/suggestion already exists."
                     },
                     "WriteNote": {
                         "alias": "axenox.GenAI.NotesWriteTool",
-                        "description": "Write or update a long-term Note for the current agent and user. Use only for Notes/Memory and Suggestions after searching and reading existing related notes. If updating an existing note, pass its UID; otherwise use a clear topic. Do not store secrets or irrelevant transient conversation content.",
-                        "arguments": [
-                            {
-                                "name": "topic",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Clear note topic, preferably using prefixes like memory:user-preferences:, memory:workflow:, suggestion:agent:, suggestion:skill:, or suggestion:process:."
-                            },
-                            {
-                                "name": "body",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Concise note body containing the durable memory or concrete improvement suggestion."
-                            },
-                            {
-                                "name": "uid",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Optional UID of an existing note to overwrite/update after it was found with SearchNotes and read with ReadNote."
-                            }
-                        ]
+                        "description": "Write or update a long-term Note for the current agent and user. Use only for Notes/Memory and Suggestions after searching and reading existing related notes. If updating an existing note, pass its UID; otherwise use a clear topic. Do not store secrets or irrelevant transient conversation content."
                     }
                 }
             },
