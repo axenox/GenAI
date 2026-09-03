@@ -125,8 +125,19 @@ MD;
 			])));
 		}
 
-		$toolUxon = $this->tool->exportUxonObject();
-		if ($toolUxon !== null) {
+		$toolUxon = $this->tool->exportUxonObject()?->copy() ?? new UxonObject();
+		$description = $this->tool->getDescription() ?? '';
+		if ($rules = $this->tool->getRules()) {
+			$description .= "\n\n" . $rules;
+			$toolUxon->setProperty('rules', $rules);
+		}
+		$toolUxon->setProperty('name', $this->tool->getName());
+		$toolUxon->setProperty('description', $description);
+		$toolUxon->setProperty('arguments', new UxonObject());
+		foreach ($this->tool->getArguments() as $argument) {
+			$toolUxon->appendToProperty('arguments', $argument->exportUxonObject());
+		}
+		if (! $toolUxon->isEmpty()) {
 			$toolTab->addWidget(WidgetFactory::createFromUxonInParent($toolTab, new UxonObject([
 				'widget_type' => 'Markdown',
 				'width' => '100%',
