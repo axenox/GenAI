@@ -1,69 +1,43 @@
 <?php
 namespace axenox\GenAI\AI\Concepts;
 
+use axenox\GenAI\Common\DBML\DbmlBuilder;
+use axenox\GenAI\Common\DBML\SqlDbmlBuilder;
 use axenox\GenAI\Exceptions\AiConceptConfigurationError;
-use exface\Core\DataConnectors\MariaDbSqlConnector;
-use exface\Core\DataConnectors\MsSqlConnector;
-use exface\Core\DataConnectors\MySqlConnector;
-use exface\Core\DataConnectors\OracleSqlConnector;
-use exface\Core\DataTypes\StringDataType;
 use exface\Core\Interfaces\DataSources\SqlDataConnectorInterface;
-use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
 
+/**
+ * Adds a physical SQL database schema to AI instructions as DBML.
+ * 
+ * Use `object_filters` to select table-like metaobjects. Only objects from the first matching SQL
+ * connection are included, and their physical table and column addresses are used in the schema.
+ * 
+ * ## Example
+ * 
+ * ```json
+ * {
+ *   "alias": "axenox.GenAI.SqlDbmlConcept",
+ *   "object_filters": {
+ *     "operator": "AND",
+ *     "conditions": [
+ *       {"expression": "DATA_SOURCE__CONNECTION", "comparator": "==", "value": "[#~input:UID#]"}
+ *     ]
+ *   }
+ * }
+ * 
+ * ```
+ */
 class SqlDbmlConcept extends MetamodelDbmlConcept
 {
     private $connection = null;
 
-    public function buildDBML() : string
-    {
-        $dbml = parent::buildDBML();
-        return "// Current DB engine: {$this->getSqlEngine()}" . PHP_EOL
-            . $dbml;
-    }
-
-    protected function getSqlEngine() : string
-    {
-        switch (true) {
-            case $this->connection instanceof MsSqlConnector: return 'Microsoft SQL Server';
-            case $this->connection instanceof OracleSqlConnector: return 'Oracle SQL';
-            case $this->connection instanceof MariaDbSqlConnector: return 'Maria DB';
-            case $this->connection instanceof MySqlConnector: return 'MySQL';
-        }
-        return 'unspecified SQL DB';
-    }
-
-    protected function buildDbmlColName(MetaAttributeInterface $attr) : ?string
-    {
-        $address = trim($attr->getDataAddress());
-        if ($address === null || $address === '' || $this->isCustomSQL($address)) {
-            return null;
-        }
-        return StringDataType::stripLineBreaks($address);
-    }
-
-    protected function buildDbmlColDescription(MetaAttributeInterface $attr) : string
-    {
-        return StringDataType::endSentence($attr->getName()) . ' ' . $attr->getShortDescription();
-    }
-
-    protected function buildDbmlTableName(MetaObjectInterface $obj) : ?string
-    {
-        $address = trim($obj->getDataAddress());
-        if ($address === null || $address === '' || $this->isCustomSQL($address)) {
-            return null;
-        }
-        return $address;
-    } 
-
-    protected function isCustomSQL(string $address) : bool
-    {
-        if ($address === null || $address === '') {
-            return false;
-        }
-        return mb_strpos($address, '(') !== false && mb_strpos($address, ')') !== false;
-    }
-
+    /**
+     * Ensures the concept produces a useful SQL schema.
+     *
+     * {@inheritDoc}
+     * @see \axenox\GenAI\AI\Concepts\MetamodelDbmlConcept::getObjects()
+     */
     protected function getObjects() : array
     {
         $objects = parent::getObjects();
@@ -73,6 +47,12 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
         return $objects;
     }
 
+    /**
+     * Includes table-like objects from one SQL connection.
+     *
+     * {@inheritDoc}
+     * @see \axenox\GenAI\AI\Concepts\MetamodelDbmlConcept::includesObject()
+     */
     protected function includesObject(MetaObjectInterface $obj) : bool
     {
         $connection = $obj->getDataConnection();
@@ -88,5 +68,17 @@ class SqlDbmlConcept extends MetamodelDbmlConcept
             }
         }
         return false;
+    }
+
+    /**
+     * Creates the physical SQL renderer for the selected metaobjects.
+     *
+     * {@inheritDoc}
+     * @see \axenox\GenAI\AI\Concepts\MetamodelDbmlConcept::createDbmlBuilder()
+     */
+    protected function createDbmlBuilder() : DbmlBuilder
+    {
+        $objects = $this->getObjects();
+        return new SqlDbmlBuilder($this->getWorkbench(), $this->connection, $objects);
     }
 }
