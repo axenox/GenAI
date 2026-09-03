@@ -263,9 +263,9 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `connection` | Yes | UID or namespaced alias of the SQL data connection. |
-| `object_aliases` | No | Namespaced metaobject aliases used to limit the returned tables. |
+| `data_address_search` | No | Case-insensitive text to search for in metaobject data addresses. |
 
-**How to use.** Pass the configured connection UID or alias. Omit `object_aliases` to retrieve all table-like objects on the connection, or provide a small alias list when only part of a large schema is relevant.
+**How to use.** Pass the configured connection UID or alias. Omit `data_address_search` to retrieve all table-like objects on the connection. To limit a large schema, pass literal text contained in the physical table addresses: for example, `dbo.` selects objects in the `dbo` schema and `order_` selects objects whose addresses contain that table-name fragment.
 
 **Result and limits.** The result is DBML prefixed with the detected SQL engine. Relationships are emitted only when both objects are present in the result. Missing connections, non-SQL connections, and selections without matching table objects produce a tool error. The tool reads the ExFace metamodel; it does not inspect the live database schema.
 

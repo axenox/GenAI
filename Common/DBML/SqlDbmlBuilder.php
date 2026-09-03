@@ -8,8 +8,6 @@ use exface\Core\DataConnectors\OdbcSqlConnector;
 use exface\Core\DataConnectors\OracleSqlConnector;
 use exface\Core\DataConnectors\PostgreSqlConnector;
 use exface\Core\DataTypes\StringDataType;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Factories\MetaObjectFactory;
 use exface\Core\Interfaces\DataSources\SqlDataConnectorInterface;
 use exface\Core\Interfaces\Model\MetaAttributeInterface;
 use exface\Core\Interfaces\Model\MetaObjectInterface;
@@ -34,41 +32,6 @@ class SqlDbmlBuilder extends DbmlBuilder
     ) {
         $this->connection = $connection;
         parent::__construct($workbench, $this->filterObjects($objects));
-    }
-
-    /**
-     * Loads the metaobjects backed by the given SQL connection.
-     *
-     * When aliases are supplied, only matching objects are returned.
-     *
-     * @param WorkbenchInterface $workbench
-     * @param SqlDataConnectorInterface $connection
-     * @param string[] $objectAliases
-     * @return MetaObjectInterface[]
-     */
-    public static function findObjects(
-        WorkbenchInterface $workbench,
-        SqlDataConnectorInterface $connection,
-        array $objectAliases = []
-    ) : array {
-        $dataSheet = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.Core.OBJECT');
-        $aliasColumn = $dataSheet->getColumns()->addFromExpression('ALIAS_WITH_NS');
-        $dataSheet->getFilters()->addConditionFromString('DATA_SOURCE__CONNECTION', $connection->getId(), EXF_COMPARATOR_EQUALS);
-        $dataSheet->dataRead();
-
-        $aliasFilter = array_fill_keys($objectAliases, true);
-        $objects = [];
-        foreach ($aliasColumn->getValues() as $alias) {
-            if (! empty($aliasFilter) && ! isset($aliasFilter[$alias])) {
-                continue;
-            }
-            $object = MetaObjectFactory::createFromString($workbench, $alias);
-            if (! self::isTableObjectForConnection($object, $connection)) {
-                continue;
-            }
-            $objects[] = $object;
-        }
-        return $objects;
     }
 
     /**
@@ -172,7 +135,7 @@ class SqlDbmlBuilder extends DbmlBuilder
      * @param SqlDataConnectorInterface $connection
      * @return bool
      */
-    private static function isTableObjectForConnection(
+    public static function isTableObjectForConnection(
         MetaObjectInterface $object,
         SqlDataConnectorInterface $connection
     ) : bool {

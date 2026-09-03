@@ -263,9 +263,9 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `connection` | Ja | UID oder namespaced Alias der SQL-Datenverbindung. |
-| `object_aliases` | Nein | Namespaced Metaobjekt-Aliase zur Begrenzung der zurückgegebenen Tabellen. |
+| `data_address_search` | Nein | Text, nach dem ohne Beachtung der Groß-/Kleinschreibung in Metaobjekt-Datenadressen gesucht wird. |
 
-**Verwendung.** Übergeben Sie UID oder Alias der konfigurierten Verbindung. Lassen Sie `object_aliases` weg, um alle tabellenartigen Objekte der Verbindung abzurufen, oder geben Sie für große Schemas eine kleine Aliasliste an.
+**Verwendung.** Übergeben Sie UID oder Alias der konfigurierten Verbindung. Lassen Sie `data_address_search` weg, um alle tabellenartigen Objekte der Verbindung abzurufen. Um ein großes Schema einzuschränken, übergeben Sie Text, der in den physischen Tabellenadressen enthalten ist: Beispielsweise wählt `dbo.` Objekte im Schema `dbo` aus und `order_` Objekte, deren Adressen dieses Tabellennamenfragment enthalten.
 
 **Ergebnis und Grenzen.** Das Ergebnis ist DBML mit vorangestellter erkannter SQL-Engine. Beziehungen werden nur ausgegeben, wenn beide Objekte im Ergebnis enthalten sind. Fehlende Verbindungen, Nicht-SQL-Verbindungen und Auswahlen ohne passende Tabellenobjekte erzeugen einen Tool-Fehler. Das Tool liest das ExFace-Metamodell und untersucht nicht das Live-Datenbankschema.
 
