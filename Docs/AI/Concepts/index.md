@@ -104,7 +104,7 @@ Concept output is generated when the prompt is rendered and cached for that conc
 
 **How to use.** Configure a non-empty `object_filters` condition group that selects only the relevant app, namespace, connection, or object set. Filters may contain prompt input placeholders such as `[#~input:UID#]` when the schema depends on the first input row.
 
-**Result and limits.** The result is DBML suitable for model context, not executable database DDL. Rendering broad selections increases database work and prompt size. Objects backed by custom SQL statements may not be representable as normal DBML tables.
+**Result and limits.** The result is DBML suitable for model context, not executable database DDL. Relationships are included only between objects present in the selected schema. Rendering broad selections increases database work and prompt size. Objects backed by custom SQL statements may not be representable as normal DBML tables.
 
 ## `SqlDbmlConcept`
 
@@ -118,7 +118,7 @@ Concept output is generated when the prompt is rendered and cached for that conc
 
 **How to use.** Supply the same narrowly scoped `object_filters` condition group as for `MetamodelDbmlConcept`. Filtering by a connection from `[#~input:FIELD#]` is useful when an AI chat is opened for a selected data connection.
 
-**Result and limits.** The concept emits DBML for supported SQL objects and engines such as MySQL, MariaDB, Oracle, and Microsoft SQL Server. Resolution fails when no suitable SQL objects match the configuration.
+**Result and limits.** The concept uses the same physical-schema renderer as `SqlDbmlTool` and emits DBML for engines such as MySQL, MariaDB, PostgreSQL, Oracle, Microsoft SQL Server, and ODBC SQL. Relationships are included only between selected tables. Resolution fails when no suitable SQL objects match the configuration.
 
 ## `ToolCallConcept`
 

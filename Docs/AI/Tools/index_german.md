@@ -19,6 +19,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Git-Änderungen und Historie untersuchen | `GitTool` |
 | PHP-Syntax validieren | `DevLintPHPTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Das physische Schema einer SQL-Verbindung abrufen | `SqlDbmlTool` |
 | Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
 | Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
@@ -248,6 +249,25 @@ replacement text
 **Verwendung.** Das Modell übergibt ein Verzeichnismuster, optional ein Glob-Muster für Dateinamen und optional eine Inhaltssuche. Ein einzelnes `*` entspricht einem Pfadsegment, während `**` mehrere Ebenen umfassen kann. Mit `include_extract_line` legen Sie fest, ob passende Zeilen ausgegeben werden.
 
 **Ergebnis und Grenzen.** Das Ergebnis listet passende Pfade und bei Bedarf Auszüge passender Zeilen auf. Vermeiden Sie eine unbegrenzte `**`-Suche ab dem Vendor-Stammverzeichnis. Engere Pfade reduzieren Ausführungszeit, Festplattenzugriffe und Antwortgröße.
+
+## `SqlDbmlTool`
+
+**Alias:** `axenox.GenAI.SqlDbmlTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CSqlDbmlTool)
+
+**Zweck.** Erzeugt ein physisches DBML-Schema aus den tabellenartigen ExFace-Metaobjekten, die einer SQL-Datenverbindung zugeordnet sind.
+
+**Verwenden, wenn.** Ein Agent Tabellennamen, Spaltennamen, Datentypen, Enum-Werte und Beziehungen einer Verbindung nur bei Bedarf benötigt. Dadurch muss ein möglicherweise großes Schema nicht über `SqlDbmlConcept` in jeden Prompt eingefügt werden.
+
+**Nicht verwenden, wenn.** Verwenden Sie es nicht für Nicht-SQL-Verbindungen, auf benutzerdefinierten SQL-Anweisungen basierende Objekte oder ausführbare DDL. Nutzen Sie `MetamodelDbmlConcept`, wenn konzeptionelle Metaobjektnamen in jedem Prompt benötigt werden.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `connection` | Ja | UID oder namespaced Alias der SQL-Datenverbindung. |
+| `object_aliases` | Nein | Namespaced Metaobjekt-Aliase zur Begrenzung der zurückgegebenen Tabellen. |
+
+**Verwendung.** Übergeben Sie UID oder Alias der konfigurierten Verbindung. Lassen Sie `object_aliases` weg, um alle tabellenartigen Objekte der Verbindung abzurufen, oder geben Sie für große Schemas eine kleine Aliasliste an.
+
+**Ergebnis und Grenzen.** Das Ergebnis ist DBML mit vorangestellter erkannter SQL-Engine. Beziehungen werden nur ausgegeben, wenn beide Objekte im Ergebnis enthalten sind. Fehlende Verbindungen, Nicht-SQL-Verbindungen und Auswahlen ohne passende Tabellenobjekte erzeugen einen Tool-Fehler. Das Tool liest das ExFace-Metamodell und untersucht nicht das Live-Datenbankschema.
 
 ## `DataSheetReadTool`
 
