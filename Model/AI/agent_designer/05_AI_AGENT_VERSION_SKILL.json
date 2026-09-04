@@ -1,0 +1,79 @@
+{
+    "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+    "columns": [
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "AI_AGENT_VERSION",
+            "attribute_alias": "AI_AGENT_VERSION"
+        },
+        {
+            "name": "AI_SKILL",
+            "attribute_alias": "AI_SKILL"
+        },
+        {
+            "name": "SORT_INDEX",
+            "attribute_alias": "SORT_INDEX"
+        }
+    ],
+    "rows": [
+        {
+            "CREATED_ON": "2026-09-02 17:01:29",
+            "MODIFIED_ON": "2026-09-02 17:02:09",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f1bf922da033b2bf92025041000001",
+            "DESCRIPTION": "Dies dient als eine Art Testlauf von den Notes Skill",
+            "AI_AGENT_VERSION": "0x5336e2eacaf144e68ffee6811891b0c9",
+            "AI_SKILL": "0x11f186473c855c8e8647025041000001",
+            "SORT_INDEX": 0
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+        "conditions": [
+            {
+                "expression": "AI_AGENT_VERSION__AI_AGENT__APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
