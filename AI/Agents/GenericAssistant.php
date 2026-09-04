@@ -287,7 +287,7 @@ class GenericAssistant implements AiAgentInterface
                             $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
                         }
                         $e->setToolCall($call);
-                        $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage());
+                        $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage(), null, [], [$e]);
                         $exceptions = [$e];
                     }
                     foreach ($exceptions as $e) {
@@ -302,7 +302,14 @@ class GenericAssistant implements AiAgentInterface
                     // user or continue with other tools.
                     if ($resultOfTool && $resultOfTool->isFailed()) {
                         // TODO should we give more error details to the LLM
-                        $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Tool execution failed. It seems, this tool is broken.");
+                        $resultOfTool = new AiToolResultString(
+                            $tool,
+                            $args,
+                            "ERROR: Tool execution failed. It seems, this tool is broken.",
+                            null,
+                            [],
+                            $resultOfTool->getExceptions()
+                        );
                     }
                     
                 } else {

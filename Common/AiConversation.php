@@ -471,8 +471,13 @@ class AiConversation implements AiConversationInterface
 
                 if ($toolCallSheet->countRows() === 1) {
                     $toolCallSheet->getColumns()->addMultiple(['RESULT', 'FAILED']);
-                    $toolCallSheet->setCellValue('RESULT', 0, $response->getToolResult()->getValue());
-                    $toolCallSheet->setCellValue('FAILED', 0, $response->getToolResult()->isFailed() ? 1 : 0);
+                    $toolResult = $response->getToolResult();
+                    $result = $toolResult->getValue();
+                    if ($toolResult->isFailed() && ($exception = $toolResult->getExceptions()[0] ?? null) instanceof \Throwable) {
+                        $result = $exception->getMessage();
+                    }
+                    $toolCallSheet->setCellValue('RESULT', 0, $result);
+                    $toolCallSheet->setCellValue('FAILED', 0, $toolResult->isFailed() ? 1 : 0);
                     $toolCallSheet->dataUpdate(false, $transaction);
                 }
             }
