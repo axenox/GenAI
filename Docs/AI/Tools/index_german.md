@@ -21,7 +21,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
 | Das physische Schema einer SQL-Verbindung abrufen | `SqlDbmlTool` |
 | Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
-| Agentengedächtnis für den aktuellen Benutzer speichern oder abrufen | `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
+| Agentengedächtnis für den aktuellen Benutzer auflisten, speichern oder abrufen | `NotesListTool`, `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
 | Suchen, wo Modell-Elemente referenziert sind | `ModelSearchTool` |
 | ExFace-Dokumentation lesen | `GetDocsTool` |
 | Modell- oder UXON-Metadaten untersuchen | Eines der `Model*InfoTool`-Tools |
@@ -366,6 +366,16 @@ replacement text
 
 **Ergebnis und Grenzen.** Das Tool verwendet den regulären DataSheet-Speichervorgang und gibt die Anzahl importierter Zeilen zurück. ExFace-Autorisierung und -Validierung bleiben aktiv. Ungültige Zeilen werden, sofern die Verarbeitung fortgesetzt werden kann, als Exceptions gemeldet; kritische Fehler brechen den Import ab.
 
+## `NotesListTool`
+
+**Alias:** `axenox.GenAI.NotesListTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesListTool)
+
+**Zweck.** Listet Typen und Themen aller langfristigen Notizen für den aufrufenden Agenten und den authentifizierten Benutzer auf, ohne deren Inhalte offenzulegen.
+
+**Verwenden, wenn.** Der Agent einen kompakten Überblick über seine verfügbaren Notizen benötigt, beispielsweise als Prompt-Kontext vor der Entscheidung über eine gezielte Suche. Das Tool besitzt keine Argumente.
+
+**Ergebnis und Grenzen.** Gibt eine nach Typ und Thema sortierte Markdown-Tabelle mit den Spalten `Type` und `Topic` zurück. Benutzer- und Agentenfilter werden immer aus der aktuellen Anfrage abgeleitet und können nicht vom Modell übergeben werden. Notiztexte und UIDs werden weder gelesen noch zurückgegeben.
+
 ## `NotesWriteTool`
 
 **Alias:** `axenox.GenAI.NotesWriteTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
@@ -417,7 +427,7 @@ replacement text
 
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
-| `query` | Ja | Text, der in Notizthemen oder Notiztexten gesucht wird. |
+| `query` | Nein | Text, der in Notizthemen oder Notiztexten gesucht wird. Leer lassen, um alle Notizen zurückzugeben. |
 | `type` | Nein | `all` (Standardwert), `memory` oder `suggestion`. Konkrete Typen schränken die Suchergebnisse ein. |
 
 **Ergebnis und Grenzen.** Jeder Treffer enthält UID, Typ, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
