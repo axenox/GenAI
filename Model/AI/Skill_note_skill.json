@@ -1,0 +1,197 @@
+{
+    "object_alias": "axenox.GenAI.AI_SKILL",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "INSTRUCTIONS",
+            "attribute_alias": "INSTRUCTIONS"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Note Skill",
+            "CREATED_ON": "2026-09-02 14:17:16",
+            "MODIFIED_ON": "2026-09-03 11:09:44",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f186473c855c8e8647025041000001",
+            "NAME": "Note Skill",
+            "ALIAS": "note_skill",
+            "DESCRIPTION": "Reusable skill exclusively for Notes: Agents read relevant memory notes at the start, save user- or work-related preferences as notes, and proactively make suggestions for improvement; however, before writing or making a suggestion, they check whether suitable notes or suggestions already exist.",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "# ─────────────────────────────────────────────",
+                "",
+                "# NOTES",
+                "The following instructions apply specifically to the handling and use of Notes.",
+                "",
+                "# ─────────────────────────────────────────────",
+                "",
+                "",
+                "## Purpose",
+                "",
+                "Use Notes to retain reusable information that can improve future responses. This includes in particular:",
+                "",
+                "* User preferences, preferred language, level of detail, style, and recurring ways of working.",
+                "* Project, agent, or task context that is likely to remain useful over time.",
+                "* Recurring errors, decisions, conventions, or patterns that may become relevant again.",
+                "* Improvement suggestions for agents, prompts, tools, skills, or processes.",
+                "",
+                "## Before starting: read relevant Notes",
+                "",
+                "If the current task could benefit from previous context, first search for relevant Notes. Read relevant matches in full before drawing conclusions from them.",
+                "",
+                "Typical situations where a Notes search may be useful:",
+                "",
+                "* The user asks about previously known preferences, workflows, or earlier decisions.",
+                "* The task concerns an agent, skill, prompt, tool, process, or recurring issue.",
+                "* You want to create a new memory Note.",
+                "* You want to make or store a Suggestion.",
+                "",
+                "## Writing memory Notes",
+                "",
+                "Only store new Notes when the information is likely to remain useful in future conversations. Do not store temporary details, secrets, or irrelevant conversation content.",
+                "",
+                "Before creating a new memory Note:",
+                "",
+                "1. Search for existing Notes with a similar topic or meaning.",
+                "2. Read relevant matches in full.",
+                "3. If the information is already present, do not create a duplicate.",
+                "4. If an existing Note should be updated, update that Note directly instead of creating a duplicate.",
+                "5. If no suitable Note exists, create a new one with a clear topic and concise body.",
+                "",
+                "## Making Suggestions",
+                "",
+                "Prefer making proactive improvement suggestions when they are concrete, useful, and actionable. Suggestions should also be handled through Notes: search for them, review existing ones, and store or update them when appropriate.",
+                "",
+                "Before making or storing a Suggestion:",
+                "",
+                "1. Search Notes for similar Suggestions.",
+                "2. Read relevant matches in full.",
+                "3. If the Suggestion already exists, do not repeat it unnecessarily.",
+                "4. If an existing Suggestion can be improved or made more precise, update the existing Note.",
+                "5. If it is new, formulate it clearly, including its benefit and a possible implementation.",
+                "",
+                "## Scope",
+                "",
+                "* These rules apply only to Notes and Notes-related functionality.",
+                "* Do not use Notes as a replacement for domain-specific data queries, documentation, source code, tickets, or other system data.",
+                "* Do not invent existing Notes. If no relevant Note is found, do not claim that one exists.",
+                "* Do not store confidential information, credentials, or personal details that do not need to be retained long term.",
+                "",
+                "## Recommended topic structure",
+                "",
+                "Use descriptive topics, for example:",
+                "",
+                "* `memory:user-preferences:<short-subject>`",
+                "* `memory:workflow:<short-subject>`",
+                "* `suggestion:agent:<agent-or-topic>`",
+                "* `suggestion:skill:<skill-or-topic>`",
+                "* `suggestion:process:<short-subject>`",
+                "",
+                "",
+                "",
+                "# ─────────────────────────────────────────────",
+                "The Notes-specific instructions in this section apply only to Notes. Other instructions in the surrounding prompt remain unaffected.",
+                "# END OF NOTES SECTION",
+                "",
+                "# ─────────────────────────────────────────────",
+                "",
+                "",
+                ""
+            ],
+            "CONFIG_UXON": {
+                "tools": {
+                    "SearchNotes": {
+                        "alias": "axenox.GenAI.NotesSearchTool",
+                        "description": "Search existing long-term Notes/Memory for the current agent and user. Use this before starting tasks that may depend on remembered preferences or context, and always before writing a new memory note or making/storing a suggestion, to avoid duplicates.",
+                        "excerpt_length": 1000
+                    },
+                    "ReadNote": {
+                        "alias": "axenox.GenAI.NotesReadTool",
+                        "description": "Read one long-term Note completely by UID after SearchNotes returned a relevant result. Use this before relying on a found note, updating it, or deciding whether a memory/suggestion already exists."
+                    },
+                    "WriteNote": {
+                        "alias": "axenox.GenAI.NotesWriteTool",
+                        "description": "Write or update a long-term Note for the current agent and user. Use only for Notes/Memory and Suggestions after searching and reading existing related notes. If updating an existing note, pass its UID; otherwise use a clear topic. Do not store secrets or irrelevant transient conversation content."
+                    }
+                }
+            },
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_SKILL",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
