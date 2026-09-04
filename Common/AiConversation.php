@@ -126,16 +126,11 @@ class AiConversation implements AiConversationInterface
         $transaction = $this->workbench->data()->startTransaction();
         $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
 
-        $modelName = null;
         $connectionId = null;
 
         try {
             $connection = $this->assistant->getConnection();
             $connectionId = $connection->getId();
-
-            if ($query !== null) {
-                $modelName = $connection->getModelName($query);
-            }
         } catch (\Throwable $e) {
             // TODO possible Errorhandling
         }
@@ -153,7 +148,6 @@ class AiConversation implements AiConversationInterface
             'TITLE' => $title,
             'DATA' => $dataUxon->toJson(),
             'DEVMODE' => $this->assistant->getDevmode() ? 1 : 0,
-            'MODEL' => $modelName,
             'CONNECTION' => $connectionId
         ];
         if ($this->prompt->hasMetaObject()) {
@@ -211,6 +205,7 @@ class AiConversation implements AiConversationInterface
                 'ROLE' => AiMessageTypeDataType::SYSTEM,
                 'MESSAGE' => $systemPrompt,
                 'DATA' => $dataUxon->toJson(true),
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
 
@@ -253,6 +248,7 @@ class AiConversation implements AiConversationInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::USER,
                 'MESSAGE' => $query->getUserPrompt(),
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
             $messageSheet->dataCreate(false, $transaction);
@@ -311,6 +307,7 @@ class AiConversation implements AiConversationInterface
                 'ROLE' => AiMessageTypeDataType::TOOLCALLING,
                 'MESSAGE' => $markdown,
                 'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
@@ -354,6 +351,7 @@ class AiConversation implements AiConversationInterface
                 'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                 'ROLE' => AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE' => $answer,
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
@@ -405,6 +403,7 @@ class AiConversation implements AiConversationInterface
                 'ROLE' => AiMessageTypeDataType::TOOL,
                 'DATA' => UxonObject::fromArray($responses)->toJson(true),
                 'MESSAGE' => $markdown,
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++
             ]);
 
@@ -561,6 +560,7 @@ class AiConversation implements AiConversationInterface
                 'ROLE' => AiMessageTypeDataType::ERROR,
                 'DATA' => $dataUxon->toJson(true),
                 'MESSAGE' => $markdown,
+                'MODEL' => $this->assistant->getConnection()->getModelName(),
                 'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'ERROR_LOG_ID' => $errorID
             ]);
@@ -638,6 +638,7 @@ class AiConversation implements AiConversationInterface
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE' => AiMessageTypeDataType::WARNING,
                     'MESSAGE' => $warningText,
+                    'MODEL' => $this->assistant->getConnection()->getModelName(),
                     'SEQUENCE_NUMBER' => $this->sequenceNumber++
                 ];
 
@@ -721,6 +722,7 @@ class AiConversation implements AiConversationInterface
                     'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
                     'ROLE' => AiMessageTypeDataType::ERROR,
                     'MESSAGE' => $errorText,
+                    'MODEL' => $this->assistant->getConnection()->getModelName(),
                     'SEQUENCE_NUMBER' => $this->sequenceNumber++
                 ];
 
