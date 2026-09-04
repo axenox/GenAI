@@ -286,10 +286,14 @@ class GenericAssistant implements AiAgentInterface
                         if (! $e instanceof AiToolCriticalError) {
                             $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
                         }
+                        $e->setToolCall($call);
                         $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage());
                         $exceptions = [$e];
                     }
                     foreach ($exceptions as $e) {
+                        if ($e instanceof AiToolCriticalError) {
+                            $e->setToolCall($call);
+                        }
                         $this->getWorkbench()->getLogger()->logException($e);
                     }
                     $conversation->saveExceptions($exceptions);
