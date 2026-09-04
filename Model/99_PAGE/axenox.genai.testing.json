@@ -94,7 +94,7 @@
                                 "widget_type": "RangeFilter"
                             },
                             {
-                                "attribute_alias": "AI_CONVERSATION__MODEL"
+                                "attribute_alias": "AI_CONVERSATION__AI_MESSAGE__MODEL:LIST_DISTINCT"
                             }
                         ],
                         "buttons": [
@@ -137,7 +137,7 @@
                                 "*/": ""
                             },
                             {
-                                "attribute_alias": "AI_CONVERSATION__MODEL"
+                                "attribute_alias": "AI_CONVERSATION__AI_MESSAGE__MODEL:LIST_DISTINCT"
                             }
                         ],
                         "sorters": [

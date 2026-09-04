@@ -280,7 +280,7 @@
                                                 "hint": "Version of the agent"
                                             },
                                             {
-                                                "attribute_alias": "MODEL"
+                                                "attribute_alias": "AI_MESSAGE__MODEL:LIST_DISTINCT"
                                             },
                                             {
                                                 "attribute_alias": "PAGE__LABEL"
