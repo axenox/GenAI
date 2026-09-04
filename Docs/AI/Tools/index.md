@@ -19,6 +19,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Inspect Git changes and history | `GitTool` |
 | Validate PHP syntax | `DevLintPHPTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
+| Retrieve the physical schema of an SQL connection | `SqlDbmlTool` |
 | Find object data by a configured attribute | `ModelObjectSearchTool` |
 | Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
@@ -248,6 +249,25 @@ replacement text
 **How to use.** The model supplies a folder pattern, an optional filename glob, and an optional content query. A single `*` matches one path segment and `**` can span multiple levels. Use `include_extract_line` to control whether matching lines are included.
 
 **Result and limits.** The result lists matching paths and, when requested, matching line extracts. Avoid an unbounded `**` search from the vendor root. Narrow paths reduce execution time, disk access, and response size.
+
+## `SqlDbmlTool`
+
+**Alias:** `axenox.GenAI.SqlDbmlTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CSqlDbmlTool)
+
+**Purpose.** Generates a physical DBML schema from the table-like ExFace metaobjects assigned to an SQL data connection.
+
+**Use when.** An agent needs table names, column names, data types, enum values, and relationships for a connection only on demand. This avoids adding a potentially large schema to every prompt through `SqlDbmlConcept`.
+
+**Do not use when.** Do not use it for non-SQL connections, objects backed by custom SQL statements, or executable DDL. Use `MetamodelDbmlConcept` when conceptual metaobject names are required in every prompt.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `connection` | Yes | UID or namespaced alias of the SQL data connection. |
+| `data_address_search` | No | Case-insensitive text to search for in metaobject data addresses. |
+
+**How to use.** Pass the configured connection UID or alias. Omit `data_address_search` to retrieve all table-like objects on the connection. To limit a large schema, pass literal text contained in the physical table addresses: for example, `dbo.` selects objects in the `dbo` schema and `order_` selects objects whose addresses contain that table-name fragment.
+
+**Result and limits.** The result is DBML prefixed with the detected SQL engine. Relationships are emitted only when both objects are present in the result. Missing connections, non-SQL connections, and selections without matching table objects produce a tool error. The tool reads the ExFace metamodel; it does not inspect the live database schema.
 
 ## `DataSheetReadTool`
 

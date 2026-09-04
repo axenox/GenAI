@@ -992,7 +992,7 @@
                                     "attribute_alias": "USER__LABEL"
                                 },
                                 {
-                                    "attribute_alias": "MODEL"
+                                    "attribute_alias": "AI_MESSAGE__MODEL:LIST_DISTINCT"
                                 },
                                 {
                                     "attribute_alias": "RATING"

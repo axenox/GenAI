@@ -63,7 +63,7 @@
         {
             "_EXPORT_SUMMARY": "Formula developer v1.0",
             "CREATED_ON": "2026-06-03 11:55:29",
-            "MODIFIED_ON": "2026-06-05 16:15:31",
+            "MODIFIED_ON": "2026-09-03 08:19:23",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f1926c5a704eee926c025041000001",
@@ -75,9 +75,9 @@
                         "alias": "axenox.GenAI.FileReadTool",
                         "description": "Read any file from the vendor folder of the workbench installation"
                     },
-                    "write_file": {
-                        "alias": "axenox.GenAI.FileWriteTool",
-                        "description": "Replaces the given file with new contents. Only files in the apps `<vendor>/<app>/Formulas` folders accessible!",
+                    "patch_file": {
+                        "alias": "axenox.GenAI.FilePatchTool",
+                        "description": "Changes the given file. Only files in the apps `<vendor>/<app>/Formulas` folders accessible!",
                         "allowed_paths": [
                             "*/*/Formulas/*.php"
                         ]
@@ -87,9 +87,6 @@
                         "arguments": [
                             {
                                 "name": "path",
-                                "data_type": {
-                                    "alias": "exface.Core.Markdown"
-                                },
                                 "description": "Path to the desired folder relative to `vendor`: e.g. `exface/core/Formulas` or `exface/core/CommonLogic/DataSheets`"
                             }
                         ],

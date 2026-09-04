@@ -18,8 +18,8 @@ CREATE TABLE dbo.exf_ai_skill (
     config_uxon nvarchar(max),
     prototype_class nvarchar(255) NOT NULL,
     PRIMARY KEY (oid),
-    INDEX exf_ai_skill_app (app_oid),
-    CONSTRAINT exf_ai_skill_app
+    INDEX idx_exf_ai_skill_app (app_oid),
+    CONSTRAINT fk_exf_ai_skill_app
         FOREIGN KEY (app_oid) REFERENCES dbo.exf_app (oid)
 );
 
