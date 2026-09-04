@@ -32,13 +32,18 @@ class NotesListTool extends AbstractAiTool
         $sheet->getSorters()->addFromString('TOPIC', SortingDirectionsDataType::ASC);
         $sheet->dataRead();
 
-        if (empty($sheet->getRows())) {
+        $rows = [];
+        foreach ($sheet->getRows() as $row) {
+            $rows[] = [
+                'Type' => $row['TYPE'] ?? '',
+                'Topic' => $row['TOPIC'] ?? ''
+            ];
+        }
+
+        if (empty($rows)) {
             $markdown = 'No Notes are currently available for this agent and user.';
         } else {
-            $markdown = MarkdownDataType::buildMarkdownTableFromArray(
-                $sheet->getRows(),
-                ['Type', 'Topic']
-            );
+            $markdown = MarkdownDataType::buildMarkdownTableFromArray($rows, ['Type', 'Topic']);
         }
 
         return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
