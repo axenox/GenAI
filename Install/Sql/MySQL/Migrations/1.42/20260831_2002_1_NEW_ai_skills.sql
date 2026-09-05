@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `exf_ai_skill` (
     PRIMARY KEY (`oid`) USING BTREE,
     KEY `exf_ai_skill_app` (`app_oid`),
     CONSTRAINT `exf_ai_skill_app` FOREIGN KEY (`app_oid`) REFERENCES `exf_app` (`oid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS `exf_ai_agent_version_skill` (
     `oid` binary(16) NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `exf_ai_agent_version_skill` (
     KEY `idx_exf_ai_agent_version_skill_skill` (`ai_skill_oid`),
     CONSTRAINT `fk_exf_ai_agent_version_skill_skill` FOREIGN KEY (`ai_skill_oid`) REFERENCES `exf_ai_skill` (`oid`),
     CONSTRAINT `fk_exf_ai_agent_version_skill_version` FOREIGN KEY (`ai_agent_version_oid`) REFERENCES `exf_ai_agent_version` (`oid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT ROW_FORMAT=DYNAMIC;
 
 -- DOWN
 
