@@ -32,10 +32,6 @@
         {
             "name": "AI_SKILL",
             "attribute_alias": "AI_SKILL"
-        },
-        {
-            "name": "SORT_INDEX",
-            "attribute_alias": "SORT_INDEX"
         }
     ],
     "rows": [
@@ -47,8 +43,7 @@
             "UID": "0x11f1bf922da033b2bf92025041000001",
             "DESCRIPTION": "Dies dient als eine Art Testlauf von den Notes Skill",
             "AI_AGENT_VERSION": "0x5336e2eacaf144e68ffee6811891b0c9",
-            "AI_SKILL": "0x11f186473c855c8e8647025041000001",
-            "SORT_INDEX": 0
+            "AI_SKILL": "0x11f186473c855c8e8647025041000001"
         }
     ],
     "totals_rows": [],
