@@ -19,6 +19,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Inspect Git changes and history | `GitTool` |
 | Validate PHP syntax | `DevLintPHPTool` |
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
+| Reference or create registry-approved model components | `ModelComponentSaveTool` |
 | Retrieve the physical schema of an SQL connection | `SqlDbmlTool` |
 | Find object data by a configured attribute | `ModelObjectSearchTool` |
 | Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
@@ -365,6 +366,26 @@ replacement text
 **How to use.** Configure either `save_as` for one target schema or `data_schemas` for several permitted schemas. Restrict each schema to the exact objects, columns, and subsheets the agent may modify. The model then supplies a matching DataSheet object or array of objects.
 
 **Result and limits.** The tool uses the normal DataSheet save operation and returns imported row counts. ExFace authorization and validation remain active. Invalid rows are reported as exceptions where processing can continue; critical failures stop the import.
+
+## `ModelComponentSaveTool`
+
+**Alias:** `axenox.GenAI.ModelComponentSaveTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelComponentSaveTool)
+
+**Purpose.** References existing model components by UID or creates new components using the allowlisted DataSheet templates in Core's component registry.
+
+**Use when.** An agent builds configuration that may reuse existing components and create missing ones, and the permitted component fields must stay centrally controlled by Core.
+
+**Do not use when.** Do not use this tool to edit or delete existing components. A UID input is validated and returned as a reference without being written.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `components` | Yes | Array of component operations. Each item contains `component` and either `uid` for an existing reference or `data_sheet` for a new component. |
+
+**Schema source.** The tool lists only component types with `save_component_data` in `ComponentRegistry.config.json`. Its argument JSON Schema is generated from those templates through `DataSheetSchema`. Configured columns are authoritative; a missing `columns` property activates the metamodel fallback.
+
+**Write safety.** The tool rebuilds every write DataSheet from the trusted registry template and copies only validated rows into it. Model-provided columns, filters, and alternative object aliases are rejected. Nested data is recursively rebuilt from each configured `nested_data` template. All new components in one call share a transaction and are rolled back together when creation fails.
+
+**Result.** The JSON result lists every component, whether it was `referenced` or `created`, and its UID values. Existing references are checked against the registry-defined metaobject but never updated.
 
 ## `NotesWriteTool`
 

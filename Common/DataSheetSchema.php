@@ -8,6 +8,7 @@ use exface\Core\DataTypes\JsonDataType;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\MetaObjectFactory;
+use exface\Core\Interfaces\DataSheets\DataColumnInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\Model\MetaAttributeInterface;
@@ -56,6 +57,14 @@ class DataSheetSchema implements ICanBeConvertedToUxon
 
     private ?MetaObjectInterface $metaObject = null;
 
+    /**
+     * Attribute aliases explicitly allowed by a DataSheet template.
+     * Null enables the metamodel fallback, while an empty array allows no flat attributes.
+     *
+     * @var string[]|null
+     */
+    private ?array $includedAttributes = null;
+
     public function __construct(WorkbenchInterface $workbench, ?UxonObject $uxon = null, ?DataSheetSchema $parentSheet = null)
     {
         $this->workbench = $workbench;
@@ -65,6 +74,78 @@ class DataSheetSchema implements ICanBeConvertedToUxon
         }
         if ($parentSheet !== null) {
             $this->parentSheet = $parentSheet;
+        }
+    }
+
+    /**
+     * Creates a schema from a Core DataSheet UXON template.
+     *
+     * Configured columns form an authoritative allowlist. If the template has no
+     * columns property, schema generation falls back to writable metamodel attributes.
+     */
+    public static function createFromDataSheetUxon(
+        WorkbenchInterface $workbench,
+        UxonObject $uxon,
+        ?DataSheetSchema $parentSheet = null
+    ): DataSheetSchema {
+        $schema = new self($workbench, null, $parentSheet);
+        $dataSheet = DataSheetFactory::createFromUxon($workbench, $uxon);
+        $schema->setObjectAlias($dataSheet->getMetaObject()->getAliasWithNamespace());
+
+        if (! $uxon->hasProperty('columns')) {
+            return $schema;
+        }
+
+        $schema->includedAttributes = [];
+        $schema->requiredAll = false;
+        $schema->requiredAttributes = [];
+        $schema->subsheets = [];
+
+        foreach ($dataSheet->getColumns() as $column) {
+            $schema->addDataSheetColumn($column);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Adds one validated DataSheet template column to this schema.
+     */
+    private function addDataSheetColumn(DataColumnInterface $column): void
+    {
+        if (! $column->isAttribute()) {
+            throw new InvalidArgumentException(
+                'Component save templates only support attribute columns, got "' . $column->getName() . '".'
+            );
+        }
+
+        $attribute = $column->getAttribute();
+        $nestedDataUxon = $column->getNestedDataTemplateUxon();
+        if ($nestedDataUxon !== null) {
+            if (! $attribute->isRelation()) {
+                throw new InvalidArgumentException(
+                    'Nested data column "' . $column->getName() . '" must reference a relation attribute.'
+                );
+            }
+
+            $subsheet = self::createFromDataSheetUxon($this->workbench, $nestedDataUxon, $this);
+            $subsheet->setName($column->getName());
+            $this->addSubsheet($subsheet);
+            return;
+        }
+
+        if (! $this->isWritableSchemaAttribute($attribute, true)) {
+            throw new InvalidArgumentException(
+                'Attribute "' . $attribute->getAliasWithRelationPath() . '" cannot be used in a component save template.'
+            );
+        }
+
+        $alias = $attribute->getAliasWithRelationPath();
+        $this->includedAttributes[] = $alias;
+        if ($attribute->isRequired()
+            && ! $attribute->getDefaultValue()
+            && ! $attribute->hasFixedValue()) {
+            $this->requiredAttributes[] = $alias;
         }
     }
 
@@ -140,6 +221,10 @@ class DataSheetSchema implements ICanBeConvertedToUxon
      */
     public function getAttributes(): array
     {
+        if ($this->includedAttributes !== null) {
+            return $this->includedAttributes;
+        }
+
         $list = [];
 
         foreach ($this->getMetaObject()->getAttributes() as $attribute) {
@@ -694,8 +779,21 @@ class DataSheetSchema implements ICanBeConvertedToUxon
 
     protected function shouldIncludeAttribute(MetaAttributeInterface $attribute): bool
     {
-        if ($attribute->isUidForObject()) {
+        if ($this->includedAttributes !== null
+            && ! in_array($attribute->getAliasWithRelationPath(), $this->includedAttributes, true)) {
             return false;
+        }
+
+        return $this->isWritableSchemaAttribute($attribute, $this->includedAttributes !== null);
+    }
+
+    /**
+     * Returns whether an attribute may be exposed in a generated write schema.
+     */
+    private function isWritableSchemaAttribute(MetaAttributeInterface $attribute, bool $allowUid = false): bool
+    {
+        if ($attribute->isUidForObject()) {
+            return $allowUid;
         }
 
         if ($attribute->isSystem()) {
