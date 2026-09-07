@@ -21,7 +21,7 @@ Use a tool for information that is too detailed, too volatile, or too expensive 
 | Read or save ExFace object data | `DataSheetReadTool` or `DataSheetImportTool` |
 | Retrieve the physical schema of an SQL connection | `SqlDbmlTool` |
 | Find object data by a configured attribute | `ModelObjectSearchTool` |
-| Store or retrieve agent memory for the current user | `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
+| List, store, or retrieve agent memory for the current user | `NotesListTool`, `NotesWriteTool`, `NotesSearchTool`, or `NotesReadTool` |
 | Read ExFace documentation | `GetDocsTool` |
 | Inspect model or UXON metadata | One of the `Model*InfoTool` tools |
 | Find context-aware UXON properties and values | `UxonAutosuggestTool` |
@@ -366,6 +366,16 @@ replacement text
 
 **Result and limits.** The tool uses the normal DataSheet save operation and returns imported row counts. ExFace authorization and validation remain active. Invalid rows are reported as exceptions where processing can continue; critical failures stop the import.
 
+## `NotesListTool`
+
+**Alias:** `axenox.GenAI.NotesListTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesListTool)
+
+**Purpose.** Lists the types and topics of all long-term notes for the invoking agent and authenticated user without exposing their contents.
+
+**Use when.** The agent needs a compact overview of its available notes, for example as prompt context before deciding whether a targeted search is useful. The tool has no arguments.
+
+**Result and limits.** Returns a Markdown table with the columns `Type` and `Topic`, sorted by type and topic. User and agent filters are always derived from the current request and cannot be supplied by the model. Note bodies and UIDs are not read or returned.
+
 ## `NotesWriteTool`
 
 **Alias:** `axenox.GenAI.NotesWriteTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesWriteTool)
@@ -417,7 +427,7 @@ replacement text
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `query` | Yes | Text to find in either note topics or note bodies. |
+| `query` | No | Text to find in either note topics or note bodies. Leave empty to return all notes. |
 | `type` | No | `all` (default), `memory`, or `suggestion`. Concrete types restrict the search results. |
 
 **Result and limits.** Each match includes its UID, type, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
