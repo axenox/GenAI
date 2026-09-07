@@ -19,6 +19,7 @@ Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich 
 | Git-Änderungen und Historie untersuchen | `GitTool` |
 | PHP-Syntax validieren | `DevLintPHPTool` |
 | ExFace-Objektdaten lesen oder speichern | `DataSheetReadTool` oder `DataSheetImportTool` |
+| Registry-freigegebene Modellkomponenten referenzieren oder erstellen | `ModelComponentSaveTool` |
 | Das physische Schema einer SQL-Verbindung abrufen | `SqlDbmlTool` |
 | Objektdaten anhand eines konfigurierten Attributs finden | `ModelObjectSearchTool` |
 | Agentengedächtnis für den aktuellen Benutzer auflisten, speichern oder abrufen | `NotesListTool`, `NotesWriteTool`, `NotesSearchTool` oder `NotesReadTool` |
@@ -375,6 +376,26 @@ replacement text
 **Verwenden, wenn.** Der Agent einen kompakten Überblick über seine verfügbaren Notizen benötigt, beispielsweise als Prompt-Kontext vor der Entscheidung über eine gezielte Suche. Das Tool besitzt keine Argumente.
 
 **Ergebnis und Grenzen.** Gibt eine nach Typ und Thema sortierte Markdown-Tabelle mit den Spalten `Type` und `Topic` zurück. Benutzer- und Agentenfilter werden immer aus der aktuellen Anfrage abgeleitet und können nicht vom Modell übergeben werden. Notiztexte und UIDs werden weder gelesen noch zurückgegeben.
+
+## `ModelComponentSaveTool`
+
+**Alias:** `axenox.GenAI.ModelComponentSaveTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CModelComponentSaveTool)
+
+**Zweck.** Referenziert vorhandene Modellkomponenten über ihre UID oder erstellt neue Komponenten anhand der freigegebenen DataSheet-Templates in der Core-Komponenten-Registry.
+
+**Verwenden, wenn.** Ein Agent Konfiguration erzeugt, die vorhandene Komponenten wiederverwenden und fehlende Komponenten neu anlegen kann, während Core die erlaubten Komponentenfelder zentral vorgibt.
+
+**Nicht verwenden, wenn.** Verwenden Sie dieses Tool nicht zum Bearbeiten oder Löschen vorhandener Komponenten. Eine übergebene UID wird validiert und unverändert als Referenz zurückgegeben.
+
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `components` | Ja | Liste von Komponentenoperationen. Jeder Eintrag enthält `component` und entweder `uid` für eine vorhandene Referenz oder `data_sheet` für eine neue Komponente. |
+
+**Schemaquelle.** Das Tool bietet nur Komponententypen mit `save_component_data` in `ComponentRegistry.config.json` an. Das JSON Schema der Argumente wird über `DataSheetSchema` aus diesen Templates erzeugt. Konfigurierte Spalten sind verbindlich; nur eine vollständig fehlende `columns`-Eigenschaft aktiviert den Metamodell-Fallback.
+
+**Schreibsicherheit.** Das Tool baut jedes zu speichernde DataSheet neu aus dem vertrauenswürdigen Registry-Template auf und übernimmt ausschließlich validierte Zeilen. Vom Modell gelieferte Spalten, Filter oder abweichende Objektaliase werden abgelehnt. Verschachtelte Daten werden rekursiv anhand des jeweiligen `nested_data`-Templates aufgebaut. Alle neuen Komponenten eines Aufrufs verwenden eine gemeinsame Transaktion und werden bei einem Fehler gemeinsam zurückgerollt.
+
+**Ergebnis.** Das JSON-Ergebnis nennt für jede Komponente den Status `referenced` oder `created` und die zugehörigen UIDs. Vorhandene Referenzen werden gegen das in der Registry festgelegte Metaobjekt geprüft, aber niemals aktualisiert.
 
 ## `NotesWriteTool`
 

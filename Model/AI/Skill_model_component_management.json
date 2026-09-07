@@ -1,0 +1,174 @@
+{
+    "object_alias": "axenox.GenAI.AI_SKILL",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "INSTRUCTIONS",
+            "attribute_alias": "INSTRUCTIONS"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Model Component Management",
+            "CREATED_ON": "2026-09-07 00:00:00",
+            "MODIFIED_ON": "2026-09-07 00:00:00",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0xa8142e70f6114c9a8ad282f53cf4e137",
+            "NAME": "Model Component Management",
+            "ALIAS": "model_component_management",
+            "DESCRIPTION": "Explains how to find, verify, and import model components using the available lookup, validation, and import tools.",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "# ─────────────────────────────────────────────",
+                "",
+                "# MODEL COMPONENTS",
+                "",
+                "These instructions apply only to reading and editing model components.",
+                "",
+                "# ─────────────────────────────────────────────",
+                "",
+                "## Choosing the right tool",
+                "",
+                "Start by searching when the exact target is not already known. Use only the additional lookups needed to obtain missing information:",
+                "",
+                "* `SearchModelComponents` returns matching model components and the places where a term is used, including identifying names and aliases. Choose it to discover candidates or existing components.",
+                "",
+                "* `FindModelObject` returns documentation for matching model objects, including the exact object identity and its available model information. Choose it to identify an object or learn which attributes and relations can be queried.",
+                "",
+                "* `DescribeModelComponent` returns registry documentation for a known component type and selector. Choose it when the component is already identified but its meaning or configuration needs clarification.",
+                "",
+                "* `ReadDataSheet` returns the current rows and metadata of a known object. Choose it when exact stored values or an existing UID are needed. Set `object_alias`, select only the required columns, and narrow the rows with filters. Each filter condition compares an `expression` with a `value` through a `comparator`; the filter `operator` combines multiple conditions with `AND` or `OR`.",
+                "",
+                "* `GetDatabaseSchema` returns DBML with SQL tables, columns, data types, enum values, and relationships. Choose it only when physical database information is needed.",
+                "",
+                "* `GetUxonPrototype` returns the prototype description and its configurable UXON properties, including types, defaults, and descriptions. Choose it when prototype-backed UXON must be assembled or checked.",
+                "",
+                "* `ValidateUxon` returns diagnostics with a `path` and `message` for detected UXON issues. Choose it after UXON has been assembled; an empty result means that no issue was detected.",
+                "",
+                "## Importing",
+                "",
+                "After the required data has been found and validated, use `ImportModelComponents`. Set `UID` to `null` for a new component. To edit an existing component, use the exact UID returned by the preceding search or read. Fill the component row completely with all applicable values.",
+                "",
+                "The import result states how many rows were imported into which model object or reports an error. Keep unrelated model or business data outside this workflow.",
+                "",
+                "# ─────────────────────────────────────────────",
+                "The model-component-specific instructions in this section apply only to model components. Other instructions in the surrounding prompt remain unaffected.",
+                "# END OF MODEL COMPONENTS SECTION",
+                "",
+                "# ─────────────────────────────────────────────"
+            ],
+            "CONFIG_UXON": {
+                "tools": {
+                    "SearchModelComponents": {
+                        "alias": "axenox.GenAI.ModelSearchTool",
+                        "description": "Returns matching model components and usage locations with identifying names and aliases. Use it to discover candidates or existing components."
+                    },
+                    "DescribeModelComponent": {
+                        "alias": "axenox.GenAI.ModelComponentInfoTool",
+                        "description": "Returns registry documentation for a known component type and selector. Use it after the component has been identified and needs clarification."
+                    },
+                    "FindModelObject": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
+                        "description": "Returns documentation for matching model objects. Use it to identify an object or inspect the attributes and relations available for further queries."
+                    },
+                    "GetDatabaseSchema": {
+                        "alias": "axenox.GenAI.SqlDbmlTool",
+                        "description": "Returns DBML containing SQL tables, columns, data types, enum values, and relationships. Use it only when physical database information is needed."
+                    },
+                    "GetUxonPrototype": {
+                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
+                        "description": "Returns a prototype description and its configurable UXON properties, types, defaults, and descriptions. Use it for prototype-backed configuration."
+                    },
+                    "ValidateUxon": {
+                        "alias": "axenox.GenAI.UxonValidateTool",
+                        "description": "Returns detected UXON issues as diagnostics with path and message. Use it after assembling UXON and before importing it."
+                    },
+                    "ReadDataSheet": {
+                        "alias": "axenox.GenAI.DataSheetReadTool",
+                        "description": "Returns current rows and metadata for a known object. Use selected columns and filters with expression, comparator, and value to retrieve exact stored values or UIDs."
+                    },
+                    "ImportModelComponents": {
+                        "alias": "axenox.GenAI.ModelComponentImportTool",
+                        "description": "Imports complete component rows and returns the imported row count and target object or an error. Use UID null for new components and the previously found UID for updates."
+                    }
+                }
+            },
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_SKILL",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
