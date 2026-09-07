@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `exf_ai_tool_call` (
   KEY `exf_ai_tool_call_name` (`tool_name`),
   CONSTRAINT `exf_ai_tool_call_conversation` FOREIGN KEY (`ai_conversation_oid`) REFERENCES `exf_ai_conversation` (`oid`),
   CONSTRAINT `exf_ai_tool_call_message` FOREIGN KEY (`ai_message_oid`) REFERENCES `exf_ai_message` (`oid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 
 -- DOWN
 
