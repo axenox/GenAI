@@ -124,6 +124,11 @@
                                 "attribute_alias": "RESULT_LENGTH_CHARS",
                                 "widget_type": "Display",
                                 "width": "50%"
+                            },
+                            {
+                                "attribute_alias": "EXECUTION_TIME_MS",
+                                "widget_type": "Display",
+                                "width": "50%"
                             }
                         ]
                     },

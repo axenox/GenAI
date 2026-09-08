@@ -250,6 +250,9 @@
                                                 "attribute_alias": "RESULT_LENGTH_CHARS"
                                             },
                                             {
+                                                "attribute_alias": "EXECUTION_TIME_MS"
+                                            },
+                                            {
                                                 "attribute_alias": "TOOL_ALIAS"
                                             },
                                             {

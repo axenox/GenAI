@@ -5,6 +5,8 @@ use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Events\OnAiToolCallEvent;
+use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiAgentRuntimeError;
@@ -259,6 +261,7 @@ class GenericAssistant implements AiAgentInterface
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
+        $toolCallResponses = [];
         // Check if the LLM has put some tool calls in its response
         while ($performedQuery->hasToolCalls()) {
             $numberOfCallResponses++;
@@ -280,6 +283,12 @@ class GenericAssistant implements AiAgentInterface
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
                     $resultOfTool = null;
                     try {
+                        $this->getWorkbench()->eventManager()->dispatch(new OnBeforeAiToolCallEvent($tool));
+                    } catch (\Throwable $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
+                    }
+                    $toolStartedAt = microtime(true);
+                    try {
                         $resultOfTool = $tool->invoke($this, $prompt, $args);
                         $exceptions = $resultOfTool->getExceptions();
                     } catch (\Throwable $e) {
@@ -289,6 +298,10 @@ class GenericAssistant implements AiAgentInterface
                         $e->setToolCall($call);
                         $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage(), null, [], [$e]);
                         $exceptions = [$e];
+                    } finally {
+                        if ($resultOfTool !== null && method_exists($resultOfTool, 'setDurationMs')) {
+                            $resultOfTool->setDurationMs((microtime(true) - $toolStartedAt) * 1000);
+                        }
                     }
                     foreach ($exceptions as $e) {
                         if ($e instanceof AiToolCriticalError) {
@@ -302,6 +315,9 @@ class GenericAssistant implements AiAgentInterface
                     // user or continue with other tools.
                     if ($resultOfTool && $resultOfTool->isFailed()) {
                         // TODO should we give more error details to the LLM
+                        $durationMs = method_exists($resultOfTool, 'getDurationMs')
+                            ? $resultOfTool->getDurationMs()
+                            : null;
                         $resultOfTool = new AiToolResultString(
                             $tool,
                             $args,
@@ -310,6 +326,17 @@ class GenericAssistant implements AiAgentInterface
                             [],
                             $resultOfTool->getExceptions()
                         );
+                        if ($durationMs !== null) {
+                            $resultOfTool->setDurationMs($durationMs);
+                        }
+                    }
+                    $durationMs = method_exists($resultOfTool, 'getDurationMs')
+                        ? $resultOfTool->getDurationMs()
+                        : null;
+                    try {
+                        $this->getWorkbench()->eventManager()->dispatch(new OnAiToolCallEvent($resultOfTool, $durationMs));
+                    } catch (\Throwable $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
                     }
                     
                 } else {
@@ -332,8 +359,8 @@ class GenericAssistant implements AiAgentInterface
                 $performedQuery->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;
             }
-            $toolCallResponses = $conversation->saveToolResponses($performedQuery, $toolCallResponses);
-            // $toolCallResponses = null;
+            $conversation->saveToolResponses($performedQuery, $toolCallResponses);
+            $toolCallResponses = [];
             $performedQuery = $this->getConnection()->query($performedQuery);
             //$query->clearPreviousToolCalls();
         }

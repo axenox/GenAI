@@ -470,15 +470,19 @@ class AiConversation implements AiConversationInterface
                 $toolCallSheet->dataRead();
 
                 if ($toolCallSheet->countRows() === 1) {
-                    $toolCallSheet->getColumns()->addMultiple(['RESULT', 'RESULT_LENGTH_CHARS', 'FAILED']);
+                    $toolCallSheet->getColumns()->addMultiple(['RESULT', 'RESULT_LENGTH_CHARS', 'EXECUTION_TIME_MS', 'FAILED']);
                     $toolResult = $response->getToolResult();
                     $result = $toolResult->getValue();
                     if ($toolResult->isFailed() && ($exception = $toolResult->getExceptions()[0] ?? null) instanceof \Throwable) {
                         $result = $exception->getMessage();
                     }
                     $resultLengthChars = mb_strlen((string)$result, 'UTF-8');
+                    $executionTimeMs = method_exists($toolResult, 'getDurationMs')
+                        ? $toolResult->getDurationMs()
+                        : null;
                     $toolCallSheet->setCellValue('RESULT', 0, $result);
                     $toolCallSheet->setCellValue('RESULT_LENGTH_CHARS', 0, $resultLengthChars);
+                    $toolCallSheet->setCellValue('EXECUTION_TIME_MS', 0, $executionTimeMs);
                     $toolCallSheet->setCellValue('FAILED', 0, $toolResult->isFailed() ? 1 : 0);
                     $toolCallSheet->dataUpdate(false, $transaction);
                 }
