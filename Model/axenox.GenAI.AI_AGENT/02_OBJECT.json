@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-08-29 11:12:02",
+            "MODIFIED_ON": "2026-09-08 10:15:58",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
@@ -148,6 +148,7 @@
                                             {
                                                 "widget_type": "DataTable",
                                                 "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                                "nowrap": false,
                                                 "filters": [
                                                     {
                                                         "attribute_alias": "AI_AGENT",
@@ -158,16 +159,22 @@
                                                 ],
                                                 "columns": [
                                                     {
-                                                        "attribute_alias": "ENABLED_FLAG"
+                                                        "attribute_alias": "ENABLED_FLAG",
+                                                        "caption": "On"
                                                     },
                                                     {
-                                                        "attribute_alias": "VERSION"
+                                                        "attribute_alias": "VERSION",
+                                                        "caption": "V."
                                                     },
                                                     {
                                                         "attribute_alias": "PROTOTYPE_CLASS__LABEL"
                                                     },
                                                     {
                                                         "attribute_alias": "DATA_CONNECTION__LABEL"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_AGENT_VERSION_SKILL__AI_SKILL__NAME:LIST_DISTINCT",
+                                                        "caption": "Skills"
                                                     },
                                                     {
                                                         "attribute_alias": "DESCRIPTION"
