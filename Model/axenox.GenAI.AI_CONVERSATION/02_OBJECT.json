@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-09-02 11:04:08",
+            "MODIFIED_ON": "2026-09-08 09:45:55",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -244,16 +244,16 @@
                                                 "attribute_alias": "CREATED_ON"
                                             },
                                             {
+                                                "attribute_alias": "FAILED"
+                                            },
+                                            {
+                                                "attribute_alias": "RESULT_LENGTH_CHARS"
+                                            },
+                                            {
                                                 "attribute_alias": "TOOL_ALIAS"
                                             },
                                             {
-                                                "attribute_alias": "CALL_DISPLAY",
-                                                "cell_widget": {
-                                                    "widget_type": "Text"
-                                                }
-                                            },
-                                            {
-                                                "attribute_alias": "FAILED"
+                                                "attribute_alias": "CALL_DISPLAY"
                                             }
                                         ],
                                         "sorters": [

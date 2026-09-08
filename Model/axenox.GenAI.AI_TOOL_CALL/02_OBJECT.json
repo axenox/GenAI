@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI tool call [axenox.GenAI.AI_TOOL_CALL]",
             "CREATED_ON": "2026-09-01 16:39:47",
-            "MODIFIED_ON": "2026-09-02 10:40:58",
+            "MODIFIED_ON": "2026-09-08 09:47:53",
             "CREATED_BY_USER": "0x11f0a52882c8e6b0a528025041000001",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f19f09fab867de9f09025041000001",
@@ -106,16 +106,53 @@
                 "widget_type": "Dialog",
                 "widgets": [
                     {
-                        "attribute_alias": "TOOL_ALIAS",
-                        "widget_type": "Display",
-                        "width": "100%"
+                        "widget_type": "WidgetGroup",
+                        "caption": "Info",
+                        "width": 2,
+                        "widgets": [
+                            {
+                                "attribute_alias": "TOOL_ALIAS",
+                                "widget_type": "Display",
+                                "width": "50%"
+                            },
+                            {
+                                "attribute_alias": "FAILED",
+                                "widget_type": "Display",
+                                "width": "50%"
+                            },
+                            {
+                                "attribute_alias": "RESULT_LENGTH_CHARS",
+                                "widget_type": "Display",
+                                "width": "50%"
+                            }
+                        ]
                     },
                     {
-                        "attribute_alias": "RESULT",
-                        "widget_type": "Markdown",
-                        "hide_caption": true,
-                        "width": "100%",
-                        "height": "max"
+                        "widget_type": "WidgetGroup",
+                        "caption": "Tool Call",
+                        "width": 2,
+                        "widgets": [
+                            {
+                                "attribute_alias": "CALL_DISPLAY",
+                                "widget_type": "Markdown",
+                                "hide_caption": true,
+                                "width": "100%"
+                            }
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
+                        "caption": "Result",
+                        "width": 2,
+                        "widgets": [
+                            {
+                                "attribute_alias": "RESULT",
+                                "widget_type": "Markdown",
+                                "hide_caption": true,
+                                "width": "100%",
+                                "height": "max"
+                            }
+                        ]
                     }
                 ]
             },
