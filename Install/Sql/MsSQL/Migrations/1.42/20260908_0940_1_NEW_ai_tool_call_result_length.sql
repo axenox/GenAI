@@ -18,9 +18,11 @@ END
 
 IF OBJECT_ID('dbo.exf_ai_tool_call', 'U') IS NOT NULL
 BEGIN
-    UPDATE dbo.exf_ai_tool_call
-    SET result_length_chars = LEN(result + N'#') - 1
-    WHERE result_length_chars IS NULL;
+    EXEC sys.sp_executesql N'
+        UPDATE dbo.exf_ai_tool_call
+        SET result_length_chars = LEN(result + N''#'') - 1
+        WHERE result_length_chars IS NULL;
+    ';
 END
 
 -- DOWN
