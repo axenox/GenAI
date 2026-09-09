@@ -45,6 +45,9 @@ class NotesSearchTool extends AbstractAiTool
     {
         $query = trim((string) ($arguments[0] ?? ''));
         $type = (string) ($arguments[1] ?? self::TYPE_ALL);
+        if (! in_array($type, [self::TYPE_ALL, AiNoteTypeDataType::MEMORY, AiNoteTypeDataType::SUGGESTION], true)) {
+            $type = self::TYPE_ALL;
+        }
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
@@ -124,10 +127,6 @@ class NotesSearchTool extends AbstractAiTool
                 ->setName(self::ARG_QUERY)
                 ->setDescription('Text to find in note topics or note bodies. Leave empty to read all notes.'),
             (new ServiceParameter($self))
-                ->setName(self::ARG_TYPE)
-                ->setDescription('Type of notes to search, or `all` to search every note type.')
-                ->setDefaultValue(self::TYPE_ALL)
-                ->setRequired(false)
                 ->setDataType(new UxonObject([
                     'alias' => 'exface.Core.GenericStringEnum',
                     'values' => [
@@ -136,6 +135,10 @@ class NotesSearchTool extends AbstractAiTool
                         AiNoteTypeDataType::SUGGESTION => AiNoteTypeDataType::SUGGESTION
                     ]
                 ]))
+                ->setName(self::ARG_TYPE)
+                ->setDescription('Storage type of notes to search: `memory`, `suggestion`, or `all`. This is not a subject category; Unknown values are treated as `all`.')
+                ->setDefaultValue(self::TYPE_ALL)
+                ->setRequired(false)
         ];
     }
 
