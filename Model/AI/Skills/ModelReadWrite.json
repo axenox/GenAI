@@ -59,12 +59,12 @@
         {
             "_EXPORT_SUMMARY": "Model Component Management",
             "CREATED_ON": "2026-09-07 00:00:00",
-            "MODIFIED_ON": "2026-09-07 00:00:00",
+            "MODIFIED_ON": "2026-09-09 21:17:36",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0xa8142e70f6114c9a8ad282f53cf4e137",
             "NAME": "Model Component Management",
-            "ALIAS": "model_component_management",
+            "ALIAS": "ModelReadWrite",
             "DESCRIPTION": "Explains how to find, verify, and import model components using the available lookup, validation, and import tools.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [

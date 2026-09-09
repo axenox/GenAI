@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI agent version [axenox.GenAI.AI_AGENT_VERSION]",
             "CREATED_ON": "2025-09-04 15:38:32",
-            "MODIFIED_ON": "2026-09-09 13:33:59",
+            "MODIFIED_ON": "2026-09-09 21:16:19",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11eea89602c1c3dca896005056be9fa0",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a47972e1dbf6a479025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -238,7 +238,7 @@
                                                         "attribute_alias": "AI_SKILL__ALIAS"
                                                     },
                                                     {
-                                                        "attribute_alias": "DESCRIPTION"
+                                                        "attribute_alias": "AI_SKILL__DESCRIPTION"
                                                     }
                                                 ],
                                                 "sorters": [

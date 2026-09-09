@@ -59,12 +59,12 @@
         {
             "_EXPORT_SUMMARY": "Note Skill",
             "CREATED_ON": "2026-09-02 14:17:16",
-            "MODIFIED_ON": "2026-09-03 11:09:44",
+            "MODIFIED_ON": "2026-09-09 21:16:58",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f186473c855c8e8647025041000001",
             "NAME": "Note Skill",
-            "ALIAS": "note_skill",
+            "ALIAS": "Notes",
             "DESCRIPTION": "Reusable skill exclusively for Notes: Agents read relevant memory notes at the start, save user- or work-related preferences as notes, and proactively make suggestions for improvement; however, before writing or making a suggestion, they check whether suitable notes or suggestions already exist.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [

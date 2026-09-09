@@ -29,7 +29,7 @@ class AiAgentInstaller extends DataInstaller
         $this->addDataToReplace('axenox.GenAI.AI_TEST_CASE', 'CREATED_ON', 'APP', [], '[#AI_AGENT__ALIAS#]/03_AI_TEST_CASE.json');
         $this->addDataToReplace('axenox.GenAI.AI_AUTONOMOUS', 'CREATED_ON', 'APP', [], '[#AI_AGENT__ALIAS#]/04_AI_AUTONOMOUS.json');
         $this->addDataToReplace('axenox.GenAI.AI_AGENT_VERSION_SKILL', 'CREATED_ON', 'AI_AGENT_VERSION__AI_AGENT__APP', [], '[#AI_AGENT_VERSION__AI_AGENT__ALIAS#]/05_AI_AGENT_VERSION_SKILL.json');
-        $this->addDataToReplace('axenox.GenAI.AI_SKILL', 'CREATED_ON', 'APP', [], 'Skill_[#ALIAS#].json');
+        $this->addDataToReplace('axenox.GenAI.AI_SKILL', 'CREATED_ON', 'APP', [], 'Skills/[#ALIAS#].json');
     }
 
     /**
