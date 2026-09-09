@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-06-30 01:53:15",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-07-09 00:31:33",
+    "modified_on": "2026-09-09 20:31:24",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -50,7 +50,26 @@
                                             },
                                             {
                                                 "attribute_alias": "AI_AGENT__AI_AGENT_VERSION__UID:COUNT",
-                                                "caption": "Versions"
+                                                "caption": "V.",
+                                                "hint": "Number of versions"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(!== suggestion)",
+                                                "caption": "N.",
+                                                "hint": "Number of memory notes"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(== suggestion)",
+                                                "caption": "S.",
+                                                "hint": "Number of suggestions",
+                                                "cell_widget": {
+                                                    "widget_type": "ColorIndicator",
+                                                    "fill": true,
+                                                    "color_scale": [
+                                                        "",
+                                                        "~WARNING"
+                                                    ]
+                                                }
                                             },
                                             {
                                                 "attribute_alias": "AI_AGENT__AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",

@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI agent version skill [axenox.GenAI.AI_AGENT_VERSION_SKILL]",
             "CREATED_ON": "2026-09-01 00:00:00",
-            "MODIFIED_ON": "2026-09-02 14:50:55",
+            "MODIFIED_ON": "2026-09-09 13:39:43",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x11eea89602c1c3dca896005056be9fa0",
             "UID": "0x6f5345f3527048d79ae7077fb5847d01",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -104,7 +104,9 @@
             "DATA_ADDRESS_PROPS": null,
             "DEFAULT_EDITOR_UXON": {
                 "widget_type": "Dialog",
-                "width": 3,
+                "width": 1,
+                "height": "auto",
+                "columns_in_grid": 1,
                 "widgets": [
                     {
                         "attribute_alias": "UID",
@@ -112,8 +114,6 @@
                     },
                     {
                         "widget_type": "WidgetGroup",
-                        "width": "max",
-                        "columns_in_grid": 2,
                         "widgets": [
                             {
                                 "attribute_alias": "AI_AGENT_VERSION"
@@ -126,11 +126,9 @@
                     {
                         "widget_type": "WidgetGroup",
                         "caption": "Description",
-                        "width": "max",
                         "widgets": [
                             {
                                 "attribute_alias": "DESCRIPTION",
-                                "width": 2,
                                 "height": 5,
                                 "hide_caption": true
                             }
