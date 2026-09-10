@@ -1,0 +1,165 @@
+{
+    "object_alias": "axenox.GenAI.AI_SKILL",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "INSTRUCTIONS",
+            "attribute_alias": "INSTRUCTIONS"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Doc Links",
+            "CREATED_ON": "2026-09-10 00:00:00",
+            "MODIFIED_ON": "2026-09-10 00:00:00",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x1cf7a2e5b8934d6ea1f4c2b7e6a0d9f3",
+            "NAME": "Doc Links",
+            "ALIAS": "DocLinks",
+            "DESCRIPTION": "Reusable skill exclusively for linking to metaobjects and pages: whenever an object or page is mentioned, its alias is resolved against the metamodel first and then rendered as a clickable Markdown link built from the workbench base URL.",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "# ─────────────────────────────────────────────",
+                "",
+                "# DOC LINKS",
+                "The following instructions apply specifically to linking metaobjects and pages.",
+                "",
+                "# ─────────────────────────────────────────────",
+                "",
+                "",
+                "## Purpose",
+                "",
+                "Whenever a metaobject or a page is mentioned in a response, render it as a clickable Markdown link instead of plain text. Never guess an alias or build a link from memory.",
+                "",
+                "## Step 1: resolve the alias first",
+                "",
+                "* For a metaobject, use the appropriate tool for resolving metamodel objects to confirm its full alias `app.namespace.name`.",
+                "* For a page, use the appropriate tool for resolving metamodel pages to confirm its page alias.",
+                "* If the alias cannot be resolved unambiguously (not found, or several matches), do not invent a link. State explicitly that it could not be resolved unambiguously.",
+                "",
+                "## Step 2: build the object link",
+                "",
+                "1. Always show the full alias `app.namespace.name` as the visible link text, never a shortened alias.",
+                "2. Build the selector by wrapping the alias in square brackets, then URL-encode it: `[app.namespace.name]`.",
+                "3. Build the target URL as:",
+                "   `[#=WorkbenchURL('')#]api/docs/exface/Core/Docs/creating_metamodels/Available_metaobjects.md?selector=<url-encoded-[app.namespace.name]>`",
+                "4. Final format, nothing else - no prefixes like `Alias:`, `API:`, `API-Docs:`, and no separately printed raw URL:",
+                "   `[app.namespace.name](target URL from step 3)`",
+                "",
+                "## Step 3: build the page link",
+                "",
+                "1. Show only the page name/title as the visible link text.",
+                "2. Build the target URL as:",
+                "   `[#=WorkbenchURL('')#]<page_alias>.html`",
+                "3. Final format:",
+                "   `[PageName]([#=WorkbenchURL('')#]<page_alias>.html)`",
+                "",
+                "## Constraints",
+                "",
+                "* Always use `[#=WorkbenchURL('')#]` as the base placeholder - never hardcode an environment-specific domain.",
+                "* Never use relative links, shortened aliases, or links built from memory/guesswork.",
+                "* Every object or page mention in a response needs its link - when a response lists several objects or pages (for example a change table), link each one, not just the first.",
+                "* Actions, attributes, and other model elements are out of scope for this skill - only objects and pages get this link treatment.",
+                "",
+                "",
+                "",
+                "# ─────────────────────────────────────────────",
+                "The Doc Links instructions in this section apply only to linking objects and pages. Other instructions in the surrounding prompt remain unaffected.",
+                "# END OF DOC LINKS SECTION",
+                "",
+                "# ─────────────────────────────────────────────",
+                "",
+                "",
+                ""
+            ],
+            "CONFIG_UXON": {
+                "tools": {
+                    "FindModelObject": {
+                        "alias": "axenox.GenAI.ModelObjectInfoTool",
+                        "description": "Returns documentation for a matching model object, including its exact full alias (app.namespace.name) or UID. Use it before building an object link whenever the exact identity is not already confirmed."
+                    },
+                    "DescribeModelComponent": {
+                        "alias": "axenox.GenAI.ModelComponentInfoTool",
+                        "description": "Returns registry documentation for a known model component type and selector. Use it to confirm a page alias or object selector before building a link."
+                    }
+                }
+            },
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_SKILL",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

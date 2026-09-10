@@ -49,17 +49,17 @@
                                 "attribute_alias": "ALIAS"
                             },
                             {
-                                "attribute_alias": "AI_AGENT__AI_AGENT_VERSION__UID:COUNT",
+                                "attribute_alias": "AI_AGENT_VERSION__UID:COUNT",
                                 "caption": "Vers.",
                                 "hint": "Number of versions"
                             },
                             {
-                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(!== suggestion)",
+                                "attribute_alias": "AI_NOTE__TYPE:COUNT_IF(!== suggestion)",
                                 "caption": "N.",
                                 "hint": "Number of memory notes"
                             },
                             {
-                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(== suggestion)",
+                                "attribute_alias": "AI_NOTE__TYPE:COUNT_IF(== suggestion)",
                                 "caption": "S.",
                                 "hint": "Number of suggestions",
                                 "cell_widget": {
