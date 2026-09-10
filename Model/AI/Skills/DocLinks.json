@@ -124,13 +124,13 @@
             ],
             "CONFIG_UXON": {
                 "tools": {
-                    "ModelObjectInfo": {
+                    "FindModelObject": {
                         "alias": "axenox.GenAI.ModelObjectInfoTool",
-                        "description": "Resolve a metaobject's full alias (app.namespace.name) or UID before linking to it. Use this before building an object link whenever the exact alias is not already confirmed."
+                        "description": "Returns documentation for a matching model object, including its exact full alias (app.namespace.name) or UID. Use it before building an object link whenever the exact identity is not already confirmed."
                     },
-                    "ModelComponentInfo": {
+                    "DescribeModelComponent": {
                         "alias": "axenox.GenAI.ModelComponentInfoTool",
-                        "description": "Resolve a known page (or object) selector/alias before linking to it. Use with component = page to confirm a page alias, or component = object to confirm an object alias."
+                        "description": "Returns registry documentation for a known model component type and selector. Use it to confirm a page alias or object selector before building a link."
                     }
                 }
             },
