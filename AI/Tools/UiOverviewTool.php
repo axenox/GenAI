@@ -8,6 +8,8 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\UiPageTreeFactory;
@@ -36,6 +38,7 @@ class UiOverviewTool extends AbstractAiTool
 {
     public const ARG_APP = 'app';
     public const ARG_DEPTH = 'depth';
+    public const ARG_EXCLUDE_DEFAULT_ACTIONS = 'exclude_default_actions';
 
     /**
      * {@inheritDoc}
@@ -47,7 +50,8 @@ class UiOverviewTool extends AbstractAiTool
         if ($appAlias === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: app');
         }
-        $depth = (int) ($arguments[1] ?? 5);
+        $depth = (int) ($arguments[1] ?? 1);
+        $excludeDefaultActions = BooleanDataType::cast($arguments[2] ?? false) ?? false;
 
         $appOfInterest = $this->getWorkbench()->getApp($appAlias);
         $appAliasNs = $appOfInterest->getAliasWithNamespace();
@@ -62,6 +66,9 @@ class UiOverviewTool extends AbstractAiTool
             . 'Use these URLs with the UI widget info tool to get more details about any page. '
             . 'The **Screens** section describes the pages of app `' . $appAliasNs . '` and the dialogs reachable '
             . "from them in more detail.\n\n";
+        if ($excludeDefaultActions) {
+            $md .= "Unconfigured standard actions are omitted from this overview.\n\n";
+        }
 
         // Main menu
         $md .= "## Main menu\n\n";
@@ -80,7 +87,7 @@ class UiOverviewTool extends AbstractAiTool
             $md .= "_No menu pages found for this app._\n";
         } else {
             foreach ($appNodes as $node) {
-                $md .= $this->describePageNode($node, $depth);
+                $md .= $this->describePageNode($node, $depth, $excludeDefaultActions);
             }
         }
 
@@ -142,9 +149,10 @@ class UiOverviewTool extends AbstractAiTool
      * 
      * @param UiPageTreeNodeInterface $node
      * @param int $depth
+    * @param bool $excludeDefaultActions
      * @return string
      */
-    protected function describePageNode(UiPageTreeNodeInterface $node, int $depth): string
+    protected function describePageNode(UiPageTreeNodeInterface $node, int $depth, bool $excludeDefaultActions): string
     {
         try {
             $page = $node->getPage();
@@ -158,7 +166,7 @@ class UiOverviewTool extends AbstractAiTool
         $context = 'URL: `' . $node->getPageAlias() . '.html`';
         $descr = $node->getDescription() ?? $node->getIntro();
         $visited = [];
-        return $this->describeScreen($rootWidget, $title, $context, $descr, 3, $depth, $visited);
+        return $this->describeScreen($rootWidget, $title, $context, $descr, 3, $depth, $excludeDefaultActions, $visited);
     }
 
     /**
@@ -173,10 +181,11 @@ class UiOverviewTool extends AbstractAiTool
      * @param string|null $description
      * @param int $headingLevel
      * @param int $depth
+    * @param bool $excludeDefaultActions
      * @param string[] $visited
      * @return string
      */
-    protected function describeScreen(WidgetInterface $screen, string $title, ?string $context, ?string $description, int $headingLevel, int $depth, array &$visited): string
+    protected function describeScreen(WidgetInterface $screen, string $title, ?string $context, ?string $description, int $headingLevel, int $depth, bool $excludeDefaultActions, array &$visited): string
     {
         $md = str_repeat('#', $headingLevel) . ' ' . $title . "\n\n";
         if ($context !== null && $context !== '') {
@@ -198,16 +207,21 @@ class UiOverviewTool extends AbstractAiTool
 
         // Buttons available to the user on this screen
         $buttons = $this->collectButtons($screen);
+        if ($excludeDefaultActions) {
+            $buttons = array_filter($buttons, function (Button $button) {
+                return ! $button->hasAction() || ! $this->isUnconfiguredStandardAction($button);
+            });
+        }
         $dialogs = [];
         if (! empty($buttons)) {
             $md .= "Buttons:\n";
             foreach ($buttons as $button) {
+                $action = $button->hasAction() ? $button->getAction() : null;
                 $caption = $button->getCaption();
                 if ($caption === null || $caption === '') {
                     $caption = $button->getWidgetType();
                 }
                 $line = '- **' . $this->oneLine($caption) . '**';
-                $action = $button->hasAction() ? $button->getAction() : null;
                 if ($action !== null) {
                     $line .= ' - action `' . $action->getAliasWithNamespace() . '`';
                     if ($action instanceof iShowDialog) {
@@ -242,7 +256,7 @@ class UiOverviewTool extends AbstractAiTool
                 $dialogTitle = 'Dialog "' . $this->oneLine($dialogCaption) . '"';
                 $btnCaption = $button->getCaption() ?? '';
                 $dialogContext = 'Opened from ' . trim($title) . ' via button "' . $this->oneLine($btnCaption) . '"';
-                $md .= $this->describeScreen($dialog, $dialogTitle, $dialogContext, null, $headingLevel + 1, $depth - 1, $visited);
+                $md .= $this->describeScreen($dialog, $dialogTitle, $dialogContext, null, $headingLevel + 1, $depth - 1, $excludeDefaultActions, $visited);
             }
         }
 
@@ -267,6 +281,40 @@ class UiOverviewTool extends AbstractAiTool
             }
         }
         return $buttons;
+    }
+
+    /**
+     * Returns TRUE for standard core actions without additional action configuration.
+     *
+     * @param Button $button
+     * @return bool
+     */
+    protected function isUnconfiguredStandardAction(Button $button): bool
+    {
+        $action = $button->getAction();
+        if ($action === null || stripos($action->getAliasWithNamespace(), 'exface.Core.') !== 0) {
+            return false;
+        }
+
+        $uxon = $button->exportUxonObjectOriginal();
+        if ($uxon === null) {
+            return true;
+        }
+        foreach ($uxon->getPropertyNames() as $propertyName) {
+            if (substr($propertyName, 0, 7) === 'action_' && $propertyName !== 'action_alias') {
+                return false;
+            }
+        }
+
+        $actionUxon = $uxon->getProperty('action');
+        if ($actionUxon instanceof UxonObject) {
+            foreach ($actionUxon->getPropertyNames() as $propertyName) {
+                if ($propertyName !== 'alias') {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -328,8 +376,14 @@ class UiOverviewTool extends AbstractAiTool
                 ]),
             (new ServiceParameter($self))
                 ->setName(self::ARG_DEPTH)
-                ->setDescription('How deep to follow dialogs opened by buttons inside the pages of the app of interest.')
-                ->setDefaultValue(5)
+                ->setDescription('How deep to follow dialogs opened by buttons inside the pages of the app of interest. Higher values can produce very extensive output and incur significant processing and AI costs.')
+                ->setDefaultValue(1)
+                ->setRequired(false),
+            (new ServiceParameter($self))
+                ->setDataType(new UxonObject(['alias' => 'exface.Core.Boolean']))
+                ->setName(self::ARG_EXCLUDE_DEFAULT_ACTIONS)
+                ->setDescription('Whether to omit standard exface.Core actions that have no configuration beyond their alias. Custom app actions and configured standard actions remain visible. Enable this for a shorter overview focused on app-specific behavior.')
+                ->setDefaultValue(false)
                 ->setRequired(false)
         ];
     }

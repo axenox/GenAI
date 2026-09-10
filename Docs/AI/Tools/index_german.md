@@ -449,7 +449,7 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `query` | Nein | Text, der in Notizthemen oder Notiztexten gesucht wird. Leer lassen, um alle Notizen zurückzugeben. |
-| `type` | Nein | `all` (Standardwert), `memory` oder `suggestion`. Konkrete Typen schränken die Suchergebnisse ein. |
+| `type` | Nein | Speichertyp: `all` (Standardwert), `memory` oder `suggestion`. Dies ist keine thematische Kategorie; Begriffe wie `attribute` gehören in `query`. Unbekannte Werte werden wie `all` behandelt. |
 
 **Ergebnis und Grenzen.** Jeder Treffer enthält UID, Typ, Thema und einen durch `excerpt_length` begrenzten einzeiligen Auszug. Wenn der Suchtext wörtlich im Notiztext vorkommt, wird der Auszug um ihn herum gebildet. So kann das Modell die relevante UID auswählen, bevor es den vollständigen Inhalt mit `NotesReadTool` lädt. Das Tool durchsucht niemals Notizen eines anderen Benutzers oder Agenten.
 
@@ -699,9 +699,10 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `app` | Ja | Alias der App, deren Seiten ausführlich beschrieben werden (zum Beispiel `exface.Core`). |
-| `depth` | Nein | Wie tief Dialoge verfolgt werden, die über Schaltflächen innerhalb der Seiten der App geöffnet werden. Standardwert `10`. |
+| `depth` | Nein | Wie tief Dialoge verfolgt werden, die über Schaltflächen innerhalb der Seiten der App geöffnet werden. Standardwert `1`. Höhere Werte können sehr umfangreiche Ausgaben erzeugen und erhebliche Verarbeitungs- und KI-Kosten verursachen. |
+| `exclude_default_actions` | Nein | Auf `true` setzen, um Standardaktionen aus `exface.Core` auszulassen, die außer ihrem Alias keine Konfiguration enthalten. Benutzerdefinierte App-Aktionen und konfigurierte Standardaktionen bleiben sichtbar. Standardwert `false`. |
 
-**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
+**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Setzen Sie `exclude_default_actions` für eine kürzere, auf App-spezifische Aktionen fokussierte Übersicht auf `true`. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
 
 **Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte sowie alle für den Benutzer verfügbaren Schaltflächen auf. Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht.
 

@@ -449,7 +449,7 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `query` | No | Text to find in either note topics or note bodies. Leave empty to return all notes. |
-| `type` | No | `all` (default), `memory`, or `suggestion`. Concrete types restrict the search results. |
+| `type` | No | Storage type: `all` (default), `memory`, or `suggestion`. This is not a subject category; terms such as `attribute` belong in `query`. Unknown values are treated as `all`. |
 
 **Result and limits.** Each match includes its UID, type, topic, and a single-line excerpt limited by `excerpt_length`. The excerpt is centered around the search text when it occurs literally in the note, helping the model select the relevant UID before calling `NotesReadTool` for the complete content. The tool never searches notes belonging to another user or agent.
 
@@ -699,9 +699,10 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `app` | Yes | Alias of the app whose pages are described in detail (for example `exface.Core`). |
-| `depth` | No | How deep to follow dialogs opened by buttons inside the app's pages. Defaults to `10`. |
+| `depth` | No | How deep to follow dialogs opened by buttons inside the app's pages. Defaults to `1`. Higher values can produce very extensive output and incur significant processing and AI costs. |
+| `exclude_default_actions` | No | Set to `true` to omit standard `exface.Core` actions with no configuration beyond their alias. Custom app actions and configured standard actions remain visible. Defaults to `false`. |
 
-**How to use.** The model supplies the app alias and optionally a recursion depth. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
+**How to use.** The model supplies the app alias and optionally a recursion depth. Set `exclude_default_actions` to `true` for a shorter overview focused on app-specific actions. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
 
 **Result and limits.** Each screen chapter lists the meta objects shown on the screen and all buttons available to the user. Dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview.
 
