@@ -28,6 +28,7 @@ class AiToolResultString implements AiToolResultInterface
     /** @var ExceptionInterface[] */
     private array $exceptions;
     private bool $hasCriticalErrors = false;
+    private ?float $durationMs = null;
 
     /**
      * @param AiToolInterface $tool
@@ -131,6 +132,23 @@ class AiToolResultString implements AiToolResultInterface
     public function getExceptions(): array
     {
         return $this->exceptions;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDurationMs(): ?float
+    {
+        return $this->durationMs;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setDurationMs(float $milliseconds): AiToolResultInterface
+    {
+        $this->durationMs = max(0, $milliseconds);
+        return $this;
     }
 
     /**

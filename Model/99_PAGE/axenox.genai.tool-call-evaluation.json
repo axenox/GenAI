@@ -63,6 +63,10 @@
                                 "attribute_alias": "RESULT_LENGTH_CHARS"
                             },
                             {
+                                "attribute_alias": "EXECUTION_TIME_MS",
+                                "caption": "Duration (ms)"
+                            },
+                            {
                                 "attribute_alias": "TOOL_ALIAS",
                                 "caption": "Tool"
                             },
@@ -103,7 +107,7 @@
                         "widget_type": "SplitVertical",
                         "panels": [
                             {
-                                "height": "30%",
+                                "height": "25%",
                                 "widgets": [
                                     {
                                         "widget_type": "Chart",
@@ -167,7 +171,7 @@
                                 ]
                             },
                             {
-                                "height": "35%",
+                                "height": "25%",
                                 "widgets": [
                                     {
                                         "widget_type": "SplitHorizontal",
@@ -285,56 +289,122 @@
                                 ]
                             },
                             {
-                                "height": "30%",
+                                "height": "50%",
                                 "widgets": [
                                     {
-                                        "widget_type": "Chart",
-                                        "id": "tool_call_failures_chart",
-                                        "caption": "Failures by tool",
-                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
-                                        "hide_header": true,
-                                        "data": {
-                                            "refresh_with_widget": "tool_calls_table",
-                                            "aggregate_by_attribute_alias": [
-                                                "TOOL_ALIAS"
-                                            ],
-                                            "filters": [
-                                                {
-                                                    "attribute_alias": "CREATED_ON",
-                                                    "comparator": ">=",
-                                                    "value": "=tool_calls_filter_created_on!~value_from",
-                                                    "hidden": true
-                                                },
-                                                {
-                                                    "attribute_alias": "CREATED_ON",
-                                                    "comparator": "<=",
-                                                    "value": "=tool_calls_filter_created_on!~value_to",
-                                                    "hidden": true
-                                                },
-                                                {
-                                                    "attribute_alias": "TOOL_ALIAS",
-                                                    "value": "=tool_calls_filter_tool_alias",
-                                                    "hidden": true
-                                                },
-                                                {
-                                                    "attribute_alias": "AI_CONVERSATION__AI_AGENT",
-                                                    "value": "=tool_calls_filter_agent",
-                                                    "hidden": true
-                                                },
-                                                {
-                                                    "attribute_alias": "FAILED",
-                                                    "comparator": "=",
-                                                    "value": 1
-                                                }
-                                            ]
-                                        },
-                                        "series": [
+                                        "widget_type": "SplitHorizontal",
+                                        "panels": [
                                             {
-                                                "type": "bar",
-                                                "caption": "Failures",
-                                                "x_attribute_alias": "UID:COUNT",
-                                                "y_attribute_alias": "TOOL_ALIAS",
-                                                "show_values": true
+                                                "width": "50%",
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "id": "tool_call_duration_chart",
+                                                        "caption": "Average duration by tool",
+                                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                                        "hide_header": true,
+                                                        "data": {
+                                                            "refresh_with_widget": "tool_calls_table",
+                                                            "aggregate_by_attribute_alias": [
+                                                                "TOOL_ALIAS"
+                                                            ],
+                                                            "filters": [
+                                                                {
+                                                                    "attribute_alias": "CREATED_ON",
+                                                                    "comparator": ">=",
+                                                                    "value": "=tool_calls_filter_created_on!~value_from",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "CREATED_ON",
+                                                                    "comparator": "<=",
+                                                                    "value": "=tool_calls_filter_created_on!~value_to",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "TOOL_ALIAS",
+                                                                    "value": "=tool_calls_filter_tool_alias",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "FAILED",
+                                                                    "value": "=tool_calls_filter_failed",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "AI_CONVERSATION__AI_AGENT",
+                                                                    "value": "=tool_calls_filter_agent",
+                                                                    "hidden": true
+                                                                }
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "column",
+                                                                "caption": "Average duration (ms)",
+                                                                "x_attribute_alias": "TOOL_ALIAS",
+                                                                "y_attribute_alias": "EXECUTION_TIME_MS:AVG",
+                                                                "show_values": true
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "width": "50%",
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "id": "tool_call_failures_chart",
+                                                        "caption": "Failures by tool",
+                                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                                        "hide_header": true,
+                                                        "data": {
+                                                            "refresh_with_widget": "tool_calls_table",
+                                                            "aggregate_by_attribute_alias": [
+                                                                "TOOL_ALIAS"
+                                                            ],
+                                                            "filters": [
+                                                                {
+                                                                    "attribute_alias": "CREATED_ON",
+                                                                    "comparator": ">=",
+                                                                    "value": "=tool_calls_filter_created_on!~value_from",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "CREATED_ON",
+                                                                    "comparator": "<=",
+                                                                    "value": "=tool_calls_filter_created_on!~value_to",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "TOOL_ALIAS",
+                                                                    "value": "=tool_calls_filter_tool_alias",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "AI_CONVERSATION__AI_AGENT",
+                                                                    "value": "=tool_calls_filter_agent",
+                                                                    "hidden": true
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "FAILED",
+                                                                    "comparator": "=",
+                                                                    "value": 1
+                                                                }
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "bar",
+                                                                "caption": "Failures",
+                                                                "x_attribute_alias": "UID:COUNT",
+                                                                "y_attribute_alias": "TOOL_ALIAS",
+                                                                "show_values": true
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
