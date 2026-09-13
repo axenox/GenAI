@@ -2,7 +2,6 @@
 namespace axenox\GenAI\AI\Skills;
 
 use axenox\GenAI\Factories\AiFactory;
-use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
@@ -139,52 +138,49 @@ class GenericSkill implements AiSkillInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $this->tools = [];
-            $toolSources = [];
             $this->warnings = [];
+            $conceptTools = [];
+            $nestedTools = [];
+            $directTools = [];
 
             foreach ($this->getConcepts() as $concept) {
                 foreach ($concept->getToolModels() as $toolName => $toolUxon) {
-                    $this->tools[$toolName] = AiFactory::createToolFromUxon(
+                    $conceptTools[$toolName] = AiFactory::createToolFromUxon(
                         $this->agent->getWorkbench(),
                         $toolUxon,
                         $toolName
                     );
-                    $toolSources[$toolName] = 'concept in skill "' . $this->getPlaceholder() . '"';
                 }
             }
 
             foreach ($this->skills as $skill) {
-                foreach ($skill->getTools() as $toolName => $tool) {
-                    $source = 'nested skill "' . $skill->getPlaceholder() . '"';
-                    if (isset($this->tools[$toolName])) {
-                        $this->warnings[] = new AiToolConfigurationWarning(
-                            'AI tool "' . $toolName . '" from ' . $source
-                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                        );
-                    }
-                    $this->tools[$toolName] = $tool;
-                    $toolSources[$toolName] = $source;
-                }
+                $nestedSkillTools = $skill->getTools();
+                $nestedTools = AiFactory::mergeTools(
+                    $nestedTools,
+                    $nestedSkillTools,
+                    $this->warnings
+                );
                 $this->warnings = array_merge($this->warnings, $skill->getWarnings());
             }
 
             foreach ($this->toolsUxon as $toolName => $toolUxon) {
-                $tool = AiFactory::createToolFromUxon(
+                $directTools[$toolName] = AiFactory::createToolFromUxon(
                     $this->agent->getWorkbench(),
                     $toolUxon,
                     $toolName
                 );
-                $source = 'skill "' . $this->getPlaceholder() . '"';
-                if (isset($this->tools[$toolName])) {
-                    $this->warnings[] = new AiToolConfigurationWarning(
-                        'AI tool "' . $toolName . '" from ' . $source
-                        . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                    );
-                }
-                $this->tools[$toolName] = $tool;
-                $toolSources[$toolName] = $source;
             }
+
+            $this->tools = AiFactory::mergeTools(
+                $directTools,
+                $nestedTools,
+                $this->warnings
+            );
+            $this->tools = AiFactory::mergeTools(
+                $this->tools,
+                $conceptTools,
+                $this->warnings
+            );
         }
 
         return $this->tools;

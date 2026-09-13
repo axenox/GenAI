@@ -7,6 +7,7 @@ use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptNotFoundError;
 use axenox\GenAI\Exceptions\AiSkillNotFoundError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
+use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
@@ -45,6 +46,183 @@ use exface\Core\Interfaces\WorkbenchInterface;
  */
 abstract class AiFactory extends AbstractSelectableComponentFactory
 {
+    private const DUPLICATE_TOOL_DESCRIPTION = 'This tool is configured identically in multiple sources.';
+
+    /**
+     * Merges secondary tools into primary tools without replacing primary definitions.
+     *
+     * Names, descriptions, and argument schemas do not define tool configuration for comparison. They
+     * can be changed when a tool is renamed or presented differently, while all other exported UXON
+     * properties remain part of the comparison.
+     *
+     * @param AiToolInterface[] $primaryTools
+     * @param AiToolInterface[] $secondaryTools
+        * @param \Throwable[] $warnings Warning accumulator owned by the caller.
+     * @return AiToolInterface[]
+     */
+    public static function mergeTools(
+        array $primaryTools,
+        array $secondaryTools,
+        array &$warnings = []
+    ) : array {
+        $merged = $primaryTools;
+        foreach ($secondaryTools as $secondaryName => $secondaryTool) {
+            if (! $secondaryTool instanceof AiToolInterface) {
+                continue;
+            }
+
+            $matchingName = static::findMatchingToolName($merged, $secondaryTool);
+
+            if ($matchingName === null) {
+                if (array_key_exists($secondaryName, $merged) && $merged[$secondaryName] instanceof AiToolInterface) {
+                    $primaryTool = $merged[$secondaryName];
+                    $primaryName = static::getToolDisplayName($primaryTool, (string) $secondaryName);
+                    $secondaryDisplayName = static::getToolDisplayName($secondaryTool, (string) $secondaryName);
+                    $warnings[] = new AiToolConfigurationWarning(
+                        'AI tool "' . $secondaryDisplayName
+                        . '" has a different configuration from the primary tool "' . $primaryName
+                        . '". Both tools were retained.'
+                    );
+                }
+                $merged[static::getUniqueToolKey($merged, (string) $secondaryName)] = $secondaryTool;
+                continue;
+            }
+
+            $primaryTool = $merged[$matchingName];
+            $primaryName = static::getToolDisplayName($primaryTool, (string) $matchingName);
+            $secondaryDisplayName = static::getToolDisplayName($secondaryTool, (string) $secondaryName);
+            $primaryDescription = static::getToolDescription($primaryTool);
+            $secondaryDescription = static::getToolDescription($secondaryTool);
+            if ($primaryName !== $secondaryDisplayName || $primaryDescription !== $secondaryDescription) {
+                $warnings[] = new AiToolConfigurationWarning(
+                    'AI tool "' . $secondaryDisplayName
+                    . '" was merged with the identical configuration of "' . $primaryName
+                    . '" because only the name or description differed.'
+                );
+                static::appendDuplicateToolDescription(
+                    $primaryTool,
+                    $primaryName !== $secondaryDisplayName ? $secondaryDisplayName : null,
+                    $primaryDescription !== $secondaryDescription
+                        ? $secondaryDescription
+                        : null
+                );
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Compares all exported tool attributes independently of associative property order.
+     */
+    public static function compareTools(AiToolInterface $first, AiToolInterface $second) : bool
+    {
+        $firstConfig = static::getComparableToolConfig($first);
+        $secondConfig = static::getComparableToolConfig($second);
+        return static::canonicalizeToolConfig($firstConfig) === static::canonicalizeToolConfig($secondConfig);
+    }
+
+    /**
+     * Finds an identical configured tool even when its function name has changed.
+     */
+    private static function findMatchingToolName(array $tools, AiToolInterface $tool) : ?string
+    {
+        foreach ($tools as $name => $candidate) {
+            if ($candidate instanceof AiToolInterface && static::compareTools($candidate, $tool)) {
+                return (string) $name;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Keeps differently configured tools with the same map key instead of overwriting one.
+     */
+    private static function getUniqueToolKey(array $tools, string $name) : string
+    {
+        if (! array_key_exists($name, $tools)) {
+            return $name;
+        }
+        $index = 2;
+        do {
+            $key = $name . '_' . $index++;
+        } while (array_key_exists($key, $tools));
+        return $key;
+    }
+
+    /**
+     * Returns only UXON properties that represent tool configuration.
+     */
+    private static function getComparableToolConfig(AiToolInterface $tool) : array
+    {
+        $config = $tool->exportUxonObject()->toArray();
+        unset($config['name'], $config['description'], $config['arguments']);
+        return $config;
+    }
+
+    /**
+     * Returns the configured tool name, falling back to the map key.
+     */
+    private static function getToolDisplayName(AiToolInterface $tool, string $fallback) : string
+    {
+        $name = trim((string) $tool->getName());
+        return $name === '' ? $fallback : $name;
+    }
+
+    /**
+     * Reads the tool description from its exported UXON configuration.
+     */
+    private static function getToolDescription(AiToolInterface $tool) : string
+    {
+        $description = $tool->exportUxonObject()->getProperty('description');
+        return is_string($description) ? trim($description) : '';
+    }
+
+    /**
+     * Sorts associative UXON arrays recursively while preserving list order.
+     */
+    private static function canonicalizeToolConfig(array $value) : array
+    {
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = static::canonicalizeToolConfig($item);
+            }
+        }
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+        return $value;
+    }
+
+    /**
+     * Adds the standard note to a retained tool without expanding AiToolInterface.
+     */
+    private static function appendDuplicateToolDescription(
+        AiToolInterface $tool,
+        ?string $renamedFrom = null,
+        ?string $additionalDescription = null
+    ) : void
+    {
+        $toolUxon = $tool->exportUxonObject();
+        $description = static::getToolDescription($tool);
+        $notes = [static::DUPLICATE_TOOL_DESCRIPTION];
+        if ($renamedFrom !== null) {
+            $notes[] = 'The same tool was also configured as "' . $renamedFrom . '".';
+        }
+        if ($additionalDescription !== null && trim($additionalDescription) !== '') {
+            $notes[] = 'Additional description: ' . trim($additionalDescription);
+        }
+        foreach ($notes as $note) {
+            if (! str_contains($description, $note)) {
+                $description = trim($description . ' ' . $note);
+            }
+        }
+        $toolUxon->setProperty('description', $description);
+        if (method_exists($tool, 'importUxonObject')) {
+            call_user_func([$tool, 'importUxonObject'], $toolUxon);
+        }
+    }
+
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)
     {
         switch (true) {

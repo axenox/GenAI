@@ -14,7 +14,6 @@ use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolCriticalError;
-use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
@@ -122,6 +121,9 @@ class GenericAssistant implements AiAgentInterface
 
     /** @var UxonObject[]|null */
     private ?array $toolsUxon = null;
+
+    /** @var UxonObject[]|null */
+    private ?array $conceptToolsUxon = null;
 
     /** @var AiSkillInterface[] */
     private array $skills = [];
@@ -496,11 +498,12 @@ class GenericAssistant implements AiAgentInterface
             if ($prompt->hasInputData()) {
                 $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
             }
+            $this->conceptToolsUxon = [];
             foreach ($this->getConcepts($prompt, $renderer) as $placeholderResolver) {
                 $renderer->addPlaceholder($placeholderResolver);
                 if ($placeholderResolver instanceof AiConceptInterface) {
                     foreach ($placeholderResolver->getToolModels() as $toolName => $toolUxon) {
-                        $this->toolsUxon[$toolName] = $toolUxon;
+                        $this->conceptToolsUxon[$toolName] = $toolUxon;
                     }
                 }
             }
@@ -985,44 +988,41 @@ class GenericAssistant implements AiAgentInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $this->tools = [];
-            $toolSources = [];
             $warnings = [];
-
-            foreach ($this->skills as $skill) {
-                $source = 'skill "' . $skill->getPlaceholder() . '"';
-                foreach ($skill->getTools() as $toolName => $tool) {
-                    if (isset($this->tools[$toolName])) {
-                        $warnings[] = new AiToolConfigurationWarning(
-                            'AI tool "' . $toolName . '" from ' . $source
-                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                        );
-                    }
-                    $this->tools[$toolName] = $tool;
-                    $toolSources[$toolName] = $source;
-                }
-                $warnings = array_merge($warnings, $skill->getWarnings());
-            }
-
+            $agentTools = [];
             foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
-                if (isset($this->tools[$toolName])) {
-                    $warnings[] = new AiToolConfigurationWarning(
-                        'AI tool "' . $toolName . '" configured on agent "'
-                        . $this->getAliasWithNamespace() . '" overrides the tool from ' . $toolSources[$toolName] . '.'
-                    );
-                }
-                $this->tools[$toolName] = AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName);
-                $toolSources[$toolName] = 'agent configuration';
+                $agentTools[$toolName] = AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName);
             }
 
-            if ($warnings !== []) {
-                if ($this->conversation !== null) {
-                    $this->conversation->saveWarnings($warnings);
-                } else {
-                    foreach ($warnings as $warning) {
-                        $this->workbench->getLogger()->logException($warning);
-                    }
-                }
+            $conceptTools = [];
+            foreach ($this->conceptToolsUxon ?? [] as $toolName => $toolUxon) {
+                $conceptTools[$toolName] = AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName);
+            }
+
+            $skillTools = [];
+            foreach ($this->skills as $skill) {
+                $currentSkillTools = $skill->getTools();
+                $warnings = array_merge($warnings, $skill->getWarnings());
+                $skillTools = AiFactory::mergeTools(
+                    $skillTools,
+                    $currentSkillTools,
+                    $warnings
+                );
+            }
+
+            $this->tools = AiFactory::mergeTools(
+                $agentTools,
+                $conceptTools,
+                $warnings
+            );
+            $this->tools = AiFactory::mergeTools(
+                $this->tools,
+                $skillTools,
+                $warnings
+            );
+
+            if ($warnings !== [] && $this->conversation !== null) {
+                $this->conversation->saveWarnings($warnings);
             }
         }
         return $this->tools;
@@ -1039,7 +1039,11 @@ class GenericAssistant implements AiAgentInterface
                 return $tool;
             }
         }
-        throw new AiAgentRuntimeError($this, 'Tool "' . $name . '" not found!');
+        throw new AiAgentRuntimeError(
+            $this,
+            'Tool "' . $name . '" not found!',
+            $this->getAliasWithNamespace()
+        );
     }
 
     protected function addTool(AiToolInterface $tool) : AiAgentInterface
