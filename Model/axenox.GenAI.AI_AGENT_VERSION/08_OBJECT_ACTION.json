@@ -65,6 +65,36 @@
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "AI agent version: Enable / disable [ToggleAiAgentVersion]",
+            "CREATED_ON": "2026-09-14 00:00:00",
+            "MODIFIED_ON": "2026-09-14 00:00:00",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1e9bf85c4a720b4e3025041000001",
+            "OBJECT": "0x11f0a47972e1dbf6a479025041000001",
+            "ACTION_PROTOTYPE": "exface/core/Actions/UpdateData.php",
+            "ALIAS": "ToggleAiAgentVersion",
+            "NAME": "Enable / disable",
+            "SHORT_DESCRIPTION": "",
+            "CONFIG_UXON": {
+                "input_rows_min": 1,
+                "input_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                "icon": "random",
+                "input_mapper": {
+                    "inherit_columns": "own_system_attributes",
+                    "column_to_column_mappings": [
+                        {
+                            "from": "=Not(ENABLED_FLAG)",
+                            "to": "ENABLED_FLAG"
+                        }
+                    ]
+                }
+            },
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        },
+        {
             "_EXPORT_SUMMARY": "AI agent version: Change connection [AiAgentVersionChangeConnectionDialog]",
             "CREATED_ON": "2024-09-17 13:31:42",
             "MODIFIED_ON": "2025-09-04 15:45:00",

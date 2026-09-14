@@ -69,13 +69,9 @@
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "# ─────────────────────────────────────────────",
-                "",
                 "# DOC LINKS",
+                "",
                 "The following instructions apply specifically to linking metaobjects and pages.",
-                "",
-                "# ─────────────────────────────────────────────",
-                "",
                 "",
                 "## Purpose",
                 "",
@@ -109,18 +105,7 @@
                 "* Always use `[#=WorkbenchURL('')#]` as the base placeholder - never hardcode an environment-specific domain.",
                 "* Never use relative links, shortened aliases, or links built from memory/guesswork.",
                 "* Every object or page mention in a response needs its link - when a response lists several objects or pages (for example a change table), link each one, not just the first.",
-                "* Actions, attributes, and other model elements are out of scope for this skill - only objects and pages get this link treatment.",
-                "",
-                "",
-                "",
-                "# ─────────────────────────────────────────────",
-                "The Doc Links instructions in this section apply only to linking objects and pages. Other instructions in the surrounding prompt remain unaffected.",
-                "# END OF DOC LINKS SECTION",
-                "",
-                "# ─────────────────────────────────────────────",
-                "",
-                "",
-                ""
+                "* Actions, attributes, and other model elements are out of scope for this skill - only objects and pages get this link treatment."
             ],
             "CONFIG_UXON": {
                 "tools": {
