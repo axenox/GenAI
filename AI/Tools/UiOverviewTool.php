@@ -4,12 +4,11 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
+use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
-use exface\Core\CommonLogic\UxonObject;
-use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\UiPageTreeFactory;
@@ -17,8 +16,12 @@ use exface\Core\Interfaces\Actions\iShowDialog;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Model\UiPageTreeNodeInterface;
 use exface\Core\Interfaces\WidgetInterface;
+use exface\Core\Interfaces\Widgets\iHaveContextualHelp;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\Button;
+use exface\Core\Widgets\ButtonGroup;
+use exface\Core\Widgets\DataToolbar;
+use exface\Core\Widgets\WidgetConfigurator;
 
 /**
  * Get an overview of the main menu of an app with all its submenus, available actions, inner dialogs, etc.
@@ -38,7 +41,10 @@ class UiOverviewTool extends AbstractAiTool
 {
     public const ARG_APP = 'app';
     public const ARG_DEPTH = 'depth';
-    public const ARG_EXCLUDE_DEFAULT_ACTIONS = 'exclude_default_actions';
+
+    private ?AiPromptInterface $activePrompt = null;
+    private array $warnings = [];
+    private array $warningKeys = [];
 
     /**
      * {@inheritDoc}
@@ -46,29 +52,33 @@ class UiOverviewTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
+        $this->activePrompt = $prompt;
+        $this->warnings = [];
+        $this->warningKeys = [];
         $appAlias = trim((string) ($arguments[0] ?? ''));
         if ($appAlias === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: app');
         }
         $depth = (int) ($arguments[1] ?? 1);
-        $excludeDefaultActions = BooleanDataType::cast($arguments[2] ?? false) ?? false;
 
         $appOfInterest = $this->getWorkbench()->getApp($appAlias);
         $appAliasNs = $appOfInterest->getAliasWithNamespace();
 
         // Build the complete main menu the same way the NavMenu widget does when showing all pages -
         // starting from the default server root page and expanding all levels.
-        $tree = UiPageTreeFactory::createFromRoot($this->getWorkbench());
-        $rootNodes = $tree->getRootNodes();
+        try {
+            $tree = UiPageTreeFactory::createFromRoot($this->getWorkbench());
+            $rootNodes = $tree->getRootNodes();
+        } catch (\Throwable $e) {
+            $this->addWarning('Could not load the main menu', $e);
+            $rootNodes = [];
+        }
 
         $md = '# UI overview of app ' . $appAliasNs . "\n\n";
         $md .= 'The **Main menu** section below lists all pages available in the menu with a link to each page. '
             . 'Use these URLs with the UI widget info tool to get more details about any page. '
             . 'The **Screens** section describes the pages of app `' . $appAliasNs . '` and the dialogs reachable '
             . "from them in more detail.\n\n";
-        if ($excludeDefaultActions) {
-            $md .= "Unconfigured standard actions are omitted from this overview.\n\n";
-        }
 
         // Main menu
         $md .= "## Main menu\n\n";
@@ -87,11 +97,13 @@ class UiOverviewTool extends AbstractAiTool
             $md .= "_No menu pages found for this app._\n";
         } else {
             foreach ($appNodes as $node) {
-                $md .= $this->describePageNode($node, $depth, $excludeDefaultActions);
+                $md .= $this->describePageNode($node, $depth);
             }
         }
 
-        return new AiToolResultString($this, $arguments, $md, $this->getReturnDataType());
+        $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType(), [], $this->warnings);
+        $this->activePrompt = null;
+        return $result;
     }
 
     /**
@@ -104,24 +116,47 @@ class UiOverviewTool extends AbstractAiTool
     protected function renderMenu(array $nodes, int $level): string
     {
         $md = '';
-        $indent = str_repeat('  ', $level);
-        foreach ($nodes as $node) {
-            $url = $node->getPageAlias() . '.html';
-            $line = $indent . '- [' . $node->getName() . '](' . $url . ')';
-            $descr = $node->getDescription() ?? $node->getIntro();
-            if ($descr !== null && $descr !== '') {
-                $line .= ' - ' . $this->oneLine($descr);
+        $pending = [];
+        // Reverse before pushing so the explicit LIFO stack preserves the menu's original order.
+        foreach (array_reverse($nodes) as $node) {
+            $pending[] = [$node, $level];
+        }
+        $seen = [];
+        while (($item = array_pop($pending)) !== null) {
+            [$node, $nodeLevel] = $item;
+            $nodeKey = spl_object_hash($node);
+            // Malformed menu data must not create an endless cycle.
+            if (isset($seen[$nodeKey])) {
+                continue;
             }
-            $md .= $line . "\n";
-            if ($node->hasChildNodes()) {
-                $md .= $this->renderMenu($node->getChildNodes(), $level + 1);
+            $seen[$nodeKey] = true;
+            try {
+                $indent = str_repeat('  ', $nodeLevel);
+                $url = $node->getPageAlias() . '.html';
+                $line = $indent . '- [' . $node->getName() . '](' . $url . ')';
+                $descr = $node->getDescription() ?? $node->getIntro();
+                if ($descr !== null && $descr !== '') {
+                    $line .= ' - ' . $this->oneLine($descr);
+                }
+                $md .= $line . "\n";
+            } catch (\Throwable $e) {
+                $this->addWarning('Could not render a main-menu entry; the entry was skipped', $e);
+            }
+            try {
+                if ($node->hasChildNodes()) {
+                    foreach (array_reverse($node->getChildNodes()) as $childNode) {
+                        $pending[] = [$childNode, $nodeLevel + 1];
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->addWarning('Could not read child entries from a main-menu entry', $e);
             }
         }
         return $md;
     }
 
     /**
-     * Recursively collects all menu nodes that belong to the given app.
+    * Collects all menu nodes that belong to the given app without recursive calls.
      * 
      * @param UiPageTreeNodeInterface[] $nodes
      * @param string $appAliasNs
@@ -130,16 +165,30 @@ class UiOverviewTool extends AbstractAiTool
      */
     protected function collectAppNodes(array $nodes, string $appAliasNs, array &$result): void
     {
-        foreach ($nodes as $node) {
+        // Use an explicit stack to avoid growing the PHP call stack for deeply nested menus.
+        $pending = array_reverse($nodes);
+        $seen = [];
+        while (($node = array_pop($pending)) !== null) {
+            $nodeKey = spl_object_hash($node);
+            if (isset($seen[$nodeKey])) {
+                continue;
+            }
+            $seen[$nodeKey] = true;
             try {
                 if ($node->hasApp() && strcasecmp($node->getApp()->getAliasWithNamespace(), $appAliasNs) === 0) {
                     $result[] = $node;
                 }
             } catch (\Throwable $e) {
-                $this->getWorkbench()->getLogger()->logException($e);
+                $this->addWarning('Could not inspect a menu entry while collecting app pages', $e);
             }
-            if ($node->hasChildNodes()) {
-                $this->collectAppNodes($node->getChildNodes(), $appAliasNs, $result);
+            try {
+                if ($node->hasChildNodes()) {
+                    foreach (array_reverse($node->getChildNodes()) as $childNode) {
+                        $pending[] = $childNode;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->addWarning('Could not read child entries while collecting app pages', $e);
             }
         }
     }
@@ -149,24 +198,28 @@ class UiOverviewTool extends AbstractAiTool
      * 
      * @param UiPageTreeNodeInterface $node
      * @param int $depth
-    * @param bool $excludeDefaultActions
      * @return string
      */
-    protected function describePageNode(UiPageTreeNodeInterface $node, int $depth, bool $excludeDefaultActions): string
+    protected function describePageNode(UiPageTreeNodeInterface $node, int $depth): string
     {
         try {
             $page = $node->getPage();
             $rootWidget = $page->getWidgetRoot();
         } catch (\Throwable $e) {
-            $this->getWorkbench()->getLogger()->logException($e);
-            return '### Page "' . $node->getName() . "\"\n\n_Could not load page: " . $e->getMessage() . "_\n\n";
+            $this->addWarning('Could not load a page; the page details were skipped', $e);
+            return "### Unavailable page\n\n_Could not load this page; rendering continued._\n\n";
         }
 
-        $title = 'Page "' . $node->getName() . '"';
-        $context = 'URL: `' . $node->getPageAlias() . '.html`';
-        $descr = $node->getDescription() ?? $node->getIntro();
-        $visited = [];
-        return $this->describeScreen($rootWidget, $title, $context, $descr, 3, $depth, $excludeDefaultActions, $visited);
+        try {
+            $title = 'Page "' . $node->getName() . '"';
+            $context = 'URL: `' . $node->getPageAlias() . '.html`';
+            $descr = $node->getDescription() ?? $node->getIntro();
+            $visited = [];
+            return $this->describeScreen($rootWidget, $title, $context, $descr, 3, $depth, $visited);
+        } catch (\Throwable $e) {
+            $this->addWarning('Could not render a page completely; the remaining page details were skipped', $e);
+            return "### Partially unavailable page\n\n_Could not render this page completely; rendering continued._\n\n";
+        }
     }
 
     /**
@@ -181,11 +234,10 @@ class UiOverviewTool extends AbstractAiTool
      * @param string|null $description
      * @param int $headingLevel
      * @param int $depth
-    * @param bool $excludeDefaultActions
      * @param string[] $visited
      * @return string
      */
-    protected function describeScreen(WidgetInterface $screen, string $title, ?string $context, ?string $description, int $headingLevel, int $depth, bool $excludeDefaultActions, array &$visited): string
+    protected function describeScreen(WidgetInterface $screen, string $title, ?string $context, ?string $description, int $headingLevel, int $depth, array &$visited): string
     {
         $md = str_repeat('#', $headingLevel) . ' ' . $title . "\n\n";
         if ($context !== null && $context !== '') {
@@ -196,7 +248,12 @@ class UiOverviewTool extends AbstractAiTool
         }
 
         // Objects shown on this screen
-        $objects = $this->collectObjects($screen);
+        try {
+            $objects = $this->collectObjects($screen);
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+            $objects = [];
+        }
         if (! empty($objects)) {
             $md .= "Objects shown:\n";
             foreach ($objects as $objLine) {
@@ -206,57 +263,67 @@ class UiOverviewTool extends AbstractAiTool
         }
 
         // Buttons available to the user on this screen
-        $buttons = $this->collectButtons($screen);
-        if ($excludeDefaultActions) {
-            $buttons = array_filter($buttons, function (Button $button) {
-                return ! $button->hasAction() || ! $this->isUnconfiguredStandardAction($button);
-            });
+        try {
+            $buttons = $this->collectButtons($screen);
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+            $buttons = [];
         }
         $dialogs = [];
         if (! empty($buttons)) {
-            $md .= "Buttons:\n";
-            foreach ($buttons as $button) {
-                $action = $button->hasAction() ? $button->getAction() : null;
-                $caption = $button->getCaption();
-                if ($caption === null || $caption === '') {
-                    $caption = $button->getWidgetType();
-                }
-                $line = '- **' . $this->oneLine($caption) . '**';
-                if ($action !== null) {
-                    $line .= ' - action `' . $action->getAliasWithNamespace() . '`';
-                    if ($action instanceof iShowDialog) {
-                        $line .= ', opens a dialog';
-                        try {
-                            $dialog = $action->getDialogWidget();
-                            if ($dialog !== null) {
-                                $dialogs[] = [$button, $dialog];
-                            }
-                        } catch (\Throwable $e) {
-                            $this->getWorkbench()->getLogger()->logException($e);
+            $md .= "Buttons by input widget:\n\n";
+            foreach ($this->groupButtonsByInputWidget($buttons) as $group) {
+                $md .= '**' . $group['label'] . "**\n";
+                foreach ($group['buttons'] as $button) {
+                    try {
+                        $action = $button->hasAction() ? $button->getAction() : null;
+                        $caption = $button->getCaption();
+                        if ($caption === null || $caption === '') {
+                            $caption = $button->getWidgetType();
                         }
+                        $line = '- **' . $this->oneLine($caption) . '**';
+                        if ($action !== null) {
+                            $line .= ' - action `' . $action->getAliasWithNamespace() . '`';
+                            if ($action instanceof iShowDialog) {
+                                $line .= ', opens a dialog';
+                                // Resolving the dialog instantiates its widget tree, so do it only when it will be rendered.
+                                if ($depth > 0) {
+                                    $dialog = $action->getDialogWidget();
+                                    if ($dialog !== null) {
+                                        $dialogs[] = [$button, $dialog];
+                                    }
+                                }
+                            }
+                        }
+                        $md .= $line . "\n";
+                    } catch (\Throwable $e) {
+                        $this->addWarning('Could not inspect a button or its action; the button was skipped', $e);
                     }
                 }
-                $md .= $line . "\n";
+                $md .= "\n";
             }
-            $md .= "\n";
         }
 
         // Recurse into dialogs opened from the buttons of this screen
         if ($depth > 0) {
             foreach ($dialogs as [$button, $dialog]) {
-                $dialogId = $dialog->getId();
-                if (in_array($dialogId, $visited, true)) {
-                    continue;
+                try {
+                    $dialogId = $dialog->getId();
+                    if (in_array($dialogId, $visited, true)) {
+                        continue;
+                    }
+                    $visited[] = $dialogId;
+                    $dialogCaption = $dialog->getCaption();
+                    if ($dialogCaption === null || $dialogCaption === '') {
+                        $dialogCaption = $button->getCaption() ?? $dialog->getWidgetType();
+                    }
+                    $dialogTitle = 'Dialog "' . $this->oneLine($dialogCaption) . '"';
+                    $btnCaption = $button->getCaption() ?? '';
+                    $dialogContext = 'Opened from ' . trim($title) . ' via button "' . $this->oneLine($btnCaption) . '"';
+                    $md .= $this->describeScreen($dialog, $dialogTitle, $dialogContext, null, $headingLevel + 1, $depth - 1, $visited);
+                } catch (\Throwable $e) {
+                    $this->addWarning('Could not render a dialog; the dialog was skipped', $e);
                 }
-                $visited[] = $dialogId;
-                $dialogCaption = $dialog->getCaption();
-                if ($dialogCaption === null || $dialogCaption === '') {
-                    $dialogCaption = $button->getCaption() ?? $dialog->getWidgetType();
-                }
-                $dialogTitle = 'Dialog "' . $this->oneLine($dialogCaption) . '"';
-                $btnCaption = $button->getCaption() ?? '';
-                $dialogContext = 'Opened from ' . trim($title) . ' via button "' . $this->oneLine($btnCaption) . '"';
-                $md .= $this->describeScreen($dialog, $dialogTitle, $dialogContext, null, $headingLevel + 1, $depth - 1, $excludeDefaultActions, $visited);
             }
         }
 
@@ -268,6 +335,9 @@ class UiOverviewTool extends AbstractAiTool
      * 
      * Only widgets within the same id space are traversed, so buttons of dialogs opened from this
      * screen are not included here - they are documented separately when the dialog is described.
+     * Buttons inside configurators are omitted because this generated UI is the same for every
+     * configured widget and does not describe app-specific behavior. Automatically included global,
+     * search, reset and contextual-help actions are omitted for the same reason.
      * 
      * @param WidgetInterface $screen
      * @return Button[]
@@ -275,46 +345,169 @@ class UiOverviewTool extends AbstractAiTool
     protected function collectButtons(WidgetInterface $screen): array
     {
         $buttons = [];
-        foreach ($screen->getChildrenRecursive() as $child) {
-            if ($child instanceof Button) {
-                $buttons[] = $child;
+        foreach ($this->getScreenWidgets($screen) as $child) {
+            try {
+                if ($child instanceof Button && ! $this->isInsideConfigurator($child) && ! $this->isAutoIncludedAction($child)) {
+                    $buttons[] = $child;
+                }
+            } catch (\Throwable $e) {
+                $this->addWarning('Could not inspect a widget while collecting buttons; the widget was skipped', $e);
             }
         }
         return $buttons;
     }
 
     /**
-     * Returns TRUE for standard core actions without additional action configuration.
+     * Iterates over a screen without recursive calls or descending into action-owned button children. Prevent infinite recursion by keeping track of already seen widgets.
+     * Otherwise, when using the normal recursive approach in larger apps, even depth 0 can exceed the stack size and cause issues.
+     *
+     * @param WidgetInterface $screen
+     * @return \Generator|WidgetInterface[]
+     */
+    protected function getScreenWidgets(WidgetInterface $screen): \Generator
+    {
+        $pending = [];
+        try {
+            foreach ($screen->getChildren() as $child) {
+                $pending[] = $child;
+            }
+        } catch (\Throwable $e) {
+            // A broken root subtree must not prevent the remaining overview from being rendered.
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
+        $seen = [];
+        for ($position = 0; isset($pending[$position]); $position++) {
+            $widget = $pending[$position];
+            $key = spl_object_hash($widget);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            yield $widget;
+
+            // Button children are action-owned widgets such as dialogs; those are handled by the depth-controlled path.
+            if ($widget instanceof Button) {
+                continue;
+            }
+            try {
+                foreach ($widget->getChildren() as $child) {
+                    $pending[] = $child;
+                }
+            } catch (\Throwable $e) {
+                // Skip only this broken subtree and continue with widgets already queued from its siblings.
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
+    }
+
+    /**
+     * Returns TRUE if the widget belongs to a generated configurator subtree.
+     *
+     * @param WidgetInterface $widget
+     * @return bool
+     */
+    protected function isInsideConfigurator(WidgetInterface $widget): bool
+    {
+        while ($widget->hasParent()) {
+            $widget = $widget->getParent();
+            if ($widget instanceof WidgetConfigurator) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns TRUE if the button was automatically included by a standard widget.
+     *
+     * This excludes the following repetitive framework-generated controls:
+     *
+     * - global actions in a DataToolbar's dedicated global-actions button group,
+     * - search and reset actions in a DataToolbar's dedicated search-actions button group,
+     * - the contextual-help button generated by a widget implementing iHaveContextualHelp.
+     *
+     * The check compares the actual generated button and button-group instances. Manually configured
+     * buttons are therefore retained even if they use the same action aliases.
      *
      * @param Button $button
      * @return bool
      */
-    protected function isUnconfiguredStandardAction(Button $button): bool
+    protected function isAutoIncludedAction(Button $button): bool
     {
-        $action = $button->getAction();
-        if ($action === null || stripos($action->getAliasWithNamespace(), 'exface.Core.') !== 0) {
-            return false;
-        }
-
-        $uxon = $button->exportUxonObjectOriginal();
-        if ($uxon === null) {
-            return true;
-        }
-        foreach ($uxon->getPropertyNames() as $propertyName) {
-            if (substr($propertyName, 0, 7) === 'action_' && $propertyName !== 'action_alias') {
-                return false;
+        $widget = $button;
+        while ($widget->hasParent()) {
+            $widget = $widget->getParent();
+            if ($widget instanceof iHaveContextualHelp && $widget->getHelpButton() === $button) {
+                return true;
             }
-        }
-
-        $actionUxon = $uxon->getProperty('action');
-        if ($actionUxon instanceof UxonObject) {
-            foreach ($actionUxon->getPropertyNames() as $propertyName) {
-                if ($propertyName !== 'alias') {
-                    return false;
+            if ($widget instanceof ButtonGroup && $widget->hasParent()) {
+                $toolbar = $widget->getParent();
+                if ($toolbar instanceof DataToolbar
+                    && ($toolbar->getButtonGroupForGlobalActions() === $widget
+                        || $toolbar->getButtonGroupForSearchActions() === $widget)) {
+                    return true;
                 }
             }
         }
-        return true;
+        return false;
+    }
+
+    /**
+     * Groups buttons by their effective input widget and sorts the groups by label.
+     *
+     * @param Button[] $buttons
+     * @return array[]
+     */
+    protected function groupButtonsByInputWidget(array $buttons): array
+    {
+        $groups = [];
+        foreach ($buttons as $button) {
+            try {
+                $inputWidget = $button->getInputWidget();
+                $key = spl_object_hash($inputWidget);
+                $label = $this->describeInputWidget($inputWidget);
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+                $key = 'unknown';
+                $label = 'Unknown input widget';
+            }
+            if (! isset($groups[$key])) {
+                $groups[$key] = [
+                    'label' => $label,
+                    'buttons' => []
+                ];
+            }
+            $groups[$key]['buttons'][] = $button;
+        }
+        uasort($groups, function (array $left, array $right) {
+            return strcasecmp($left['label'], $right['label']);
+        });
+        return array_values($groups);
+    }
+
+    /**
+     * Builds a concise label identifying an action input widget.
+     *
+     * @param WidgetInterface $widget
+     * @return string
+     */
+    protected function describeInputWidget(WidgetInterface $widget): string
+    {
+        $label = '`' . $widget->getWidgetType() . '`';
+        $caption = $widget->getCaption();
+        if ($caption !== null && $caption !== '') {
+            $label .= ' "' . $this->oneLine($caption) . '"';
+        }
+        $id = $widget->getId();
+        if ($id !== null && $id !== '') {
+            $label .= ' (`' . $id . '`)';
+        }
+        try {
+            $label .= ' - object `' . $widget->getMetaObject()->getAliasWithNamespace() . '`';
+        } catch (\Throwable $e) {
+            // Some structural widgets do not have a meta object.
+        }
+        return $label;
     }
 
     /**
@@ -340,10 +533,33 @@ class UiOverviewTool extends AbstractAiTool
             }
         };
         $collect($screen);
-        foreach ($screen->getChildrenRecursive() as $child) {
+        foreach ($this->getScreenWidgets($screen) as $child) {
             $collect($child);
         }
         return $names;
+    }
+
+    /**
+     * Records and logs a recoverable rendering problem.
+     *
+     * @param string $message
+     * @param \Throwable $previous
+     * @return void
+     */
+    protected function addWarning(string $message, \Throwable $previous): void
+    {
+        $warningKey = $message . "\0" . get_class($previous) . "\0" . $previous->getMessage();
+        if (isset($this->warningKeys[$warningKey])) {
+            return;
+        }
+        $this->warningKeys[$warningKey] = true;
+        if ($this->activePrompt === null) {
+            $this->getWorkbench()->getLogger()->logException($previous);
+            return;
+        }
+        $warning = new AiToolRuntimeWarning($this, $this->activePrompt, $message, null, $previous);
+        $this->getWorkbench()->getLogger()->logException($warning);
+        $this->warnings[] = $warning;
     }
 
     /**
@@ -378,12 +594,6 @@ class UiOverviewTool extends AbstractAiTool
                 ->setName(self::ARG_DEPTH)
                 ->setDescription('How deep to follow dialogs opened by buttons inside the pages of the app of interest. Higher values can produce very extensive output and incur significant processing and AI costs.')
                 ->setDefaultValue(1)
-                ->setRequired(false),
-            (new ServiceParameter($self))
-                ->setDataType(new UxonObject(['alias' => 'exface.Core.Boolean']))
-                ->setName(self::ARG_EXCLUDE_DEFAULT_ACTIONS)
-                ->setDescription('Whether to omit standard exface.Core actions that have no configuration beyond their alias. Custom app actions and configured standard actions remain visible. Enable this for a shorter overview focused on app-specific behavior.')
-                ->setDefaultValue(false)
                 ->setRequired(false)
         ];
     }

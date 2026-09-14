@@ -32,7 +32,7 @@ class NotesWriteTool extends AbstractAiTool
     public const ARG_TOPIC = 'topic';
     public const ARG_NOTE = 'note';
     public const ARG_UID = 'uid';
-    public const ARG_TYPE = 'type';
+    public const ARG_NOTE_TYPE = 'note_type';
 
     /**
      * {@inheritDoc}
@@ -40,10 +40,10 @@ class NotesWriteTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $topic = trim((string) ($arguments[0] ?? ''));
-        $note = (string) ($arguments[1] ?? '');
-        $uid = trim((string) ($arguments[2] ?? ''));
-        $type = (string) ($arguments[3] ?? AiNoteTypeDataType::MEMORY);
+        $topic = trim((string) ($arguments[self::ARG_TOPIC] ?? $arguments[0] ?? ''));
+        $note = (string) ($arguments[self::ARG_NOTE] ?? $arguments[1] ?? '');
+        $uid = trim((string) ($arguments[self::ARG_UID] ?? $arguments[2] ?? ''));
+        $type = (string) ($arguments[self::ARG_NOTE_TYPE] ?? $arguments[3] ?? AiNoteTypeDataType::MEMORY);
         if ($topic === '') {
             throw new AiToolRuntimeError($this, $prompt, 'A topic is required to write a note.');
         }
@@ -110,7 +110,7 @@ class NotesWriteTool extends AbstractAiTool
                 ->setDataType(new UxonObject([
                     'alias' => 'axenox.GenAI.AiNoteType'
                 ]))
-                ->setName(self::ARG_TYPE)
+                ->setName(self::ARG_NOTE_TYPE)
                 ->setDescription('Type of note to save. Use `memory` for reusable facts (long-term memory) and `suggestion` for potential improvements or missing capabilities.')
                 ->setDefaultValue(AiNoteTypeDataType::MEMORY)
                 ->setRequired(false)
