@@ -10,6 +10,7 @@ use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\CommonLogic\WorkbenchCache;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
@@ -32,8 +33,8 @@ use exface\Core\Widgets\WidgetConfigurator;
  * This tool is useful to get an overview of the UI of an app. It shows all screens available to the user
  * and describes them briefly. It produces a markdown document with two main parts:
  * 
- * - **App pages** - all menu pages belonging to the requested app with links that can be passed to the
- * `UiWidgetInfoTool` to get more details about a page of interest.
+ * - **Menu pages** - either the complete server menu or only pages belonging to the requested app, with
+ * links that can be passed to the `UiWidgetInfoTool` to get more details about a page of interest.
  * - **Screens of the app of interest** - a detailed chapter for every page of the given app and for every
  * dialog that a user can open from those pages by pressing a button. Each screen chapter lists the meta
  * objects shown on the screen and all buttons available to the user. Dialogs are documented recursively
@@ -41,6 +42,9 @@ use exface\Core\Widgets\WidgetConfigurator;
  */
 class UiOverviewTool extends AbstractAiTool
 {
+    private const CACHE_POOL = 'axenox.genai.ui-overview';
+    private const CACHE_FORMAT_VERSION = 1;
+
     public const ARG_APP = 'app';
     public const ARG_DEPTH = 'depth';
     public const ARG_FULL_MENU = 'full_menu';
@@ -67,6 +71,16 @@ class UiOverviewTool extends AbstractAiTool
 
         $appOfInterest = $this->getWorkbench()->getApp($appAlias);
         $appAliasNs = $appOfInterest->getAliasWithNamespace();
+        $cacheKey = $this->getCacheKey($appAliasNs, $depth, $fullMenu, $appOfInterest->getTranslator()->getLocale());
+        try {
+            $cachedMarkdown = $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->get($cacheKey);
+            if (is_string($cachedMarkdown)) {
+                $this->activePrompt = null;
+                return new AiToolResultString($this, $arguments, $cachedMarkdown, $this->getReturnDataType());
+            }
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
 
         // Build the complete main menu the same way the NavMenu widget does when showing all pages -
         // starting from the default server root page and expanding all levels.
@@ -109,9 +123,41 @@ class UiOverviewTool extends AbstractAiTool
             }
         }
 
+        if (empty($this->warnings)) {
+            try {
+                $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->set($cacheKey, $md);
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
         $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType(), [], $this->warnings);
         $this->activePrompt = null;
         return $result;
+    }
+
+    /**
+     * Builds a cache key that separates output by arguments, user permissions and locale.
+     *
+     * Page and action model changes clear the Workbench cache through their CacheClearingBehavior.
+     *
+     * @param string $appAliasNs
+     * @param int $depth
+     * @param bool $fullMenu
+     * @param string $locale
+     * @return string
+     */
+    protected function getCacheKey(string $appAliasNs, int $depth, bool $fullMenu, string $locale): string
+    {
+        $username = $this->getWorkbench()->getSecurity()->getAuthenticatedToken()->getUsername() ?? 'anonymous';
+        $keyData = [
+            'version' => self::CACHE_FORMAT_VERSION,
+            'app' => $appAliasNs,
+            'depth' => $depth,
+            'full_menu' => $fullMenu,
+            'username' => $username,
+            'locale' => $locale
+        ];
+        return WorkbenchCache::createCacheKey('ui-overview-' . hash('sha256', json_encode($keyData)));
     }
 
     /**

@@ -690,7 +690,7 @@ replacement text
 
 **Alias:** `axenox.GenAI.UiOverviewTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiOverviewTool)
 
-**Purpose.** Produces a Markdown overview of the menu pages and screens of a given app. Only menu pages owned by the requested app are listed, and those pages and the dialogs reachable from them are described in detail.
+**Purpose.** Produces a Markdown overview of menu pages and the screens of a given app. The link section can show the complete server menu or only pages owned by the requested app; detailed descriptions always cover only the requested app's pages and reachable dialogs.
 
 **Use when.** The agent needs to understand which screens an app offers, what a user can do on them, and how to navigate to further pages. The page links in the menu can be passed to `UiWidgetInfoTool` for deeper inspection.
 
@@ -704,7 +704,7 @@ replacement text
 
 **How to use.** The model supplies the app alias and optionally a recursion depth and menu scope. By default the complete server menu is printed; set `full_menu` to `false` for an app-only page list. Detailed screens are always filtered to the requested app.
 
-**Result and limits.** Each screen chapter lists the meta objects shown on the screen and groups available buttons by their effective input widget. Input-widget groups are sorted by their widget label. If an input widget cannot be resolved, its button is retained in an unknown-input group and the technical error is logged without adding a result warning. Generated configurator dialogs, `InputComboTable` lookup buttons and dialogs, and repetitive auto-included actions such as global actions, search, reset, and contextual help are omitted. Other dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview. If an individual menu entry, page, widget, action, or dialog cannot be loaded, the tool skips that item, continues rendering the remaining overview, and returns a concise, deduplicated warning with the partial result. Technical exception details are written to the log instead of the tool result.
+**Result and limits.** Each screen chapter lists the meta objects shown on the screen and groups available buttons by their effective input widget. Input-widget groups are sorted by their widget label. If an input widget cannot be resolved, its button is retained in an unknown-input group and the technical error is logged without adding a result warning. Generated configurator dialogs, `InputComboTable` lookup buttons and dialogs, and repetitive auto-included actions such as global actions, search, reset, and contextual help are omitted. Other dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview. Successful results are cached in a Workbench cache pool per app, arguments, authenticated user, and locale. Page and action model changes invalidate this cache through the Core cache-clearing behaviors; partial results containing warnings are not cached. If an individual menu entry, page, widget, action, or dialog cannot be loaded, the tool skips that item, continues rendering the remaining overview, and returns a concise, deduplicated warning with the partial result. Technical exception details are written to the log instead of the tool result.
 
 ## `UiWidgetInfoTool`
 
