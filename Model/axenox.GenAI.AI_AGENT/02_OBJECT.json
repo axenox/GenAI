@@ -208,6 +208,9 @@
                                                         "action_alias": "exface.Core.ShowObjectCopyDialog"
                                                     },
                                                     {
+                                                        "action_alias": "axenox.GenAI.ToggleAiAgentVersion"
+                                                    },
+                                                    {
                                                         "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog"
                                                     },
                                                     {
