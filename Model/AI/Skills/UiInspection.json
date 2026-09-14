@@ -1,0 +1,140 @@
+{
+    "object_alias": "axenox.GenAI.AI_SKILL",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "INSTRUCTIONS",
+            "attribute_alias": "INSTRUCTIONS"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "PROTOTYPE_CLASS",
+            "attribute_alias": "PROTOTYPE_CLASS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "UI Inspection",
+            "CREATED_ON": "2026-09-10 00:00:00",
+            "MODIFIED_ON": "2026-09-10 00:00:00",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x3f9c7a2e4b1d4f6a9c3e7b5d1f2a8c40",
+            "NAME": "UI Inspection",
+            "ALIAS": "UiInspection",
+            "DESCRIPTION": "Reusable skill that lets agents inspect the currently configured pages, dialogs, and widgets of an app, for example to ground a UX/UI analysis or a proposed UI change in the actual configured UI.",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "INSTRUCTIONS": [
+                "// Multiline text delimited by `\n`",
+                "# UI INSPECTION",
+                "",
+                "The following instructions apply specifically to inspecting an app's currently configured user interface.",
+                "",
+                "## Purpose",
+                "",
+                "Use these tools to look at the pages, dialogs, navigation, and widgets an app actually has configured, for example before proposing or implementing UI changes or performing a UX/UI analysis.",
+                "",
+                "## Choosing the right tool",
+                "",
+                "* `UIOverview` returns the app's main menu together with its pages and the dialogs reachable from them, including the widgets and buttons shown on each screen. Choose it first, to get oriented before drilling into a specific page or widget.",
+                "",
+                "* `UIWidgetInfo` returns the current UXON and a Markdown description of one concrete page, dialog, or nested widget. Choose it once `UIOverview` has identified a specific page or widget that needs closer inspection.",
+                "",
+                "## Scope",
+                "",
+                "* These tools only inspect the current UI; they never change any configuration.",
+                "* Prefer `UIOverview` for orientation and `UIWidgetInfo` for a concrete page, dialog, or widget instead of guessing the structure from memory."
+            ],
+            "CONFIG_UXON": {
+                "tools": {
+                    "UIOverview": {
+                        "alias": "axenox.GenAI.UiOverviewTool",
+                        "description": "Inspect the pages, dialogs and navigation of an affected app before implementing UI changes.",
+                        "arguments": [
+                            {
+                                "name": "app_alias",
+                                "data_type": {
+                                    "alias": "exface.Core.String"
+                                },
+                                "description": "Fully qualified alias of the app whose UI should be inspected."
+                            }
+                        ]
+                    },
+                    "UIWidgetInfo": {
+                        "alias": "axenox.GenAI.UiWidgetInfoTool",
+                        "description": "Inspect the current UXON and documentation of an affected page, dialog or widget."
+                    }
+                }
+            },
+            "PROTOTYPE_CLASS": "axenox/genai/AI/Skills/GenericSkill.php"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_SKILL",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
