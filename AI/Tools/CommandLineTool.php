@@ -151,6 +151,14 @@ class CommandLineTool extends AbstractAiTool
     }
 
     /**
+     * @return string[]
+     */
+    protected function getAllowedCommands(): array
+    {
+        return $this->allowedCommands;
+    }
+
+    /**
      * Allowed command patterns.
      *
      * Entries can be exact command strings (for example `php` or `php -v`) or regex patterns
@@ -169,6 +177,14 @@ class CommandLineTool extends AbstractAiTool
     {
         $this->allowedCommands = $this->sanitizePatterns($patterns);
         return $this;
+    }
+
+    /**
+     * @return string[]
+     */
+    protected function getBlockedCommands(): array
+    {
+        return $this->blockedCommands;
     }
 
     /**
@@ -200,11 +216,13 @@ class CommandLineTool extends AbstractAiTool
      */
     protected function checkCommandAllowed(string $command, AiPromptInterface $prompt): void
     {
-        if ($this->checkCommandMatchesPatterns($command, $this->blockedCommands)) {
+        $blockedCommands = $this->getBlockedCommands();
+        if ($this->checkCommandMatchesPatterns($command, $blockedCommands)) {
             throw new AiToolRuntimeError($this, $prompt, 'Command blocked by tool configuration.');
         }
 
-        if (! empty($this->allowedCommands) && ! $this->checkCommandMatchesPatterns($command, $this->allowedCommands)) {
+        $allowedCommands = $this->getAllowedCommands();
+        if (! empty($allowedCommands) && ! $this->checkCommandMatchesPatterns($command, $allowedCommands)) {
             throw new AiToolRuntimeError($this, $prompt, 'Command is not in allowed_commands.');
         }
     }
