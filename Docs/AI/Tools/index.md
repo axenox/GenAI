@@ -700,11 +700,10 @@ replacement text
 | --- | --- | --- |
 | `app` | Yes | Alias of the app whose pages are described in detail (for example `exface.Core`). |
 | `depth` | No | How deep to follow dialogs opened by buttons inside the app's pages. Defaults to `1`. Higher values can produce very extensive output and incur significant processing and AI costs. |
-| `exclude_default_actions` | No | Set to `true` to omit standard `exface.Core` actions with no configuration beyond their alias. Custom app actions and configured standard actions remain visible. Defaults to `false`. |
 
-**How to use.** The model supplies the app alias and optionally a recursion depth. Set `exclude_default_actions` to `true` for a shorter overview focused on app-specific actions. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
+**How to use.** The model supplies the app alias and optionally a recursion depth. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
 
-**Result and limits.** Each screen chapter lists the meta objects shown on the screen and all buttons available to the user. Dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview.
+**Result and limits.** Each screen chapter lists the meta objects shown on the screen and groups available buttons by their effective input widget. Input-widget groups are sorted by their widget label. If an input widget cannot be resolved, its button is retained in an unknown-input group and the technical error is logged without adding a result warning. Generated configurator dialogs and repetitive auto-included actions such as global actions, search, reset, and contextual help are omitted. Other dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview. If an individual menu entry, page, widget, action, or dialog cannot be loaded, the tool skips that item, continues rendering the remaining overview, and returns a concise, deduplicated warning with the partial result. Technical exception details are written to the log instead of the tool result.
 
 ## `UiWidgetInfoTool`
 
