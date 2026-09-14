@@ -700,11 +700,10 @@ replacement text
 | --- | --- | --- |
 | `app` | Ja | Alias der App, deren Seiten ausführlich beschrieben werden (zum Beispiel `exface.Core`). |
 | `depth` | Nein | Wie tief Dialoge verfolgt werden, die über Schaltflächen innerhalb der Seiten der App geöffnet werden. Standardwert `1`. Höhere Werte können sehr umfangreiche Ausgaben erzeugen und erhebliche Verarbeitungs- und KI-Kosten verursachen. |
-| `exclude_default_actions` | Nein | Auf `true` setzen, um Standardaktionen aus `exface.Core` auszulassen, die außer ihrem Alias keine Konfiguration enthalten. Benutzerdefinierte App-Aktionen und konfigurierte Standardaktionen bleiben sichtbar. Standardwert `false`. |
 
-**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Setzen Sie `exclude_default_actions` für eine kürzere, auf App-spezifische Aktionen fokussierte Übersicht auf `true`. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
+**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
 
-**Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte sowie alle für den Benutzer verfügbaren Schaltflächen auf. Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht.
+**Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte auf und gruppiert verfügbare Schaltflächen nach ihrem effektiven Eingabe-Widget. Die Eingabe-Widget-Gruppen werden nach ihrer Widget-Bezeichnung sortiert. Kann ein Eingabe-Widget nicht aufgelöst werden, bleibt seine Schaltfläche in einer Gruppe für unbekannte Eingaben erhalten und der technische Fehler wird protokolliert, ohne eine Ergebniswarnung hinzuzufügen. Generierte Konfiguratordialoge und wiederkehrende automatisch hinzugefügte Aktionen wie globale Aktionen, Suche, Zurücksetzen und Kontexthilfe werden ausgelassen. Andere Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht. Kann ein einzelner Menüeintrag, eine Seite, ein Widget, eine Aktion oder ein Dialog nicht geladen werden, überspringt das Tool dieses Element, rendert die restliche Übersicht weiter und gibt eine knappe, deduplizierte Warnung zusammen mit dem Teilergebnis zurück. Technische Ausnahmedetails werden im Protokoll statt im Tool-Ergebnis ausgegeben.
 
 ## `UiWidgetInfoTool`
 
