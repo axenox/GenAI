@@ -9,6 +9,9 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\CommonLogic\WorkbenchCache;
+use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Factories\UiPageTreeFactory;
@@ -21,17 +24,17 @@ use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\Button;
 use exface\Core\Widgets\ButtonGroup;
 use exface\Core\Widgets\DataToolbar;
+use exface\Core\Widgets\InputComboTable;
 use exface\Core\Widgets\WidgetConfigurator;
 
 /**
- * Get an overview of the main menu of an app with all its submenus, available actions, inner dialogs, etc.
+ * Get an overview of an app's menu pages, available actions, inner dialogs, etc.
  * 
  * This tool is useful to get an overview of the UI of an app. It shows all screens available to the user
  * and describes them briefly. It produces a markdown document with two main parts:
  * 
- * - **Main menu** - the complete server menu (same structure as the `NavMenu` widget) with a link to
- * every page. The links are page URLs, so an agent can pass them to the `UiWidgetInfoTool` to get more
- * details about any page it is interested in.
+ * - **Menu pages** - either the complete server menu or only pages belonging to the requested app, with
+ * links that can be passed to the `UiWidgetInfoTool` to get more details about a page of interest.
  * - **Screens of the app of interest** - a detailed chapter for every page of the given app and for every
  * dialog that a user can open from those pages by pressing a button. Each screen chapter lists the meta
  * objects shown on the screen and all buttons available to the user. Dialogs are documented recursively
@@ -39,8 +42,12 @@ use exface\Core\Widgets\WidgetConfigurator;
  */
 class UiOverviewTool extends AbstractAiTool
 {
+    private const CACHE_POOL = 'axenox.genai.ui-overview';
+    private const CACHE_FORMAT_VERSION = 1;
+
     public const ARG_APP = 'app';
     public const ARG_DEPTH = 'depth';
+    public const ARG_FULL_MENU = 'full_menu';
 
     private ?AiPromptInterface $activePrompt = null;
     private array $warnings = [];
@@ -60,9 +67,20 @@ class UiOverviewTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: app');
         }
         $depth = (int) ($arguments[1] ?? 1);
+        $fullMenu = BooleanDataType::cast($arguments[2] ?? true) ?? true;
 
         $appOfInterest = $this->getWorkbench()->getApp($appAlias);
         $appAliasNs = $appOfInterest->getAliasWithNamespace();
+        $cacheKey = $this->getCacheKey($appAliasNs, $depth, $fullMenu, $appOfInterest->getTranslator()->getLocale());
+        try {
+            $cachedMarkdown = $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->get($cacheKey);
+            if (is_string($cachedMarkdown)) {
+                $this->activePrompt = null;
+                return new AiToolResultString($this, $arguments, $cachedMarkdown, $this->getReturnDataType());
+            }
+        } catch (\Throwable $e) {
+            $this->getWorkbench()->getLogger()->logException($e);
+        }
 
         // Build the complete main menu the same way the NavMenu widget does when showing all pages -
         // starting from the default server root page and expanding all levels.
@@ -74,23 +92,27 @@ class UiOverviewTool extends AbstractAiTool
             $rootNodes = [];
         }
 
+        // Filter once and reuse the same app-owned pages for the link list and detailed chapters.
+        $appNodes = [];
+        $this->collectAppNodes($rootNodes, $appAliasNs, $appNodes);
+
         $md = '# UI overview of app ' . $appAliasNs . "\n\n";
-        $md .= 'The **Main menu** section below lists all pages available in the menu with a link to each page. '
+        $menuSectionTitle = $fullMenu ? 'Main menu' : 'App pages';
+        $md .= 'The **' . $menuSectionTitle . '** section below lists '
+            . ($fullMenu ? 'all pages available in the server menu' : 'the app pages available in the menu')
+            . ' with a link to each page. '
             . 'Use these URLs with the UI widget info tool to get more details about any page. '
             . 'The **Screens** section describes the pages of app `' . $appAliasNs . '` and the dialogs reachable '
             . "from them in more detail.\n\n";
 
-        // Main menu
-        $md .= "## Main menu\n\n";
-        if (empty($rootNodes)) {
-            $md .= "_The menu is empty._\n\n";
+        $md .= '## ' . $menuSectionTitle . "\n\n";
+        if ($fullMenu) {
+            $md .= empty($rootNodes) ? "_The menu is empty._\n\n" : $this->renderMenu($rootNodes, 0) . "\n";
+        } elseif (empty($appNodes)) {
+            $md .= "_No menu pages found for this app._\n\n";
         } else {
-            $md .= $this->renderMenu($rootNodes, 0) . "\n";
+            $md .= $this->renderPageList($appNodes) . "\n";
         }
-
-        // Detailed screens of the app of interest
-        $appNodes = [];
-        $this->collectAppNodes($rootNodes, $appAliasNs, $appNodes);
 
         $md .= '## Screens of app ' . $appAliasNs . "\n\n";
         if (empty($appNodes)) {
@@ -101,9 +123,41 @@ class UiOverviewTool extends AbstractAiTool
             }
         }
 
+        if (empty($this->warnings)) {
+            try {
+                $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->set($cacheKey, $md);
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+            }
+        }
         $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType(), [], $this->warnings);
         $this->activePrompt = null;
         return $result;
+    }
+
+    /**
+     * Builds a cache key that separates output by arguments, user permissions and locale.
+     *
+     * Page and action model changes clear the Workbench cache through their CacheClearingBehavior.
+     *
+     * @param string $appAliasNs
+     * @param int $depth
+     * @param bool $fullMenu
+     * @param string $locale
+     * @return string
+     */
+    protected function getCacheKey(string $appAliasNs, int $depth, bool $fullMenu, string $locale): string
+    {
+        $username = $this->getWorkbench()->getSecurity()->getAuthenticatedToken()->getUsername() ?? 'anonymous';
+        $keyData = [
+            'version' => self::CACHE_FORMAT_VERSION,
+            'app' => $appAliasNs,
+            'depth' => $depth,
+            'full_menu' => $fullMenu,
+            'username' => $username,
+            'locale' => $locale
+        ];
+        return WorkbenchCache::createCacheKey('ui-overview-' . hash('sha256', json_encode($keyData)));
     }
 
     /**
@@ -131,9 +185,8 @@ class UiOverviewTool extends AbstractAiTool
             }
             $seen[$nodeKey] = true;
             try {
-                $indent = str_repeat('  ', $nodeLevel);
                 $url = $node->getPageAlias() . '.html';
-                $line = $indent . '- [' . $node->getName() . '](' . $url . ')';
+                $line = str_repeat('  ', $nodeLevel) . '- [' . $node->getName() . '](' . $url . ')';
                 $descr = $node->getDescription() ?? $node->getIntro();
                 if ($descr !== null && $descr !== '') {
                     $line .= ' - ' . $this->oneLine($descr);
@@ -150,6 +203,31 @@ class UiOverviewTool extends AbstractAiTool
                 }
             } catch (\Throwable $e) {
                 $this->addWarning('Could not read child entries from a main-menu entry', $e);
+            }
+        }
+        return $md;
+    }
+
+    /**
+     * Renders a flat list of app-owned menu pages with links and descriptions.
+     * 
+     * @param UiPageTreeNodeInterface[] $nodes
+     * @return string
+     */
+    protected function renderPageList(array $nodes): string
+    {
+        $md = '';
+        foreach ($nodes as $node) {
+            try {
+                $url = $node->getPageAlias() . '.html';
+                $line = '- [' . $node->getName() . '](' . $url . ')';
+                $descr = $node->getDescription() ?? $node->getIntro();
+                if ($descr !== null && $descr !== '') {
+                    $line .= ' - ' . $this->oneLine($descr);
+                }
+                $md .= $line . "\n";
+            } catch (\Throwable $e) {
+                $this->addWarning('Could not render an app page entry; the entry was skipped', $e);
             }
         }
         return $md;
@@ -424,7 +502,8 @@ class UiOverviewTool extends AbstractAiTool
      *
      * - global actions in a DataToolbar's dedicated global-actions button group,
      * - search and reset actions in a DataToolbar's dedicated search-actions button group,
-     * - the contextual-help button generated by a widget implementing iHaveContextualHelp.
+    * - the contextual-help button generated by a widget implementing iHaveContextualHelp,
+    * - the lookup button and dialog generated by an InputComboTable.
      *
      * The check compares the actual generated button and button-group instances. Manually configured
      * buttons are therefore retained even if they use the same action aliases.
@@ -437,6 +516,9 @@ class UiOverviewTool extends AbstractAiTool
         $widget = $button;
         while ($widget->hasParent()) {
             $widget = $widget->getParent();
+            if ($widget instanceof InputComboTable && $widget->getLookupButton() === $button) {
+                return true;
+            }
             if ($widget instanceof iHaveContextualHelp && $widget->getHelpButton() === $button) {
                 return true;
             }
@@ -584,7 +666,7 @@ class UiOverviewTool extends AbstractAiTool
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_APP)
-                ->setDescription('Alias of the app of interest. Its pages will be described in detail, while pages outside of this app only appear in the main menu with their names and URLs.')
+                ->setDescription('Alias of the app whose menu pages and screens will be included in the overview.')
                 ->setRequired(true)
                 ->setExamples([
                     'exface.Core',
@@ -594,6 +676,12 @@ class UiOverviewTool extends AbstractAiTool
                 ->setName(self::ARG_DEPTH)
                 ->setDescription('How deep to follow dialogs opened by buttons inside the pages of the app of interest. Higher values can produce very extensive output and incur significant processing and AI costs.')
                 ->setDefaultValue(1)
+                ->setRequired(false),
+            (new ServiceParameter($self))
+                ->setDataType(new UxonObject(['alias' => 'exface.Core.Boolean']))
+                ->setName(self::ARG_FULL_MENU)
+                ->setDescription('Whether to print the complete hierarchical server menu instead of only the menu pages owned by the requested app. Detailed screen descriptions always remain limited to the requested app.')
+                ->setDefaultValue(true)
                 ->setRequired(false)
         ];
     }
