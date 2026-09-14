@@ -69,13 +69,9 @@
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "# ─────────────────────────────────────────────",
-                "",
                 "# NOTES",
+                "",
                 "The following instructions apply specifically to the handling and use of Notes.",
-                "",
-                "# ─────────────────────────────────────────────",
-                "",
                 "",
                 "## Purpose",
                 "",
@@ -142,18 +138,7 @@
                 "* `memory:workflow:<short-subject>`",
                 "* `suggestion:agent:<agent-or-topic>`",
                 "* `suggestion:skill:<skill-or-topic>`",
-                "* `suggestion:process:<short-subject>`",
-                "",
-                "",
-                "",
-                "# ─────────────────────────────────────────────",
-                "The Notes-specific instructions in this section apply only to Notes. Other instructions in the surrounding prompt remain unaffected.",
-                "# END OF NOTES SECTION",
-                "",
-                "# ─────────────────────────────────────────────",
-                "",
-                "",
-                ""
+                "* `suggestion:process:<short-subject>`"
             ],
             "CONFIG_UXON": {
                 "concepts": {

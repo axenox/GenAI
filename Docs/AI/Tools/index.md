@@ -690,7 +690,7 @@ replacement text
 
 **Alias:** `axenox.GenAI.UiOverviewTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiOverviewTool)
 
-**Purpose.** Produces a Markdown overview of the platform's main menu and of the screens of a given app. The main menu is listed completely with a page link for every entry, while the pages of the app of interest and the dialogs reachable from them are described in detail.
+**Purpose.** Produces a Markdown overview of menu pages and the screens of a given app. The link section can show the complete server menu or only pages owned by the requested app; detailed descriptions always cover only the requested app's pages and reachable dialogs.
 
 **Use when.** The agent needs to understand which screens an app offers, what a user can do on them, and how to navigate to further pages. The page links in the menu can be passed to `UiWidgetInfoTool` for deeper inspection.
 
@@ -700,16 +700,17 @@ replacement text
 | --- | --- | --- |
 | `app` | Yes | Alias of the app whose pages are described in detail (for example `exface.Core`). |
 | `depth` | No | How deep to follow dialogs opened by buttons inside the app's pages. Defaults to `1`. Higher values can produce very extensive output and incur significant processing and AI costs. |
+| `full_menu` | No | Whether to print the complete hierarchical server menu instead of only pages owned by the requested app. Defaults to `true`. Detailed screen descriptions remain limited to the requested app. |
 
-**How to use.** The model supplies the app alias and optionally a recursion depth. The menu is built the same way as the `NavMenu` widget, starting from the default server root page.
+**How to use.** The model supplies the app alias and optionally a recursion depth and menu scope. By default the complete server menu is printed; set `full_menu` to `false` for an app-only page list. Detailed screens are always filtered to the requested app.
 
-**Result and limits.** Each screen chapter lists the meta objects shown on the screen and groups available buttons by their effective input widget. Input-widget groups are sorted by their widget label. If an input widget cannot be resolved, its button is retained in an unknown-input group and the technical error is logged without adding a result warning. Generated configurator dialogs and repetitive auto-included actions such as global actions, search, reset, and contextual help are omitted. Other dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview. If an individual menu entry, page, widget, action, or dialog cannot be loaded, the tool skips that item, continues rendering the remaining overview, and returns a concise, deduplicated warning with the partial result. Technical exception details are written to the log instead of the tool result.
+**Result and limits.** Each screen chapter lists the meta objects shown on the screen and groups available buttons by their effective input widget. Input-widget groups are sorted by their widget label. If an input widget cannot be resolved, its button is retained in an unknown-input group and the technical error is logged without adding a result warning. Generated configurator dialogs, `InputComboTable` lookup buttons and dialogs, and repetitive auto-included actions such as global actions, search, reset, and contextual help are omitted. Other dialogs are documented recursively until the depth budget is exhausted; only menu-visible pages appear in the overview. Successful results are cached in a Workbench cache pool per app, arguments, authenticated user, and locale. Page and action model changes invalidate this cache through the Core cache-clearing behaviors; partial results containing warnings are not cached. If an individual menu entry, page, widget, action, or dialog cannot be loaded, the tool skips that item, continues rendering the remaining overview, and returns a concise, deduplicated warning with the partial result. Technical exception details are written to the log instead of the tool result.
 
 ## `UiWidgetInfoTool`
 
 **Alias:** `axenox.GenAI.UiWidgetInfoTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiWidgetInfoTool)
 
-**Purpose.** Loads the UXON model and Markdown description of a concrete page, dialog, or nested widget through an ExFace facade.
+**Purpose.** Loads the UXON model and Markdown description of a concrete page, dialog, or nested widget through an ExFace facade and validates its server-side rendering.
 
 **Use when.** The agent must understand the current UI structure before modifying a page, referring to visible controls, or diagnosing a widget configuration.
 
@@ -720,9 +721,9 @@ replacement text
 | `url` | Yes | Page alias, facade URL, or query string. |
 | `widget_id` | No | ID of a nested widget; omit it to document the root widget. |
 
-**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup.
+**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup. For AJAX facades, the tool also renders the widget. UI5 validation directly generates the controller and view, including for webapp root pages, so that facade element and rendering errors fail the tool call.
 
-**Result and limits.** The result describes the resolved widget and its UXON. Missing pages, unknown widget IDs, and unsupported routing are returned as warnings or errors.
+**Result and limits.** A valid result describes the resolved widget and its UXON. Missing pages, unknown widget IDs, unsupported routing, invalid widget configuration, and server-side facade rendering failures produce an explicit `PAGE INVALID` validation result with a clickable log link and a noncritical tool warning. The underlying page exception is logged at its original severity; an invalid page therefore does not incorrectly mark the validation tool itself as broken. This validation does not execute the generated JavaScript in a browser, make follow-up AJAX requests, or detect browser-only runtime errors.
 
 ## `MockTool`
 
