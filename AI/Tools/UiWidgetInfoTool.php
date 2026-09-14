@@ -62,6 +62,7 @@ class UiWidgetInfoTool extends AbstractAiTool
             return $this->createErrorResult($prompt, $arguments, 'Missing required argument: url');
         }
         $uri = $this->normalizePageUri(new Uri($url));
+        $widgetMarkdown = null;
 
         try {
             // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
@@ -88,6 +89,8 @@ class UiWidgetInfoTool extends AbstractAiTool
                 $widget = $facade->findUrlWidget($uri);
             }
 
+            $widgetMarkdown = (new UiWidgetMarkdownPrinter($widget))->getMarkdown();
+
             // UI5 buildJs() skips webapp root widgets, so build the controller and view directly to validate them.
             if ($webapp !== null && method_exists($webapp, 'getControllerForWidget')) {
                 $controller = $webapp->getControllerForWidget($widget);
@@ -98,14 +101,14 @@ class UiWidgetInfoTool extends AbstractAiTool
                 $facade->buildHtmlBody($widget);
             }
 
-            $printer = new UiWidgetMarkdownPrinter($widget);
-            return new AiToolResultString($this, $arguments, $printer->getMarkdown(), $this->getReturnDataType());
+            return new AiToolResultString($this, $arguments, $widgetMarkdown, $this->getReturnDataType());
         } catch (ExceptionInterface $e) {
             return $this->createInvalidPageResult(
                 $prompt,
                 $arguments,
                 $url,
-                $e
+                $e,
+                $widgetMarkdown
             );
         }
     }
@@ -117,24 +120,33 @@ class UiWidgetInfoTool extends AbstractAiTool
      * @param array $arguments
      * @param string $url
      * @param ExceptionInterface $pageError
+    * @param string|null $widgetMarkdown
      * @return AiToolResultInterface
      */
     private function createInvalidPageResult(
         AiPromptInterface $prompt,
         array $arguments,
         string $url,
-        ExceptionInterface $pageError
+        ExceptionInterface $pageError,
+        ?string $widgetMarkdown = null
     ): AiToolResultInterface {
         $this->getWorkbench()->getLogger()->logException($pageError);
 
         $urlMarkdown = MarkdownDataType::escapeString($url);
         $errorMarkdown = MarkdownDataType::escapeString($pageError->getMessage());
+        if ($widgetMarkdown === null) {
+            $widgetMarkdown = '';
+        } else {
+            $widgetMarkdown = "---\n\n" . $widgetMarkdown;
+        }
         $resultMessage = <<<MD
 # Building the widget failed
 
 - **URL:** `{$urlMarkdown}`
 - **Error:** {$errorMarkdown}
 - **Log-ID:** {$this->buildLogLink($pageError->getId())}
+
+    {$widgetMarkdown}
 MD;
         $warning = new AiToolRuntimeWarning($this, $prompt, $resultMessage, null, $pageError);
         // A bad page is a successful validation finding, not evidence that this tool is broken.
