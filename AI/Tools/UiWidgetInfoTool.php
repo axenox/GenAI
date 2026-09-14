@@ -57,7 +57,7 @@ class UiWidgetInfoTool extends AbstractAiTool
         if ($url === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: url');
         }
-        $uri = new Uri($url);
+        $uri = $this->normalizePageUri(new Uri($url));
         
         // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
         // do the global routing to the correct facade. This ensures, we know exactly which facade is responsible for
@@ -74,7 +74,7 @@ class UiWidgetInfoTool extends AbstractAiTool
         // facades are free to build their URLs as they like. In particular, the UI5 facade has its own complicated
         // routing
         $facade = $resolver->getFacade();
-        if ($facade instanceof HtmlPageFacadeInterface) {
+        if ($widgetId === null && $facade instanceof HtmlPageFacadeInterface) {
             try {
                 $widget = $facade->findUrlWidget($uri);
             } catch (UiPageNotFoundError|FacadeRoutingError $e) {
@@ -84,6 +84,24 @@ class UiWidgetInfoTool extends AbstractAiTool
         
         $printer = new UiWidgetMarkdownPrinter($widget);
         return new AiToolResultString($this, $arguments, $printer->getMarkdown(), $this->getReturnDataType());
+    }
+
+    /**
+    * Converts a relative page alias to the path format expected by the facade resolver.
+     *
+     * @param Uri $uri
+     * @return Uri
+     */
+    private function normalizePageUri(Uri $uri): Uri
+    {
+        $path = $uri->getPath();
+        if ($path !== '' && $uri->getScheme() === '' && strpos($path, '/') === false) {
+            if (! str_ends_with(strtolower($path), '.html')) {
+                $path .= '.html';
+            }
+            return $uri->withPath('/' . $path);
+        }
+        return $uri;
     }
 
     /**
