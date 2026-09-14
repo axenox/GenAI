@@ -1,7 +1,9 @@
 <?php
 namespace axenox\GenAI\AI\Tools;
 
+use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Interfaces\WorkbenchInterface;
 
@@ -91,6 +93,29 @@ class GitTool extends CommandLineTool
                 ->setDescription('Path to the Git repository, absolute or relative to the vendor folder.'),
         ];
     }
+    
+    public function getRules(): ?string
+    {
+        $commands = implode(', ', $this->getAllowedCommands());
+        return (parent::getRules() ?? '') . <<<MD
+
+Allowed commands are: $commands.
+MD;
+    }
+
+    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    {
+        $arguments[0] = $this->normalizeGitCommand((string) ($arguments[0] ?? ''));
+        return parent::invoke($agent, $prompt, $arguments);
+    }
+    
+    protected function getAllowedCommands() : array
+    {
+        if (! $this->allowedCommandsInitialized) {
+            $this->setAllowedCommands(self::DEFAULT_COMMANDS);
+        }
+        return parent::getAllowedCommands();
+    }
 
     /**
      * Allowed Git operations.
@@ -135,7 +160,39 @@ class GitTool extends CommandLineTool
         if (! $this->allowedCommandsInitialized) {
             $this->setAllowedCommands(self::DEFAULT_COMMANDS);
         }
+        $command = $this->normalizeGitCommand($command);
         parent::checkCommandAllowed($command, $prompt);
+    }
+
+    /**
+     * Normalizes a Git subcommand into canonical form.
+     *
+     * The tool accepts either the bare operation name (for example `status`) or a
+     * complete command starting with `git` (for example `git status`). Both forms
+     * are translated to the canonical `git <subcommand>` form before validation and
+     * execution.
+     *
+     * @param string $command
+     * @return string
+     */
+    private function normalizeGitCommand(string $command): string
+    {
+        $command = trim($command);
+        if ($command === '') {
+            return $command;
+        }
+
+        if (preg_match('/^git\b/i', $command) === 1) {
+            return trim($command);
+        }
+
+        $parts = preg_split('/\s+/', $command, 2);
+        $subCommand = strtolower((string) ($parts[0] ?? ''));
+        if (isset(self::COMMANDS[$subCommand])) {
+            return 'git ' . $command;
+        }
+
+        return $command;
     }
 
     /**
@@ -146,7 +203,7 @@ class GitTool extends CommandLineTool
      */
     private function buildCommandPattern(string $command): string
     {
-        return '/^git\s+' . preg_quote($command, '/')
+        return '/^(?:git\s+)?' . preg_quote($command, '/')
             . '(?![^\r\n]*(?:--output(?:=|\s)|--ext-diff\b|--textconv\b|--open-files-in-pager\b))'
             . '(?:\s+[^\r\n;&|<>()`$]+)?$/i';
     }
