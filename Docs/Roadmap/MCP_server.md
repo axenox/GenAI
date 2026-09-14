@@ -59,29 +59,33 @@ would be suitable for a normal CLI tool invocation, but it is not an MCP transpo
 
 ```mermaid
 flowchart LR
-	IDE[VS Code or PhpStorm agent]
-	BIN[vendor/bin/mcp]
-	RUNNER[AiMcpServerRunner]
-	ENDPOINT[Configured MCP endpoint]
-	REGISTRY[McpCapabilityRegistry]
-	SDK[PHP MCP SDK]
-	ADAPTER[AiToolMcpAdapter]
-	TOOL[AiToolInterface]
-	LOG[MCP invocation log]
+    IDE[VS Code or PhpStorm agent]
+    BIN[vendor/bin/mcp]
+    RUNNER[AiMcpCliServerFacade]
+    ENDPOINT[Configured MCP endpoint]
+    REGISTRY[McpCapabilityRegistry]
+    SDK[PHP MCP SDK]
+    ADAPTER[AiToolMcpAdapter]
+    TOOL[AiToolInterface]
+    LOG[MCP invocation log]
 
-	IDE <-->|JSON-RPC over STDIO| BIN
-	BIN --> RUNNER
-	RUNNER --> ENDPOINT
-	RUNNER --> REGISTRY
-	REGISTRY --> SDK
-	SDK --> ADAPTER
-	ADAPTER --> TOOL
-	ADAPTER --> LOG
+    IDE <-->|JSON-RPC over STDIO| BIN
+    BIN --> RUNNER
+    RUNNER --> ENDPOINT
+    RUNNER --> REGISTRY
+    REGISTRY --> SDK
+    SDK --> ADAPTER
+    ADAPTER --> TOOL
+    ADAPTER --> LOG
 ```
+
+### Classes and namespaces
+
+Place MCP specific classes in `axenox\GenAI\Common\MCP`  names pace. Classes required for the CLI MCP facade only (not for future HTTP facades) go to `axenox\GenAi\Facades\AiMcpCliFacade\`.
 
 ### MCP CLI runner
 
-`vendor/bin/mcp` should start a dedicated `AiMcpServerRunner`, not an instance or subclass of `exface\Core\Facades\ConsoleFacade`. The runner is responsible for the process boundary:
+`vendor/bin/mcp` should start a dedicated `axenox\GenAI\Facades\AiMcpCliServerFacade`, not an instance or subclass of `exface\Core\Facades\ConsoleFacade`. This MCP runner is still a facade, but of a totally different type. It is responsible for the process boundary:
 
 1. Parse the endpoint selector passed to `vendor/bin/mcp`.
 2. Open a temporary workbench scope to authenticate the local CLI user, authorize access and load a snapshot of the endpoint's configured capabilities.
@@ -110,7 +114,7 @@ As of August 2026, `mcp/sdk` 0.8 requires PHP 8.1 while ExFace Core declares PHP
 
 ### Endpoint configuration
 
-For the first release, represent an MCP endpoint using a specialized agent prototype, for example `McpServer`. This reuses the existing designer UI, tool UXON, selectors, versioning and enable/disable lifecycle. In the UI it should be called an **MCP endpoint**, not a dummy agent.
+To allow easy configurations, represent an MCP endpoint using a SPECIALIZED AI agent prototype class - `McpServer`. Do not extend GenericAssistant. Instead, extrack code required for both of them into `axenox\GenAi\Common\AbstractAgent`. This reuses the existing designer UI, tool UXON, selectors, versioning and enable/disable lifecycle. In the UI it should be called an **MCP endpoint**, not a dummy agent.
 
 An MCP endpoint prototype must:
 
@@ -120,19 +124,19 @@ An MCP endpoint prototype must:
 - provide configured tools to the MCP capability registry;
 - allow resources and prompts to be added later.
 
+In contrast to the `GenericAssistant`, the MCP does not need concepts - only tools. In fact, it does not even need a user prompt or instructions, but for now, let us still keep full compatibility with AIPrompt task class for both. Create a compatible `McpTask extends AI Prompt` for now. We will take care of separating the task classes later. Same goes for the `AiConversation` - just keep it for now.
 Example endpoint configuration:
 
 ```json
 {
-	"alias": "axenox.GenAI.McpServer",
-	"instructions": "Tools for developing ExFace application models.",
-	"tools": {
-		"search_model": {
-			"alias": "axenox.GenAI.ModelSearchTool",
-			"description": "Searches the application model.",
-			"arguments": []
-		}
-	}
+    "alias": "axenox.GenAI.McpServer",
+    "tools": {
+        "search_model": {
+            "alias": "axenox.GenAI.ModelSearchTool",
+            "description": "Searches the application model.",
+            "arguments": []
+        }
+    }
 }
 ```
 
@@ -166,18 +170,18 @@ The adapter converts the existing tool contract into MCP metadata and execution.
 - `getReturnDataType()` guides result serialization and an optional output schema.
 - `invoke()` remains the implementation entry point.
 
-`ServiceParameter` maps to JSON Schema as follows:
+Map `ServiceParameter` to JSON Schema via `JsonDataType::convertDataTypeToJsonSchemaType()` and similar tools. If the static methods of the data type are not enough, extend them - but only for general purpose JSONschema logic. The Core data type must not have anything to do with MCP protocols specifically.
 
-| Service parameter | JSON Schema |
-|---|---|
-| `name` | property name |
-| `description` | `description` |
-| `required` | root `required` list |
-| `default_value` | `default` |
-| `examples` | `examples` |
-| data type | `type`, `format`, `enum`, items and supported constraints |
+See tool to JSON schema converters in `ResponsesApiRequest`. Here is the general overview:
 
-ExFace data types can express more than JSON Schema. The schema mapper must define explicit mappings for common scalar, list and object data types and use a documented fallback, normally a string plus description, for unsupported constraints.
+| Service parameter | JSON Schema                                               |
+| ----------------- | --------------------------------------------------------- |
+| `name`            | property name                                             |
+| `description`     | `description`                                             |
+| `required`        | root `required` list                                      |
+| `default_value`   | `default`                                                 |
+| `examples`        | `examples`                                                |
+| data type         | `type`, `format`, `enum`, items and supported constraints |
 
 MCP sends arguments as a named map. Existing AI-agent execution currently passes positional argument values to `invoke()`. The adapter must validate the named map, apply defaults, order values according to `getArguments()` and only then call the existing tool. This preserves compatibility with current tool implementations. Moving `AiToolInterface` itself to named arguments can be considered separately.
 
@@ -191,7 +195,9 @@ Most existing tool results can initially be returned as text. Structured content
 
 ### Invocation context
 
-Existing tools require an `AiAgentInterface` and `AiPromptInterface` when invoked. The MCP endpoint prototype can satisfy the agent argument, but an MCP call is not an AI prompt. Introduce an MCP-specific prompt/task adapter that implements the minimum context contract needed by existing tools and carries:
+Existing tools require an `AiAgentInterface` and `AiPromptInterface` when invoked. The MCP endpoint prototype can satisfy the agent argument, but an MCP call is not an AI prompt. Nevertheless, we should keep full compatibility with the `AiPrompt` for now.
+
+Introduce an MCP-specific task class, that extends AiPrompt. In the comments, state, that this is temporary and explain the minimum context contract needed by existing tools and carries in future:
 
 - authenticated user and workbench;
 - endpoint and session identifiers;
@@ -199,29 +205,11 @@ Existing tools require an `AiAgentInterface` and `AiPromptInterface` when invoke
 - tool-call ID and named arguments;
 - optional workspace or project context supplied by the IDE configuration.
 
-Do not manufacture user messages, model connections or token metadata merely to satisfy the current conversation implementation. Where a tool assumes chat-specific prompt state, either adapt that state explicitly or mark the tool as unsuitable for MCP until its context requirements are generalized.
+Fake (empty) user messages if needed, but do not manufacture model connections or token metadata merely to satisfy the current conversation implementation. Where a tool assumes chat-specific prompt state, either adapt that state explicitly or mark the tool as unsuitable for MCP until its context requirements are generalized.
 
 ### Logging and designer visibility
 
-The existing conversation UI is a useful presentation pattern, but `AiConversation` is coupled to `GenericAssistant`, `AiPrompt`, LLM messages, model connections, tokens and costs. MCP calls should not be stored as fake LLM conversations.
-
-Create MCP-specific session and invocation records and expose them through the same monitoring area and interaction patterns as AI conversations. A session represents one IDE connection/process. An invocation represents one `tools/call` request.
-
-Each invocation should store:
-
-- endpoint and endpoint version;
-- authenticated ExFace user;
-- MCP client name and version from `initialize`;
-- session ID and call ID;
-- tool name;
-- raw named arguments;
-- normalized positional arguments passed to the tool;
-- textual and structured result;
-- warnings and errors;
-- start time, finish time and duration;
-- success, tool-error or protocol-error outcome.
-
-The detail UI should show the exact request and response while applying configured redaction and payload-size limits. Designers should be able to filter calls by endpoint, tool, user, result and time.
+The existing conversation UI is a useful presentation pattern, but `AiConversation` is coupled to `GenericAssistant`, `AiPrompt`, LLM messages, model connections, tokens and costs. MCP calls do not fit this architecture well, but we will take care of this later. For now, make sure, the AiConversation has fallbacks in case anything is missing. Also replace class-bound type hints with interfaces where appropriate. Take notes in the class doc of `AiConversation` about what you would recommend to separate true Ai conversations from MCP calls in future.
 
 ### Multiple MCP servers
 
@@ -231,24 +219,24 @@ Example VS Code configuration:
 
 ```json
 {
-	"servers": {
-		"exface-model": {
-			"type": "stdio",
-			"command": "php",
-			"args": [
-				"${workspaceFolder}/vendor/bin/mcp",
-				"axenox.genai:model-development"
-			]
-		},
-		"customer-data": {
-			"type": "stdio",
-			"command": "php",
-			"args": [
-				"${workspaceFolder}/vendor/bin/mcp",
-				"customer.app:data-tools"
-			]
-		}
-	}
+    "servers": {
+        "exface-model": {
+            "type": "stdio",
+            "command": "php",
+            "args": [
+                "${workspaceFolder}/vendor/bin/mcp",
+                "axenox.genai:model-development"
+            ]
+        },
+        "customer-data": {
+            "type": "stdio",
+            "command": "php",
+            "args": [
+                "${workspaceFolder}/vendor/bin/mcp",
+                "customer.app:data-tools"
+            ]
+        }
+    }
 }
 ```
 
@@ -276,8 +264,8 @@ Capability registration must be independent of transport:
 $server = $serverFactory->create($endpoint);
 
 return match ($transportType) {
-	'stdio' => $server->run(new StdioTransport()),
-	'http' => $httpRunner->run($server, $request),
+    'stdio' => $server->run(new StdioTransport()),
+    'http' => $httpRunner->run($server, $request),
 };
 ```
 
@@ -291,15 +279,15 @@ Read-only DataSheet access should normally be exposed as MCP resources or resour
 
 Probably not. The useful similarity is limited to starting ExFace from a CLI process and authenticating the operating-system user. The execution models are otherwise different:
 
-| Action console | MCP STDIO server |
-|---|---|
-| One command is parsed and executed | One process handles a stream of JSON-RPC requests |
-| Symfony Console owns input and output | The MCP SDK owns stdin and stdout |
-| Commands are discovered from CLI actions | Capabilities are loaded from one configured MCP endpoint |
-| Human-readable console output is expected | Any non-protocol `STDOUT` output corrupts the connection |
-| The process normally exits after one action | The process remains alive until the IDE disconnects |
+| Action console                              | MCP STDIO server                                         |
+| ------------------------------------------- | -------------------------------------------------------- |
+| One command is parsed and executed          | One process handles a stream of JSON-RPC requests        |
+| Symfony Console owns input and output       | The MCP SDK owns stdin and stdout                        |
+| Commands are discovered from CLI actions    | Capabilities are loaded from one configured MCP endpoint |
+| Human-readable console output is expected   | Any non-protocol `STDOUT` output corrupts the connection |
+| The process normally exits after one action | The process remains alive until the IDE disconnects      |
 
-Extending `ConsoleFacade` would couple the MCP server to command loading, command abbreviation, Symfony exception rendering and human-oriented output that it does not need. A separate `vendor/bin/mcp` executable and `AiMcpServerRunner` are smaller and make the protocol boundary explicit.
+Extending `ConsoleFacade` would couple the MCP server to command loading, command abbreviation, Symfony exception rendering and human-oriented output that it does not need. A separate `vendor/bin/mcp` executable and `AiMcpServerFacade` are smaller and make the protocol boundary explicit.
 
 If ExFace authorization points require a `FacadeInterface`, introduce a minimal MCP-specific facade or security subject for authorization only. It should be composed by the runner rather than inherit from `ConsoleFacade`, and it should not own MCP dispatch.
 
@@ -322,10 +310,10 @@ Creating a fresh workbench for every operation provides request-like isolation a
 $workbench = Workbench::startNewInstance();
 
 try {
-	// Authenticate, authorize, recreate the configured endpoint and tool,
-	// invoke it, and persist the MCP invocation.
+    // Authenticate, authorize, recreate the configured endpoint and tool,
+    // invoke it, and persist the MCP invocation.
 } finally {
-	$workbench->stop();
+    $workbench->stop();
 }
 ```
 
@@ -352,7 +340,6 @@ Protocol-level requests such as MCP initialization, ping and returning the alrea
 
 ### Phase 1: Compatibility spike
 
-- Decide whether GenAI can require PHP 8.1. If not, define the deployment boundary for a PHP 8.1 sidecar.
 - Add the official MCP SDK behind a small GenAI-owned server factory.
 - Create a temporary STDIO entry point that exposes one hard-coded diagnostic tool.
 - Compare measured latency and memory use for a fresh workbench per operation against a long-lived workbench.
@@ -360,6 +347,8 @@ Protocol-level requests such as MCP initialization, ping and returning the alrea
 - Verify that notices, warnings and logger output never leak to `STDOUT`.
 
 The spike is successful when both IDEs can repeatedly invoke the diagnostic tool and reconnect after the process exits.
+
+Describe in `GenAI/Docs/MCP`, how to test the created MCP server.
 
 ### Phase 2: ExFace tool adapter
 
@@ -377,7 +366,7 @@ The adapter is successful when an unchanged existing AI tool is listed and invok
 - Add an endpoint loader that resolves aliases and semantic versions.
 - Implement `McpCapabilityRegistry` using only tools configured on the selected endpoint.
 - Add `vendor/bin/mcp <endpoint-selector>` to the GenAI Composer package.
-- Implement `AiMcpServerRunner` and a fresh workbench operation scope with authentication and authorization.
+- Implement `AiMcpServerFacade` and a fresh workbench operation scope with authentication and authorization.
 - Add designer-facing documentation and a default development endpoint with a conservative tool set.
 
 The endpoint implementation is successful when two IDE server registrations can launch the same binary with different selectors and receive different tool lists.
@@ -425,9 +414,9 @@ The audit trail is successful when a designer can reconstruct exactly what the I
 
 ### Open questions before implementation
 
-- Can GenAI raise its minimum PHP version from 8.0 to 8.1?
+- Can GenAI raise its minimum PHP version from 8.0 to 8.1? Answer: 8.1 is fine.
 - Which ExFace data types and validation constraints must the first JSON Schema mapper support?
-- Should the initial MCP endpoint be available to every authenticated CLI user or only selected roles?
-- Which existing tools are safe enough for the default endpoint?
+- Should the initial MCP endpoint be available to every authenticated CLI user or only selected roles? Answer: yes.
+- Which existing tools are safe enough for the default endpoint? Answer: Lets start with ModelComponentInfoTool, ModelObjectSearchTool, ModelSearchTool.
 - Which argument fields and result types require redaction by default?
-- Does the current operating-system username mapping work reliably for all supported IDE and remote-development setups?
+- Does the current operating-system username mapping work reliably for all supported IDE and remote-development setups? Answer: yes.
