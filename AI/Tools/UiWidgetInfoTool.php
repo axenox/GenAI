@@ -9,14 +9,16 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\Contexts\DebugContext;
 use exface\Core\DataTypes\MarkdownDataType;
-use exface\Core\Exceptions\Facades\FacadeRoutingError;
-use exface\Core\Exceptions\UiPage\UiPageNotFoundError;
+use exface\Core\Facades\AbstractAjaxFacade\AbstractAjaxFacade;
 use exface\Core\Facades\AbstractHttpFacade\FacadeResolver;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\UiWidgetMarkdownPrinter;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
+use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\Facades\HtmlPageFacadeInterface;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use GuzzleHttp\Psr7\Uri;
 
@@ -25,11 +27,13 @@ use GuzzleHttp\Psr7\Uri;
  *
  * Use this tool when an agent needs structured UI knowledge for a given ExFace URL
  * or page alias. The tool resolves the URL via the facade resolver, loads the target
- * page, and prints widget information using the UI widget markdown printer.
+ * page, validates server-side facade rendering, and prints widget information using
+ * the UI widget markdown printer.
  * 
  * Behavior:
  * - If only `url` is provided, the root widget of the resolved page is documented.
  * - If `widget_id` is provided, the tool documents only that widget from the page.
+ * - AJAX facades must render the resolved widget without throwing an error.
  * - The result is returned as markdown data, suitable for inclusion in agent context.
  * 
  * Typical use cases:
@@ -55,35 +59,127 @@ class UiWidgetInfoTool extends AbstractAiTool
         $url = trim((string) ($arguments[0] ?? ''));
         $widgetId = null !== ($arguments[1] ?? null) ? trim((string) $arguments[1]) : null;
         if ($url === '') {
-            throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: url');
+            return $this->createErrorResult($prompt, $arguments, 'Missing required argument: url');
         }
         $uri = $this->normalizePageUri(new Uri($url));
-        
-        // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
-        // do the global routing to the correct facade. This ensures, we know exactly which facade is responsible for
-        // rendering this URL.
-        $resolver = new FacadeResolver($this->getWorkbench(), $uri);
-        $page = $resolver->getPage();
-        if ($widgetId !== null) {
-            $widget = $page->getWidget($widgetId);
-        } else {
-            $widget = $page->getWidgetRoot();
-        }
-        
-        // Ask the facade, what widget it would render for this URL - that could also be a different one because
-        // facades are free to build their URLs as they like. In particular, the UI5 facade has its own complicated
-        // routing
-        $facade = $resolver->getFacade();
-        if ($widgetId === null && $facade instanceof HtmlPageFacadeInterface) {
-            try {
-                $widget = $facade->findUrlWidget($uri);
-            } catch (UiPageNotFoundError|FacadeRoutingError $e) {
-                throw new AiToolRuntimeWarning($this, $prompt, 'Cannot find UI page in URL `' . $url . '`. ' . $e->getMessage());
+
+        try {
+            // Extract page widget from the URL using the same FacadeResolver, that is used in FacadeResolverMiddleware to
+            // do the global routing to the correct facade. This ensures, we know exactly which facade is responsible for
+            // rendering this URL.
+            $resolver = new FacadeResolver($this->getWorkbench(), $uri);
+            $page = $resolver->getPage();
+            if ($widgetId !== null) {
+                $widget = $page->getWidget($widgetId);
+            } else {
+                $widget = $page->getWidgetRoot();
             }
-        }         
-        
-        $printer = new UiWidgetMarkdownPrinter($widget);
-        return new AiToolResultString($this, $arguments, $printer->getMarkdown(), $this->getReturnDataType());
+
+            // Ask the facade, what widget it would render for this URL - that could also be a different one because
+            // facades are free to build their URLs as they like. In particular, the UI5 facade has its own complicated
+            // routing
+            $facade = $resolver->getFacade();
+            $webapp = null;
+            // UI5 normally initializes its Webapp in the HTTP request pipeline; direct validation must do it explicitly.
+            if ($facade instanceof AbstractAjaxFacade && method_exists($facade, 'initWebapp')) {
+                $webapp = $facade->initWebapp($page->getAliasWithNamespace());
+            }
+            if ($widgetId === null && $facade instanceof HtmlPageFacadeInterface) {
+                $widget = $facade->findUrlWidget($uri);
+            }
+
+            // UI5 buildJs() skips webapp root widgets, so build the controller and view directly to validate them.
+            if ($webapp !== null && method_exists($webapp, 'getControllerForWidget')) {
+                $controller = $webapp->getControllerForWidget($widget);
+                $controller->buildJsController();
+                $controller->getView()->buildJsView();
+            } elseif ($facade instanceof AbstractAjaxFacade) {
+                $facade->buildHtmlHead($widget, true);
+                $facade->buildHtmlBody($widget);
+            }
+
+            $printer = new UiWidgetMarkdownPrinter($widget);
+            return new AiToolResultString($this, $arguments, $printer->getMarkdown(), $this->getReturnDataType());
+        } catch (ExceptionInterface $e) {
+            return $this->createInvalidPageResult(
+                $prompt,
+                $arguments,
+                $url,
+                $e
+            );
+        }
+    }
+
+    /**
+     * Logs the page error and returns it as an expected validation finding.
+     *
+     * @param AiPromptInterface $prompt
+     * @param array $arguments
+     * @param string $url
+     * @param ExceptionInterface $pageError
+     * @return AiToolResultInterface
+     */
+    private function createInvalidPageResult(
+        AiPromptInterface $prompt,
+        array $arguments,
+        string $url,
+        ExceptionInterface $pageError
+    ): AiToolResultInterface {
+        $this->getWorkbench()->getLogger()->logException($pageError);
+
+        $urlMarkdown = MarkdownDataType::escapeString($url);
+        $errorMarkdown = MarkdownDataType::escapeString($pageError->getMessage());
+        $resultMessage = <<<MD
+# Building the widget failed
+
+- **URL:** `{$urlMarkdown}`
+- **Error:** {$errorMarkdown}
+- **Log-ID:** {$this->buildLogLink($pageError->getId())}
+MD;
+        $warning = new AiToolRuntimeWarning($this, $prompt, $resultMessage, null, $pageError);
+        // A bad page is a successful validation finding, not evidence that this tool is broken.
+        $warning->setLogLevel(LoggerInterface::WARNING);
+
+        return new AiToolResultString(
+            $this,
+            $arguments,
+            $resultMessage,
+            $this->getReturnDataType(),
+            [],
+            [$warning]
+        );
+    }
+
+    /**
+     * Creates and logs a failed tool result.
+     *
+     * @param AiPromptInterface $prompt
+     * @param array $arguments
+     * @param string $message
+     * @param \Throwable|null $previous
+     * @return AiToolResultInterface
+     */
+    private function createErrorResult(
+        AiPromptInterface $prompt,
+        array $arguments,
+        string $message,
+        ?\Throwable $previous = null
+    ): AiToolResultInterface {
+        $error = new AiToolRuntimeError($this, $prompt, $message, null, $previous);
+        $this->getWorkbench()->getLogger()->logException($error);
+        $resultMessage = $message . ' See ' . $this->buildLogLink($error->getId()) . '.';
+        return new AiToolResultString($this, $arguments, $resultMessage, $this->getReturnDataType(), [], [$error]);
+    }
+
+    /**
+     * Builds a Markdown link to the debug log entry.
+     *
+     * @param string $logId
+     * @return string
+     */
+    private function buildLogLink(string $logId): string
+    {
+        return '[' . $logId . '](' . DebugContext::buildUrlToLogId($logId) . ')';
     }
 
     /**

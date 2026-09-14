@@ -709,7 +709,7 @@ replacement text
 
 **Alias:** `axenox.GenAI.UiWidgetInfoTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiWidgetInfoTool)
 
-**Zweck.** Lädt über eine ExFace-Facade das UXON-Modell und die Markdown-Beschreibung einer konkreten Seite, eines Dialogs oder eines verschachtelten Widgets.
+**Zweck.** Lädt über eine ExFace-Facade das UXON-Modell und die Markdown-Beschreibung einer konkreten Seite, eines Dialogs oder eines verschachtelten Widgets und validiert dessen serverseitiges Rendering.
 
 **Verwenden, wenn.** Der Agent die aktuelle UI-Struktur verstehen muss, bevor er eine Seite ändert, auf sichtbare Bedienelemente verweist oder eine Widget-Konfiguration diagnostiziert.
 
@@ -720,9 +720,9 @@ replacement text
 | `url` | Ja | Seitenalias, Facade-URL oder Abfragezeichenfolge. |
 | `widget_id` | Nein | ID eines verschachtelten Widgets; weglassen, um das Root-Widget zu dokumentieren. |
 
-**Verwendung.** Das Modell übergibt einen Seitenalias, eine Facade-URL oder eine Abfragezeichenfolge und kann optional eine verschachtelte `widget_id` auswählen. Die URL muss von einer Facade auflösbar sein, die die Widget-Suche unterstützt.
+**Verwendung.** Das Modell übergibt einen Seitenalias, eine Facade-URL oder eine Abfragezeichenfolge und kann optional eine verschachtelte `widget_id` auswählen. Die URL muss von einer Facade auflösbar sein, die die Widget-Suche unterstützt. Bei AJAX-Facades rendert das Tool zusätzlich das Widget. Bei der UI5-Validierung werden Controller und View auch für die Root-Seite einer Webapp direkt erzeugt, sodass Fehler beim Erzeugen von Facade-Elementen oder beim Rendering den Tool-Aufruf fehlschlagen lassen.
 
-**Ergebnis und Grenzen.** Das Ergebnis beschreibt das aufgelöste Widget und sein UXON. Fehlende Seiten, unbekannte Widget-IDs und nicht unterstütztes Routing werden als Warnungen oder Fehler zurückgegeben.
+**Ergebnis und Grenzen.** Ein gültiges Ergebnis beschreibt das aufgelöste Widget und sein UXON. Fehlende Seiten, unbekannte Widget-IDs, nicht unterstütztes Routing, ungültige Widget-Konfigurationen und serverseitige Rendering-Fehler erzeugen ein ausdrückliches Validierungsergebnis `PAGE INVALID` mit einem anklickbaren Log-Link und einer unkritischen Tool-Warnung. Die zugrunde liegende Seiten-Exception wird mit ihrem ursprünglichen Schweregrad protokolliert; eine ungültige Seite markiert daher nicht fälschlich das Validierungs-Tool selbst als defekt. Diese Validierung führt das erzeugte JavaScript nicht in einem Browser aus, sendet keine nachfolgenden AJAX-Anfragen und erkennt keine Fehler, die ausschließlich zur Laufzeit im Browser auftreten.
 
 ## `MockTool`
 

@@ -709,7 +709,7 @@ replacement text
 
 **Alias:** `axenox.GenAI.UiWidgetInfoTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiWidgetInfoTool)
 
-**Purpose.** Loads the UXON model and Markdown description of a concrete page, dialog, or nested widget through an ExFace facade.
+**Purpose.** Loads the UXON model and Markdown description of a concrete page, dialog, or nested widget through an ExFace facade and validates its server-side rendering.
 
 **Use when.** The agent must understand the current UI structure before modifying a page, referring to visible controls, or diagnosing a widget configuration.
 
@@ -720,9 +720,9 @@ replacement text
 | `url` | Yes | Page alias, facade URL, or query string. |
 | `widget_id` | No | ID of a nested widget; omit it to document the root widget. |
 
-**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup.
+**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup. For AJAX facades, the tool also renders the widget. UI5 validation directly generates the controller and view, including for webapp root pages, so that facade element and rendering errors fail the tool call.
 
-**Result and limits.** The result describes the resolved widget and its UXON. Missing pages, unknown widget IDs, and unsupported routing are returned as warnings or errors.
+**Result and limits.** A valid result describes the resolved widget and its UXON. Missing pages, unknown widget IDs, unsupported routing, invalid widget configuration, and server-side facade rendering failures produce an explicit `PAGE INVALID` validation result with a clickable log link and a noncritical tool warning. The underlying page exception is logged at its original severity; an invalid page therefore does not incorrectly mark the validation tool itself as broken. This validation does not execute the generated JavaScript in a browser, make follow-up AJAX requests, or detect browser-only runtime errors.
 
 ## `MockTool`
 
