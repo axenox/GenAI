@@ -30,7 +30,7 @@ class NotesSearchTool extends AbstractAiTool
     use NotesToolTrait;
 
     public const ARG_QUERY = 'query';
-    public const ARG_TYPE = 'type';
+    public const ARG_NOTE_TYPE = 'note_type';
 
     private const TYPE_ALL = 'all';
     private const DEFAULT_EXCERPT_LENGTH = 300;
@@ -43,11 +43,8 @@ class NotesSearchTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $query = trim((string) ($arguments[0] ?? ''));
-        $type = (string) ($arguments[1] ?? self::TYPE_ALL);
-        if (! in_array($type, [self::TYPE_ALL, AiNoteTypeDataType::MEMORY, AiNoteTypeDataType::SUGGESTION], true)) {
-            $type = self::TYPE_ALL;
-        }
+        $query = trim((string) ($arguments[self::ARG_QUERY] ?? $arguments[0] ?? ''));
+        $type = (string) ($arguments[self::ARG_NOTE_TYPE] ?? $arguments[1] ?? self::TYPE_ALL);
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
@@ -135,8 +132,8 @@ class NotesSearchTool extends AbstractAiTool
                         AiNoteTypeDataType::SUGGESTION => AiNoteTypeDataType::SUGGESTION
                     ]
                 ]))
-                ->setName(self::ARG_TYPE)
-                ->setDescription('Storage type of notes to search: `memory`, `suggestion`, or `all`. This is not a subject category; Unknown values are treated as `all`.')
+                ->setName(self::ARG_NOTE_TYPE)
+                ->setDescription('Storage type of notes to search: `memory`, `suggestion`, or `all`.')
                 ->setDefaultValue(self::TYPE_ALL)
                 ->setRequired(false)
         ];
