@@ -40,12 +40,16 @@ class CallActionTool extends AbstractAiTool
      */
     public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
     {
+        $namedArgs = [];
+        foreach ($this->getArguments() as $i => $param) {
+            $namedArgs[$param->getName()] = $arguments[$i] ?? null;
+        }
         $workbench = $this->getWorkbench();
         $renderer = new BracketHashStringTemplateRenderer($workbench);
         $renderer->addPlaceholder(new FormulaPlaceholders($workbench));
         $renderer->addPlaceholder(new TranslationPlaceholders($workbench));
         $renderer->addPlaceholder(new ConfigPlaceholders($workbench));
-        $renderer->addPlaceholder(new ArrayPlaceholders($arguments));
+        $renderer->addPlaceholder(new ArrayPlaceholders($namedArgs));
         $renderer->setIgnoreUnknownPlaceholders(true);
         
         $action = $this->getAction($renderer);
@@ -79,7 +83,7 @@ class CallActionTool extends AbstractAiTool
      * 
      * @uxon-property action
      * @uxon-type \exface\Core\CommonLogic\AbstractAction
-     * @uxon-placeholder {"alias": ""}
+     * @uxon-template {"alias": ""}
      * 
      * @param UxonObject $uxon
      * @return $this
@@ -95,7 +99,7 @@ class CallActionTool extends AbstractAiTool
      * 
      * @uxon-property task
      * @uxon-type \exface\Core\CommonLogic\AbstractTask
-     * @uxon-placeholder {"alias": ""}
+     * @uxon-template {"alias": ""}
      * 
      * @param BracketHashStringTemplateRenderer $renderer
      * @return $this
@@ -120,7 +124,7 @@ class CallActionTool extends AbstractAiTool
      *
      * @uxon-property task
      * @uxon-type \exface\Core\CommonLogic\Tasks\GenericTask
-     * @uxon-placeholder {"arguments": {"": ""}}
+     * @uxon-template {"arguments": {"": ""}}
      *
      * @param UxonObject $uxon
      * @return $this

@@ -47,7 +47,7 @@ abstract class AbstractAiTool implements AiToolInterface
      * 
      * @uxon-property arguments
      * @uxon-type \exface\Core\CommonLogic\Actions\ServiceParameter[]
-     * @uxon-tempalte []
+     * @uxon-template [{"name": "", "description": ""}]
      * 
      * @param \exface\Core\CommonLogic\UxonObject $arrayOfServiceParams
      * @return AiToolInterface
