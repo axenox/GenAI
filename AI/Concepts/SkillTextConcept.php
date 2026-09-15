@@ -5,6 +5,7 @@ use axenox\GenAI\Common\AbstractConcept;
 use axenox\GenAI\Common\Selectors\AiSkillSelector;
 use axenox\GenAI\Exceptions\AiConceptConfigurationError;
 use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Interfaces\AiSkillInterface;
 use exface\Core\CommonLogic\UxonObject;
 
 /**
@@ -35,6 +36,7 @@ class SkillTextConcept extends AbstractConcept
     private bool $showMarkers = true;
     private string $startMarker = '--- START SKILL: ';
     private string $endMarker = '--- END SKILL: ';
+    private ?AiSkillInterface $skill = null;
 
     /**
      * {@inheritDoc}
@@ -49,14 +51,7 @@ class SkillTextConcept extends AbstractConcept
             );
         }
 
-        $skill = AiFactory::createSkillFromSelector(
-            new AiSkillSelector($this->getWorkbench(), $this->skillAlias),
-            $this->getAgent(),
-            $this->getPrompt(),
-            $this->getPlaceholder()
-        );
-
-        $text = $skill->getInstructions();
+        $text = $this->getSkill()->getInstructions();
         $text = trim((string) $text);
 
         if ($text === '') {
@@ -89,7 +84,17 @@ class SkillTextConcept extends AbstractConcept
         }
 
         $this->skillAlias = $alias;
+        $this->skill = null;
         return $this;
+    }
+    /**
+     * Returns warnings produced while preparing the rendered skill.
+     *
+     * @return \Throwable[]
+     */
+    public function getWarnings(): array
+    {
+        return $this->getSkill()->getWarnings();
     }
 
     /**
@@ -177,5 +182,22 @@ class SkillTextConcept extends AbstractConcept
 
         $parts = explode('.', $this->skillAlias);
         return trim((string) end($parts)) ?: 'Skill';
+    }
+
+    /**
+     * Loads the configured skill once for rendering and metadata access.
+     */
+    private function getSkill(): AiSkillInterface
+    {
+        if ($this->skill === null) {
+            $this->skill = AiFactory::createSkillFromSelector(
+                new AiSkillSelector($this->getWorkbench(), (string) $this->skillAlias),
+                $this->getAgent(),
+                $this->getPrompt(),
+                $this->getPlaceholder()
+            );
+        }
+
+        return $this->skill;
     }
 }

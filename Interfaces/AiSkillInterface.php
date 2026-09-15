@@ -2,12 +2,18 @@
 namespace axenox\GenAI\Interfaces;
 
 use exface\Core\Interfaces\iCanBeConvertedToUxon;
+use exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface;
 
 /**
  * A reusable set of optional instructions, concepts, and tools for an AI agent.
  */
-interface AiSkillInterface extends iCanBeConvertedToUxon
+interface AiSkillInterface extends iCanBeConvertedToUxon, PlaceholderResolverInterface
 {
+    /**
+     * Returns the placeholder used to insert this skill's instructions.
+     */
+    public function getPlaceholder() : string;
+
     /**
      * Returns the rendered instruction text for this skill.
      */

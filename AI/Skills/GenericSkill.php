@@ -164,7 +164,7 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns tool configuration warnings from this skill and its nested skills.
+        * Returns tool configuration warnings from this skill and its nested skills.
      *
      * @return \Throwable[]
      */
