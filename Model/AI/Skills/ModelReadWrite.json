@@ -73,15 +73,14 @@
                 "",
                 "## Importing",
                 "",
-                "After the required data has been found and validated, use `ImportModelComponents`. Set `UID` to `null` for a new component. To edit an existing component, use the exact UID returned by the preceding search or read. Fill the component row completely with all applicable values.",
+                "After the required data has been found and validated, use `ImportModelComponents`. Set `UID` to `null` for a new component. To edit an existing component, use the exact UID returned by the preceding search or read. Fill the component row completely with all applicable values. When editing existing components, keep existing comments and remarks in the configuration, unless the logic has changed and the comments need updating.",
                 "",
                 "The import result states how many rows were imported into which model object or reports an error. Keep unrelated model or business data outside this workflow."
             ],
             "CONFIG_UXON": {
                 "skills": {
                     "read": {
-                        "alias": "axenox.GenAI.ModelRead",
-                        "use_instruction_boundary": false
+                        "alias": "axenox.GenAI.ModelRead"
                     }
                 },
                 "tools": {
