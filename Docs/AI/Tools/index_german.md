@@ -690,7 +690,7 @@ replacement text
 
 **Alias:** `axenox.GenAI.UiOverviewTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiOverviewTool)
 
-**Zweck.** Erzeugt eine Markdown-Übersicht des Hauptmenüs der Plattform sowie der Bildschirme einer bestimmten App. Das Hauptmenü wird vollständig mit einem Seiten-Link zu jedem Eintrag aufgelistet, während die Seiten der betreffenden App und die von ihnen erreichbaren Dialoge ausführlich beschrieben werden.
+**Zweck.** Erzeugt eine Markdown-Übersicht der Menüseiten und Bildschirme einer bestimmten App. Der Linkabschnitt kann das vollständige Servermenü oder nur Seiten der angeforderten App anzeigen; ausführliche Beschreibungen umfassen immer nur die Seiten der angeforderten App und die von ihnen erreichbaren Dialoge.
 
 **Verwenden, wenn.** Der Agent verstehen muss, welche Bildschirme eine App anbietet, was ein Benutzer dort tun kann und wie er zu weiteren Seiten navigiert. Die Seiten-Links im Menü können an `UiWidgetInfoTool` übergeben werden, um Details zu untersuchen.
 
@@ -700,16 +700,17 @@ replacement text
 | --- | --- | --- |
 | `app` | Ja | Alias der App, deren Seiten ausführlich beschrieben werden (zum Beispiel `exface.Core`). |
 | `depth` | Nein | Wie tief Dialoge verfolgt werden, die über Schaltflächen innerhalb der Seiten der App geöffnet werden. Standardwert `1`. Höhere Werte können sehr umfangreiche Ausgaben erzeugen und erhebliche Verarbeitungs- und KI-Kosten verursachen. |
+| `full_menu` | Nein | Ob das vollständige hierarchische Servermenü statt nur der Seiten der angeforderten App ausgegeben wird. Standardwert `true`. Ausführliche Bildschirmbeschreibungen bleiben auf die angeforderte App beschränkt. |
 
-**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe. Das Menü wird auf dieselbe Weise wie beim `NavMenu`-Widget aufgebaut, beginnend bei der Standard-Startseite des Servers.
+**Verwendung.** Das Modell übergibt den App-Alias und optional eine Rekursionstiefe sowie den Menüumfang. Standardmäßig wird das vollständige Servermenü ausgegeben; setzen Sie `full_menu` für eine reine App-Seitenliste auf `false`. Ausführliche Bildschirmbeschreibungen werden immer auf die angeforderte App gefiltert.
 
-**Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte auf und gruppiert verfügbare Schaltflächen nach ihrem effektiven Eingabe-Widget. Die Eingabe-Widget-Gruppen werden nach ihrer Widget-Bezeichnung sortiert. Kann ein Eingabe-Widget nicht aufgelöst werden, bleibt seine Schaltfläche in einer Gruppe für unbekannte Eingaben erhalten und der technische Fehler wird protokolliert, ohne eine Ergebniswarnung hinzuzufügen. Generierte Konfiguratordialoge und wiederkehrende automatisch hinzugefügte Aktionen wie globale Aktionen, Suche, Zurücksetzen und Kontexthilfe werden ausgelassen. Andere Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht. Kann ein einzelner Menüeintrag, eine Seite, ein Widget, eine Aktion oder ein Dialog nicht geladen werden, überspringt das Tool dieses Element, rendert die restliche Übersicht weiter und gibt eine knappe, deduplizierte Warnung zusammen mit dem Teilergebnis zurück. Technische Ausnahmedetails werden im Protokoll statt im Tool-Ergebnis ausgegeben.
+**Ergebnis und Grenzen.** Jedes Bildschirm-Kapitel listet die auf dem Bildschirm gezeigten Metaobjekte auf und gruppiert verfügbare Schaltflächen nach ihrem effektiven Eingabe-Widget. Die Eingabe-Widget-Gruppen werden nach ihrer Widget-Bezeichnung sortiert. Kann ein Eingabe-Widget nicht aufgelöst werden, bleibt seine Schaltfläche in einer Gruppe für unbekannte Eingaben erhalten und der technische Fehler wird protokolliert, ohne eine Ergebniswarnung hinzuzufügen. Generierte Konfiguratordialoge, Nachschlageschaltflächen und -dialoge von `InputComboTable` sowie wiederkehrende automatisch hinzugefügte Aktionen wie globale Aktionen, Suche, Zurücksetzen und Kontexthilfe werden ausgelassen. Andere Dialoge werden rekursiv dokumentiert, bis das Tiefenbudget erschöpft ist; nur im Menü sichtbare Seiten erscheinen in der Übersicht. Erfolgreiche Ergebnisse werden in einem Workbench-Cache-Pool nach App, Argumenten, angemeldetem Benutzer und Gebietsschema zwischengespeichert. Änderungen an Seiten- und Aktionsmodellen invalidieren diesen Cache über die Cache-löschenden Core-Verhalten; Teilergebnisse mit Warnungen werden nicht zwischengespeichert. Kann ein einzelner Menüeintrag, eine Seite, ein Widget, eine Aktion oder ein Dialog nicht geladen werden, überspringt das Tool dieses Element, rendert die restliche Übersicht weiter und gibt eine knappe, deduplizierte Warnung zusammen mit dem Teilergebnis zurück. Technische Ausnahmedetails werden im Protokoll statt im Tool-Ergebnis ausgegeben.
 
 ## `UiWidgetInfoTool`
 
 **Alias:** `axenox.GenAI.UiWidgetInfoTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CUiWidgetInfoTool)
 
-**Zweck.** Lädt über eine ExFace-Facade das UXON-Modell und die Markdown-Beschreibung einer konkreten Seite, eines Dialogs oder eines verschachtelten Widgets.
+**Zweck.** Lädt über eine ExFace-Facade das UXON-Modell und die Markdown-Beschreibung einer konkreten Seite, eines Dialogs oder eines verschachtelten Widgets und validiert dessen serverseitiges Rendering.
 
 **Verwenden, wenn.** Der Agent die aktuelle UI-Struktur verstehen muss, bevor er eine Seite ändert, auf sichtbare Bedienelemente verweist oder eine Widget-Konfiguration diagnostiziert.
 
@@ -720,9 +721,9 @@ replacement text
 | `url` | Ja | Seitenalias, Facade-URL oder Abfragezeichenfolge. |
 | `widget_id` | Nein | ID eines verschachtelten Widgets; weglassen, um das Root-Widget zu dokumentieren. |
 
-**Verwendung.** Das Modell übergibt einen Seitenalias, eine Facade-URL oder eine Abfragezeichenfolge und kann optional eine verschachtelte `widget_id` auswählen. Die URL muss von einer Facade auflösbar sein, die die Widget-Suche unterstützt.
+**Verwendung.** Das Modell übergibt einen Seitenalias, eine Facade-URL oder eine Abfragezeichenfolge und kann optional eine verschachtelte `widget_id` auswählen. Die URL muss von einer Facade auflösbar sein, die die Widget-Suche unterstützt. Bei AJAX-Facades rendert das Tool zusätzlich das Widget. Bei der UI5-Validierung werden Controller und View auch für die Root-Seite einer Webapp direkt erzeugt, sodass Fehler beim Erzeugen von Facade-Elementen oder beim Rendering den Tool-Aufruf fehlschlagen lassen.
 
-**Ergebnis und Grenzen.** Das Ergebnis beschreibt das aufgelöste Widget und sein UXON. Fehlende Seiten, unbekannte Widget-IDs und nicht unterstütztes Routing werden als Warnungen oder Fehler zurückgegeben.
+**Ergebnis und Grenzen.** Ein gültiges Ergebnis beschreibt das aufgelöste Widget und sein UXON. Fehlende Seiten, unbekannte Widget-IDs, nicht unterstütztes Routing, ungültige Widget-Konfigurationen und serverseitige Rendering-Fehler erzeugen ein ausdrückliches Validierungsergebnis `PAGE INVALID` mit einem anklickbaren Log-Link und einer unkritischen Tool-Warnung. Die zugrunde liegende Seiten-Exception wird mit ihrem ursprünglichen Schweregrad protokolliert; eine ungültige Seite markiert daher nicht fälschlich das Validierungs-Tool selbst als defekt. Diese Validierung führt das erzeugte JavaScript nicht in einem Browser aus, sendet keine nachfolgenden AJAX-Anfragen und erkennt keine Fehler, die ausschließlich zur Laufzeit im Browser auftreten.
 
 ## `MockTool`
 
