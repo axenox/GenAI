@@ -56,7 +56,7 @@ class SkillTextConcept extends AbstractConcept
             $this->getPlaceholder()
         );
 
-        $text = $skill->resolve([$skill->getPlaceholder()])[$skill->getPlaceholder()] ?? '';
+        $text = $skill->getInstructions();
         $text = trim((string) $text);
 
         if ($text === '') {

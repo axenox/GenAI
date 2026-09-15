@@ -66,15 +66,11 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Resolves this skill's local placeholder to its rendered instructions.
+     * Returns the rendered instruction text for this skill.
      */
-    public function resolve(array $placeholders) : array
+    public function getInstructions() : string
     {
-        if (! in_array($this->getPlaceholder(), $placeholders, true)) {
-            return [];
-        }
-
-        return [$this->getPlaceholder() => $this->renderInstructions()];
+        return $this->renderInstructions();
     }
 
     /**
@@ -83,6 +79,18 @@ class GenericSkill implements AiSkillInterface
     public function getPlaceholder() : string
     {
         return $this->placeholder;
+    }
+
+    /**
+     * Backwards compatibility for legacy renderers.
+     */
+    public function resolve(array $placeholders) : array
+    {
+        if (! in_array($this->getPlaceholder(), $placeholders, true)) {
+            return [];
+        }
+
+        return [$this->getPlaceholder() => $this->getInstructions()];
     }
 
     /**
