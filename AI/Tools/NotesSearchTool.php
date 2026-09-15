@@ -45,6 +45,13 @@ class NotesSearchTool extends AbstractAiTool
     {
         $query = trim((string) ($arguments[self::ARG_QUERY] ?? $arguments[0] ?? ''));
         $type = (string) ($arguments[self::ARG_NOTE_TYPE] ?? $arguments[1] ?? self::TYPE_ALL);
+        if (! in_array($type, [self::TYPE_ALL, AiNoteTypeDataType::MEMORY, AiNoteTypeDataType::SUGGESTION], true)) {
+            throw new AiToolRuntimeError(
+                $this,
+                $prompt,
+                'Invalid note_type "' . $type . '". Allowed values are "all", "memory", and "suggestion".'
+            );
+        }
 
         $sheet = $this->createScopedNotesSheet($agent);
         $sheet->getColumns()->addFromSystemAttributes();
