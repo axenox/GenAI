@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\Skills;
 
+use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
@@ -65,15 +66,11 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Resolves this skill's local placeholder to its rendered instructions.
+     * Returns the rendered instruction text for this skill.
      */
-    public function resolve(array $placeholders) : array
+    public function getInstructions() : string
     {
-        if (! in_array($this->getPlaceholder(), $placeholders, true)) {
-            return [];
-        }
-
-        return [$this->getPlaceholder() => $this->renderInstructions()];
+        return $this->renderInstructions();
     }
 
     /**
@@ -82,6 +79,18 @@ class GenericSkill implements AiSkillInterface
     public function getPlaceholder() : string
     {
         return $this->placeholder;
+    }
+
+    /**
+     * Backwards compatibility for legacy renderers.
+     */
+    public function resolve(array $placeholders) : array
+    {
+        if (! in_array($this->getPlaceholder(), $placeholders, true)) {
+            return [];
+        }
+
+        return [$this->getPlaceholder() => $this->getInstructions()];
     }
 
     /**
@@ -115,51 +124,39 @@ class GenericSkill implements AiSkillInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $this->tools = [];
-            $toolSources = [];
-            $this->warnings = [];
+            $toolBox = new ToolBox($this->agent->getWorkbench());
 
             foreach ($this->getConcepts() as $concept) {
+                $source = 'concept in skill "' . $this->getPlaceholder() . '"';
                 foreach ($concept->getToolModels() as $toolName => $toolUxon) {
-                    $this->tools[$toolName] = AiFactory::createToolFromUxon(
-                        $this->agent->getWorkbench(),
-                        $toolUxon,
-                        $toolName
+                    $toolBox->append(
+                        AiFactory::createToolFromUxon($this->agent->getWorkbench(), $toolUxon, $toolName),
+                        $toolName,
+                        $source
                     );
-                    $toolSources[$toolName] = 'concept in skill "' . $this->getPlaceholder() . '"';
                 }
             }
 
             foreach ($this->skills as $skill) {
+                $source = 'nested skill "' . $skill->getPlaceholder() . '"';
                 foreach ($skill->getTools() as $toolName => $tool) {
-                    $source = 'nested skill "' . $skill->getPlaceholder() . '"';
-                    if (isset($this->tools[$toolName])) {
-                        $this->warnings[] = new AiToolConfigurationWarning(
-                            'AI tool "' . $toolName . '" from ' . $source
-                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                        );
-                    }
-                    $this->tools[$toolName] = $tool;
-                    $toolSources[$toolName] = $source;
+                    $toolBox->append($tool, $toolName, $source);
                 }
-                $this->warnings = array_merge($this->warnings, $skill->getWarnings());
             }
 
             foreach ($this->toolsUxon as $toolName => $toolUxon) {
-                $tool = AiFactory::createToolFromUxon(
-                    $this->agent->getWorkbench(),
-                    $toolUxon,
-                    $toolName
-                );
                 $source = 'skill "' . $this->getPlaceholder() . '"';
-                if (isset($this->tools[$toolName])) {
-                    $this->warnings[] = new AiToolConfigurationWarning(
-                        'AI tool "' . $toolName . '" from ' . $source
-                        . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                    );
-                }
-                $this->tools[$toolName] = $tool;
-                $toolSources[$toolName] = $source;
+                $toolBox->append(
+                    AiFactory::createToolFromUxon($this->agent->getWorkbench(), $toolUxon, $toolName),
+                    $toolName,
+                    $source
+                );
+            }
+
+            $this->tools = $toolBox->getTools();
+            $this->warnings = array_merge($this->warnings, $toolBox->getWarnings());
+            foreach ($this->skills as $skill) {
+                $this->warnings = array_merge($this->warnings, $skill->getWarnings());
             }
         }
 
@@ -167,7 +164,7 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns tool configuration warnings from this skill and its nested skills.
+        * Returns tool configuration warnings from this skill and its nested skills.
      *
      * @return \Throwable[]
      */

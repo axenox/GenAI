@@ -7,12 +7,17 @@ use exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface;
 /**
  * A reusable set of optional instructions, concepts, and tools for an AI agent.
  */
-interface AiSkillInterface extends PlaceholderResolverInterface, iCanBeConvertedToUxon
+interface AiSkillInterface extends iCanBeConvertedToUxon, PlaceholderResolverInterface
 {
     /**
-     * Returns the local placeholder configured by the consuming agent.
+     * Returns the placeholder used to insert this skill's instructions.
      */
     public function getPlaceholder() : string;
+
+    /**
+     * Returns the rendered instruction text for this skill.
+     */
+    public function getInstructions() : string;
 
     /**
      * Returns the tools contributed by this skill.

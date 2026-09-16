@@ -1,10 +1,12 @@
 <?php
 namespace axenox\GenAI\AI\Agents;
 
+use axenox\GenAI\AI\Concepts\SkillTextConcept;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Events\OnAiToolCallEvent;
 use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
@@ -388,14 +390,7 @@ class GenericAssistant implements AiAgentInterface
         return $this;
     }
 
-    /**
-        * Imports the transient skill map assembled by the agent factory.
-        * This runtime property is not persisted in the agent version configuration.
-     *
-     * @param UxonObject $skills
-     * @return AiAgentInterface
-        * @internal
-     */
+    
     protected function setSkills(UxonObject $skills) : AiAgentInterface
     {
         $this->skillsUxon = $skills;
@@ -407,10 +402,10 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * Set to FALSE to disable appending skills to the system prompt automatically when their
-     * placeholder is not used explicitly inside the instructions
+     * placeholder is not used explicitly inside the instructions.
      *
-     * By default, skills that allow it (see `auto_append` property of a skill) are appended to
-     * the end of the system prompt if their placeholder was not used inside the instructions text.
+     * The default is TRUE so unused skills can still be appended at the end unless another concept
+     * has already rendered the same skill text.
      *
      * @uxon-property append_unused_skills
      * @uxon-type boolean
@@ -496,8 +491,15 @@ class GenericAssistant implements AiAgentInterface
             if ($prompt->hasInputData()) {
                 $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
             }
+            $renderedSkillAliases = [];
             foreach ($this->getConcepts($prompt, $renderer) as $placeholderResolver) {
                 $renderer->addPlaceholder($placeholderResolver);
+                if ($placeholderResolver instanceof SkillTextConcept) {
+                    $skillAlias = $this->extractSkillAliasFromConcept($placeholderResolver);
+                    if ($skillAlias !== null) {
+                        $renderedSkillAliases[$skillAlias] = true;
+                    }
+                }
                 if ($placeholderResolver instanceof AiConceptInterface) {
                     foreach ($placeholderResolver->getToolModels() as $toolName => $toolUxon) {
                         $this->toolsUxon[$toolName] = $toolUxon;
@@ -508,7 +510,6 @@ class GenericAssistant implements AiAgentInterface
             foreach ($this->skillsUxon as $placeholder => $skillUxon) {
                 $skill = AiFactory::createSkillFromUxon($this, $prompt, $placeholder, $skillUxon);
                 $this->skills[] = $skill;
-                $renderer->addPlaceholder($skill);
             }
             $this->tools = null;
             
@@ -521,7 +522,7 @@ class GenericAssistant implements AiAgentInterface
                 }
                 $this->systemPromptRendered = $renderer->render($systemPrompt ?? '');
                 if ($this->appendUnusedSkills === true) {
-                    $this->systemPromptRendered .= $this->renderUnusedSkills($systemPrompt ?? '');
+                    $this->systemPromptRendered .= $this->renderUnusedSkills($systemPrompt ?? '', $renderedSkillAliases);
                 }
             } catch (\Throwable $e) {
                 throw new AiConceptRenderingError($renderer, 'Cannot apply AI concepts. ' . $e->getMessage(), null, $e, $systemPrompt);
@@ -537,24 +538,49 @@ class GenericAssistant implements AiAgentInterface
      * @param string $rawInstructions
      * @return string
      */
-    protected function renderUnusedSkills(string $rawInstructions) : string
+    protected function renderUnusedSkills(string $rawInstructions, array $renderedSkillAliases = []) : string
     {
-        $usedPlaceholders = StringDataType::findPlaceholders($rawInstructions);
         $appendix = '';
         foreach ($this->skills as $skill) {
-            if (in_array($skill->getPlaceholder(), $usedPlaceholders, true)) {
+            if ($this->isSkillRenderedByConcept($skill, $renderedSkillAliases)) {
                 continue;
             }
             if (! $skill->isAutoAppendEnabled()) {
                 continue;
             }
-            $skillText = $skill->resolve([$skill->getPlaceholder()])[$skill->getPlaceholder()] ?? '';
+            $skillText = $skill->getInstructions();
             if (trim($skillText) === '') {
                 continue;
             }
             $appendix .= "\n\n" . $skillText;
         }
         return $appendix;
+    }
+
+    protected function extractSkillAliasFromConcept(SkillTextConcept $concept) : ?string
+    {
+        $uxon = $concept->exportUxonObject();
+        if (! $uxon instanceof UxonObject) {
+            return null;
+        }
+
+        $skillAlias = trim((string) ($uxon->getProperty('skill_alias') ?? $uxon->getProperty('skill') ?? ''));
+        return $skillAlias !== '' ? $skillAlias : null;
+    }
+
+    protected function isSkillRenderedByConcept(AiSkillInterface $skill, array $renderedSkillAliases = []) : bool
+    {
+        $uxon = $skill->exportUxonObject();
+        if (! $uxon instanceof UxonObject) {
+            return false;
+        }
+
+        $skillAlias = trim((string) ($uxon->getProperty('alias') ?? ''));
+        if ($skillAlias === '') {
+            return false;
+        }
+
+        return isset($renderedSkillAliases[$skillAlias]);
     }
 
     protected function getApp(AiPromptInterface $prompt) : ?AppInterface
@@ -985,36 +1011,32 @@ class GenericAssistant implements AiAgentInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $this->tools = [];
-            $toolSources = [];
+            $toolBox = new ToolBox($this->workbench);
             $warnings = [];
 
             foreach ($this->skills as $skill) {
                 $source = 'skill "' . $skill->getPlaceholder() . '"';
-                foreach ($skill->getTools() as $toolName => $tool) {
-                    if (isset($this->tools[$toolName])) {
-                        $warnings[] = new AiToolConfigurationWarning(
-                            'AI tool "' . $toolName . '" from ' . $source
-                            . ' overrides the tool from ' . $toolSources[$toolName] . '.'
-                        );
-                    }
-                    $this->tools[$toolName] = $tool;
-                    $toolSources[$toolName] = $source;
-                }
+                $toolBox->appendTools($skill->getTools(), $source);
                 $warnings = array_merge($warnings, $skill->getWarnings());
             }
 
-            foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
-                if (isset($this->tools[$toolName])) {
-                    $warnings[] = new AiToolConfigurationWarning(
-                        'AI tool "' . $toolName . '" configured on agent "'
-                        . $this->getAliasWithNamespace() . '" overrides the tool from ' . $toolSources[$toolName] . '.'
-                    );
-                }
-                $this->tools[$toolName] = AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName);
-                $toolSources[$toolName] = 'agent configuration';
+            foreach ($this->conceptToolsUxon ?? [] as $toolName => $toolUxon) {
+                $toolBox->append(
+                    AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
+                    $toolName,
+                    'concept configuration'
+                );
             }
 
+            foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
+                $toolBox->prepend(
+                    AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
+                    $toolName,
+                    'agent configuration'
+                );
+            }
+
+            $warnings = array_merge($warnings, $toolBox->getWarnings());
             if ($warnings !== []) {
                 if ($this->conversation !== null) {
                     $this->conversation->saveWarnings($warnings);
@@ -1024,6 +1046,8 @@ class GenericAssistant implements AiAgentInterface
                     }
                 }
             }
+
+            $this->tools = $toolBox->getTools();
         }
         return $this->tools;
     }
@@ -1039,7 +1063,11 @@ class GenericAssistant implements AiAgentInterface
                 return $tool;
             }
         }
-        throw new AiAgentRuntimeError($this, 'Tool "' . $name . '" not found!');
+        throw new AiAgentRuntimeError(
+            $this,
+            'Tool "' . $name . '" not found!',
+            $this->getAliasWithNamespace()
+        );
     }
 
     protected function addTool(AiToolInterface $tool) : AiAgentInterface
