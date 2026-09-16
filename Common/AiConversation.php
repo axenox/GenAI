@@ -185,7 +185,7 @@ class AiConversation implements AiConversationInterface
         }
 
         $transaction = $this->workbench->data()->startTransaction();
-        $this->sequenceNumber = $query->getSequenceNumber();
+        $this->sequenceNumber = max($this->sequenceNumber, $query->getSequenceNumber());
 
         try {
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
@@ -352,7 +352,7 @@ class AiConversation implements AiConversationInterface
                 'ROLE' => AiMessageTypeDataType::ASSISTANT,
                 'MESSAGE' => $answer,
                 'MODEL' => $this->assistant->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->sequenceNumber,
+                'SEQUENCE_NUMBER' => $this->sequenceNumber++,
                 'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
                 'TOKENS_PROMPT' => $query->getTokensInPrompt(),
                 'COST' => $cost,
