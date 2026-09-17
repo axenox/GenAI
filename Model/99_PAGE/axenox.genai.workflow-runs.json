@@ -1,0 +1,197 @@
+{
+    "uid": "0x11f1c6a549f34417a9c9025041000001",
+    "alias_with_namespace": "axenox.genai.workflow-runs",
+    "menu_parent_page_selector": "0x11f1b346b22ba596b346025041000001",
+    "menu_index": 0,
+    "menu_visible": true,
+    "name": "Workflow runs",
+    "description": "Inspect agentic workflow runs and their ordered steps",
+    "intro": "",
+    "replaces_page_selector": null,
+    "created_by_user_selector": "0x31000000000000000000000000000000",
+    "created_on": "2026-09-16 16:00:00",
+    "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+    "modified_on": "2026-09-16 17:14:35",
+    "icon": "sitemap",
+    "icon_set": "fa",
+    "contents": {
+        "widget_type": "SplitHorizontal",
+        "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN",
+        "panels": [
+            {
+                "caption": "Workflow runs",
+                "width": "50%",
+                "widgets": [
+                    {
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN",
+                        "id": "workflow_runs_table",
+                        "filters": [
+                            {
+                                "attribute_alias": "STARTED_ON",
+                                "widget_type": "RangeSpinnerFilter"
+                            },
+                            {
+                                "attribute_alias": "WORKFLOW_ALIAS"
+                            },
+                            {
+                                "attribute_alias": "STATUS"
+                            },
+                            {
+                                "attribute_alias": "USER"
+                            },
+                            {
+                                "attribute_alias": "CORRELATION_KEY"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "STARTED_ON"
+                            },
+                            {
+                                "attribute_alias": "TITLE"
+                            },
+                            {
+                                "attribute_alias": "WORKFLOW_ALIAS"
+                            },
+                            {
+                                "attribute_alias": "STATUS"
+                            },
+                            {
+                                "attribute_alias": "USER__LABEL"
+                            },
+                            {
+                                "attribute_alias": "FINISHED_ON"
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "STARTED_ON",
+                                "direction": "desc"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "caption": "Details",
+                                "bind_to_double_click": true,
+                                "action": {
+                                    "alias": "exface.Core.ShowObjectInfoDialog",
+                                    "disable_buttons": true
+                                }
+                            },
+                            {
+                                "action_alias": "exface.Core.DeleteObject",
+                                "visibility": "optional"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "caption": "Timeline",
+                "widgets": [
+                    {
+                        "widget_type": "DataTable",
+                        "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
+                        "id": "workflow_steps_table",
+                        "nowrap": false,
+                        "filters": [
+                            {
+                                "attribute_alias": "AI_WORKFLOW_RUN",
+                                "value": "=workflow_runs_table!UID",
+                                "comparator": "==",
+                                "required": true,
+                                "hidden": true,
+                                "apply_on_change": true
+                            },
+                            {
+                                "attribute_alias": "STATUS"
+                            },
+                            {
+                                "attribute_alias": "NODE_TYPE"
+                            },
+                            {
+                                "attribute_alias": "SUBJECT_KEY"
+                            }
+                        ],
+                        "columns": [
+                            {
+                                "attribute_alias": "SEQUENCE_NUMBER",
+                                "hidden": true,
+                                "caption": "#"
+                            },
+                            {
+                                "attribute_alias": "NODE_ID"
+                            },
+                            {
+                                "attribute_alias": "NODE_TYPE"
+                            },
+                            {
+                                "attribute_alias": "STATUS"
+                            },
+                            {
+                                "attribute_alias": "MESSAGE"
+                            },
+                            {
+                                "attribute_alias": "AI_CONVERSATION",
+                                "hidden": true
+                            },
+                            {
+                                "attribute_alias": "AI_CONVERSATION__TITLE",
+                                "caption": "Conversation"
+                            },
+                            {
+                                "attribute_alias": "DURATION_MS"
+                            }
+                        ],
+                        "sorters": [
+                            {
+                                "attribute_alias": "SEQUENCE_NUMBER",
+                                "direction": "asc"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "caption": "Step details",
+                                "bind_to_double_click": true,
+                                "action": {
+                                    "alias": "exface.Core.ShowObjectInfoDialog",
+                                    "disable_buttons": true
+                                }
+                            },
+                            {
+                                "caption": "Conversation",
+                                "icon": "comments",
+                                "disabled_if": {
+                                    "operator": "AND",
+                                    "conditions": [
+                                        {
+                                            "value_left": "=~input!AI_CONVERSATION",
+                                            "comparator": "==",
+                                            "value_right": ""
+                                        }
+                                    ]
+                                },
+                                "action": {
+                                    "alias": "exface.core.ShowObjectInfoDialog",
+                                    "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                    "disable_buttons": false,
+                                    "input_mapper": {
+                                        "from_object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
+                                        "to_object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                        "column_to_column_mappings": [
+                                            {
+                                                "from": "AI_CONVERSATION",
+                                                "to": "UID"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
