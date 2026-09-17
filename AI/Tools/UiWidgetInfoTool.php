@@ -20,6 +20,8 @@ use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\Facades\HtmlPageFacadeInterface;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
+use exface\UI5Facade\Facades\Elements\UI5AbstractElement;
+use exface\UI5Facade\Exceptions\UI5ControllerNotInitializedException;
 use GuzzleHttp\Psr7\Uri;
 
 /**
@@ -82,8 +84,8 @@ class UiWidgetInfoTool extends AbstractAiTool
             $facade = $resolver->getFacade();
             $webapp = null;
             // UI5 normally initializes its Webapp in the HTTP request pipeline; direct validation must do it explicitly.
-            if ($facade instanceof AbstractAjaxFacade && method_exists($facade, 'initWebapp')) {
-                $webapp = $facade->initWebapp($page->getAliasWithNamespace());
+            if ($facade instanceof AbstractAjaxFacade && method_exists($facade, 'initWebapp') && method_exists($facade, 'getWebapp')) {
+                $webapp = $facade->getWebapp() ?? $facade->initWebapp($page->getAliasWithNamespace());
             }
             if ($widgetId === null && $facade instanceof HtmlPageFacadeInterface) {
                 $widget = $facade->findUrlWidget($uri);
@@ -93,9 +95,21 @@ class UiWidgetInfoTool extends AbstractAiTool
 
             // UI5 buildJs() skips webapp root widgets, so build the controller and view directly to validate them.
             if ($webapp !== null && method_exists($webapp, 'getControllerForWidget')) {
-                $controller = $webapp->getControllerForWidget($widget);
-                $controller->buildJsController();
-                $controller->getView()->buildJsView();
+                $element = $facade->getElement($widget);
+                $controllerExists = false;
+                if ($element instanceof UI5AbstractElement) {
+                    try {
+                        $element->getController();
+                        $controllerExists = true;
+                    } catch (UI5ControllerNotInitializedException $e) {
+                        // The first validation call must create and build the controller.
+                    }
+                }
+                if (! $controllerExists) {
+                    $controller = $webapp->getControllerForWidget($widget);
+                    $controller->buildJsController();
+                    $controller->getView()->buildJsView();
+                }
             } elseif ($facade instanceof AbstractAjaxFacade) {
                 $facade->buildHtmlHead($widget, true);
                 $facade->buildHtmlBody($widget);
