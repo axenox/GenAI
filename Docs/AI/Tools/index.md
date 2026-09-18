@@ -721,7 +721,7 @@ replacement text
 | `url` | Yes | Page alias, facade URL, or query string. |
 | `widget_id` | No | ID of a nested widget; omit it to document the root widget. |
 
-**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup. For AJAX facades, the tool also renders the widget. UI5 validation directly generates the controller and view, including for webapp root pages, so that facade element and rendering errors fail the tool call.
+**How to use.** The model supplies a page alias, facade URL, or query string and can optionally select a nested `widget_id`. The URL must be resolvable by a facade that supports widget lookup. For AJAX facades, the tool also renders the widget. UI5 validation directly generates the controller and view, including for webapp root pages, so that facade element and rendering errors fail the tool call. Repeated calls reuse an already initialized UI5 webapp.
 
 **Result and limits.** A valid result describes the resolved widget and its UXON. Missing pages, unknown widget IDs, unsupported routing, invalid widget configuration, and server-side facade rendering failures produce an explicit `PAGE INVALID` validation result with a clickable log link and a noncritical tool warning. The underlying page exception is logged at its original severity; an invalid page therefore does not incorrectly mark the validation tool itself as broken. This validation does not execute the generated JavaScript in a browser, make follow-up AJAX requests, or detect browser-only runtime errors.
 
