@@ -85,7 +85,11 @@ class UiWidgetInfoTool extends AbstractAiTool
             $webapp = null;
             // UI5 normally initializes its Webapp in the HTTP request pipeline; direct validation must do it explicitly.
             if ($facade instanceof AbstractAjaxFacade && method_exists($facade, 'initWebapp') && method_exists($facade, 'getWebapp')) {
-                $webapp = $facade->getWebapp() ?? $facade->initWebapp($page->getAliasWithNamespace());
+                try {
+                    $webapp = $facade->getWebapp();
+                } catch (\TypeError $e) {
+                    $webapp = $facade->initWebapp($page->getAliasWithNamespace());
+                }
             }
             if ($widgetId === null && $facade instanceof HtmlPageFacadeInterface) {
                 $widget = $facade->findUrlWidget($uri);
