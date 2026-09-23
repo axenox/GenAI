@@ -4,6 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Interfaces\WorkbenchInterface;
 
@@ -100,6 +101,9 @@ class GitTool extends CommandLineTool
         return (parent::getRules() ?? '') . <<<MD
 
 Allowed commands are: $commands.
+Run one Git command at a time and use the result returned by this tool directly.
+Do not use shell operators, variable or command substitutions, or options that write files or invoke external programs.
+Place search patterns containing characters such as `|` or parentheses inside matching double quotes.
 MD;
     }
 
@@ -161,6 +165,23 @@ MD;
             $this->setAllowedCommands(self::DEFAULT_COMMANDS);
         }
         $command = $this->normalizeGitCommand($command);
+        $tokens = $this->parseSafeCommandTokens($command);
+        if ($tokens === null) {
+            throw new AiToolRuntimeError(
+                $this,
+                $prompt,
+                'Command contains unsafe shell syntax or unmatched quotes. Run one Git command at a time, remove shell operators and substitutions, and place search patterns containing "|" or parentheses inside matching double quotes.'
+            );
+        }
+        foreach ($tokens as $token) {
+            if ($this->isBlockedOption($token)) {
+                throw new AiToolRuntimeError(
+                    $this,
+                    $prompt,
+                    'Command contains a Git option that may write files or invoke an external program. Remove that option and use the GitTool result returned directly by the command.'
+                );
+            }
+        }
         parent::checkCommandAllowed($command, $prompt);
     }
 
@@ -204,7 +225,96 @@ MD;
     private function buildCommandPattern(string $command): string
     {
         return '/^(?:git\s+)?' . preg_quote($command, '/')
-            . '(?![^\r\n]*(?:--output(?:=|\s)|--ext-diff\b|--textconv\b|--open-files-in-pager\b))'
-            . '(?:\s+[^\r\n;&|<>()`$]+)?$/i';
+            . '(?:\s+[^\r\n]+)?$/i';
+    }
+
+    /**
+     * Splits a command into arguments while rejecting shell control operators.
+     *
+     * Shell metacharacters are accepted inside double-quoted arguments so Git
+     * search patterns can use alternation and grouping. Variable and command
+     * substitution remain blocked in every context.
+     *
+     * @param string $command
+     * @return string[]|null
+     */
+    private function parseSafeCommandTokens(string $command): ?array
+    {
+        $tokens = [];
+        $token = '';
+        $tokenStarted = false;
+        $quote = null;
+        $length = strlen($command);
+
+        for ($position = 0; $position < $length; $position++) {
+            $character = $command[$position];
+            if ($character === "\r" || $character === "\n") {
+                return null;
+            }
+
+            if ($quote === null) {
+                if (ctype_space($character)) {
+                    if ($tokenStarted) {
+                        $tokens[] = $token;
+                        $token = '';
+                        $tokenStarted = false;
+                    }
+                    continue;
+                }
+                if ($character === '"' || $character === "'") {
+                    $quote = $character;
+                    $tokenStarted = true;
+                    continue;
+                }
+                if (strpos(';&|<>()`$', $character) !== false) {
+                    return null;
+                }
+                $token .= $character;
+                $tokenStarted = true;
+                continue;
+            }
+
+            if ($character === $quote) {
+                $quote = null;
+                continue;
+            }
+            if ($character === '$' || $character === '`') {
+                return null;
+            }
+            if ($quote === "'" && strpos(';&|<>()', $character) !== false) {
+                return null;
+            }
+            if ($quote === '"' && $character === '\\' && $position + 1 < $length) {
+                $token .= $character . $command[++$position];
+                continue;
+            }
+            $token .= $character;
+        }
+
+        if ($quote !== null) {
+            return null;
+        }
+        if ($tokenStarted) {
+            $tokens[] = $token;
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * Returns TRUE for Git options that can write files or invoke external programs.
+     *
+     * @param string $token
+     * @return bool
+     */
+    private function isBlockedOption(string $token): bool
+    {
+        foreach (['--output', '--ext-diff', '--textconv', '--open-files-in-pager'] as $option) {
+            if ($token === $option || strpos($token, $option . '=') === 0) {
+                return true;
+            }
+        }
+
+        return preg_match('/^-O(?:.+)?$/', $token) === 1;
     }
 }

@@ -115,7 +115,7 @@ Paths are validated against the configured base and allowlist before access. Thi
 | `command` | Yes | Complete Git command beginning with `git` and an enabled operation. |
 | `folder` | No | Repository folder relative to the configured base path. |
 
-**How to use.** Usually keep the default operation list and restrict `allowed_paths` to the repositories the agent may inspect. To grant another operation, add its predefined name to `allowed_commands`; `stage` maps to `git add`. Unknown names are rejected as configuration errors. The generated validation patterns reject shell operators and options that write command output or invoke external diff and pager helpers.
+**How to use.** Usually keep the default operation list and restrict `allowed_paths` to the repositories the agent may inspect. To grant another operation, add its predefined name to `allowed_commands`; `stage` maps to `git add`. Unknown names are rejected as configuration errors. Shell operators are rejected outside double-quoted arguments, while quoted Git search patterns may use metacharacters such as alternation (`\|`) and grouping. Variable and command substitution and options that write command output or invoke external diff and pager helpers remain blocked.
 
 **Result and limits.** The tool returns Git output in a Markdown code block. It does not parse Git output into structured data. Explicitly enabled mutating commands retain their normal Git behavior and should only be exposed to agents designed to make repository changes.
 
