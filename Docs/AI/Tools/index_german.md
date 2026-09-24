@@ -371,11 +371,15 @@ replacement text
 
 **Alias:** `axenox.GenAI.NotesListTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CNotesListTool)
 
-**Zweck.** Listet Typen und Themen aller langfristigen Notizen für den aufrufenden Agenten und den authentifizierten Benutzer auf, ohne deren Inhalte offenzulegen.
+**Zweck.** Listet Typen und Themen aktueller langfristiger Notizen für den aufrufenden Agenten und den authentifizierten Benutzer auf, ohne deren Inhalte offenzulegen.
 
-**Verwenden, wenn.** Der Agent einen kompakten Überblick über seine verfügbaren Notizen benötigt, beispielsweise als Prompt-Kontext vor der Entscheidung über eine gezielte Suche. Das Tool besitzt keine Argumente.
+**Verwenden, wenn.** Der Agent einen kompakten Überblick über seine verfügbaren Notizen benötigt, beispielsweise als Prompt-Kontext vor der Entscheidung über eine gezielte Suche.
 
-**Ergebnis und Grenzen.** Gibt eine nach Typ und Thema sortierte Markdown-Tabelle mit den Spalten `Type` und `Topic` zurück. Benutzer- und Agentenfilter werden immer aus der aktuellen Anfrage abgeleitet und können nicht vom Modell übergeben werden. Notiztexte und UIDs werden weder gelesen noch zurückgegeben.
+| Argument | Erforderlich | Beschreibung |
+| --- | --- | --- |
+| `max_results` | Nein | Maximale Anzahl zurückgegebener Notizen, absteigend nach Änderungszeitpunkt sortiert. Der Standardwert ist `20`; der Wert muss eine positive Ganzzahl sein. |
+
+**Ergebnis und Grenzen.** Gibt eine durch `max_results` begrenzte Markdown-Tabelle mit den Spalten `Type` und `Topic` zurück, absteigend nach Änderungszeitpunkt sortiert. Benutzer- und Agentenfilter werden immer aus der aktuellen Anfrage abgeleitet und können nicht vom Modell übergeben werden. Notiztexte und UIDs werden weder gelesen noch zurückgegeben.
 
 ## `ModelComponentSaveTool`
 
