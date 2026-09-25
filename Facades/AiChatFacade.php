@@ -7,7 +7,7 @@ use axenox\GenAI\Facades\Middleware\FormDataMiddleware;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use exface\Core\CommonLogic\Filesystem\InMemoryFile;
 use Psr\Http\Message\UploadedFileInterface;
-use exface\Core\Exceptions\Facades\FacadeRoutingError;
+use exface\Core\Exceptions\Facades\HttpFacadeRoutingError;
 use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\AuthenticationMiddleware;
 use exface\Core\Facades\AbstractHttpFacade\Middleware\DataUrlParamReader;
@@ -98,7 +98,7 @@ class AiChatFacade extends AbstractHttpFacade
                     );
                     break;
                 default:
-                    throw new FacadeRoutingError('Route "' . $pathInFacade . '" not found!');
+                    throw new HttpFacadeRoutingError($request, 'Route "' . $pathInFacade . '" not found!');
             }
             return new Response(($responseCode ?? 404), $headers, Utils::streamFor($body ?? ''));
         }
