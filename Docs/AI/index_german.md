@@ -2,9 +2,11 @@
 
 [English](index.md)
 
-Das GenAI-Framework besteht aus Agenten, Skills, Tools und Concepts. Agenten definieren das Verhalten eines KI-Assistenten, Skills bündeln wiederverwendbare Instructions und Fähigkeiten, Tools ermöglichen bei Bedarf Informationsabrufe oder Aktionen und Concepts ergänzen Instructions um erforderlichen Kontext.
+Das GenAI-Framework besteht aus Agenten und ihren Conversations, wiederverwendbaren Skills, automatisch gerenderten Concepts und bedarfsgesteuerten Tools. Scheduler-Konfigurationen starten Agenten autonom; agentische Workflows koordinieren mehrere kontrollierte Schritte und protokollieren deren Ablauf.
 
+- [Developer-Architektur und Verantwortungsgrenzen](Developer/index_german.md)
 - [Agenten](Agents/index_german.md)
+- [Conversations](Conversations/index_german.md)
 - [Skills](Skills/index_german.md)
 - [Tools](Tools/index_german.md)
 - [Concepts](Concepts/index_german.md)
