@@ -47,6 +47,7 @@ class GenericSkill implements AiSkillInterface
     /**
      * Creates a skill in the context of the consuming agent and prompt.
      */
+    // TODO Remove the prompt from the skill constructor and receive it only for prompt-dependent rendering.
     public function __construct(
         AiAgentInterface $agent,
         AiPromptInterface $prompt,
