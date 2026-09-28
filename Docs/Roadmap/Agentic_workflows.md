@@ -110,7 +110,7 @@ Some possible node types could include:
 | `join` | Wait for required branches or grouping steps and aggregate their outcomes. |
 | `wait` | Suspend until a time, event, or external state is reached. |
 | `human_gate` | Suspend for approval, correction, or additional input. |
-| `subworkflow` | Execute a separately versioned reusable workflow. |
+| `workflow` | Execute a separately versioned reusable workflow. |
 | `exit` | Complete a workflow or item with a terminal outcome. |
 
 The first implementation only needs `start`, `action`, `agent`, `decision`, `foreach`, and `exit`. Other types should remain reserved rather than simulated with special action names.
