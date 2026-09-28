@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-09-16 16:00:00",
     "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-    "modified_on": "2026-09-16 17:14:35",
+    "modified_on": "2026-09-28 09:47:41",
     "icon": "sitemap",
     "icon_set": "fa",
     "contents": {
@@ -49,19 +49,25 @@
                                 "attribute_alias": "STARTED_ON"
                             },
                             {
-                                "attribute_alias": "TITLE"
-                            },
-                            {
                                 "attribute_alias": "WORKFLOW_ALIAS"
                             },
                             {
                                 "attribute_alias": "STATUS"
                             },
                             {
+                                "attribute_alias": "OUTCOME"
+                            },
+                            {
                                 "attribute_alias": "USER__LABEL"
                             },
                             {
                                 "attribute_alias": "FINISHED_ON"
+                            },
+                            {
+                                "attribute_alias": "DURATION_MINUTES"
+                            },
+                            {
+                                "attribute_alias": "COST"
                             }
                         ],
                         "sorters": [
@@ -91,7 +97,7 @@
                 "caption": "Timeline",
                 "widgets": [
                     {
-                        "widget_type": "DataTable",
+                        "widget_type": "DataTree",
                         "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
                         "id": "workflow_steps_table",
                         "nowrap": false,
@@ -121,10 +127,13 @@
                                 "caption": "#"
                             },
                             {
+                                "attribute_alias": "NODE_TYPE"
+                            },
+                            {
                                 "attribute_alias": "NODE_ID"
                             },
                             {
-                                "attribute_alias": "NODE_TYPE"
+                                "attribute_alias": "SUBJECT_KEY"
                             },
                             {
                                 "attribute_alias": "STATUS"
@@ -142,6 +151,9 @@
                             },
                             {
                                 "attribute_alias": "DURATION_MS"
+                            },
+                            {
+                                "attribute_alias": "COST"
                             }
                         ],
                         "sorters": [
@@ -177,6 +189,7 @@
                                     "object_alias": "axenox.GenAI.AI_CONVERSATION",
                                     "disable_buttons": false,
                                     "input_mapper": {
+                                        "//": "sonst funktioniert diagramm nicht/wird escaped",
                                         "from_object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
                                         "to_object_alias": "axenox.GenAI.AI_CONVERSATION",
                                         "column_to_column_mappings": [
@@ -188,7 +201,10 @@
                                     }
                                 }
                             }
-                        ]
+                        ],
+                        "tree_parent_relation_alias": "PARENT_STEP",
+                        "tree_expanded": true,
+                        "paginate": false
                     }
                 ]
             }

@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-06-30 01:53:15",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-09-09 21:12:24",
+    "modified_on": "2026-09-28 09:50:37",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -26,7 +26,7 @@
                                 "height": "60%",
                                 "widgets": [
                                     {
-                                        "caption": "Autonomous AI agents",
+                                        "caption": "Autonomous Workflows",
                                         "id": "agents_table",
                                         "widget_type": "DataTable",
                                         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -184,13 +184,60 @@
                                 "caption": "Flow diagram",
                                 "widgets": [
                                     {
-                                        "widget_type": "InputMarkdown",
-                                        "render_mermaid_diagrams": true,
-                                        "value": "=agents_table!FLOW_DIAGRAM",
-                                        "disabled": true,
+                                        "widget_type": "Form",
                                         "hide_caption": true,
                                         "width": "100%",
-                                        "height": "100%"
+                                        "height": "100%",
+                                        "widgets": [
+                                            {
+                                                "widget_type": "InputMarkdown",
+                                                "render_mermaid_diagrams": true,
+                                                "value": "=agents_table!FLOW_DIAGRAM",
+                                                "disabled": true,
+                                                "hide_caption": true,
+                                                "width": "100%",
+                                                "height": "max"
+                                            }
+                                        ],
+                                        "toolbars": [
+                                            {
+                                                "widget_type": "FormToolbar",
+                                                "position": "top",
+                                                "buttons": [
+                                                    {
+                                                        "caption": "Open diagram",
+                                                        "icon": "expand",
+                                                        "align": "right",
+                                                        "input_widget_id": "agents_table",
+                                                        "hint": "Open the flow diagram in a maximized dialog",
+                                                        "action": {
+                                                            "alias": "exface.Core.ShowDialog",
+                                                            "maximize": true,
+                                                            "prefill_with_input_data": true,
+                                                            "input_mapper": {
+                                                                "//": "sonst funktioniert diagramm nicht/wird escaped",
+                                                                "from_object_alias": "axenox.GenAI.AI_AUTONOMOUS",
+                                                                "to_object_alias": "axenox.GenAI.AI_AUTONOMOUS",
+                                                                "inherit_columns": "own_system_attributes"
+                                                            },
+                                                            "dialog": {
+                                                                "caption": "Flow diagram",
+                                                                "widgets": [
+                                                                    {
+                                                                        "widget_type": "Markdown",
+                                                                        "render_mermaid_diagrams": true,
+                                                                        "attribute_alias": "FLOW_DIAGRAM",
+                                                                        "hide_caption": true,
+                                                                        "width": "100%",
+                                                                        "height": "100%"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     }
                                 ]
                             }
@@ -207,37 +254,94 @@
                                 "height": "30%",
                                 "widgets": [
                                     {
-                                        "widget_type": "Chart",
-                                        "id": "conversations_timeline_chart",
-                                        "caption": "Conversations in the last 3 months",
-                                        "object_alias": "axenox.GenAI.AI_STATS_PER_DAY",
-                                        "hide_header": true,
-                                        "data": {
-                                            "aggregate_by_attribute_alias": [
-                                                "DATE",
-                                                "AI_AGENT_NAME"
-                                            ],
-                                            "filters": [
-                                                {
-                                                    "attribute_alias": "DATE",
-                                                    "comparator": ">=",
-                                                    "value": "-3m"
-                                                },
-                                                {
-                                                    "attribute_alias": "AI_AGENT__AI_AUTONOMOUS__UID",
-                                                    "comparator": "!==",
-                                                    "value": "NULL"
-                                                }
-                                            ]
-                                        },
-                                        "series": [
+                                        "widget_type": "SplitHorizontal",
+                                        "panels": [
                                             {
-                                                "type": "column",
-                                                "split_by_attribute_alias": "AI_AGENT_NAME",
-                                                "stacked": true,
-                                                "caption": "Conversations",
-                                                "x_attribute_alias": "DATE",
-                                                "y_attribute_alias": "COUNT_CONVERSATIONS:SUM"
+                                                "width": "50%",
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "caption": "Workflow cost over time",
+                                                        "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN",
+                                                        "hide_header": true,
+                                                        "data": {
+                                                            "paginate": false,
+                                                            "aggregate_by_attribute_alias": [
+                                                                "DATE"
+                                                            ],
+                                                            "filters": [
+                                                                {
+                                                                    "attribute_alias": "STARTED_ON",
+                                                                    "comparator": ">=",
+                                                                    "value": "-3m"
+                                                                }
+                                                            ],
+                                                            "sorters": [
+                                                                {
+                                                                    "attribute_alias": "DATE",
+                                                                    "direction": "asc"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "line",
+                                                                "caption": "Average cost",
+                                                                "x_attribute_alias": "DATE",
+                                                                "y_attribute_alias": "COST:AVG"
+                                                            },
+                                                            {
+                                                                "type": "line",
+                                                                "caption": "Maximum cost",
+                                                                "x_attribute_alias": "DATE",
+                                                                "y_attribute_alias": "COST:MAX"
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "widgets": [
+                                                    {
+                                                        "widget_type": "Chart",
+                                                        "caption": "Workflow duration over time",
+                                                        "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN",
+                                                        "hide_header": true,
+                                                        "data": {
+                                                            "paginate": false,
+                                                            "aggregate_by_attribute_alias": [
+                                                                "DATE"
+                                                            ],
+                                                            "filters": [
+                                                                {
+                                                                    "attribute_alias": "STARTED_ON",
+                                                                    "comparator": ">=",
+                                                                    "value": "-3m"
+                                                                }
+                                                            ],
+                                                            "sorters": [
+                                                                {
+                                                                    "attribute_alias": "DATE",
+                                                                    "direction": "asc"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "series": [
+                                                            {
+                                                                "type": "line",
+                                                                "caption": "Average duration (min.)",
+                                                                "x_attribute_alias": "DATE",
+                                                                "y_attribute_alias": "DURATION_MINUTES:AVG"
+                                                            },
+                                                            {
+                                                                "type": "line",
+                                                                "caption": "Maximum duration (min.)",
+                                                                "x_attribute_alias": "DATE",
+                                                                "y_attribute_alias": "DURATION_MINUTES:MAX"
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
@@ -246,126 +350,177 @@
                             {
                                 "widgets": [
                                     {
-                                        "widget_type": "DataTable",
-                                        "object_alias": "axenox.GenAI.AI_CONVERSATION",
-                                        "caption": "Recent conversations",
-                                        "filters": [
+                                        "widget_type": "Tabs",
+                                        "tabs": [
                                             {
-                                                "attribute_alias": "AI_AGENT",
-                                                "comparator": "==",
-                                                "hidden": true,
-                                                "apply_on_change": true,
-                                                "value": "=agents_table!AI_AGENT"
+                                                "widget_type": "DataTable",
+                                                "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN",
+                                                "caption": "Recent workflow runs",
+                                                "columns": [
+                                                    {
+                                                        "attribute_alias": "STARTED_ON"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "TITLE"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "STATUS"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "OUTCOME"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "DURATION_MINUTES"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "COST"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "USER__LABEL"
+                                                    }
+                                                ],
+                                                "buttons": [
+                                                    {
+                                                        "caption": "Details",
+                                                        "bind_to_double_click": true,
+                                                        "action": {
+                                                            "alias": "exface.core.ShowObjectInfoDialog",
+                                                            "disable_buttons": true
+                                                        }
+                                                    },
+                                                    {
+                                                        "caption": "All workflow runs",
+                                                        "action": {
+                                                            "alias": "exface.core.GoToPage",
+                                                            "page_alias": "axenox.genai.workflow-runs"
+                                                        }
+                                                    }
+                                                ],
+                                                "sorters": [
+                                                    {
+                                                        "attribute_alias": "STARTED_ON",
+                                                        "direction": "desc"
+                                                    }
+                                                ]
                                             },
                                             {
-                                                "attribute_alias": "DATE",
-                                                "hidden": true,
-                                                "value": "=conversations_timeline_chart!DATE",
-                                                "apply_on_change": true
-                                            },
-                                            {
-                                                "attribute_alias": "AI_AGENT__AI_AUTONOMOUS__UID",
-                                                "hidden": true,
-                                                "value": "NULL",
-                                                "comparator": "!=="
-                                            }
-                                        ],
-                                        "columns": [
-                                            {
-                                                "attribute_alias": "CREATED_ON"
-                                            },
-                                            {
-                                                "attribute_alias": "USER__LABEL"
-                                            },
-                                            {
-                                                "attribute_alias": "TITLE"
-                                            },
-                                            {
-                                                "attribute_alias": "RATING"
-                                            },
-                                            {
-                                                "attribute_alias": "AI_MESSAGE__UID:COUNT",
-                                                "caption": "Msg.",
-                                                "hint": "Total number of messages in the conversation"
-                                            },
-                                            {
-                                                "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== WARNING)",
-                                                "caption": "W.",
-                                                "hint": "Number of warnings in the conversation",
-                                                "cell_widget": {
-                                                    "widget_type": "ColorIndicator",
-                                                    "fill": true,
-                                                    "color_only": false,
-                                                    "color_scale": [
-                                                        "",
-                                                        "~WARNING"
-                                                    ]
-                                                }
-                                            },
-                                            {
-                                                "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== ERROR)",
-                                                "caption": "E.",
-                                                "hint": "Number of errors in the conversation",
-                                                "cell_widget": {
-                                                    "widget_type": "ColorIndicator",
-                                                    "fill": true,
-                                                    "color_only": false,
-                                                    "color_scale": [
-                                                        "",
-                                                        "~ERROR"
-                                                    ]
-                                                }
-                                            },
-                                            {
-                                                "attribute_alias": "AI_MESSAGE__COST:SUM",
-                                                "caption": "Cost",
-                                                "footer": "SUM",
-                                                "data_type": {
-                                                    "alias": "exface.Core.Price"
-                                                }
-                                            },
-                                            {
-                                                "calculation": "=Left(RATING_FEEDBACK, 60)"
-                                            },
-                                            {
-                                                "attribute_alias": "AI_AGENT__NAME"
-                                            },
-                                            {
-                                                "attribute_alias": "AI_AGENT_VERSION_NO",
-                                                "caption": "V.",
-                                                "hint": "Version of the agent"
-                                            },
-                                            {
-                                                "attribute_alias": "AI_MESSAGE__MODEL:LIST_DISTINCT"
-                                            },
-                                            {
-                                                "attribute_alias": "PAGE__LABEL"
-                                            }
-                                        ],
-                                        "buttons": [
-                                            {
-                                                "caption": "Details",
-                                                "bind_to_double_click": true,
-                                                "action": {
-                                                    "alias": "exface.core.ShowObjectInfoDialog",
-                                                    "disable_buttons": false
-                                                }
-                                            },
-                                            {
-                                                "action_alias": "axenox.GenAI.AiConversationRateDialog"
-                                            },
-                                            {
-                                                "caption": "All conversations",
-                                                "action": {
-                                                    "alias": "exface.core.GoToPage",
-                                                    "page_alias": "axenox.genai.conversations"
-                                                }
-                                            }
-                                        ],
-                                        "sorters": [
-                                            {
-                                                "attribute_alias": "CREATED_ON",
-                                                "direction": "desc"
+                                                "widget_type": "DataTable",
+                                                "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                "caption": "Recent conversations",
+                                                "filters": [
+                                                    {
+                                                        "attribute_alias": "AI_AGENT",
+                                                        "comparator": "==",
+                                                        "hidden": true,
+                                                        "apply_on_change": true,
+                                                        "value": "=agents_table!AI_AGENT"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_AGENT__AI_AUTONOMOUS__UID",
+                                                        "hidden": true,
+                                                        "value": "NULL",
+                                                        "comparator": "!=="
+                                                    }
+                                                ],
+                                                "columns": [
+                                                    {
+                                                        "attribute_alias": "CREATED_ON"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "USER__LABEL"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "TITLE"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "RATING"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_MESSAGE__UID:COUNT",
+                                                        "caption": "Msg.",
+                                                        "hint": "Total number of messages in the conversation"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== WARNING)",
+                                                        "caption": "W.",
+                                                        "hint": "Number of warnings in the conversation",
+                                                        "cell_widget": {
+                                                            "widget_type": "ColorIndicator",
+                                                            "fill": true,
+                                                            "color_only": false,
+                                                            "color_scale": [
+                                                                "",
+                                                                "~WARNING"
+                                                            ]
+                                                        }
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== ERROR)",
+                                                        "caption": "E.",
+                                                        "hint": "Number of errors in the conversation",
+                                                        "cell_widget": {
+                                                            "widget_type": "ColorIndicator",
+                                                            "fill": true,
+                                                            "color_only": false,
+                                                            "color_scale": [
+                                                                "",
+                                                                "~ERROR"
+                                                            ]
+                                                        }
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_MESSAGE__COST:SUM",
+                                                        "caption": "Cost",
+                                                        "footer": "SUM",
+                                                        "data_type": {
+                                                            "alias": "exface.Core.Price"
+                                                        }
+                                                    },
+                                                    {
+                                                        "calculation": "=Left(RATING_FEEDBACK, 60)"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_AGENT__NAME"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_AGENT_VERSION_NO",
+                                                        "caption": "V.",
+                                                        "hint": "Version of the agent"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "AI_MESSAGE__MODEL:LIST_DISTINCT"
+                                                    },
+                                                    {
+                                                        "attribute_alias": "PAGE__LABEL"
+                                                    }
+                                                ],
+                                                "buttons": [
+                                                    {
+                                                        "caption": "Details",
+                                                        "bind_to_double_click": true,
+                                                        "action": {
+                                                            "alias": "exface.core.ShowObjectInfoDialog",
+                                                            "disable_buttons": false
+                                                        }
+                                                    },
+                                                    {
+                                                        "action_alias": "axenox.GenAI.AiConversationRateDialog"
+                                                    },
+                                                    {
+                                                        "caption": "All conversations",
+                                                        "action": {
+                                                            "alias": "exface.core.GoToPage",
+                                                            "open_in_new_window": true,
+                                                            "page_alias": "axenox.genai.conversations"
+                                                        }
+                                                    }
+                                                ],
+                                                "sorters": [
+                                                    {
+                                                        "attribute_alias": "CREATED_ON",
+                                                        "direction": "desc"
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
