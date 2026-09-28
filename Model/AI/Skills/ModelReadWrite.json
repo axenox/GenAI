@@ -65,17 +65,14 @@
             "UID": "0xa8142e70f6114c9a8ad282f53cf4e137",
             "NAME": "Model Component Management",
             "ALIAS": "ModelReadWrite",
-            "DESCRIPTION": "Explains how to find, verify, and import model components using the available lookup, validation, and import tools.",
+            "DESCRIPTION": "Finds, verifies, and imports model components with lookup, validation, and import tools.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
                 "[#read#]",
                 "",
-                "## Importing",
-                "",
-                "After the required data has been found and validated, use `ImportModelComponents`. Set `UID` to `null` for a new component. To edit an existing component, use the exact UID returned by the preceding search or read. Fill the component row completely with all applicable values. When editing existing components, keep existing comments and remarks in the configuration, unless the logic has changed and the comments need updating.",
-                "",
-                "The import result states how many rows were imported into which model object or reports an error. Keep unrelated model or business data outside this workflow."
+                "# MODEL WRITE",
+                "After lookup and validation, modify model data only through `ImportModelComponents` using complete rows. New component: `UID: null`; update: exact UID from lookup. Supply every applicable value, preserve configuration comments/remarks unless logic changed, and exclude unrelated model/business data."
             ],
             "CONFIG_UXON": {
                 "skills": {
@@ -86,7 +83,7 @@
                 "tools": {
                     "ImportModelComponents": {
                         "alias": "axenox.GenAI.ModelComponentImportTool",
-                        "description": "Imports complete component rows and returns the imported row count and target object or an error. Use UID null for new components and the previously found UID for updates."
+                        "description": "Import complete rows; `UID: null` creates, an exact found UID updates. Returns count and target or an error."
                     }
                 }
             },
