@@ -65,47 +65,32 @@
             "UID": "0x3f9c7a2e4b1d4f6a9c3e7b5d1f2a8c40",
             "NAME": "UI Inspection",
             "ALIAS": "UiInspection",
-            "DESCRIPTION": "Reusable skill that lets agents inspect the currently configured pages, dialogs, and widgets of an app, for example to ground a UX/UI analysis or a proposed UI change in the actual configured UI.",
+            "DESCRIPTION": "Inspects an app's configured pages, dialogs, navigation, and widgets to ground UX/UI analysis and proposed changes in the actual UI.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
                 "# UI INSPECTION",
                 "",
-                "The following instructions apply specifically to inspecting an app's currently configured user interface.",
-                "",
-                "## Purpose",
-                "",
-                "Use these tools to look at the pages, dialogs, navigation, and widgets an app actually has configured, for example before proposing or implementing UI changes or performing a UX/UI analysis.",
-                "",
-                "## Choosing the right tool",
-                "",
-                "* `UIOverview` returns the app's main menu together with its pages and the dialogs reachable from them, including the widgets and buttons shown on each screen. Choose it first, to get oriented before drilling into a specific page or widget.",
-                "",
-                "* `UIWidgetInfo` returns the current UXON and a Markdown description of one concrete page, dialog, or nested widget. Choose it once `UIOverview` has identified a specific page or widget that needs closer inspection.",
-                "",
-                "## Scope",
-                "",
-                "* These tools only inspect the current UI; they never change any configuration.",
-                "* Prefer `UIOverview` for orientation and `UIWidgetInfo` for a concrete page, dialog, or widget instead of guessing the structure from memory."
+                "Before UI analysis or changes, inspect actual configuration: start with `UIOverview`, then use `UIWidgetInfo` for a specific identified page, dialog, or nested widget. Read only; never change configuration or guess structure."
             ],
             "CONFIG_UXON": {
                 "tools": {
                     "UIOverview": {
                         "alias": "axenox.GenAI.UiOverviewTool",
-                        "description": "Inspect the pages, dialogs and navigation of an affected app before implementing UI changes.",
+                        "description": "Return an app's menu, pages, reachable dialogs, widgets, and buttons; use first.",
                         "arguments": [
                             {
                                 "name": "app_alias",
                                 "data_type": {
                                     "alias": "exface.Core.String"
                                 },
-                                "description": "Fully qualified alias of the app whose UI should be inspected."
+                                "description": "Fully qualified app alias."
                             }
                         ]
                     },
                     "UIWidgetInfo": {
                         "alias": "axenox.GenAI.UiWidgetInfoTool",
-                        "description": "Inspect the current UXON and documentation of an affected page, dialog or widget."
+                        "description": "Return current UXON and Markdown for an identified page, dialog, or widget."
                     }
                 }
             },

@@ -65,67 +65,49 @@
             "UID": "0x5a1d8e6c2f3b4a7d9e0c1f2a3b4c5d6e",
             "NAME": "Model Component Lookup",
             "ALIAS": "ModelRead",
-            "DESCRIPTION": "Explains how to find, verify, and read model components using the available search, lookup, and validation tools, without changing any model data.",
+            "DESCRIPTION": "Finds, verifies, and reads model components with search, lookup, and validation tools without changing model data.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "# MODEL COMPONENTS",
+                "# MODEL READ",
                 "",
-                "These instructions apply to reading and looking up model components.",
+                "Tools: `SearchModelComponents`, `DescribeModelComponent`, `FindModelObject`, `GetDatabaseSchema`, `GetUxonPrototype`, `SearchUxonPrototypes`, `ValidateUxon`, `ReadDataSheet`.",
                 "",
-                "## Choosing the right tool",
-                "",
-                "Start by searching when the exact target is not already known. Use only the additional lookups needed to obtain missing information:",
-                "",
-                "* `SearchModelComponents` returns matching model components and the places where a term is used, including identifying names and aliases. Choose it to discover candidates or existing components.",
-                "",
-                "* `FindModelObject` returns documentation for matching model objects, including the exact object identity and its available model information. Choose it to identify an object or learn which attributes and relations can be queried.",
-                "",
-                "* `DescribeModelComponent` returns registry documentation for a known component type and selector. Choose it when the component is already identified but its meaning or configuration needs clarification.",
-                "",
-                "* `SearchUxonPrototypes` searches UXON prototypes by component type and alias. Choose it when the component type is known but the prototype selector is not yet known; use `GetUxonPrototype` afterward when detailed configuration information is needed.",
-                "",
-                "* `ReadDataSheet` returns the current rows and metadata of a known object. Choose it when exact stored values or an existing UID are needed. Set `object_alias`, select only the required columns, and narrow the rows with filters. Each filter condition compares an `expression` with a `value` through a `comparator`; the filter `operator` combines multiple conditions with `AND` or `OR`.",
-                "",
-                "* `GetDatabaseSchema` returns DBML with SQL tables, columns, data types, enum values, and relationships. Choose it only when physical database information is needed.",
-                "",
-                "* `GetUxonPrototype` returns the prototype description and its configurable UXON properties, including types, defaults, and descriptions. Choose it when prototype-backed UXON must be assembled or checked.",
-                "",
-                "* `ValidateUxon` returns diagnostics with a `path` and `message` for detected UXON issues. Choose it after UXON has been assembled; an empty result means that no issue was detected."
+                "Use these tools to find and read model components, objects, database schemas, UXON prototypes, validation results, and stored rows. If the target is unknown, search first; request only required columns and filtered rows; validate UXON before a configured write step."
             ],
             "CONFIG_UXON": {
                 "tools": {
                     "SearchModelComponents": {
                         "alias": "axenox.GenAI.ModelSearchTool",
-                        "description": "Returns matching model components and usage locations with identifying names and aliases. Use it to discover candidates or existing components."
+                        "description": "Find model components and usages."
                     },
                     "DescribeModelComponent": {
                         "alias": "axenox.GenAI.ModelComponentInfoTool",
-                        "description": "Returns registry documentation for a known component type and selector. Use it after the component has been identified and needs clarification."
+                        "description": "Describe a known model component."
                     },
                     "FindModelObject": {
                         "alias": "axenox.GenAI.ModelObjectInfoTool",
-                        "description": "Returns documentation for matching model objects. Use it to identify an object or inspect the attributes and relations available for further queries."
+                        "description": "Find an object and its attributes and relations."
                     },
                     "GetDatabaseSchema": {
                         "alias": "axenox.GenAI.SqlDbmlTool",
-                        "description": "Returns DBML containing SQL tables, columns, data types, enum values, and relationships. Use it only when physical database information is needed."
+                        "description": "Return the physical database schema as DBML."
                     },
                     "GetUxonPrototype": {
                         "alias": "axenox.GenAI.ModelPrototypeInfoTool",
-                        "description": "Returns a prototype description and its configurable UXON properties, types, defaults, and descriptions. Use it for prototype-backed configuration."
+                        "description": "Describe a known UXON prototype."
                     },
                     "SearchUxonPrototypes": {
                         "alias": "axenox.GenAI.ModelPrototypeSearchTool",
-                        "description": "Searches UXON prototypes by component type and alias. Use it when the component type is known but the prototype selector is not yet known."
+                        "description": "Find UXON prototype selectors."
                     },
                     "ValidateUxon": {
                         "alias": "axenox.GenAI.UxonValidateTool",
-                        "description": "Returns detected UXON issues as diagnostics with path and message. Use it after assembling UXON and before importing it."
+                        "description": "Validate UXON and return `path`/`message` diagnostics."
                     },
                     "ReadDataSheet": {
                         "alias": "axenox.GenAI.DataSheetReadTool",
-                        "description": "Returns current rows and metadata for a known object. Use selected columns and filters with expression, comparator, and value to retrieve exact stored values or UIDs."
+                        "description": "Read filtered object rows and metadata."
                     }
                 }
             },

@@ -115,7 +115,7 @@
                 "tools": {
                     "ListNotes": {
                         "alias": "axenox.GenAI.NotesListTool",
-                        "description": "List the types and topics of all long-term Notes for the current agent and user without reading or returning their contents."
+                        "description": "List long-term Note types/topics for this agent/user, without contents."
                     },
                     "SearchNotes": {
                         "alias": "axenox.GenAI.NotesSearchTool",
@@ -124,11 +124,11 @@
                     },
                     "ReadNote": {
                         "alias": "axenox.GenAI.NotesReadTool",
-                        "description": "Read one long-term Note completely by UID after SearchNotes returned a relevant result. Use this before relying on a found note, updating it, or deciding whether a memory/suggestion already exists."
+                        "description": "Read a found Note fully by UID before relying on or updating it."
                     },
                     "WriteNote": {
                         "alias": "axenox.GenAI.NotesWriteTool",
-                        "description": "Write or update a long-term Note for the current agent and user. Use only for Notes/Memory and Suggestions after searching and reading existing related notes. If updating an existing note, pass its UID; otherwise use a clear topic. Do not store secrets or irrelevant transient conversation content."
+                        "description": "Create/update a durable Note after deduplication; pass UID to update. Never store secrets or transient/irrelevant content."
                     }
                 }
             },
