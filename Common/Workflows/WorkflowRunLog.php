@@ -11,9 +11,9 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *
  * The run log captures the workflow identity, title, initiating user, correlation key, status,
  * outcome, timestamps and terminal error. Its ordered step log records each executed node with its
- * type, parent step, business subject, status, outcome, message, duration and terminal error.
- * Agent steps can link to their AI conversation, where prompts, responses, model details and costs
- * remain available without being duplicated in the workflow log.
+ * type, parent step, business subject, status, outcome, message, duration, cost and terminal error.
+ * Agent steps link to their AI conversation and persist its message cost on completion. Workflow
+ * steps persist the sum of their direct child costs, which recursively includes nested workflows.
  *
  * Steps may be nested through their parent step, allowing grouping by processed subject.
  */
@@ -55,6 +55,13 @@ class WorkflowRunLog
      * @var string[]
      */
     private array $stepModifiedOn = [];
+
+    /**
+    * Node types per step UID, used to distinguish cost-bearing workflows on completion.
+     *
+     * @var string[]
+     */
+    private array $stepNodeTypes = [];
 
     /**
      * @param WorkbenchInterface $workbench
@@ -133,7 +140,7 @@ class WorkflowRunLog
      * safe to pass on: all methods ignore it.
      *
      * @param string $nodeId Stable node identifier, e.g. `story_planner`.
-     * @param string $nodeType Node type, e.g. `agent`, `action`, `decision` or `group`.
+    * @param string $nodeType Node type, e.g. `agent`, `action`, `decision` or `workflow`.
      * @param string|null $parentStepUid UID of the grouping step this step belongs to.
      * @param string|null $subjectKey Business subject of the step, e.g. a Jira issue key.
      * @param string|null $message Short orchestration message for the timeline.
@@ -161,12 +168,14 @@ class WorkflowRunLog
                 'SUBJECT_KEY' => $subjectKey,
                 'STATUS' => self::STATUS_RUNNING,
                 'MESSAGE' => $this->truncate($message, self::MAX_TEXT_LENGTH),
-                'STARTED_ON' => DateTimeDataType::now()
+                'STARTED_ON' => DateTimeDataType::now(),
+                'COST' => 0
             ]);
             $sheet->dataCreate(false);
             $stepUid = $sheet->getUidColumn()->getValue(0);
             $this->stepStartTimes[$stepUid] = microtime(true);
             $this->stepModifiedOn[$stepUid] = $sheet->getCellValue('MODIFIED_ON', 0);
+            $this->stepNodeTypes[$stepUid] = $nodeType;
 
             return $stepUid;
         } catch (\Throwable $e) {
@@ -206,6 +215,7 @@ class WorkflowRunLog
                 'OUTCOME' => $outcome,
                 'AI_CONVERSATION' => $conversationUid,
                 'FINISHED_ON' => DateTimeDataType::now(),
+                'COST' => $this->calculateStepCost($stepUid, $conversationUid),
                 'ERROR_MESSAGE' => $this->describeError($error)
             ];
             if ($message !== null) {
@@ -219,9 +229,40 @@ class WorkflowRunLog
             $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, self::OBJECT_STEP);
             $sheet->addRow($row);
             $sheet->dataUpdate(false);
+            unset($this->stepNodeTypes[$stepUid], $this->stepModifiedOn[$stepUid]);
         } catch (\Throwable $e) {
             $this->logFailure($e);
         }
+    }
+
+    /**
+    * Returns the direct conversation cost or, for workflows, the sum of direct child costs.
+     *
+     * @param string $stepUid
+     * @param string|null $conversationUid
+     * @return float
+     */
+    private function calculateStepCost(string $stepUid, ?string $conversationUid) : float
+    {
+        if (($this->stepNodeTypes[$stepUid] ?? null) === 'workflow') {
+            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, self::OBJECT_STEP);
+            $costColumn = $sheet->getColumns()->addFromExpression('COST:SUM');
+            $sheet->getFilters()->addConditionFromString('PARENT_STEP', $stepUid);
+            $sheet->dataRead();
+
+            return (float) ($costColumn->getValue(0) ?? 0);
+        }
+
+        if ($conversationUid === null) {
+            return 0.0;
+        }
+
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $costColumn = $sheet->getColumns()->addFromExpression('COST:SUM');
+        $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $conversationUid);
+        $sheet->dataRead();
+
+        return (float) ($costColumn->getValue(0) ?? 0);
     }
 
     /**
