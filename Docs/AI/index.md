@@ -2,9 +2,11 @@
 
 [Deutsch](index_german.md)
 
-The GenAI framework consists of agents, skills, tools, and concepts. Agents define the behavior of an AI assistant, skills package reusable instructions and capabilities, tools let it retrieve information or perform operations on demand, and concepts add required context to instructions.
+The GenAI framework consists of agents and their conversations, reusable skills, automatically rendered concepts, and on-demand tools. Scheduler configurations start agents autonomously; agentic workflows coordinate multiple controlled steps and record their execution.
 
+- [Developer architecture and responsibility boundaries](Developer/index.md)
 - [Agents](Agents/index.md)
+- [Conversations](Conversations/index.md)
 - [Skills](Skills/index.md)
 - [Tools](Tools/index.md)
 - [Concepts](Concepts/index.md)

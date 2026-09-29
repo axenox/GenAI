@@ -25,6 +25,7 @@ abstract class AbstractConcept implements AiConceptInterface
     
     private $output = null;
 
+    // TODO Remove the prompt from the concept constructor and receive it only for prompt-dependent rendering.
     public function __construct(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon = null)
     {
         $this->agent = $agent;
