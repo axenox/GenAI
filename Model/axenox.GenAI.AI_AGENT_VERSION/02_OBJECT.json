@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version [axenox.GenAI.AI_AGENT_VERSION]",
             "CREATED_ON": "2025-09-04 15:38:32",
-            "MODIFIED_ON": "2026-09-09 21:16:19",
+            "MODIFIED_ON": "2026-09-29 14:17:53",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f0a47972e1dbf6a479025041000001",
@@ -142,7 +142,7 @@
                         "widget_type": "Tabs",
                         "tabs": [
                             {
-                                "caption": "Agent version",
+                                "caption": "Agent & Skills",
                                 "widgets": [
                                     {
                                         "widget_type": "WidgetGroup",
@@ -218,6 +218,8 @@
                                                 "widget_type": "DataTable",
                                                 "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
                                                 "nowrap": false,
+                                                "hide_caption": true,
+                                                "paginate": false,
                                                 "filters": [
                                                     {
                                                         "attribute_alias": "AI_AGENT_VERSION",
@@ -252,11 +254,27 @@
                                                         "action_alias": "exface.Core.ShowObjectCreateDialog"
                                                     },
                                                     {
-                                                        "action_alias": "exface.Core.ShowObjectEditDialog",
-                                                        "bind_to_double_click": true
+                                                        "action_alias": "exface.Core.DeleteObject",
+                                                        "caption": "Remove",
+                                                        "icon": "minus"
                                                     },
                                                     {
-                                                        "action_alias": "exface.Core.DeleteObject"
+                                                        "caption": "Open skill",
+                                                        "bind_to_double_click": true,
+                                                        "action": {
+                                                            "alias": "exface.Core.ShowObjectEditDialog",
+                                                            "object_alias": "axenox.GenAI.AI_SKILL",
+                                                            "input_mapper": {
+                                                                "from_object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+                                                                "to_object_alias": "axenox.GenAI.AI_SKILL",
+                                                                "column_to_column_mappings": [
+                                                                    {
+                                                                        "from": "AI_SKILL",
+                                                                        "to": "UID"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        }
                                                     }
                                                 ]
                                             }
