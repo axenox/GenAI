@@ -3,6 +3,8 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\DataSheetSchema;
 use axenox\GenAI\Exceptions\AiPromptError;
+use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Exceptions\RuntimeException;
@@ -96,13 +98,14 @@ class ImportAgent extends GenericAssistant
         $this->setResponseJsonSchema(new UxonObject($jsonSchema));
 
         $response = parent::handle($prompt);
+        $conversation = AiFactory::createConversationFromUid($this, $response->getConversationId());
 
         try {
             // Since $json complies with our JSON schema, we know that at least the data payload is valid.
             $json = $response->getJson();
 
             if (! array_key_exists('data', $json) || $this->isImportPayloadEmpty($json['data'])) {
-                return $this->handleMissingImportData($prompt, $response);
+                return $this->handleMissingImportData($prompt, $response, $conversation);
             }
 
             $payload = $json['data'];
@@ -116,13 +119,13 @@ class ImportAgent extends GenericAssistant
                 $response->addOKStatusMessage('Data saved successfully.');
             } else {
                 $warning = new AiPromptError($this, $prompt, 'Data import completed, but data was not saved.');
-                $this->getConversation($prompt)->saveWarnings([$warning]);
+                $conversation->saveWarnings([$warning]);
                 $response->addErrorStatusMessage('Data not saved.');
             }
 
             return $response;
         } catch (\Throwable $e) {
-            $this->getConversation($prompt)->saveError(
+            $conversation->saveError(
                 new AiPromptError($this, $prompt, 'Failed to import AI data. ' . $e->getMessage(), null, $e)
             );
             throw $e;
@@ -573,7 +576,11 @@ class ImportAgent extends GenericAssistant
         return $this;
     }
 
-    protected function handleMissingImportData(AiPromptInterface $prompt, AiResponseInterface $response) : AiResponseInterface
+    protected function handleMissingImportData(
+        AiPromptInterface $prompt,
+        AiResponseInterface $response,
+        ?AiConversationInterface $conversation = null
+    ) : AiResponseInterface
     {
         if (! $this->allowEmptyData) {
             throw new RuntimeException('AI response does not contain import data at $.data.');
@@ -584,7 +591,8 @@ class ImportAgent extends GenericAssistant
         }
 
         $warning = new AiPromptError($this, $prompt, 'AI response did not contain import data. Nothing to import.');
-        $this->getConversation($prompt)->saveWarning([$warning]);
+        $conversation = $conversation ?? AiFactory::createConversationFromUid($this, $response->getConversationId());
+        $conversation->saveWarnings([$warning]);
         $response->addErrorStatusMessage('No data generated.');
         return $response;
     }

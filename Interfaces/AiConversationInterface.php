@@ -5,40 +5,78 @@ use axenox\GenAI\Common\AiToolCallResponse;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 
 /**
- * Handles persistence and bookkeeping for an AI conversation.
+ * Represents a persisted conversation between two participants A and B.
  *
- * Implementations keep track of the conversation ID and store prompts,
- * responses, tool calls, warnings and errors in persistence.
+ * In the AI runtime one participant is the owning agent and the other is typically a user or an
+ * orchestrating agent. A conversation belongs to exactly one agent and agent version. Multi-agent
+ * interactions use separate child conversations connected by an orchestration timeline.
+ *
+ * The conversation owns persistence and retrieval of the messages exchanged by its participants.
  */
 interface AiConversationInterface
 {
     /**
-     * Returns the active conversation ID, creating one if necessary.
+    * Returns the persisted conversation ID supplied by the factory.
      *
      * @return string
      */
     public function getConversationId() : string;
 
     /**
+     * Returns the agent participating in this conversation.
+     */
+    public function getAgent() : AiAgentInterface;
+
+    /**
+     * Returns the persisted conversation title.
+     */
+    public function getTitle() : string;
+
+    /**
+     * Overwrites the persisted conversation title.
+     */
+    public function setTitle(string $title) : AiConversationInterface;
+
+    /**
+     * Returns the UID of the exact agent version assigned to this conversation.
+     */
+    public function getAgentVersionUID() : string;
+
+    /**
+     * Returns the next sequence number, loading it from persistence on first access.
+     */
+    public function getSequenceNumber() : int;
+
+    /**
+     * Returns TRUE when the conversation already contains its system prompt.
+     */
+    public function hasSystemPrompt() : bool;
+
+    /**
+     * Returns the conversation's single persisted system prompt.
+     */
+    public function getSystemPrompt() : string;
+
+    /**
      * Persists the rendered system prompt for the current conversation.
      *
-     * @param AiQueryInterface $query Query used to initialize message sequence number.
-     * @param string $systemPrompt Rendered system prompt text.
-     * @param AiToolInterface[] $tools Tool definitions to include in message metadata.
-     * @param array|null $responseJsonSchema Optional JSON response schema metadata.
+    * @param string $systemPrompt Rendered system prompt text.
+    * @param array $data Normalized message metadata and payload.
      *
      * @return string Conversation ID used for the stored message.
      */
-    public function saveSystemPrompt(AiQueryInterface $query, string $systemPrompt, array $tools = [], ?array $responseJsonSchema = null) : string;
+    public function saveSystemPrompt(string $systemPrompt, array $data = []) : string;
 
     /**
      * Persists the current user prompt for the conversation.
      *
-     * @param AiQueryInterface $query Query containing the current user prompt.
+      * @param string $userPrompt User message text.
+      * @param array $files Files attached to the message.
+      * @param array $data Additional message information.
      *
      * @return string Conversation ID used for the stored message.
      */
-    public function saveUserPrompt(AiQueryInterface $query) : string;
+     public function saveUserPrompt(string $userPrompt, array $files = [], array $data = []) : string;
 
     /**
      * Persists an assistant tool-call request message.
@@ -59,8 +97,8 @@ interface AiConversationInterface
     /**
      * Persists tool execution responses.
      *
-     * @param AiQueryInterface $query Query that triggered tool execution.
-     * @param AiToolCallResponse[] $responses Tool execution responses.
+      * @param AiQueryInterface $query Query that triggered tool execution.
+      * @param AiToolCallResponse[] $responses Tool execution responses.
      *
      * @return AiToolCallResponse[]|null
      */
@@ -77,27 +115,18 @@ interface AiConversationInterface
      * Persists a fatal conversation error as an ERROR message.
      *
      * @param \Throwable $error Original error.
-     * @param string|null $systemPrompt Optional system prompt snapshot.
      * @param array $tools Tool metadata to include in payload.
      * @param array|null $responseJsonSchema Optional JSON schema metadata.
-     *
      * @return ExceptionInterface Normalized platform exception.
      */
     public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface;
-    
+
     /**
      * Persists warning payloads as WARNING messages.
      *
      * @param array $warnings Warning payloads from connector/tools.
      */
     public function saveWarnings(array $warnings) : void;
-
-    /**
-     * Retrieves all system messages from the conversation.
-     *
-     * @return array Array of system message strings.
-     */
-    public function getSystemMessages() : array;
 
     /**
      * Retrieves all user messages from the conversation.

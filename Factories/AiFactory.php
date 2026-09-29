@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Factories;
 
+use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Common\Selectors\AiSkillSelector;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
@@ -8,6 +9,7 @@ use axenox\GenAI\Exceptions\AiConceptNotFoundError;
 use axenox\GenAI\Exceptions\AiSkillNotFoundError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
+use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
@@ -45,6 +47,73 @@ use exface\Core\Interfaces\WorkbenchInterface;
  */
 abstract class AiFactory extends AbstractSelectableComponentFactory
 {
+    /**
+     * Creates a new conversation or restores the conversation referenced by the prompt.
+     */
+    public static function createConversationFromPrompt(
+        AiAgentInterface $agent,
+        AiPromptInterface $prompt
+    ) : AiConversationInterface {
+        $conversationId = $prompt->getConversationUid();
+        if ($conversationId === null) {
+            $conversation = static::createConversation($agent);
+            $prompt->setConversationUid($conversation->getConversationId());
+            return $conversation;
+        }
+
+        return static::createConversationFromUid($agent, $conversationId);
+    }
+
+    /**
+     * Persists a new conversation with an empty title.
+     */
+    public static function createConversation(
+        AiAgentInterface $agent
+    ) : AiConversationInterface {
+        $transaction = $agent->getWorkbench()->data()->startTransaction();
+
+        try {
+            $conversation = DataSheetFactory::createFromObjectIdOrAlias(
+                $agent->getWorkbench(),
+                'axenox.GenAI.AI_CONVERSATION'
+            );
+            $connectionId = null;
+            try {
+                $connectionId = $agent->getConnection()->getId();
+            } catch (\Throwable $e) {
+                $agent->getWorkbench()->getLogger()->logException($e);
+            }
+
+            $conversation->addRow([
+                'AI_AGENT' => $agent->getUid(),
+                'AI_AGENT_VERSION_NO' => $agent->getVersion(),
+                'USER' => $agent->getWorkbench()->getSecurity()->getAuthenticatedUser()->getUid(),
+                'TITLE' => '',
+                'DEVMODE' => $agent->getDevmode() ? 1 : 0,
+                'CONNECTION' => $connectionId
+            ]);
+            $conversation->dataCreate(false, $transaction);
+            $conversationId = $conversation->getUidColumn()->getValue(0);
+            $transaction->commit();
+
+            return new AiConversation($agent, $conversationId);
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Restores an existing conversation for the current agent and user.
+     */
+    public static function createConversationFromUid(
+        AiAgentInterface $agent,
+        string $conversationId
+    ) : AiConversationInterface {
+        $conversation = new AiConversation($agent, $conversationId);
+        return $conversation;
+    }
+
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)
     {
         switch (true) {
@@ -63,6 +132,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * @param UxonObject $uxon
      * @return AiConceptInterface
      */
+    // TODO Remove the prompt dependency from concept creation and pass it only when rendering a concept.
     public static function createConceptFromUxon(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
     {
         $selector = $uxon->getProperty('alias');
@@ -116,6 +186,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     /**
      * Creates a persisted skill referenced by an alias UXON model.
      */
+    // TODO Remove the prompt dependency from skill creation and pass it only when rendering a skill.
     public static function createSkillFromUxon(
         AiAgentInterface $agent,
         AiPromptInterface $prompt,
@@ -169,6 +240,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $uxon = $configValue === null || $configValue === ''
             ? new UxonObject()
             : UxonObject::fromAnything($configValue);
+        $uxon->setProperty('alias', $selector->toString());
         $uxon->setProperty('instructions', (string) ($skillData['INSTRUCTIONS'] ?? ''));
 
         $prototypePath = trim((string) ($skillData['PROTOTYPE_CLASS'] ?? ''));

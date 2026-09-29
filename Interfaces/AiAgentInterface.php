@@ -28,6 +28,26 @@ interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGe
     public function getPromptSuggestions(): array;
 
     /**
+     * Returns the persisted agent UID.
+     */
+    public function getUid() : string;
+
+    /**
+     * Returns the exact configured agent version.
+     */
+    public function getVersion() : string;
+
+    /**
+     * Returns the model connection used by this agent.
+     */
+    public function getConnection() : AiConnectorInterface;
+
+    /**
+     * Returns whether the agent runs in development mode.
+     */
+    public function getDevmode() : bool;
+
+    /**
      * @param string $name
      * @return AiToolInterface
      */
@@ -52,5 +72,5 @@ interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGe
      * @param AiPromptInterface $prompt
      * @return string
      */
-    public function getSystemPrompt(AiPromptInterface $prompt) : string;
+    public function renderSystemPrompt(AiPromptInterface $prompt) : string;
 }

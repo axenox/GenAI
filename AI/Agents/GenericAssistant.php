@@ -3,7 +3,6 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\AI\Concepts\SkillTextConcept;
 use axenox\GenAI\Common\AiResponse;
-use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\ToolBox;
@@ -31,15 +30,14 @@ use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
-use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
@@ -122,14 +120,22 @@ class GenericAssistant implements AiAgentInterface
     /** @var AiToolInterface[]|null */
     private ?array $tools = null;
 
+    /** @var \Throwable[] */
+    private array $toolWarnings = [];
+
     /** @var UxonObject[]|null */
     private ?array $toolsUxon = null;
 
-    /** @var AiSkillInterface[] */
-    private array $skills = [];
+    /** @var UxonObject[] */
+    private array $conceptToolsUxon = [];
+
+    /** @var AiConceptInterface[]|null */
+    protected ?array $concepts = null;
+
+    /** @var AiSkillInterface[]|null */
+    private ?array $skills = null;
 
     private UxonObject $skillsUxon;
-    private ?AiConversationInterface $conversation = null;
 
     private bool $appendUnusedSkills = true;
 
@@ -155,32 +161,44 @@ class GenericAssistant implements AiAgentInterface
         }
     }
 
+    /**
+     * Initializes all configured prompt components once.
+     */
+    protected function init(AiPromptInterface $prompt) : void
+    {
+        // TODO Remove the prompt dependency (in the constructors from Concepts and Skills) so we can load this without a prompt.
+        // Beacause a Prompt is not Permanent and may change between calls.
+        $this->initConcepts($prompt);
+        $this->initSkills($prompt);
+        $this->initTools();
+    }
 
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
+        $this->init($prompt);
+
         // Initialize the data query
         $query = new OpenAiApiDataQuery($this->workbench);
-        if (null !== $conversationId = $prompt->getConversationUid()) {
-            $query->setConversationUid($conversationId);
-        }
         // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
         // prompt will be used as title.
         $query->appendMessage($prompt->getUserPrompt());
         $query->setFiles($prompt->getFiles());
         
-        // Initialize the conversation
-        $conversation = $this->getConversation($prompt, $query);
-        if ($conversationId === null) {
-            $conversationId = $conversation->getConversationId();
-            $prompt->setConversationUid($conversationId);
-        }
+        // Create or restore the conversation for this execution.
+        $conversation = AiFactory::createConversationFromPrompt($this, $prompt);
+        $conversationId = $conversation->getConversationId();
+        $query->setConversationUid($conversationId);
 
-        // Render system prompt
+
         try {
-            $systemPrompt = $this->getSystemPrompt($prompt);
+            if ($conversation->hasSystemPrompt()) {
+                $systemPrompt = $conversation->getSystemPrompt();
+            } else {
+                $systemPrompt = $this->renderSystemPrompt($prompt);
+            }
             $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
-            $e = new AiPromptError($this, $prompt, 'Failed to render AI prompt. ' . $e->getMessage(), null, $e);
+            $e = new AiPromptError($this, $prompt, 'Failed to prepare AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
             /* TODO handle different errors differently
             $this->workbench->getLogger()->logException($e);
@@ -203,8 +221,14 @@ class GenericAssistant implements AiAgentInterface
 
         // Now save the conversation messages for system and user prompts including all their metadata metadata
         try {
-            $conversation->saveSystemPrompt($query, $systemPrompt, $this->getTools(), $this->getResponseJsonSchema());
-            $conversation->saveUserPrompt($query);
+            if (! $conversation->hasSystemPrompt()) {
+                $conversation->saveSystemPrompt($systemPrompt, $this->createSystemPromptMessageData());
+            }
+            $conversation->saveWarnings($this->toolWarnings);
+            $conversation->saveUserPrompt(
+                $prompt->getUserPrompt(),
+                $prompt->getFiles()
+            );
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to save AI conversation. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
@@ -238,28 +262,6 @@ class GenericAssistant implements AiAgentInterface
         }
     }
 
-    /**
-     * Returns the current conversation helper for the prompt.
-     *
-     * Reuses the existing helper if it matches the prompt conversation ID,
-     * otherwise creates a new helper and initializes the prompt conversation.
-     */
-    protected function getConversation(AiPromptInterface $prompt, ?AiQueryInterface $query = null) : AiConversationInterface
-    {
-        $promptConversationId = $prompt->getConversationUid();
-
-        if ($this->conversation === null) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
-            return $this->conversation;
-        }
-
-        if ($promptConversationId === null || $this->conversation->getConversationId() !== $promptConversationId) {
-            $this->conversation = new AiConversation($this, $prompt, $promptConversationId, $query);
-        }
-
-        return $this->conversation;
-    }
-    
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
@@ -385,6 +387,7 @@ class GenericAssistant implements AiAgentInterface
     protected function setConcepts(UxonObject $arrayOfConcepts) : AiAgentInterface
     {
         $this->conceptConfig = $arrayOfConcepts;
+        $this->concepts = null;
         $this->systemPromptRendered = null;
         $this->tools = null;
         return $this;
@@ -394,7 +397,7 @@ class GenericAssistant implements AiAgentInterface
     protected function setSkills(UxonObject $skills) : AiAgentInterface
     {
         $this->skillsUxon = $skills;
-        $this->skills = [];
+        $this->skills = null;
         $this->systemPromptRendered = null;
         $this->tools = null;
         return $this;
@@ -434,17 +437,67 @@ class GenericAssistant implements AiAgentInterface
      * 
      * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
      */
-    protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
+    protected function initConcepts(
+        AiPromptInterface $prompt,
+        ?BracketHashStringTemplateRenderer $configRenderer = null
+    ) : void
     {
-        $concepts = [];
-        foreach ($this->conceptConfig as $placeholder => $uxon) {            
-            if(! $uxon->hasProperty('output')) {
-                $json = $configRenderer->render($uxon->toJson());
-            }
-            
-            $concepts[] = AiFactory::createConceptFromUxon($this, $prompt, $placeholder, UxonObject::fromJson($json));
+        if ($this->concepts !== null) {
+            return;
         }
-        return $concepts;
+
+        $configRenderer = $configRenderer ?? $this->createPromptRenderer($prompt);
+        $this->concepts = [];
+        foreach ($this->conceptConfig as $placeholder => $uxon) {
+            $json = $uxon->toJson();
+            if (! $uxon->hasProperty('output')) {
+                $json = $configRenderer->render($json);
+            }
+
+            $this->concepts[] = AiFactory::createConceptFromUxon(
+                $this,
+                $prompt,
+                $placeholder,
+                UxonObject::fromJson($json)
+            );
+        }
+        $this->tools = null;
+    }
+
+    /**
+     * Returns the initialized concepts.
+     *
+     * @return AiConceptInterface[]
+     */
+    protected function getConcepts() : array
+    {
+        return $this->concepts ?? [];
+    }
+
+    /**
+     * Initializes the configured skills once.
+     */
+    protected function initSkills(AiPromptInterface $prompt) : void
+    {
+        if ($this->skills !== null) {
+            return;
+        }
+
+        $this->skills = [];
+        foreach ($this->skillsUxon as $placeholder => $skillUxon) {
+            $this->skills[] = AiFactory::createSkillFromUxon($this, $prompt, $placeholder, $skillUxon);
+        }
+        $this->tools = null;
+    }
+
+    /**
+     * Returns the initialized skills.
+     *
+     * @return AiSkillInterface[]
+     */
+    protected function getSkills() : array
+    {
+        return $this->skills ?? [];
     }
 
     /**
@@ -477,42 +530,25 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiAgentInterface::getSystemPrompt()
+    * @see \axenox\GenAI\Interfaces\AiAgentInterface::renderSystemPrompt()
      */
-    public function getSystemPrompt(AiPromptInterface $prompt) : string
+    public function renderSystemPrompt(AiPromptInterface $prompt) : string
     {
+        $renderer = $this->createPromptRenderer($prompt);
+        $this->init($prompt);
+
+        $renderedSkillAliases = [];
+        foreach ($this->getConcepts() as $placeholderResolver) {
+            $renderer->addPlaceholder($placeholderResolver);
+            if ($placeholderResolver instanceof SkillTextConcept) {
+                $skillAlias = $this->extractSkillAliasFromConcept($placeholderResolver);
+                if ($skillAlias !== null) {
+                    $renderedSkillAliases[$skillAlias] = true;
+                }
+            }
+        }
+
         if ($this->systemPromptRendered === null) {
-            $renderer = new BracketHashStringTemplateRenderer($this->workbench);
-            $renderer->addPlaceholder(new FormulaPlaceholders($this->workbench, null, null, '='));
-            $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
-            if (null !== $app = $this->getApp($prompt)) {
-                $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
-            }
-            if ($prompt->hasInputData()) {
-                $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
-            }
-            $renderedSkillAliases = [];
-            foreach ($this->getConcepts($prompt, $renderer) as $placeholderResolver) {
-                $renderer->addPlaceholder($placeholderResolver);
-                if ($placeholderResolver instanceof SkillTextConcept) {
-                    $skillAlias = $this->extractSkillAliasFromConcept($placeholderResolver);
-                    if ($skillAlias !== null) {
-                        $renderedSkillAliases[$skillAlias] = true;
-                    }
-                }
-                if ($placeholderResolver instanceof AiConceptInterface) {
-                    foreach ($placeholderResolver->getToolModels() as $toolName => $toolUxon) {
-                        $this->toolsUxon[$toolName] = $toolUxon;
-                    }
-                }
-            }
-            $this->skills = [];
-            foreach ($this->skillsUxon as $placeholder => $skillUxon) {
-                $skill = AiFactory::createSkillFromUxon($this, $prompt, $placeholder, $skillUxon);
-                $this->skills[] = $skill;
-            }
-            $this->tools = null;
-            
             try {
                 
                 if($this->sampleSystemPrompt){
@@ -532,6 +568,38 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
+     * Builds the persisted system-prompt metadata, including rendered skill lengths.
+     */
+    protected function createSystemPromptMessageData() : array
+    {
+        $payload = new UxonObject([
+            'tools' => [],
+            'skills' => []
+        ]);
+        foreach ($this->getTools() as $tool) {
+            $payload->appendToProperty('tools', $tool->exportUxonObject());
+        }
+
+        foreach ($this->getSkills() as $skill) {
+            $skillUxon = $skill->exportUxonObject();
+            $payload->appendToProperty('skills', new UxonObject([
+                'alias' => $skillUxon instanceof UxonObject ? $skillUxon->getProperty('alias') : null,
+                'placeholder' => $skill->getPlaceholder(),
+                'length_chars' => mb_strlen($skill->getInstructions(), 'UTF-8')
+            ]));
+        }
+
+        if ($this->hasResponseJsonSchema()) {
+            $payload->setProperty('responseJsonSchema', $this->getResponseJsonSchema());
+        }
+
+        return [
+            'model' => $this->getConnection()->getModelName(),
+            'payload' => $payload
+        ];
+    }
+
+    /**
      * Renders skills, whose placeholder was not used in the instructions, but which allow to be
      * appended automatically (see `auto_append` property of a skill).
      *
@@ -541,7 +609,7 @@ class GenericAssistant implements AiAgentInterface
     protected function renderUnusedSkills(string $rawInstructions, array $renderedSkillAliases = []) : string
     {
         $appendix = '';
-        foreach ($this->skills as $skill) {
+        foreach ($this->getSkills() as $skill) {
             if ($this->isSkillRenderedByConcept($skill, $renderedSkillAliases)) {
                 continue;
             }
@@ -592,7 +660,25 @@ class GenericAssistant implements AiAgentInterface
         // TODO determine the app from input data?
         return $app;
     }
-    
+
+    /**
+     * Creates a renderer with placeholders from the current prompt context.
+     */
+    protected function createPromptRenderer(AiPromptInterface $prompt) : BracketHashStringTemplateRenderer
+    {
+        $renderer = new BracketHashStringTemplateRenderer($this->workbench);
+        $renderer->addPlaceholder(new FormulaPlaceholders($this->workbench, null, null, '='));
+        $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
+        if (null !== $app = $this->getApp($prompt)) {
+            $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
+        }
+        if ($prompt->hasInputData()) {
+            $renderer->addPlaceholder(new DataRowPlaceholders($prompt->getInputData(), 0, '~input:'));
+        }
+
+        return $renderer;
+    }
+
     /**
      *
      * {@inheritdoc}
@@ -605,9 +691,9 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @return \exface\Core\Interfaces\DataSources\DataConnectionInterface
+        * @return AiConnectorInterface
      */
-    public function getConnection() : DataConnectionInterface
+    public function getConnection() : AiConnectorInterface
     {
         if ($this->dataConnection === null) {
             if($this->dataConnectionAlias === null) {
@@ -644,22 +730,6 @@ class GenericAssistant implements AiAgentInterface
         }
         $response->setToolCalls($this->toolCalls);
         return $response;
-    }
-
-    /**
-     * 
-     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
-     * @return string
-     */
-    public function getTitle(AiQueryInterface $query) : string
-    {
-        if ($this->hasResponseJsonSchema() && $query->hasResponse() && $this->getResponseAnswerPath() !== null) {
-            $json = $query->getAnswerJson();
-            $title = ArrayDataType::filterJsonPath($json, $this->getResponseTitlePath())[0];
-        } else {
-            $title = StringDataType::truncate($query->getUserPrompt(), 50, true, true, true);
-        }
-        return $title;
     }
 
     /**
@@ -1005,49 +1075,57 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
-     * 
+     * Initializes the configured tools once.
+     */
+    protected function initTools() : void
+    {
+        if ($this->tools !== null) {
+            return;
+        }
+
+        $this->conceptToolsUxon = [];
+        foreach ($this->getConcepts() as $concept) {
+            foreach ($concept->getToolModels() as $toolName => $toolUxon) {
+                $this->conceptToolsUxon[$toolName] = $toolUxon;
+            }
+        }
+
+        $toolBox = new ToolBox($this->workbench);
+        $warnings = [];
+
+        foreach ($this->getSkills() as $skill) {
+            $source = 'skill "' . $skill->getPlaceholder() . '"';
+            $toolBox->appendTools($skill->getTools(), $source);
+            $warnings = array_merge($warnings, $skill->getWarnings());
+        }
+
+        foreach ($this->conceptToolsUxon as $toolName => $toolUxon) {
+            $toolBox->append(
+                AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
+                $toolName,
+                'concept configuration'
+            );
+        }
+
+        foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
+            $toolBox->prepend(
+                AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
+                $toolName,
+                'agent configuration'
+            );
+        }
+
+        $this->toolWarnings = array_merge($warnings, $toolBox->getWarnings());
+        $this->tools = $toolBox->getTools();
+    }
+
+    /**
      * @return AiToolInterface[]
      */
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $toolBox = new ToolBox($this->workbench);
-            $warnings = [];
-
-            foreach ($this->skills as $skill) {
-                $source = 'skill "' . $skill->getPlaceholder() . '"';
-                $toolBox->appendTools($skill->getTools(), $source);
-                $warnings = array_merge($warnings, $skill->getWarnings());
-            }
-
-            foreach ($this->conceptToolsUxon ?? [] as $toolName => $toolUxon) {
-                $toolBox->append(
-                    AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
-                    $toolName,
-                    'concept configuration'
-                );
-            }
-
-            foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
-                $toolBox->prepend(
-                    AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
-                    $toolName,
-                    'agent configuration'
-                );
-            }
-
-            $warnings = array_merge($warnings, $toolBox->getWarnings());
-            if ($warnings !== []) {
-                if ($this->conversation !== null) {
-                    $this->conversation->saveWarnings($warnings);
-                } else {
-                    foreach ($warnings as $warning) {
-                        $this->workbench->getLogger()->logException($warning);
-                    }
-                }
-            }
-
-            $this->tools = $toolBox->getTools();
+            $this->initTools();
         }
         return $this->tools;
     }

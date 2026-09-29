@@ -41,7 +41,7 @@ class AgentInstructionsConcept extends AbstractConcept
         }
 
         $agent = AiFactory::createAgentFromString($this->getWorkbench(), $this->agentAlias);
-        return $agent->getSystemPrompt($this->getPrompt());
+        return $agent->renderSystemPrompt($this->getPrompt());
     }
 
     /**

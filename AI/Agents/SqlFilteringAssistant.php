@@ -10,10 +10,17 @@ use exface\Core\Templates\BracketHashStringTemplateRenderer;
 
 class SqlFilteringAssistant extends GenericAssistant
 {
-    protected function getConcepts(AiPromptInterface $prompt, BracketHashStringTemplateRenderer $configRenderer) : array
+    protected function initConcepts(
+        AiPromptInterface $prompt,
+        ?BracketHashStringTemplateRenderer $configRenderer = null
+    ) : void
     {
-        $concepts = parent::getConcepts($prompt, $configRenderer);
-        foreach ($concepts as $concept) {
+        if ($this->concepts !== null) {
+            return;
+        }
+
+        parent::initConcepts($prompt, $configRenderer);
+        foreach ($this->concepts as $concept) {
             if ($concept instanceof MetamodelDbmlConcept) {
                 if ($prompt->hasMetaObject()) {
                     $obj = $prompt->getMetaObject();
@@ -29,9 +36,8 @@ class SqlFilteringAssistant extends GenericAssistant
                 $concept->setObjectFilterCallback($objFilter);
             }
         }
-        $concepts[] = new ArrayPlaceholders([
+        $this->concepts[] = new ArrayPlaceholders([
             'main_table_address' => $prompt->getMetaObject()->getDataAddress()
         ]);
-        return $concepts;
     }
 }
