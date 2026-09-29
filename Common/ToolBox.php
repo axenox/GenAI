@@ -3,14 +3,11 @@ namespace axenox\GenAI\Common;
 
 use ArrayIterator;
 use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
-use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiToolBoxInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
-use ReflectionClass;
-use Throwable;
 use Traversable;
 
 /**
@@ -29,22 +26,11 @@ use Traversable;
  *    once for the `ORDERS` table and once for `CUSTOMERS`).
  * 3. Naming collisions may arise (e.g. two distinct tools claiming the function name `query_data`).
  *
- * How Configuration Comparison Works (`extractConfigurationSignature`):
+ * How Tool Comparison Works (`areToolsEqual`):
  * ----------------------------------------------------------------------
- * When adding tools (`append` / `prepend`), the ToolBox computes a canonical signature representing
- * the tool's functional identity.
+ * When adding tools (`append` / `prepend`), the ToolBox compares the original tool configurations.
  *
- * **Included in the signature (functional configuration):**
- * - Prototype alias (`$tool->getAliasWithNamespace()`, e.g. `axenox.GenAI.GetTimeTool`).
- * - Arguments schema (`$tool->getArguments()`):
- *   - Parameter names (`name`)
- *   - Data types (`data_type`)
- *   - Requirement status (`required`)
- *   - Default values (`default`) and empty/nullability flags (`empty`).
- * - Security & UXON rules: `securitychecks` (e.g. `startsWith`, `contains`, `equals`),
- *   configuration options in UXON (e.g. target tables, filters).
- *
- * **Explicitly EXCLUDED from the signature (LLM-facing metadata):**
+ * **Explicitly EXCLUDED from comparison (LLM-facing metadata):**
  * - Function name (`name`)
  * - Tool description (`description`)
  * - Specific prompt rules (`rules`)
@@ -83,7 +69,7 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
     /**
      * Registered tools and their merge metadata indexed by function name.
      *
-     * @var array<string, array{tool: AiToolInterface, source: string, signature: string}>
+    * @var array<string, array{tool: AiToolInterface, source: string}>
      */
     private array $entries = [];
 
@@ -122,28 +108,29 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
     {
         $targetName = $toolName ?? $tool->getName();
         $sourceName = $source ?? 'tool configuration';
-        $newSignature = $this->extractConfigurationSignature($tool);
 
-        // 1. Check if a tool with identical alias & configuration already exists
-        $matchingExistingName = $this->findToolNameBySignature($newSignature);
-        if ($matchingExistingName !== null) {
-            $existingTool = $this->entries[$matchingExistingName]['tool'];
-            if ($matchingExistingName !== $targetName || $existingTool->getDescription() !== $tool->getDescription()) {
-                $this->warnings[] = new AiToolConfigurationWarning(
-                    'AI tool "' . $targetName . '" was merged with the identical configuration of "'
-                    . $matchingExistingName . '" because only the name or description differed.'
-                );
+        // 1. Keep the first identical original and merge all matching descriptions into it.
+        $equalTools = $this->findEqualTools($tool);
+        if ($equalTools !== []) {
+            $retainedName = array_key_first($equalTools);
+            $retainedTool = $equalTools[$retainedName];
+            $mergedDescription = null;
+
+            foreach ($equalTools as $existingName => $existingTool) {
+                if ($existingName !== $targetName || $existingTool->getDescription() !== $tool->getDescription()) {
+                    $this->warnings[] = new AiToolConfigurationWarning(
+                        'AI tool "' . $targetName . '" was merged with the identical configuration of "'
+                        . $existingName . '" because only the name or description differed.'
+                    );
+                }
+                $mergedDescription = $this->mergeDescriptions($mergedDescription, $existingTool->getDescription());
+                if ($existingName !== $retainedName) {
+                    unset($this->entries[$existingName]);
+                }
             }
-            $mergedDesc = $this->mergeDescriptions($existingTool->getDescription(), $tool->getDescription());
 
-            $mergedTool = $this->createMergedToolInstance(
-                $existingTool,
-                $matchingExistingName,
-                $mergedDesc
-            );
-
-            $this->entries[$matchingExistingName]['tool'] = $mergedTool;
-            $this->entries[$matchingExistingName]['signature'] = $newSignature;
+            $mergedDescription = $this->mergeDescriptions($mergedDescription, $tool->getDescription());
+            $this->applyDescription($retainedTool, $mergedDescription);
             return $this;
         }
 
@@ -160,7 +147,6 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
         $this->entries[$targetName] = [
             'tool' => $tool,
             'source' => $sourceName,
-            'signature' => $newSignature,
         ];
 
         return $this;
@@ -182,42 +168,22 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
     {
         $targetName = $toolName ?? $tool->getName();
         $sourceName = $source ?? 'tool configuration';
-        $newSignature = $this->extractConfigurationSignature($tool);
 
-        // 1. Check if a tool with identical alias & configuration already exists
-        $matchingExistingName = $this->findToolNameBySignature($newSignature);
-        if ($matchingExistingName !== null) {
-            $existingTool = $this->entries[$matchingExistingName]['tool'];
-            if ($matchingExistingName !== $targetName || $existingTool->getDescription() !== $tool->getDescription()) {
+        // 1. Remove all identical tools and preserve their descriptions on the prepended original.
+        $mergedDescription = $tool->getDescription();
+        $equalTools = $this->findEqualTools($tool);
+        foreach ($equalTools as $existingName => $existingTool) {
+            if ($existingName !== $targetName || $existingTool->getDescription() !== $tool->getDescription()) {
                 $this->warnings[] = new AiToolConfigurationWarning(
                     'AI tool "' . $targetName . '" was merged with the identical configuration of "'
-                    . $matchingExistingName . '" because only the name or description differed.'
+                    . $existingName . '" because only the name or description differed.'
                 );
             }
-            $mergedDesc = $this->mergeDescriptions($tool->getDescription(), $existingTool->getDescription());
-
-            // Prepended tool takes priority on name and placement
-            $finalName = $targetName;
-            $mergedTool = $this->createMergedToolInstance(
-                $tool,
-                $finalName,
-                $mergedDesc
-            );
-
-            if ($finalName !== $matchingExistingName) {
-                unset($this->entries[$matchingExistingName]);
-            }
-
-            // Put at the front of the list
-            $entries = $this->entries;
-            $this->entries = [
-                $finalName => [
-                    'tool' => $mergedTool,
-                    'source' => $sourceName,
-                    'signature' => $newSignature,
-                ],
-            ] + $entries;
-            return $this;
+            $mergedDescription = $this->mergeDescriptions($mergedDescription, $existingTool->getDescription());
+            unset($this->entries[$existingName]);
+        }
+        if ($equalTools !== []) {
+            $this->applyDescription($tool, $mergedDescription);
         }
 
         // 2. Name collision with DIFFERENT configuration
@@ -236,7 +202,6 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
             $targetName => [
                 'tool' => $tool,
                 'source' => $sourceName,
-                'signature' => $newSignature,
             ],
         ] + $entries;
 
@@ -400,96 +365,51 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
     }
 
     /**
-     * Computes a canonical signature hash representing the tool's prototype alias
-     * and functional configuration (excluding LLM name and description).
-     *
-     * @param AiToolInterface $tool
-     * @return string
-     */
-    public function extractConfigurationSignature(AiToolInterface $tool) : string
-    {
-        $alias = $tool->getAliasWithNamespace();
-        $configData = [];
-
-        // 1. If UXON object is present, inspect configuration excluding name/description/rules
-        $uxon = $tool->exportUxonObject();
-        if ($uxon !== null) {
-            $uxonArray = $uxon->toArray();
-            unset($uxonArray['name'], $uxonArray['description'], $uxonArray['rules']);
-            $configData['uxon'] = $this->normalizeArrayForComparison($uxonArray);
-        }
-
-        // 2. Extract arguments schema
-        $argsData = [];
-        foreach ($tool->getArguments() as $param) {
-            $paramName = $param->getName();
-            $dataType = null;
-            if (method_exists($param, 'getDataType') && $param->getDataType() !== null) {
-                $dataType = $param->getDataType()->getAliasWithNamespace();
-            } elseif (method_exists($param, 'getDataTypeUxon') && $param->getDataTypeUxon() !== null) {
-                $dataType = (string)$param->getDataTypeUxon();
-            }
-
-            $argsData[$paramName] = [
-                'name' => $paramName,
-                'data_type' => $dataType,
-                'required' => $param->isRequired(),
-                'default' => method_exists($param, 'getDefaultValue') ? $param->getDefaultValue() : null,
-                'empty' => method_exists($param, 'isEmptyAllowed') ? $param->isEmptyAllowed() : null,
-            ];
-        }
-        ksort($argsData);
-        $configData['arguments'] = $argsData;
-
-        // 3. Security checks if defined
-        try {
-            $ref = new ReflectionClass($tool);
-            while ($ref) {
-                if ($ref->hasProperty('securitychecks')) {
-                    $prop = $ref->getProperty('securitychecks');
-                    $prop->setAccessible(true);
-                    $checks = $prop->getValue($tool);
-                    if (!empty($checks)) {
-                        $configData['securitychecks'] = $checks;
-                    }
-                    break;
-                }
-                $ref = $ref->getParentClass();
-            }
-        } catch (Throwable $e) {
-            // ignore reflection exceptions
-        }
-
-        $configData = $this->normalizeArrayForComparison($configData);
-        return $alias . '::' . md5(json_encode($configData));
-    }
-
-    /**
-     * Checks if two tools have identical prototype alias and functional configuration.
+     * Checks whether two original tools have the same prototype and UXON configuration.
      *
      * @param AiToolInterface $toolA
      * @param AiToolInterface $toolB
      * @return bool
      */
-    public function areConfigurationsEqual(AiToolInterface $toolA, AiToolInterface $toolB) : bool
+    public function areToolsEqual(AiToolInterface $toolA, AiToolInterface $toolB) : bool
     {
-        return $this->extractConfigurationSignature($toolA) === $this->extractConfigurationSignature($toolB);
+        if ($toolA->getAliasWithNamespace() !== $toolB->getAliasWithNamespace()) {
+            return false;
+        }
+
+        $uxonA = $toolA->exportUxonObject()?->copy() ?? new UxonObject();
+        $uxonB = $toolB->exportUxonObject()?->copy() ?? new UxonObject();
+
+        foreach (['name', 'description', 'rules'] as $property) {
+            $uxonA->unsetProperty($property);
+            $uxonB->unsetProperty($property);
+        }
+
+        return $uxonA->toArray() == $uxonB->toArray();
     }
 
     /**
-     * Finds an already registered tool function name with the identical signature.
+     * Finds all registered tools with the same alias and configuration.
      *
-     * @param string $signature
-     * @return string|null
+     * @param AiToolInterface $tool
+     * @return array<string, AiToolInterface>
      */
-    private function findToolNameBySignature(string $signature) : ?string
+    private function findEqualTools(AiToolInterface $tool) : array
     {
+        $equalTools = [];
+        $alias = $tool->getAliasWithNamespace();
+
         foreach ($this->entries as $name => $entry) {
-            if ($entry['signature'] === $signature) {
-                return $name;
+            $existingTool = $entry['tool'];
+            if ($existingTool->getAliasWithNamespace() !== $alias) {
+                continue;
+            }
+            if ($this->areToolsEqual($existingTool, $tool)) {
+                $equalTools[$name] = $existingTool;
             }
         }
-        return null;
+
+        return $equalTools;
     }
 
     /**
@@ -526,84 +446,18 @@ class ToolBox implements AiToolBoxInterface, WorkbenchDependantInterface
     }
 
     /**
-     * Instantiates or clones a tool instance with updated name and description.
+     * Applies a merged description without replacing the original tool instance.
      *
-     * @param AiToolInterface $baseTool
-     * @param string $targetName
+     * @param AiToolInterface $tool
      * @param string|null $mergedDescription
-     * @return AiToolInterface
+     * @return void
      */
-    protected function createMergedToolInstance(AiToolInterface $baseTool, string $targetName, ?string $mergedDescription) : AiToolInterface
+    protected function applyDescription(AiToolInterface $tool, ?string $mergedDescription) : void
     {
-        $workbench = $this->workbench;
-        if ($workbench === null && method_exists($baseTool, 'getWorkbench')) {
-            try {
-                $workbench = $baseTool->getWorkbench();
-            } catch (Throwable $e) {
-                $workbench = null;
-            }
+        if ($mergedDescription !== null) {
+            $tool->importUxonObject(new UxonObject([
+                'description' => $mergedDescription,
+            ]));
         }
-
-        if ($workbench !== null) {
-            $baseUxon = $baseTool->exportUxonObject();
-            if ($baseUxon !== null) {
-                $mergedUxon = new UxonObject($baseUxon->toArray());
-            } else {
-                $mergedUxon = new UxonObject([
-                    'alias' => $baseTool->getAliasWithNamespace()
-                ]);
-            }
-
-            $mergedUxon->setProperty('name', $targetName);
-            if ($mergedDescription !== null) {
-                $mergedUxon->setProperty('description', $mergedDescription);
-            }
-
-            try {
-                return AiFactory::createToolFromUxon($workbench, $mergedUxon, $targetName);
-            } catch (Throwable $e) {
-                // Fallback via cloning
-            }
-        }
-
-        // Fallback: Clone tool and update properties via reflection
-        $mergedTool = clone $baseTool;
-        try {
-            $ref = new ReflectionClass($mergedTool);
-            while ($ref) {
-                if ($ref->hasProperty('description') && $mergedDescription !== null) {
-                    $prop = $ref->getProperty('description');
-                    $prop->setAccessible(true);
-                    $prop->setValue($mergedTool, $mergedDescription);
-                }
-                if ($ref->hasProperty('name')) {
-                    $prop = $ref->getProperty('name');
-                    $prop->setAccessible(true);
-                    $prop->setValue($mergedTool, $targetName);
-                }
-                $ref = $ref->getParentClass();
-            }
-        } catch (Throwable $e) {
-            // Ignore reflection errors on clone
-        }
-
-        return $mergedTool;
-    }
-
-    /**
-     * Recursively sorts arrays by key for canonical comparison.
-     *
-     * @param array $array
-     * @return array
-     */
-    private function normalizeArrayForComparison(array $array) : array
-    {
-        foreach ($array as $key => $value) {
-            if (is_array($value)) {
-                $array[$key] = $this->normalizeArrayForComparison($value);
-            }
-        }
-        ksort($array);
-        return $array;
     }
 }
