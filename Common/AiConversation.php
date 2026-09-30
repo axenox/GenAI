@@ -343,7 +343,7 @@ class AiConversation implements AiConversationInterface
         $transaction = $this->workbench->data()->startTransaction();
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
-        $markdown = '**' . count($toolCalls) . " tool calls:\n\n";
+        $markdown = '**' . count($toolCalls) . "** tool calls:\n\n";
 
         foreach ($toolCalls as $i => $toolCall) {
             $markdown .= ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
@@ -439,7 +439,7 @@ class AiConversation implements AiConversationInterface
         $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
         $toolCalls = $query->getToolCalls();
 
-        $markdown = '> **' . count($toolCalls) . " tool calls:\n";
+        $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
         foreach ($toolCalls as $i => $toolCall) {
             $markdown .= '> ' . ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
         }

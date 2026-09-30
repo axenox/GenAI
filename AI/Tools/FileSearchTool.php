@@ -224,8 +224,10 @@ class FileSearchTool extends AbstractAiTool
         $basePathFromWorkbench = StringDataType::startsWith($basePath, $workbenchPath) ? StringDataType::substringAfter($basePath, $workbenchPath, $basePath) : $basePath;
         $markdown = "Search result for `$namePattern` in path `$folderPattern` within base `$basePathFromWorkbench`.";
         if ($query !== '') {
-            $markdown .= " Only including files containing `$query`.\n\n";
+            $markdown .= " Only including files containing `$query`.";
         }
+        $markdown .= "\n\n";
+        
         foreach ($matchedFiles as $fileMatch) {
             $path = (string) ($fileMatch['path'] ?? '');
             $markdown .= '- `' . str_replace('`', '\\`', FilePathDataType::normalize($path, '/')) . "`\n";
@@ -235,8 +237,9 @@ class FileSearchTool extends AbstractAiTool
                 $markdown .= '> ' . $extractLine . "  \n";
             }
         }
+        $markdown .= "\n";
 
-        return new AiToolResultString($this, $arguments, rtrim($markdown), $this->getReturnDataType());
+        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
     }
 
     /**
