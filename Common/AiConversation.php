@@ -451,7 +451,7 @@ class AiConversation implements AiConversationInterface
             $markdown .= "\n## {$no}. {$response->getToolName()}()";
             $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString() ?? '< no response >');
             $markdown .= MarkdownDataType::makeHorizontalLine();
-            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown();
+            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown(true);
         }
 
         try {
@@ -543,10 +543,7 @@ class AiConversation implements AiConversationInterface
                 if ($toolCallSheet->countRows() === 1) {
                     $toolCallSheet->getColumns()->addMultiple(['RESULT', 'RESULT_LENGTH_CHARS', 'EXECUTION_TIME_MS', 'FAILED']);
                     $toolResult = $response->getToolResult();
-                    $result = $toolResult->getValue();
-                    if ($toolResult->isFailed() && ($exception = $toolResult->getExceptions()[0] ?? null) instanceof \Throwable) {
-                        $result = $exception->getMessage();
-                    }
+                    $result = $toolResult->getValueWithMetadata();
                     $resultLengthChars = mb_strlen((string)$result, 'UTF-8');
                     $executionTimeMs = method_exists($toolResult, 'getDurationMs')
                         ? $toolResult->getDurationMs()

@@ -58,6 +58,8 @@ Eine Definition wählt ihren Prototyp über `alias` oder `class` aus und kann di
 
 Werden `arguments` weggelassen, kommen die integrierten Argumentvorlagen zum Einsatz. Überschreiben Sie diese nur, wenn der Agent eine spezifischere Terminologie, Beispiele oder ein eingeschränktes Schema benötigt. Die Tool-Anweisungen sollten außerdem angeben, wann ein Aufruf verpflichtend ist, zum Beispiel: „Lesen Sie die Objektdefinition, bevor Sie UXON vorschlagen, das auf dessen Attribute verweist.“
 
+An das Modell zurückgesendete Tool-Ergebnisse kennzeichnen angehängte Fehler und Warnungen ausdrücklich. Diagnosen enthalten ihren Schweregrad und ihre Meldung sowie, sofern vorhanden, den Lösungshinweis aus dem Message-Modell der Exception. Wenn Fehler ein Ergebnis verhindert haben, weist die Antwort deutlich darauf hin, dass wegen der Fehler kein Ergebnis erzeugt wurde. Konversationsnachrichten und Tool-Call-Datensätze speichern dieses angereicherte Ergebnis, damit dieselben Diagnosen in der Konversationsoberfläche sichtbar sind; der rohe Wert bleibt im Ergebnisobjekt separat verfügbar. Bei kritischen Fehlern wird das Modell zusätzlich angewiesen, denselben Aufruf nicht unverändert zu wiederholen.
+
 ## Dateizugriff konfigurieren
 
 `CommandLineTool`, `GitTool`, `DevLintPHPTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool` und `FileSearchTool` verwenden gemeinsam die folgenden Eigenschaften:

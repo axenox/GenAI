@@ -315,25 +315,6 @@ class GenericAssistant implements AiAgentInterface
                     }
                     $conversation->saveExceptions($exceptions);
                     
-                    // On critical errors, we should tell the LLM not to use this tool anymore. It will either tell the
-                    // user or continue with other tools.
-                    if ($resultOfTool && $resultOfTool->isFailed()) {
-                        // TODO should we give more error details to the LLM
-                        $durationMs = method_exists($resultOfTool, 'getDurationMs')
-                            ? $resultOfTool->getDurationMs()
-                            : null;
-                        $resultOfTool = new AiToolResultString(
-                            $tool,
-                            $args,
-                            "ERROR: Tool execution failed. It seems, this tool is broken.",
-                            null,
-                            [],
-                            $resultOfTool->getExceptions()
-                        );
-                        if ($durationMs !== null) {
-                            $resultOfTool->setDurationMs($durationMs);
-                        }
-                    }
                     $durationMs = method_exists($resultOfTool, 'getDurationMs')
                         ? $resultOfTool->getDurationMs()
                         : null;
@@ -360,7 +341,7 @@ class GenericAssistant implements AiAgentInterface
 
                 $this->toolCalls[] = $toolCallResponses[$callId];
 
-                $performedQuery->appendToolMessages($existingCall, $resultOfTool, $callId, $performedQuery->getResponseMessage());
+                $performedQuery->appendToolMessages($existingCall, $resultOfTool->getValueWithMetadata(), $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;
             }
             $conversation->saveToolResponses($performedQuery, $toolCallResponses);
