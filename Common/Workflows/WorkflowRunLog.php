@@ -36,6 +36,8 @@ class WorkflowRunLog
 
     private string $title;
 
+    private ?string $autonomousAgentAlias = null;
+
     private ?string $runUid = null;
 
     private ?string $runModifiedOn = null;
@@ -67,12 +69,47 @@ class WorkflowRunLog
      * @param WorkbenchInterface $workbench
      * @param string $workflowAlias Stable alias of the workflow, constant while the graph is hardcoded.
      * @param string $title Human readable title of this run.
+     * @param string|null $autonomousAgentAlias Alias of the agent whose autonomous configuration runs this workflow.
      */
-    public function __construct(WorkbenchInterface $workbench, string $workflowAlias, string $title)
-    {
+    public function __construct(
+        WorkbenchInterface $workbench,
+        string $workflowAlias,
+        string $title,
+        ?string $autonomousAgentAlias = null
+    ) {
         $this->workbench = $workbench;
         $this->workflowAlias = $workflowAlias;
         $this->title = $title;
+        $this->autonomousAgentAlias = $autonomousAgentAlias;
+    }
+
+    /**
+     * Looks up the autonomous configuration of the configured agent.
+     * TODO: this should be rewritten/reconsidered when we improve workflow architecture
+     * 
+     * @return string|null
+     */
+    private function findAutonomousUid() : ?string
+    {
+        if ($this->autonomousAgentAlias === null || trim($this->autonomousAgentAlias) === '') {
+            return null;
+        }
+
+        // ALIAS_WITH_NS is an SQL expression over related data, so it is only filtered on its own object.
+        $agentSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT');
+        $agentUidColumn = $agentSheet->getColumns()->addFromUidAttribute();
+        $agentSheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->autonomousAgentAlias);
+        $agentSheet->dataRead();
+        if ($agentSheet->isEmpty()) {
+            return null;
+        }
+
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AUTONOMOUS');
+        $uidColumn = $sheet->getColumns()->addFromUidAttribute();
+        $sheet->getFilters()->addConditionFromString('AI_AGENT', $agentUidColumn->getValue(0));
+        $sheet->dataRead();
+
+        return $sheet->isEmpty() ? null : $uidColumn->getValue(0);
     }
 
     /**
@@ -87,6 +124,7 @@ class WorkflowRunLog
             $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, self::OBJECT_RUN);
             $sheet->addRow([
                 'WORKFLOW_ALIAS' => $this->workflowAlias,
+                'AI_AUTONOMOUS' => $this->findAutonomousUid(),
                 'TITLE' => $this->truncate($this->title, 250),
                 'STATUS' => self::STATUS_RUNNING,
                 'CORRELATION_KEY' => $correlationKey,

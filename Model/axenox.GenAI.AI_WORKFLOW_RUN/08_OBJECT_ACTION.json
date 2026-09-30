@@ -1,0 +1,260 @@
+{
+    "object_alias": "exface.Core.OBJECT_ACTION",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "OBJECT",
+            "attribute_alias": "OBJECT"
+        },
+        {
+            "name": "ACTION_PROTOTYPE",
+            "attribute_alias": "ACTION_PROTOTYPE"
+        },
+        {
+            "name": "ALIAS",
+            "attribute_alias": "ALIAS"
+        },
+        {
+            "name": "NAME",
+            "attribute_alias": "NAME"
+        },
+        {
+            "name": "SHORT_DESCRIPTION",
+            "attribute_alias": "SHORT_DESCRIPTION"
+        },
+        {
+            "name": "CONFIG_UXON",
+            "attribute_alias": "CONFIG_UXON"
+        },
+        {
+            "name": "APP",
+            "attribute_alias": "APP"
+        },
+        {
+            "name": "USE_IN_OBJECT_BASKET_FLAG",
+            "attribute_alias": "USE_IN_OBJECT_BASKET_FLAG"
+        },
+        {
+            "name": "DOCS",
+            "attribute_alias": "DOCS"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "AI workflow run: Steps [show_step_details]",
+            "CREATED_ON": "2026-09-28 19:29:28",
+            "MODIFIED_ON": "2026-09-28 19:29:53",
+            "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "UID": "0x11f1bfd82889d026bfd8025041000001",
+            "OBJECT": "0x11f1a6138f76e726a613025041000001",
+            "ACTION_PROTOTYPE": "exface/core/Actions/ShowDialog.php",
+            "ALIAS": "show_step_details",
+            "NAME": "Steps",
+            "SHORT_DESCRIPTION": "",
+            "CONFIG_UXON": {
+                "maximize": true,
+                "prefill_with_input_data": true,
+                "dialog": {
+                    "caption": "Workflow steps",
+                    "columns_in_grid": 1,
+                    "widgets": [
+                        {
+                            "widget_type": "InputHidden",
+                            "id": "workflow_run_steps_uid",
+                            "attribute_alias": "UID"
+                        },
+                        {
+                            "widget_type": "SplitVertical",
+                            "width": "100%",
+                            "height": "100%",
+                            "panels": [
+                                {
+                                    "height": "40%",
+                                    "columns_in_grid": 1,
+                                    "widgets": [
+                                        {
+                                            "widget_type": "Markdown",
+                                            "render_mermaid_diagrams": true,
+                                            "attribute_alias": "AI_AUTONOMOUS__FLOW_DIAGRAM",
+                                            "hide_caption": true,
+                                            "width": "100%",
+                                            "height": "100%"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "columns_in_grid": 1,
+                                    "widgets": [
+                                        {
+                                            "widget_type": "DataTree",
+                                            "object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
+                                            "hide_caption": true,
+                                            "nowrap": false,
+                                            "width": "100%",
+                                            "height": "100%",
+                                            "tree_parent_relation_alias": "PARENT_STEP",
+                                            "tree_expanded": true,
+                                            "paginate": false,
+                                            "filters": [
+                                                {
+                                                    "attribute_alias": "AI_WORKFLOW_RUN",
+                                                    "value": "=workflow_run_steps_uid",
+                                                    "comparator": "==",
+                                                    "required": true,
+                                                    "hidden": true,
+                                                    "apply_on_change": true
+                                                }
+                                            ],
+                                            "columns": [
+                                                {
+                                                    "attribute_alias": "SEQUENCE_NUMBER",
+                                                    "hidden": true,
+                                                    "caption": "#"
+                                                },
+                                                {
+                                                    "attribute_alias": "NODE_TYPE",
+                                                    "width": "90px"
+                                                },
+                                                {
+                                                    "attribute_alias": "NODE_ID",
+                                                    "width": "170px"
+                                                },
+                                                {
+                                                    "attribute_alias": "SUBJECT_KEY",
+                                                    "width": "110px"
+                                                },
+                                                {
+                                                    "attribute_alias": "STATUS",
+                                                    "width": "100px"
+                                                },
+                                                {
+                                                    "attribute_alias": "MESSAGE",
+                                                    "width": "430px"
+                                                },
+                                                {
+                                                    "attribute_alias": "AI_CONVERSATION",
+                                                    "hidden": true
+                                                },
+                                                {
+                                                    "attribute_alias": "AI_CONVERSATION__TITLE",
+                                                    "caption": "Conversation",
+                                                    "width": "280px"
+                                                },
+                                                {
+                                                    "attribute_alias": "DURATION_MS",
+                                                    "width": "100px"
+                                                },
+                                                {
+                                                    "attribute_alias": "COST",
+                                                    "width": "90px"
+                                                }
+                                            ],
+                                            "sorters": [
+                                                {
+                                                    "attribute_alias": "SEQUENCE_NUMBER",
+                                                    "direction": "asc"
+                                                }
+                                            ],
+                                            "buttons": [
+                                                {
+                                                    "caption": "Step details",
+                                                    "bind_to_double_click": true,
+                                                    "action": {
+                                                        "alias": "exface.Core.ShowObjectInfoDialog",
+                                                        "disable_buttons": true
+                                                    }
+                                                },
+                                                {
+                                                    "caption": "Conversation",
+                                                    "icon": "comments",
+                                                    "disabled_if": {
+                                                        "operator": "AND",
+                                                        "conditions": [
+                                                            {
+                                                                "value_left": "=~input!AI_CONVERSATION",
+                                                                "comparator": "==",
+                                                                "value_right": ""
+                                                            }
+                                                        ]
+                                                    },
+                                                    "action": {
+                                                        "alias": "exface.core.ShowObjectInfoDialog",
+                                                        "object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                        "disable_buttons": false,
+                                                        "input_mapper": {
+                                                            "from_object_alias": "axenox.GenAI.AI_WORKFLOW_RUN_STEP",
+                                                            "to_object_alias": "axenox.GenAI.AI_CONVERSATION",
+                                                            "column_to_column_mappings": [
+                                                                {
+                                                                    "from": "AI_CONVERSATION",
+                                                                    "to": "UID"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "USE_IN_OBJECT_BASKET_FLAG": 0,
+            "DOCS": ""
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "exface.Core.OBJECT_ACTION",
+        "conditions": [
+            {
+                "expression": "APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "exface.Core.OBJECT_ACTION"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}
