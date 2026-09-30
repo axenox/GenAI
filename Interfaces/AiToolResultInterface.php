@@ -31,11 +31,22 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
     public function getValue() : string;
 
     /**
-     * Returns the tool response formatted as Markdown
-     * 
+     * Returns the tool response together with metadata intended for the LLM.
+     *
+     * Metadata includes diagnostics attached to the result and may later include
+     * standardized formats such as OKF without changing the raw result value.
+     *
      * @return string
      */
-    public function getValueAsMarkdown() : string;
+    public function getValueWithMetadata() : string;
+
+    /**
+     * Returns the tool response formatted as Markdown.
+     *
+     * @param bool $includeMetadata Include diagnostics and other LLM-facing metadata.
+     * @return string
+     */
+    public function getValueAsMarkdown(bool $includeMetadata = false) : string;
 
     /**
      * Returns the data type of the tool response

@@ -58,6 +58,8 @@ A definition selects its prototype with `alias` or `class` and can override the 
 
 The built-in argument templates are used when `arguments` is omitted. Override them only when the agent needs more specific terminology, examples, or a restricted schema. Tool instructions should also state when a call is mandatory, for example: "Read the object definition before proposing UXON that references its attributes."
 
+Tool results sent back to the model explicitly identify attached errors and warnings. Diagnostics contain their severity and message as well as the remediation hint from the exception's message model when available. If errors prevented a result, the response clearly states that no result was produced because errors occurred. Conversation messages and tool-call records persist this enriched result so the same diagnostics are visible in the conversation UI; the result object's raw value remains available separately. Critical failures additionally tell the model not to repeat the same call unchanged.
+
 ## File access configuration
 
 `CommandLineTool`, `GitTool`, `DevLintPHPTool`, `FileReadTool`, `FileWriteTool`, `FilePatchTool`, `FolderReadTool`, and `FileSearchTool` share these properties:

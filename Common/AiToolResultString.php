@@ -85,21 +85,71 @@ class AiToolResultString implements AiToolResultInterface
 
     /**
      * {@inheritDoc}
+     * @see AiToolResultInterface::getValueWithMetadata()
+     */
+    public function getValueWithMetadata(): string
+    {
+        $value = $this->getValue();
+        $errors = [];
+        $warnings = [];
+
+        foreach ($this->getExceptions() as $exception) {
+            $logLevel = $exception->getLogLevel();
+            $diagnostic = strtoupper($logLevel) . ': ' . $exception->getMessage();
+            try {
+                $hint = $exception->getMessageModel($this->getWorkbench())->getHint();
+            } catch (\Throwable $e) {
+                $hint = null;
+            }
+            if ($hint !== null && trim($hint) !== '') {
+                $diagnostic .= "\nRemediation: " . trim($hint);
+            }
+            if (LogLevelDataType::compareLogLevels($logLevel, LoggerInterface::WARNING) <= 0) {
+                $warnings[] = $diagnostic;
+            } else {
+                $errors[] = $diagnostic;
+            }
+        }
+
+        $metadata = [];
+        if ($errors !== []) {
+            $errorStatus = $value === ''
+                ? 'TOOL EXECUTION FAILED: No result was produced because errors occurred.'
+                : 'TOOL EXECUTION COMPLETED WITH ERRORS: The result may be incomplete or invalid.';
+            $metadata[] = $errorStatus . "\n\nErrors:\n" . implode("\n\n", $errors);
+        }
+        if ($this->isFailed()) {
+            $metadata[] = 'The tool failed critically. Do not repeat the same call unchanged.';
+        }
+        if ($warnings !== []) {
+            $metadata[] = "Tool warnings:\n" . implode("\n\n", $warnings);
+        }
+        if ($metadata === []) {
+            return $value;
+        }
+
+        $metadataText = implode("\n\n", $metadata);
+        return $value === '' ? $metadataText : $value . "\n\n" . $metadataText;
+    }
+
+    /**
+     * {@inheritDoc}
      * @see AiToolResultInterface::getValueAsMarkdown()
      */
-    public function getValueAsMarkdown(): string
+    public function getValueAsMarkdown(bool $includeMetadata = false): string
     {
         $type = $this->getValueDataType();
+        $value = $includeMetadata ? $this->getValueWithMetadata() : $this->getValue();
         switch (true) {
             case $type instanceof HtmlDataType:
             case $type instanceof MarkdownDataType:
-                $markdown = $this->getValue();
+                $markdown = $value;
                 break;
             case $type instanceof CodeDataType:
-                $markdown = MarkdownDataType::escapeCodeBlock($this->getValue(), $type->getLanguage());
+                $markdown = MarkdownDataType::escapeCodeBlock($value, $type->getLanguage());
                 break;
             default:
-                $markdown = MarkdownDataType::escapeCodeBlock($this->__toString());
+                $markdown = MarkdownDataType::escapeCodeBlock($value);
         }
         return $markdown;
     }
