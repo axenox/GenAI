@@ -43,7 +43,7 @@ class GetLogEntryTool extends AbstractAiTool
         return [
             (new ServiceParameter($self))
                 ->setName('LogId')
-                ->setDescription('Log-ID pointing to the log entry to get details for'),
+                ->setDescription('The Log-ID visible to the designer or referenced in another log item. E.g. `AB8B3FD1`.'),
             (new ServiceParameter($self))
                 ->setName('LogFilePath')
                 ->setDescription('Path to the log file to search relative to the installation folder')
