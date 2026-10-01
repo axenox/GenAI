@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
@@ -297,7 +297,7 @@ class DataSheetReadTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $dataSheetArg = $arguments[0] ?? null;
         if ($dataSheetArg === null || $dataSheetArg === '') {
@@ -374,10 +374,10 @@ class DataSheetReadTool extends AbstractAiTool
      * appends a more detailed object description block if enabled.
      *
      * @param DataSheetInterface $dataSheet
-     * @param AiPromptInterface|null $prompt
+    * @param TaskInterface|null $prompt
      * @return string Final text for the tool result. Never returns null.
      */
-    protected function renderOutput(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
+    protected function renderOutput(DataSheetInterface $dataSheet, ?TaskInterface $prompt = null) : string
     {
         $output = 'Read data of object ' . $dataSheet->getMetaObject()->__toString();
 
@@ -435,10 +435,10 @@ class DataSheetReadTool extends AbstractAiTool
      * the markdown text only; it does not attach warnings or modify the tool result.
      *
      * @param DataSheetInterface $dataSheet
-     * @param AiPromptInterface|null $prompt
+    * @param TaskInterface|null $prompt
      * @return string Markdown text generated from the data sheet rows.
      */
-    protected function toMarkdown(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
+    protected function toMarkdown(DataSheetInterface $dataSheet, ?TaskInterface $prompt = null) : string
     {
         $rows = $dataSheet->getRows();
         $columns = [];
@@ -527,10 +527,10 @@ MD;
      *
      * @param DataSheetInterface $dataSheet
      * @param string|null $filters
-     * @param AiPromptInterface|null $prompt
+    * @param TaskInterface|null $prompt
      * @return string Object description markdown or an empty string if unavailable.
      */
-    protected function getInfoObjectMarkdown(DataSheetInterface $dataSheet, ?string $filters = null, ?AiPromptInterface $prompt = null) : string
+    protected function getInfoObjectMarkdown(DataSheetInterface $dataSheet, ?string $filters = null, ?TaskInterface $prompt = null) : string
     {
         if (! $this->isObjectDescriptionEnabled()) {
             return '';
@@ -602,10 +602,10 @@ MD;
      * data output.
      *
      * @param DataSheetInterface $dataSheet
-     * @param AiPromptInterface|null $prompt
+    * @param TaskInterface|null $prompt
      * @return string Markdown table string with a heading section.
      */
-    protected function toMarkdownTable(DataSheetInterface $dataSheet, ?AiPromptInterface $prompt = null) : string
+    protected function toMarkdownTable(DataSheetInterface $dataSheet, ?TaskInterface $prompt = null) : string
     {
         $colNames = [];
         foreach ($dataSheet->getColumns() as $column) {

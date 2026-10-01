@@ -2,7 +2,7 @@
 namespace axenox\GenAI\AI\Traits;
 
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\CommonLogic\Filesystem\LocalFileInfo;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\FilePathDataType;
@@ -158,7 +158,7 @@ trait FileAccessToolTrait
         return $this->allowedPaths;
     }
     
-    protected function getPathAbsolute(string $relativePath, string $basePath, AiPromptInterface $prompt) : string
+    protected function getPathAbsolute(string $relativePath, string $basePath, TaskInterface $prompt) : string
     {
         if ($relativePath === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target folder path.');
@@ -181,7 +181,7 @@ trait FileAccessToolTrait
         return $absolutePath;
     }
 
-    protected function getFileInfo(string $relativePath, string $basePath, AiPromptInterface $prompt) : FileInfoInterface
+    protected function getFileInfo(string $relativePath, string $basePath, TaskInterface $prompt) : FileInfoInterface
     {
         if ($relativePath === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing target folder path.');
@@ -425,7 +425,7 @@ trait FileAccessToolTrait
      * @param string $relativePath
      * @return void
      */
-    protected function checkPathAllowed(string $relativePath, AiPromptInterface $prompt): void
+    protected function checkPathAllowed(string $relativePath, TaskInterface $prompt): void
     {
         if ($this->isPathAllowed($relativePath)) {
             return;

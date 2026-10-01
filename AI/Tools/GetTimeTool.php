@@ -4,7 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\DataTypes\DateTimeDataType;
 use exface\Core\Factories\DataTypeFactory;
@@ -35,7 +35,7 @@ class GetTimeTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $dateTime = DateTimeDataType::now();
         return new AiToolResultString($this, $arguments, $dateTime, $this->getReturnDataType());

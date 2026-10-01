@@ -2,7 +2,7 @@
 namespace axenox\GenAI\AI\Tools;
 
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -107,7 +107,7 @@ Place search patterns containing characters such as `|` or parentheses inside ma
 MD;
     }
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $arguments[0] = $this->normalizeGitCommand((string) ($arguments[0] ?? ''));
         return parent::invoke($agent, $prompt, $arguments);
@@ -159,7 +159,7 @@ MD;
      * {@inheritDoc}
      * @see \axenox\GenAI\AI\Tools\CommandLineTool::checkCommandAllowed()
      */
-    protected function checkCommandAllowed(string $command, AiPromptInterface $prompt): void
+    protected function checkCommandAllowed(string $command, TaskInterface $prompt): void
     {
         if (! $this->allowedCommandsInitialized) {
             $this->setAllowedCommands(self::DEFAULT_COMMANDS);

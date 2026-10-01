@@ -6,14 +6,15 @@ use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use axenox\GenAI\Interfaces\KnowledgeBagInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Filesystem\FileInfoInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
@@ -101,23 +102,23 @@ class FileReadTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $task, array $arguments): AiToolResultInterface
     {
         $relativePath = (string) ($arguments[0] ?? '');
-        $fileInfo = $this->getFileInfo($relativePath, $this->getBasePathAbsolute(), $prompt);
+        $fileInfo = $this->getFileInfo($relativePath, $this->getBasePathAbsolute(), $task);
         
         if (! $fileInfo->isFile()) {
-            throw new AiToolRuntimeError($this, $prompt, 'Invalid path: target file does not exist.');
+            throw new AiToolRuntimeError($this, $task, 'Invalid path: target file does not exist.');
         }
 
         if (! $fileInfo->isReadable()) {
-            throw new AiToolRuntimeError($this, $prompt, 'Access denied: target file is not readable.');
+            throw new AiToolRuntimeError($this, $task, 'Access denied: target file is not readable.');
         }
 
         $language = $this->getFileLanguage($fileInfo);
         $content = $fileInfo->openFile()->read();
         if ($content === false) {
-            throw new AiToolRuntimeError($this, $prompt, 'Failed to read file: ' . $relativePath);
+            throw new AiToolRuntimeError($this, $task, 'Failed to read file: ' . $relativePath);
         }
 
         $startWithLine = $arguments[2] ?? 1;
@@ -144,7 +145,7 @@ class FileReadTool extends AbstractAiTool
         }
 
         if ($this->includeInstructionsForGithubCopilot === true) {
-            $result .= $this->buildInstructionsChapter($fileInfo, $prompt, true);
+            $result .= $this->buildInstructionsChapter($fileInfo, $task, true);
         }
 
         return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
@@ -175,10 +176,10 @@ class FileReadTool extends AbstractAiTool
      * Returns an empty string if no applicable instructions were found.
      *
      * @param FileInfoInterface $fileInfo
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $task
      * @return string
      */
-    protected function buildInstructionsChapter(FileInfoInterface $fileInfo, AiPromptInterface $prompt, bool $onlyMetadata = true) : string
+    protected function buildInstructionsChapter(FileInfoInterface $fileInfo, TaskInterface $task, bool $onlyMetadata = true) : string
     {
         $instructions = $this->findInstructionsMetadata($fileInfo);
         if (empty($instructions)) {
@@ -189,7 +190,7 @@ class FileReadTool extends AbstractAiTool
         foreach ($instructions as $instrData) {
             $instructionFile = $instrData['file'];
             $knowledgeKey = $instructionFile->getPathAbsolute();
-            if ($prompt->hasKnowledge($knowledgeKey)) {
+            if ($task instanceof KnowledgeBagInterface && $task->hasKnowledge($knowledgeKey)) {
                 continue;
             }
             // Add matching instructions files
@@ -222,7 +223,9 @@ MD;
                 $chapters .= "\n\n" . MarkdownDataType::convertHeaderLevels($body, 2);
             }
             
-            $prompt->addKnowledge($knowledgeKey, $body);
+            if ($task instanceof KnowledgeBagInterface) {
+                $task->addKnowledge($knowledgeKey, $body);
+            }
         }
 
         if (empty($chapters)) {

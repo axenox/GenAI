@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\FilePathDataType;
@@ -89,7 +89,7 @@ class FileSearchTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $folderPattern = trim((string) ($arguments[0] ?? ''));
         $namePattern = trim((string) ($arguments[1] ?? ''));
@@ -274,10 +274,10 @@ class FileSearchTool extends AbstractAiTool
      * Validates that a relative pattern is safe (relative, no directory traversal) and allowed.
      *
      * @param string $relativePattern
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $prompt
      * @return string
      */
-    protected function validateRelativePattern(string $relativePattern, AiPromptInterface $prompt): string
+    protected function validateRelativePattern(string $relativePattern, TaskInterface $prompt): string
     {
         if (FilePathDataType::isAbsolute($relativePattern)) {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid path: only paths relative to the configured base path are allowed.');

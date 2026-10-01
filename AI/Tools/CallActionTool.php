@@ -4,9 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
-use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\Tasks\GenericTask;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\CodeDataType;
@@ -19,7 +17,6 @@ use exface\Core\Interfaces\Actions\ActionInterface;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Tasks\ResultDataInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
-use exface\Core\Interfaces\TemplateRenderers\TemplateRendererInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\ArrayPlaceholders;
@@ -38,7 +35,7 @@ class CallActionTool extends AbstractAiTool
     /**
      * @inheritDoc
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $namedArgs = [];
         foreach ($this->getArguments() as $i => $param) {

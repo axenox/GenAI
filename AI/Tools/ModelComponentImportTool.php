@@ -7,7 +7,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\DataSheetSchema;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\Behaviors\TimeStampingBehavior;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -36,7 +36,7 @@ class ModelComponentImportTool extends AbstractAiTool
     /**
      * Enriches and imports registry-approved model component DataSheets.
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $warnings = [];
         try {

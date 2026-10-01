@@ -11,7 +11,7 @@ use exface\Core\Interfaces\Tasks\TaskInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiPromptInterface extends TaskInterface, iCanGenerateDebugWidgets
+interface AiPromptInterface extends TaskInterface, KnowledgeBagInterface, iCanGenerateDebugWidgets
 {
     /**
      * 
@@ -44,9 +44,4 @@ interface AiPromptInterface extends TaskInterface, iCanGenerateDebugWidgets
      */
     public function getFiles(): array;
 
-    public function hasKnowledge(string $key) : bool;
-
-    public function addKnowledge(string $key, string $content) : AiPromptInterface;
-    
-    public function getKnowledge() : array;
 }

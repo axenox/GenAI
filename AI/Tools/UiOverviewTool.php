@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
@@ -49,7 +49,7 @@ class UiOverviewTool extends AbstractAiTool
     public const ARG_DEPTH = 'depth';
     public const ARG_FULL_MENU = 'full_menu';
 
-    private ?AiPromptInterface $activePrompt = null;
+    private ?TaskInterface $activeTask = null;
     private array $warnings = [];
     private array $warningKeys = [];
 
@@ -57,9 +57,9 @@ class UiOverviewTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $this->activePrompt = $prompt;
+        $this->activeTask = $prompt;
         $this->warnings = [];
         $this->warningKeys = [];
         $appAlias = trim((string) ($arguments[0] ?? ''));
@@ -75,7 +75,7 @@ class UiOverviewTool extends AbstractAiTool
         try {
             $cachedMarkdown = $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->get($cacheKey);
             if (is_string($cachedMarkdown)) {
-                $this->activePrompt = null;
+                $this->activeTask = null;
                 return new AiToolResultString($this, $arguments, $cachedMarkdown, $this->getReturnDataType());
             }
         } catch (\Throwable $e) {
@@ -131,7 +131,7 @@ class UiOverviewTool extends AbstractAiTool
             }
         }
         $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType(), [], $this->warnings);
-        $this->activePrompt = null;
+        $this->activeTask = null;
         return $result;
     }
 
@@ -635,11 +635,11 @@ class UiOverviewTool extends AbstractAiTool
             return;
         }
         $this->warningKeys[$warningKey] = true;
-        if ($this->activePrompt === null) {
+        if ($this->activeTask === null) {
             $this->getWorkbench()->getLogger()->logException($previous);
             return;
         }
-        $warning = new AiToolRuntimeWarning($this, $this->activePrompt, $message, null, $previous);
+        $warning = new AiToolRuntimeWarning($this, $this->activeTask, $message, null, $previous);
         $this->getWorkbench()->getLogger()->logException($warning);
         $this->warnings[] = $warning;
     }

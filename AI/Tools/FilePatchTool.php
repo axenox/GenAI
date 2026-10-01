@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\StringDataType;
@@ -94,7 +94,7 @@ class FilePatchTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $relativePath = (string) ($arguments[0] ?? '');
         $patch = (string) ($arguments[1] ?? '');
@@ -134,11 +134,11 @@ class FilePatchTool extends AbstractAiTool
      * Parses a patch string into an array of [search, replace] block pairs.
      *
      * @param string $patch
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $prompt
      * @throws AiToolRuntimeError
      * @return array<int,array{0:string,1:string}>
      */
-    protected function parsePatch(string $patch, AiPromptInterface $prompt) : array
+    protected function parsePatch(string $patch, TaskInterface $prompt) : array
     {
         // Normalize line endings to LF for reliable marker detection.
         $normalized = str_replace(["\r\n", "\r"], "\n", $patch);
@@ -192,11 +192,11 @@ class FilePatchTool extends AbstractAiTool
      * @param string $content
      * @param array<int,array{0:string,1:string}> $blocks
      * @param string $relativePath
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $prompt
      * @throws AiToolRuntimeError
      * @return string
      */
-    protected function applyBlocks(string $content, array $blocks, string $relativePath, AiPromptInterface $prompt) : string
+    protected function applyBlocks(string $content, array $blocks, string $relativePath, TaskInterface $prompt) : string
     {
         // Work with LF internally to keep matching consistent, remember the original style for the final output.
         $usesCrLf = strpos($content, "\r\n") !== false;
