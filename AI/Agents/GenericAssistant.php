@@ -340,7 +340,10 @@ class GenericAssistant implements AiAgentInterface
                 );
 
                 $this->toolCalls[] = $toolCallResponses[$callId];
-
+                
+                // TODO move rendering tool result as string to the API adapters. 
+                // Having the result rendering logic in the tool result itself is not flexible enough! The adapter should
+                // decide, if the result should be represented as markdown, as JSON or maybe even as XML!
                 $performedQuery->appendToolMessages($existingCall, $resultOfTool->getValueWithMetadata(), $callId, $performedQuery->getResponseMessage());
                 $existingCall = true;
             }
