@@ -1,7 +1,6 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiToolCallInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use exface\Core\CommonLogic\UxonObject;
@@ -10,6 +9,8 @@ use exface\Core\Exceptions\ExceptionTrait;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Facades\DocsFacade;
 use exface\Core\Factories\WidgetFactory;
+use exface\Core\Interfaces\iCanGenerateDebugWidgets;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use exface\Core\Widgets\DebugMessage;
 
 /**
@@ -26,21 +27,21 @@ use exface\Core\Widgets\DebugMessage;
 class AiToolCriticalError extends RuntimeException
 {
 	private AiToolInterface $tool;
-	private AiPromptInterface $prompt;
+	private TaskInterface $task;
 	private ?AiToolCallInterface $toolCall = null;
 
 	/**
 	 * @param AiToolInterface $tool
-	 * @param AiPromptInterface $prompt
+	 * @param TaskInterface $task
 	 * @param string $message
 	 * @param string|null $alias
 	 * @param \Throwable|null $previous
 	 */
-	public function __construct(AiToolInterface $tool, AiPromptInterface $prompt, string $message, ?string $alias = null, ?\Throwable $previous = null)
+	public function __construct(AiToolInterface $tool, TaskInterface $task, string $message, ?string $alias = null, ?\Throwable $previous = null)
 	{
 		parent::__construct($message, $alias, $previous);
 		$this->tool = $tool;
-		$this->prompt = $prompt;
+		$this->task = $task;
 	}
 
 	/**
@@ -52,11 +53,11 @@ class AiToolCriticalError extends RuntimeException
 	}
 
 	/**
-	 * @return AiPromptInterface
+	 * @return TaskInterface
 	 */
-	public function getPrompt(): AiPromptInterface
+	public function getPrompt(): TaskInterface
 	{
-		return $this->prompt;
+		return $this->task;
 	}
 
 	/**
@@ -155,7 +156,10 @@ MD;
 		}
 		$debugWidget->addTab($toolTab);
 
-		$debugWidget = $this->prompt->createDebugWidget($debugWidget);
+		$debugTask = $this->task;
+		if ($debugTask instanceof iCanGenerateDebugWidgets) {
+			$debugWidget = $debugTask->createDebugWidget($debugWidget);
+		}
 		return $debugWidget;
 	}
 }

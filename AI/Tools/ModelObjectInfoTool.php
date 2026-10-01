@@ -7,7 +7,7 @@ use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\DataTypes\ComparatorDataType;
@@ -38,7 +38,7 @@ class ModelObjectInfoTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $toolWarnings = [];
         $searchTerm = trim((string) ($arguments[0] ?? ''));

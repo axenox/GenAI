@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\Contexts\DebugContext;
@@ -56,7 +56,7 @@ class UiWidgetInfoTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $url = trim((string) ($arguments[0] ?? ''));
         $widgetId = null !== ($arguments[1] ?? null) ? trim((string) $arguments[1]) : null;
@@ -134,7 +134,7 @@ class UiWidgetInfoTool extends AbstractAiTool
     /**
      * Logs the page error and returns it as an expected validation finding.
      *
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $prompt
      * @param array $arguments
      * @param string $url
      * @param ExceptionInterface $pageError
@@ -142,7 +142,7 @@ class UiWidgetInfoTool extends AbstractAiTool
      * @return AiToolResultInterface
      */
     private function createInvalidPageResult(
-        AiPromptInterface $prompt,
+        TaskInterface $prompt,
         array $arguments,
         string $url,
         ExceptionInterface $pageError,
@@ -183,14 +183,14 @@ MD;
     /**
      * Creates and logs a failed tool result.
      *
-     * @param AiPromptInterface $prompt
+    * @param TaskInterface $prompt
      * @param array $arguments
      * @param string $message
      * @param \Throwable|null $previous
      * @return AiToolResultInterface
      */
     private function createErrorResult(
-        AiPromptInterface $prompt,
+        TaskInterface $prompt,
         array $arguments,
         string $message,
         ?\Throwable $previous = null

@@ -6,7 +6,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Exceptions\AiToolRuntimeWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\Facades\DocsFacade\MarkdownPrinters\CodeMarkdownPrinter;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -79,7 +79,7 @@ class GetDocsTool extends AbstractAiTool
      */
     const ARG_URI = 'uri';
 
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($url) = $arguments;
         $url = str_replace('\\/', '/', $url);

@@ -5,7 +5,7 @@ use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolConfigurationError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
-use axenox\GenAI\Interfaces\AiPromptInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -135,7 +135,7 @@ class GetPrintPreviewTool extends AbstractAiTool
      * {@inheritDoc}
      * @see AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, AiPromptInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $printData = $this->getPrintData($arguments);
         

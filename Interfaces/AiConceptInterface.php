@@ -5,10 +5,12 @@ use exface\Core\Interfaces\iCanBeConvertedToUxon;
 use exface\Core\Interfaces\TemplateRenderers\PlaceholderResolverInterface;
 
 /**
- * Concept are resolvers for placeholders in an AI system prompt.
+ * AI concepts are auto-generated pieces of AI prompts, that add knowledge about the environment around the conversation.
  * 
- * These resolvers are instantiated by the agent in context of an AI prompt. Thus, they have access to
- * these two objects and can use them along with their own UXON configuration.
+ * Technically, AI concepts are placeholder resolvers, that get configured in the UXON model of an agent or a skill.
+ * They replace the respective placeholder in the prompt with a generated text in the context of the current
+ * AI prompt. In the end, the context has access to the agent and the prompt and can use information from them to
+ * render the placeholder. 
  * 
  * @author Andrej Kabachnik
  *
