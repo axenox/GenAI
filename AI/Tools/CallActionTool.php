@@ -147,4 +147,25 @@ class CallActionTool extends AbstractAiTool
     {
         return [];
     }
+
+    /**
+     * Returns the first line of the tool class docblock as its default description.
+     *
+     * @return string|null
+     * @throws \ReflectionException
+     */
+    protected function getDescriptionDefault() : ?string
+    {
+        $workbench = $this->getWorkbench();
+        $renderer = new BracketHashStringTemplateRenderer($workbench);
+        $renderer->addPlaceholder(new FormulaPlaceholders($workbench));
+        $renderer->addPlaceholder(new TranslationPlaceholders($workbench));
+        $renderer->addPlaceholder(new ConfigPlaceholders($workbench));
+        $renderer->setIgnoreUnknownPlaceholders(true);
+        
+        $action = $this->getAction($renderer);
+        $hint = $action->getHint();
+        $name = $action->getName();
+        return 'Call action "' . $name . '". ' . $hint;
+    }
 }
