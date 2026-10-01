@@ -4,7 +4,7 @@ This roadmap describes how AI tools configured in ExFace can be exposed to agent
   
 The recommended implementation uses the official [MCP PHP SDK](https://github.com/modelcontextprotocol/php-sdk) behind adapters owned by GenAI. A dedicated CLI runner should bootstrap the process and select the configured endpoint, while the SDK owns the MCP protocol loop.  
 
-For the configuration of an MCP endpoint, we reuse the existing UI and code of agents with a new `MCPEndpoint` agent prototype. While not being an AI agent really, this prototype will allow us to reuse a lot of the existing framework as well as to benefit of future enhancements. 
+For the configuration of an MCP endpoint, we reuse the existing UI and code of agents with a new `McpServer` agent prototype. While not being an AI agent itself, this prototype allows us to reuse much of the existing framework and benefit from future enhancements.
   
 ## Requirements  
   
@@ -83,8 +83,8 @@ flowchart LR
 ### Classes and namespaces  
   
 - `axenox\GenAI\`
-	- `AI\Agents\McpEndpoint` - agent prototype to be used for endpoint definition
-	- `Facades\AiMcpConsoleFacade` - runs the MCP process, reacts to JSON rpc commands, instantiates the workbench, invokes tools, builds responses. 
+    - `AI\Agents\McpServer` - agent prototype used to define an MCP endpoint.
+    - `Facades\AiMcpCliServerFacade` - runs the MCP process, reacts to JSON-RPC commands, instantiates the workbench, invokes tools and builds responses.
 	- `Factories\McpFactory` collection of mcp related factory methods. This additional decoupling layer should allow MCP related code to use optimized Constructor methods for tools and other things - even if they currently will just proxy to the regular AiFactory. 
 	- `Common\Mcp\` - namespace for all other MCP related classes like tool adapter, registry, etc. 
   
@@ -119,7 +119,7 @@ As of August 2026, `mcp/sdk` 0.8 requires PHP 8.1 while ExFace Core declares PHP
   
 ### Endpoint configuration  
   
-To allow easy configurations, represent an MCP endpoint using a SPECIALIZED AI agent prototype class - `McpServer`. Do not extend GenericAssistant. Instead, extrack code required for both of them into `axenox\GenAi\Common\AbstractAgent`. This reuses the existing designer UI, tool UXON, selectors, versioning and enable/disable lifecycle. In the UI it should be called an **MCP endpoint**, not a dummy agent.  
+To allow easy configuration, represent an MCP endpoint using the specialized AI agent prototype class `McpServer`. Do not extend `GenericAssistant`. Instead, extract the code required by both into `axenox\GenAI\Common\AbstractAgent`. This reuses the existing designer UI, tool UXON, selectors, versioning and enable/disable lifecycle. In the UI it should be called an **MCP endpoint**, not a dummy agent.  
   
 An MCP endpoint prototype must:  
   
@@ -129,7 +129,7 @@ An MCP endpoint prototype must:
 - provide configured tools to the MCP capability registry;  
 - allow resources and prompts to be added later.  
   
-In contrast to the `GenericAssistant`, the MCP does not need concepts - only tools. In fact, it does not even need a user prompt or instructions, but for now, let us still keep full compatibility with AIPrompt task class for both. Create a compatible `McpTask extends AI Prompt` for now. We will take care of separating the task classes later. Same goes for the `AiConversation` - just keep it for now.  
+In contrast to `GenericAssistant`, an MCP endpoint does not need concepts, a user prompt, rendered instructions or an LLM connection. `AiToolInterface::invoke()` already accepts the generic Core `TaskInterface`, so MCP calls use a dedicated `AiMcpTask extends GenericTask`; they must not manufacture an `AiPrompt` merely to invoke a tool. The endpoint may still use skills as a source of configured tools, but skill instructions and concepts are irrelevant to MCP capability registration.  
 Example endpoint configuration:  
   
 ```json  
@@ -142,7 +142,7 @@ Example endpoint configuration:
 	}  
 ```  
   
-The new agent prototype `McpEndpoint` shall provide the UXON model required to configure the tools available for each MPC endpoint. It will allow agent designers to define MCP endpoints and the available tools in a familiar way - using `tools` UXON property or by adding skills. 
+The new agent prototype `McpServer` shall provide the UXON model required to configure the tools available for each MCP endpoint. It allows agent designers to define MCP endpoints and their available tools in a familiar way, using the `tools` UXON property or by adding skills. 
   
 ### Tool discovery and registration  
   
@@ -197,26 +197,28 @@ Most existing tool results can initially be returned as text. Structured content
   
 ### Invocation context  
   
-Existing tools require an `AiAgentInterface` and `AiPromptInterface` when invoked. The MCP endpoint prototype can satisfy the agent argument, but an MCP call is not an AI prompt. Instead the invoke() method should take any task (TaskInterface) as argument. If it requires prompt specific methods, it should check if the current task implements `AiTaskInterface`.
+The tool contract has already been generalized: `AiToolInterface::invoke()` accepts an `AiAgentInterface`, a Core `TaskInterface` and the positional argument values. Existing LLM-driven calls continue to pass an `AiPromptInterface`, while MCP passes an `AiMcpTask`. Tool implementations that need prompt-specific state must check for `AiPromptInterface` explicitly and reject incompatible task types with a clear tool error. Tools that only need generic task context must not depend on AI prompt methods.
 
-#### MPC task
+The MCP adapter remains responsible for converting named MCP arguments into the positional array expected by existing tools. Changing the tool contract to named arguments is outside this roadmap.
+
+#### MCP task
   
-For the MPC use-case introduce an specific `AiMpcTask` class, that extends `GenericTask`. The task could help carry information like below if needed:
+Introduce a specific `AiMcpTask` class extending `GenericTask`. It carries MCP invocation context between the facade and endpoint, including where needed:
   
 - endpoint and session identifiers;  
 - MCP client information;  
 - tool-call ID and named arguments;  
 - optional workspace or project context supplied by the IDE configuration.  
 
-All this information is probably not required in the tools themselves, but in the logic of the MCP agent prototype, so the MPC task should transport those between facade and agent MPC endpoint. 
+Most of this information is intended for endpoint policy and audit logging rather than individual tools. The task provides it without coupling the generic tool interface to MCP classes.
 
-#### Conversation
-  
-Fake (empty) user messages if needed, but do not manufacture model connections or token metadata merely to satisfy the current conversation implementation. Where a tool assumes chat-specific prompt state, either adapt that state explicitly or mark the tool as unsuitable for MCP until its context requirements are generalized.  
+Do not create fake user messages, model connections or token metadata. Where a tool assumes chat-specific prompt state, either generalize that dependency explicitly or mark the tool as unsuitable for MCP.
   
 ### Logging and designer visibility  
   
-The existing conversation UI is a useful presentation pattern, but `AiConversation` is coupled to `GenericAssistant`, `AiPrompt`, LLM messages, model connections, tokens and costs. MCP calls do not fit this architecture well, but we will take care of this later. For now, make sure, the AiConversation has fallbacks in case anything is missing. Also replace class-bound type hints with interfaces where appropriate. Take notes in the class doc of `AiConversation` about what you would recommend to separate true Ai conversations from MCP calls in future.  
+The conversation refactor has separated the persistence contract as `AiConversationInterface` and moved conversation creation/restoration into `AiFactory`. This is useful for AI runtime composition, but the contract remains deliberately AI-specific: it owns agent-version identity, system/user/assistant messages, `AiQueryInterface`, model information, tokens and costs.
+
+MCP calls must therefore not be forced through `AiConversation` and must not add null fallbacks for fabricated LLM state. Phase 4 introduces MCP-specific session and invocation records. Their monitoring pages may reuse the interaction patterns of the conversation UI, while their persistence model records MCP-native request, result, client, endpoint and timing data. Shared presentation code may depend on interfaces where that removes genuine duplication, but the persistence contracts remain separate.
   
 ### Multiple MCP servers  
   
@@ -294,7 +296,7 @@ Probably not. The useful similarity is limited to starting ExFace from a CLI pro
 | Human-readable console output is expected   | Any non-protocol `STDOUT` output corrupts the connection |  
 | The process normally exits after one action | The process remains alive until the IDE disconnects      |  
   
-Extending `ConsoleFacade` would couple the MCP server to command loading, command abbreviation, Symfony exception rendering and human-oriented output that it does not need. A separate `vendor/bin/mcp` executable and `AiMcpServerFacade` are smaller and make the protocol boundary explicit.  
+Extending `ConsoleFacade` would couple the MCP server to command loading, command abbreviation, Symfony exception rendering and human-oriented output that it does not need. A separate `vendor/bin/mcp` executable and `AiMcpCliServerFacade` are smaller and make the protocol boundary explicit.  
   
 If ExFace authorization points require a `FacadeInterface`, introduce a minimal MCP-specific facade or security subject for authorization only. It should be composed by the runner rather than inherit from `ConsoleFacade`, and it should not own MCP dispatch.  
   
@@ -558,9 +560,9 @@ Every phase names a primary test approach in [Testing](#recommended-test-after-e
   
 ### Phase 1: Compatibility spike  
 
-The official MCP SDK has already been installed via composer. 
+The official MCP SDK has already been installed via Composer. The spike must isolate it behind GenAI-owned adapters and confirm that the dependency is declared by the package that ships the MCP executable. 
   
-- Add the official MCP SDK behind a small GenAI-owned server factory.  
+- Wire the installed official MCP SDK behind a small GenAI-owned server factory.  
 - Create a temporary STDIO entry point that exposes one hard-coded diagnostic tool.  
 - Add the `smoke.jsonl` session and the `STDOUT`-purity assertion before adding any client tooling.  
 - Compare measured latency and memory use for a fresh workbench per operation against a long-lived workbench.  
@@ -575,6 +577,7 @@ Describe in `GenAI/Docs/MCP`, how to test the created MCP server.
   
 - Implement `AiToolMcpAdapter` and the generic SDK tool handler.  
 - Normalize named MCP arguments into the positional form expected by existing AI tools.  
+- Pass an `AiMcpTask` to the already generalized `AiToolInterface::invoke()` contract and audit the initially exposed tools for hidden `AiPromptInterface` assumptions.  
 - Map `AiToolResultInterface`, warnings and exceptions to MCP results.  
 - Expose one configured `ModelSearchTool` and verify its schema and behavior in both IDEs.  
   
@@ -582,11 +585,11 @@ The adapter is successful when an unchanged existing AI tool is listed and invok
   
 ### Phase 3: Configured MCP endpoints  
   
-- Add the specialized MCP endpoint agent prototype without an LLM connection requirement.  
+- Add the specialized `McpServer` agent prototype without an LLM connection requirement.  
 - Add an endpoint loader that resolves aliases and semantic versions.  
 - Implement `McpCapabilityRegistry` using only tools configured on the selected endpoint.  
 - Add `vendor/bin/mcp <endpoint-selector>` to the GenAI Composer package.  
-- Implement `AiMcpServerFacade` and a fresh workbench operation scope with authentication and authorization.  
+- Implement `AiMcpCliServerFacade` and a fresh workbench operation scope with authentication and authorization.  
 - Add designer-facing documentation and a default development endpoint with a conservative tool set.  
   
 The endpoint implementation is successful when two IDE server registrations can launch the same binary with different selectors and receive different tool lists.  
