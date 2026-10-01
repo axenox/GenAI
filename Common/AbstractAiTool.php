@@ -9,6 +9,7 @@ use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\WorkbenchInterface;
+use Wingu\OctopusCore\Reflection\ReflectionClass;
 
 /**
  * Base class for AI tools
@@ -128,7 +129,18 @@ abstract class AbstractAiTool implements AiToolInterface
      */
     public function getDescription() : ?string
     {
-        return $this->description;
+        return $this->description ?? $this->getDescriptionDefault();
+    }
+
+    /**
+     * Returns the first line of the tool class docblock as its default description.
+     *
+     * @return string|null
+     * @throws \ReflectionException
+     */
+    protected function getDescriptionDefault() : ?string
+    {
+        return (new ReflectionClass($this))->getReflectionDocComment()->getShortDescription();
     }
 
     /**
