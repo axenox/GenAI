@@ -8,15 +8,9 @@ Skills are managed in Power UI under **Administration > AI > AI Skills**. A skil
 
 ## Using a skill
 
-Assign skills in the skill list of an agent version. The local skill alias automatically becomes the placeholder. To include the instructions of a skill with alias `test` in the agent prompt, use it like a concept:
+Assign skills in the skill list of an agent version. Their instructions are appended to the system prompt after the agent instructions, and their tools are made available automatically. Agent instructions do not need skill placeholders.
 
-```markdown
-You are a helpful assistant.
-
-[#test#]
-```
-
-The placeholder is optional. If `[#test#]` is absent, the skill instructions are not added to the prompt. The skill is still loaded and its tools remain available to the agent.
+Placeholders are supported for skills nested inside another skill. This allows the parent skill to place nested instructions at a specific position while importing the nested tools independently.
 
 ## Skill configuration
 
@@ -25,7 +19,7 @@ A skill is configured similarly to a normal agent: its instructions contain the 
 The standard `GenericSkill` accepts these optional properties in `CONFIG_UXON`:
 
 - `concepts`: named concept configurations used inside the skill instructions.
-- `skills`: named skills whose rendered instructions can be inserted through local placeholders.
+- `skills`: named nested skills whose rendered instructions can be inserted through local placeholders.
 - `tools`: named tool configurations contributed to the agent.
 
 Concepts add background information to a skill. Nested skills can still be configured below `skills` inside the skill's own `CONFIG_UXON`:

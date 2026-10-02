@@ -3,13 +3,11 @@ namespace axenox\GenAI\AI\Skills;
 
 use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Factories\AiFactory;
-use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
-use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiSkillUxonSchema;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
@@ -44,8 +42,6 @@ class GenericSkill implements AiSkillInterface
     /** @var \Throwable[] */
     private array $warnings = [];
     private ?string $alias = null;
-    private bool $autoAppend = true;
-
     /**
      * Creates a skill for a task handler and an optional prompt-rendering context.
      */
@@ -68,7 +64,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns the rendered instruction text for this skill.
+        * {@inheritdoc}
+        * @see AiSkillInterface::getInstructions()
      */
     public function getInstructions() : string
     {
@@ -76,7 +73,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns the local placeholder configured by the consuming agent.
+        * {@inheritdoc}
+        * @see AiSkillInterface::getPlaceholder()
      */
     public function getPlaceholder() : string
     {
@@ -84,7 +82,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Backwards compatibility for legacy renderers.
+        * {@inheritdoc}
+     * @see PlaceholderResolverInterface::resolve()
      */
     public function resolve(array $placeholders) : array
     {
@@ -96,32 +95,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns TRUE if this skill may be appended to the system prompt automatically when its
-     * placeholder is not explicitly used.
-     */
-    public function isAutoAppendEnabled() : bool
-    {
-        return $this->autoAppend;
-    }
-
-    /**
-     * Set to FALSE to prevent this skill from being appended automatically when its placeholder
-     * is not explicitly used inside the instructions text.
-     *
-     * @uxon-property auto_append
-     * @uxon-type boolean
-     * @uxon-default true
-     */
-    protected function setAutoAppend(bool $value) : AiSkillInterface
-    {
-        $this->autoAppend = $value;
-        return $this;
-    }
-
-    /**
-     * Returns direct and concept-contributed tools, keyed by function name.
-     *
-     * @return AiToolInterface[]
+        * {@inheritdoc}
+        * @see AiSkillInterface::getTools()
      */
     public function getTools() : array
     {
@@ -168,9 +143,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns tool configuration warnings from this skill and its nested skills.
-     *
-     * @return \Throwable[]
+        * {@inheritdoc}
+        * @see AiSkillInterface::getWarnings()
      */
     public function getWarnings() : array
     {
@@ -179,7 +153,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Exports the effective skill configuration.
+        * {@inheritdoc}
+        * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
      */
     public function exportUxonObject()
     {
@@ -187,7 +162,8 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-     * Returns the UXON schema used by skill editors.
+        * {@inheritdoc}
+        * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::getUxonSchemaClass()
      */
     public static function getUxonSchemaClass() : ?string
     {

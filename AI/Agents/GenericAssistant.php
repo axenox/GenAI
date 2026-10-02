@@ -1,7 +1,6 @@
 <?php
 namespace axenox\GenAI\AI\Agents;
 
-use axenox\GenAI\AI\Concepts\SkillTextConcept;
 use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
@@ -17,7 +16,6 @@ use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
-use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
@@ -91,8 +89,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /** @var AiConceptInterface[]|null */
     protected ?array $concepts = null;
-
-    private bool $appendUnusedSkills = true;
 
     private $maxNumberOfCalls = 10;
 
@@ -325,27 +321,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $this;
     }
 
-    /**
-     * Set to FALSE to disable appending skills to the system prompt automatically when their
-     * placeholder is not used explicitly inside the instructions.
-     *
-     * The default is TRUE so unused skills can still be appended at the end unless another concept
-     * has already rendered the same skill text.
-     *
-     * @uxon-property append_unused_skills
-     * @uxon-type boolean
-     * @uxon-default true
-     *
-     * @param bool $value
-     * @return AiAgentInterface
-     */
-    protected function setAppendUnusedSkills(bool $value) : AiAgentInterface
-    {
-        $this->appendUnusedSkills = $value;
-        $this->systemPromptRendered = null;
-        return $this;
-    }
-
     public function getRawConcepts() : ?UxonObject
     {
         if ($this->conceptConfig instanceof UxonObject) {
@@ -433,15 +408,8 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         $renderer = $this->createPromptRenderer($prompt);
         $this->init($prompt);
 
-        $renderedSkillAliases = [];
         foreach ($this->getConcepts() as $placeholderResolver) {
             $renderer->addPlaceholder($placeholderResolver);
-            if ($placeholderResolver instanceof SkillTextConcept) {
-                $skillAlias = $this->extractSkillAliasFromConcept($placeholderResolver);
-                if ($skillAlias !== null) {
-                    $renderedSkillAliases[$skillAlias] = true;
-                }
-            }
         }
 
         if ($this->systemPromptRendered === null) {
@@ -453,9 +421,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
                     $systemPrompt = $this->systemPrompt;
                 }
                 $this->systemPromptRendered = $renderer->render($systemPrompt ?? '');
-                if ($this->appendUnusedSkills === true) {
-                    $this->systemPromptRendered .= $this->renderUnusedSkills($systemPrompt ?? '', $renderedSkillAliases);
-                }
+                $this->systemPromptRendered .= $this->renderSkills();
             } catch (\Throwable $e) {
                 throw new AiConceptRenderingError($renderer, 'Cannot apply AI concepts. ' . $e->getMessage(), null, $e, $systemPrompt);
             }
@@ -496,22 +462,14 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     }
 
     /**
-     * Renders skills, whose placeholder was not used in the instructions, but which allow to be
-     * appended automatically (see `auto_append` property of a skill).
+     * Renders the instructions of all assigned skills as a system-prompt appendix.
      *
-     * @param string $rawInstructions
      * @return string
      */
-    protected function renderUnusedSkills(string $rawInstructions, array $renderedSkillAliases = []) : string
+    protected function renderSkills() : string
     {
         $appendix = '';
         foreach ($this->getSkills() as $skill) {
-            if ($this->isSkillRenderedByConcept($skill, $renderedSkillAliases)) {
-                continue;
-            }
-            if (! $skill->isAutoAppendEnabled()) {
-                continue;
-            }
             $skillText = $skill->getInstructions();
             if (trim($skillText) === '') {
                 continue;
@@ -519,32 +477,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             $appendix .= "\n\n" . $skillText;
         }
         return $appendix;
-    }
-
-    protected function extractSkillAliasFromConcept(SkillTextConcept $concept) : ?string
-    {
-        $uxon = $concept->exportUxonObject();
-        if (! $uxon instanceof UxonObject) {
-            return null;
-        }
-
-        $skillAlias = trim((string) ($uxon->getProperty('skill_alias') ?? $uxon->getProperty('skill') ?? ''));
-        return $skillAlias !== '' ? $skillAlias : null;
-    }
-
-    protected function isSkillRenderedByConcept(AiSkillInterface $skill, array $renderedSkillAliases = []) : bool
-    {
-        $uxon = $skill->exportUxonObject();
-        if (! $uxon instanceof UxonObject) {
-            return false;
-        }
-
-        $skillAlias = trim((string) ($uxon->getProperty('alias') ?? ''));
-        if ($skillAlias === '') {
-            return false;
-        }
-
-        return isset($renderedSkillAliases[$skillAlias]);
     }
 
     protected function getApp(AiPromptInterface $prompt) : ?AppInterface
