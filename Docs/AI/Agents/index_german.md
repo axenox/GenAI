@@ -103,9 +103,7 @@ Zur Laufzeit rendert der Agent zunächst die Concepts und ersetzt die Platzhalte
 
 ## Skills konfigurieren
 
-Skills sind wiederverwendbare, nicht versionierte Konfigurationen, die in der Skill-Liste einer Agent-Version zugeordnet werden. Der lokale Skill-Alias wird automatisch zum Prompt-Placeholder. Ein Skill mit Alias `test` kann deshalb ohne `skills`-Property in `CONFIG_UXON` als `[#test#]` in die Agent-Instructions eingefügt werden.
-
-Die Verwendung des Platzhalters ist optional. Ohne `[#test#]` werden die Skill-Instructions nicht in den System-Prompt eingefügt, der Skill wird aber weiterhin geladen und seine Tools bleiben verfügbar. Konfiguration und Kollisionsregeln sind in der [Skill-Referenz](../Skills/index_german.md) beschrieben.
+Skills sind wiederverwendbare, nicht versionierte Konfigurationen, die in der Skill-Liste einer Agent-Version zugeordnet werden. Ihre Instructions werden nach den Agent-Instructions an den System-Prompt angehängt und ihre Tools automatisch bereitgestellt. Konfiguration, Platzhalter für verschachtelte Skills und Kollisionsregeln sind in der [Skill-Referenz](../Skills/index_german.md) beschrieben.
 
 ## Tools konfigurieren
 
@@ -140,7 +138,7 @@ Die Beschreibung sollte dem LLM eindeutig vermitteln, wann es das Tool verwenden
 4. Konfigurieren Sie das LLM oder die Datenverbindung.
 5. Verfassen Sie die Anweisungen und fügen Sie die erforderlichen Concept-Platzhalter hinzu.
 6. Konfigurieren Sie die Concepts in `CONFIG_UXON` und stimmen Sie die Platzhalternamen mit denen in den Anweisungen ab.
-7. Ordnen Sie wiederverwendbare Skills in der Skill-Liste der Agent-Version zu und verwenden Sie deren Alias-Placeholder nur, wenn der Skill-Text benötigt wird.
+7. Ordnen Sie wiederverwendbare Skills in der Skill-Liste der Agent-Version zu; ihre Instructions und Tools werden automatisch eingebunden.
 8. Konfigurieren Sie Tools in `CONFIG_UXON`, wenn der Agent aktiv Daten laden oder Aktionen vorbereiten muss.
 9. Testen Sie den Agenten mit Testfällen und Konversationsprotokollen und pflegen Sie Verbesserungen als neue Versionen.
 

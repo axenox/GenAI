@@ -102,9 +102,7 @@ At runtime, the agent first renders the concepts and replaces the placeholders i
 
 ## Configuring skills
 
-Skills are reusable, non-versioned configurations assigned in the skill list of an agent version. The local skill alias automatically becomes its prompt placeholder. A skill with alias `test` can therefore be inserted into the agent instructions as `[#test#]` without adding a `skills` property to `CONFIG_UXON`.
-
-Using the placeholder is optional. Without `[#test#]`, the skill instructions are not inserted into the system prompt, but the skill is still loaded and its tools remain available. See the [skill reference](../Skills/index.md) for configuration and collision rules.
+Skills are reusable, non-versioned configurations assigned in the skill list of an agent version. Their instructions are appended to the system prompt after the agent instructions, and their tools are made available automatically. See the [skill reference](../Skills/index.md) for configuration, nested skill placeholders, and collision rules.
 
 ## Configuring tools
 
@@ -139,7 +137,7 @@ The description should clearly tell the LLM when to use the tool and which value
 4. Configure the LLM or data connection.
 5. Write the instructions and add the required concept placeholders.
 6. Configure concepts in `CONFIG_UXON` and match the placeholder names to those in the instructions.
-7. Assign reusable skills in the agent version's skill list; include their alias placeholders in the instructions only when their text is needed.
+7. Assign reusable skills in the agent version's skill list; their instructions and tools are included automatically.
 8. Configure tools in `CONFIG_UXON` if the agent needs to actively load data or prepare actions.
 9. Test the agent with test cases and conversation logs, and maintain improvements as new versions.
 

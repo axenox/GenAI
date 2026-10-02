@@ -8,15 +8,9 @@ Skills werden in Power UI unter **Administration > AI > AI Skills** verwaltet. E
 
 ## Skill verwenden
 
-Skills werden in der Skill-Liste einer Agent-Version zugeordnet. Der lokale Skill-Alias wird automatisch zum Placeholder. Um die Instructions eines Skills mit Alias `test` in den Agent-Prompt einzufügen, wird er wie ein Concept verwendet:
+Skills werden in der Skill-Liste einer Agent-Version zugeordnet. Ihre Instructions werden nach den Agent-Instructions an den System-Prompt angehängt und ihre Tools automatisch bereitgestellt. In den Agent-Instructions werden keine Skill-Platzhalter benötigt.
 
-```markdown
-Du bist ein hilfreicher Assistent.
-
-[#test#]
-```
-
-Der Platzhalter ist optional. Fehlt `[#test#]`, werden die Skill-Instructions nicht in den Prompt eingefügt. Der Skill wird trotzdem geladen und seine Tools bleiben für den Agenten verfügbar.
+Platzhalter werden weiterhin für Skills unterstützt, die in einem anderen Skill verschachtelt sind. Dadurch kann der übergeordnete Skill die verschachtelten Instructions gezielt platzieren und die verschachtelten Tools unabhängig davon übernehmen.
 
 ## Skill-Konfiguration
 
@@ -25,7 +19,7 @@ Ein Skill wird ähnlich wie ein normaler Agent konfiguriert: Die Instructions en
 Der Standardprototyp `GenericSkill` akzeptiert folgende optionale Eigenschaften in `CONFIG_UXON`:
 
 - `concepts`: benannte Concept-Konfigurationen für die Skill-Instructions.
-- `skills`: benannte Skills, deren gerenderte Instructions über lokale Platzhalter eingefügt werden können.
+- `skills`: benannte verschachtelte Skills, deren gerenderte Instructions über lokale Platzhalter eingefügt werden können.
 - `tools`: benannte Tool-Konfigurationen, die dem Agenten bereitgestellt werden.
 
 Concepts ergänzen einen Skill um Hintergrundinformationen. Verschachtelte Skills können weiterhin unter `skills` im eigenen `CONFIG_UXON` des Skills konfiguriert werden:
