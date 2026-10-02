@@ -57,21 +57,21 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Model Component Lookup",
+            "_EXPORT_SUMMARY": "Read metamodel",
             "CREATED_ON": "2026-09-10 00:00:00",
-            "MODIFIED_ON": "2026-09-10 00:00:00",
+            "MODIFIED_ON": "2026-09-30 10:19:05",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x5a1d8e6c2f3b4a7d9e0c1f2a3b4c5d6e",
-            "NAME": "Model Component Lookup",
+            "NAME": "Read metamodel",
             "ALIAS": "ModelRead",
-            "DESCRIPTION": "Finds, verifies, and reads model components with search, lookup, and validation tools without changing model data.",
+            "DESCRIPTION": "Allows an LLM to read the model, search for components and UXON prototypes and validate UXON.",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
                 "# MODEL READ",
                 "",
-                "Tools: `SearchModelComponents`, `DescribeModelComponent`, `FindModelObject`, `GetDatabaseSchema`, `GetUxonPrototype`, `SearchUxonPrototypes`, `ValidateUxon`, `ReadDataSheet`.",
+                "Tools: `SearchModelComponents`, `DescribeModelComponent`, `FindModelObject`, `GetDatabaseSchema`, `GetUxonPrototype`, `SearchUxonPrototypes`, `ValidateUxon`.",
                 "",
                 "Use these tools to find and read model components, objects, database schemas, UXON prototypes, validation results, and stored rows. If the target is unknown, search first; request only required columns and filtered rows; validate UXON before a configured write step."
             ],
@@ -104,10 +104,6 @@
                     "ValidateUxon": {
                         "alias": "axenox.GenAI.UxonValidateTool",
                         "description": "Validate UXON and return `path`/`message` diagnostics."
-                    },
-                    "ReadDataSheet": {
-                        "alias": "axenox.GenAI.DataSheetReadTool",
-                        "description": "Read filtered object rows and metadata."
                     }
                 }
             },
