@@ -72,8 +72,6 @@ Ein typischer Ausschnitt sieht wie folgt aus:
 
 Die Eigenschaftsnamen im UXON entsprechen den konfigurierbaren Eigenschaften des Prototyps. Bei `GenericAssistant` gehören `tools`, `concepts`, `response_json_schema` und weitere dokumentierte UXON-Eigenschaften zu den wichtigsten Eigenschaften. Skills werden separat der Agent-Version zugeordnet und nicht in `CONFIG_UXON` gespeichert.
 
-Für Agenten, die zusätzlich eine strukturierte Selbstreflexion liefern sollen, kann `feedback_mode` aktiviert werden. In diesem Modus wird das JSON-Antwortschema um ein `feedback`-Objekt erweitert, das `tool_reasoning`, `new_tools` und `improvement_suggestions` enthält. Dadurch kann das LLM den Ablauf begründen, Toolaufrufe erklären, fehlende Tools mit Begründung vorschlagen und konkrete Verbesserungen formulieren.
-
 ## Anweisungen und Concepts
 
 Concepts sind Platzhalter, die Teile des System-Prompts dynamisch erzeugen. Sie werden im UXON unter `concepts` gepflegt. Der Schlüssel ist der in den Anweisungen verwendete Platzhaltername.
