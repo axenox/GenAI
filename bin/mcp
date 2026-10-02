@@ -28,7 +28,7 @@ ini_set('log_errors', '1');
 $endpointSelector = $argv[1] ?? null;
 if ($endpointSelector === null || in_array($endpointSelector, ['-h', '--help'], true)) {
     fwrite(STDOUT, "Usage: vendor/bin/mcp <endpoint-selector>\n");
-    fwrite(STDOUT, "Phase 1 example: vendor/bin/mcp axenox.genai:diagnostics\n");
+    fwrite(STDOUT, "Example: vendor/bin/mcp axenox.GenAI.ide_mcp_server\n");
     exit($endpointSelector === null ? 1 : 0);
 }
 

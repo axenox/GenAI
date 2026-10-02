@@ -15,7 +15,7 @@ class AiMcpTask extends GenericTask
      * Creates an MCP task for one capability operation.
      *
      * @param WorkbenchInterface $workbench Workbench scope owned by the operation.
-     * @param string $endpointSelector Selector of the MCP endpoint or Phase 2 test agent.
+     * @param string $endpointSelector Selector of the MCP endpoint.
      */
     public function __construct(WorkbenchInterface $workbench, string $endpointSelector)
     {
