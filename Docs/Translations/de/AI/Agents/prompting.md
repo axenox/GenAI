@@ -1,6 +1,6 @@
 # Tipps und Tricks für Agent-Prompts
 
-[English](prompting.md)
+[English](../../../../AI/Agents/prompting.md)
 
 Diese Hinweise ergänzen die allgemeine Beschreibung von Agentenversionen, ohne die Grundlagen aus der Übersicht zu wiederholen.
 

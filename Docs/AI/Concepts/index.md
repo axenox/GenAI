@@ -1,6 +1,6 @@
 # Agent concept reference
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Concepts/index.md)
 
 Concepts provide context that an agent should receive automatically with its instructions. They resolve named placeholders while the prompt is being built, before the request is sent to the LLM. This makes them suitable for information that is required in every relevant conversation and should not depend on the model deciding to call a tool.
 

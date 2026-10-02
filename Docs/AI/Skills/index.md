@@ -1,6 +1,6 @@
 # AI skills
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Skills/index.md)
 
 AI skills are reusable, non-versioned building blocks for agents. A skill can contain instructions, concepts, and tools. All three parts are optional.
 

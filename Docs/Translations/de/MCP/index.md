@@ -1,6 +1,6 @@
 # MCP-Server
 
-[English](index.md)
+[English](../../../MCP/index.md)
 
 Der GenAI-MCP-Server stellt Tools aktivierter, versionierter `McpServer`-Task-Handler aus dem
 ExFace-Modell bereit. Jeder Prozess bedient genau einen Endpoint-Selektor und veröffentlicht nur die

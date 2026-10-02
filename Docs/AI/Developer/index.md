@@ -1,6 +1,6 @@
 # Developer architecture
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Developer/index.md)
 
 This page defines the responsibility boundaries of the GenAI building blocks. The detail pages document their concrete configuration and available prototypes.
 

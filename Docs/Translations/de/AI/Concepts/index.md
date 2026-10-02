@@ -1,6 +1,6 @@
 # Referenz der Agenten-Concepts
 
-[English](index.md)
+[English](../../../../AI/Concepts/index.md)
 
 Concepts stellen Kontext bereit, den ein Agent automatisch zusammen mit seinen Anweisungen erhalten soll. Sie lösen benannte Platzhalter auf, während der Prompt erstellt wird, noch bevor die Anfrage an das LLM gesendet wird. Dadurch eignen sie sich für Informationen, die in jeder relevanten Konversation erforderlich sind und nicht davon abhängen sollen, dass sich das Modell für den Aufruf eines Tools entscheidet.
 

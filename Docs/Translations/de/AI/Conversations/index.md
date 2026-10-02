@@ -1,6 +1,6 @@
 # Conversations
 
-[English](index.md)
+[English](../../../../AI/Conversations/index.md)
 
 Eine Conversation ist ein persistiertes Gespräch zwischen einem individuellen Teilnehmer und genau einer ausführenden KI. Der individuelle Teilnehmer ist typischerweise ein Benutzer, kann aber auch eine andere KI beziehungsweise ein orchestrierender Agent sein.
 

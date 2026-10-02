@@ -1,6 +1,6 @@
 # MCP server
 
-[Deutsch](index_german.md)
+[Deutsch](../Translations/de/MCP/index.md)
 
 The GenAI MCP server exposes tools from enabled, versioned `McpServer` task handlers in the ExFace
 model. Each process serves one endpoint selector and advertises only the tools configured directly

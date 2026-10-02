@@ -1,6 +1,6 @@
 # KI-Agenten
 
-[English](index.md)
+[English](../../../../AI/Agents/index.md)
 
 Ein Agent ist die funktionale Einheit, die einen Prompt empfängt und eine Antwort vom LLM erzeugt. In der Konfiguration besteht ein Agent aus zwei Ebenen:
 
@@ -23,10 +23,10 @@ für diesen Prototyp nicht geladen.
 
 ## Verwandte Themen
 
-- [Prompting, Concepts und Tools](prompting_german.md)
-- [Skill-Referenz](../Skills/index_german.md)
-- [Tool-Referenz](../Tools/index_german.md)
-- [Concept-Referenz](../Concepts/index_german.md)
+- [Prompting, Concepts und Tools](prompting.md)
+- [Skill-Referenz](../Skills/index.md)
+- [Tool-Referenz](../Tools/index.md)
+- [Concept-Referenz](../Concepts/index.md)
 
 ## Aufbau einer Agentenversion
 
@@ -103,7 +103,7 @@ Zur Laufzeit rendert der Agent zunächst die Concepts und ersetzt die Platzhalte
 
 ## Skills konfigurieren
 
-Skills sind wiederverwendbare, nicht versionierte Konfigurationen, die in der Skill-Liste einer Agent-Version zugeordnet werden. Ihre Instructions werden nach den Agent-Instructions an den System-Prompt angehängt und ihre Tools automatisch bereitgestellt. Konfiguration, Platzhalter für verschachtelte Skills und Kollisionsregeln sind in der [Skill-Referenz](../Skills/index_german.md) beschrieben.
+Skills sind wiederverwendbare, nicht versionierte Konfigurationen, die in der Skill-Liste einer Agent-Version zugeordnet werden. Ihre Instructions werden nach den Agent-Instructions an den System-Prompt angehängt und ihre Tools automatisch bereitgestellt. Konfiguration, Platzhalter für verschachtelte Skills und Kollisionsregeln sind in der [Skill-Referenz](../Skills/index.md) beschrieben.
 
 ## Tools konfigurieren
 

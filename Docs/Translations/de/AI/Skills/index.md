@@ -1,6 +1,6 @@
 # KI-Skills
 
-[English](index.md)
+[English](../../../../AI/Skills/index.md)
 
 KI-Skills sind wiederverwendbare, nicht versionierte Bausteine für Agenten. Ein Skill kann Instructions, Concepts und Tools enthalten. Alle drei Bestandteile sind optional.
 
