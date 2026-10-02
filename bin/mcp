@@ -1,0 +1,45 @@
+#!/usr/bin/env php
+<?php
+
+use axenox\GenAI\Facades\AiMcpCliServerFacade;
+
+require __DIR__ . '/../../../autoload.php';
+
+// Keep a source checkout runnable before Composer regenerates its package autoload metadata.
+if (! class_exists(AiMcpCliServerFacade::class)) {
+    spl_autoload_register(static function (string $class) : void {
+        $prefix = 'axenox\\GenAI\\';
+        if (! str_starts_with($class, $prefix)) {
+            return;
+        }
+
+        $relativeClass = substr($class, strlen($prefix));
+        $path = __DIR__ . '/../' . str_replace('\\', '/', $relativeClass) . '.php';
+        if (is_file($path)) {
+            require_once $path;
+        }
+    });
+}
+
+error_reporting(E_ALL);
+ini_set('display_errors', 'stderr');
+ini_set('log_errors', '1');
+
+$endpointSelector = $argv[1] ?? null;
+if ($endpointSelector === null || in_array($endpointSelector, ['-h', '--help'], true)) {
+    fwrite(STDOUT, "Usage: vendor/bin/mcp <endpoint-selector>\n");
+    fwrite(STDOUT, "Phase 1 example: vendor/bin/mcp axenox.genai:diagnostics\n");
+    exit($endpointSelector === null ? 1 : 0);
+}
+
+if (PHP_VERSION_ID < 80100) {
+    fwrite(STDERR, "The ExFace MCP server requires PHP 8.1 or newer.\n");
+    exit(1);
+}
+
+try {
+    exit((new AiMcpCliServerFacade())->run($endpointSelector));
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'MCP server failed: ' . $exception->getMessage() . PHP_EOL);
+    exit(1);
+}

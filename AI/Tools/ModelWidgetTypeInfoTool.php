@@ -4,7 +4,7 @@ namespace axenox\GenAI\AI\Tools;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -108,13 +108,13 @@ class ModelWidgetTypeInfoTool extends AbstractAiTool
      * properties, functions, and presets. Returns a formatted markdown document
      * with all the collected information.
      * 
-     * @param AiAgentInterface $agent The AI agent invoking the tool
+    * @param AiTaskHandlerInterface $agent The task handler invoking the tool
     * @param TaskInterface $prompt The current task context
      * @param array $arguments Tool arguments, expects [0] to be the widget file path
      * 
      * @return AiToolResultInterface Markdown-formatted widget documentation or error message
      */
-    public function invoke(AiAgentInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
+    public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         // TODO accept a widget type here too. Perhaps rename the tool to GetWidgetTypeTool
         list($widgetTypeOrPath) = $arguments;

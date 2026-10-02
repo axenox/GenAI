@@ -2,6 +2,7 @@
 namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\AI\Concepts\SkillTextConcept;
+use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiResponse;
 use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
@@ -9,44 +10,30 @@ use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Events\OnAiToolCallEvent;
 use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
 use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
-use axenox\GenAI\Exceptions\AiAgentNotFoundError;
-use axenox\GenAI\Exceptions\AiAgentRuntimeError;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
 use axenox\GenAI\Exceptions\AiToolCriticalError;
-use axenox\GenAI\Exceptions\AiToolConfigurationWarning;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
-use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiAgentUxonSchema;
-use exface\Core\CommonLogic\Traits\AliasTrait;
-use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
 use axenox\GenAI\Factories\AiFactory;
-use exface\Core\DataTypes\ArrayDataType;
 use exface\Core\DataTypes\BooleanDataType;
-use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\JsonDataType;
 use exface\Core\Factories\DataConnectionFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
-use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\AppInterface;
-use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
-use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
-use exface\Core\Interfaces\Selectors\AliasSelectorInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
-use exface\Core\Widgets\DebugMessage;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -77,14 +64,8 @@ use exface\Core\Widgets\DebugMessage;
  * 
  * @author Andrej Kabachnik
  */
-class GenericAssistant implements AiAgentInterface
+class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 {
-    use ICanBeConvertedToUxonTrait;
-
-    use AliasTrait;
-
-    private $workbench = null;
-
     private $systemPrompt = null;
     
     private $sampleSystemPrompt = null;
@@ -97,16 +78,6 @@ class GenericAssistant implements AiAgentInterface
 
     private $dataConnection = null;
 
-    private $name = null;
-
-    private $selector = null;
-
-    private $agentDataSheet = null;
-
-    private $versionDataSheet = null;
-
-    private $versionRow = null;
-
     private $responseJsonSchema = null;
 
     private bool $feedbackMode = false;
@@ -117,25 +88,11 @@ class GenericAssistant implements AiAgentInterface
 
     private $responseTitlePath = null;
 
-    /** @var AiToolInterface[]|null */
-    private ?array $tools = null;
-
-    /** @var \Throwable[] */
-    private array $toolWarnings = [];
-
-    /** @var UxonObject[]|null */
-    private ?array $toolsUxon = null;
-
     /** @var UxonObject[] */
     private array $conceptToolsUxon = [];
 
     /** @var AiConceptInterface[]|null */
     protected ?array $concepts = null;
-
-    /** @var AiSkillInterface[]|null */
-    private ?array $skills = null;
-
-    private UxonObject $skillsUxon;
 
     private bool $appendUnusedSkills = true;
 
@@ -145,21 +102,6 @@ class GenericAssistant implements AiAgentInterface
     private array $toolCalls = [];
 
     private $promptSuggestions = [];
-
-    /**
-     * 
-     * @param \axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface $selector
-     * @param \exface\Core\CommonLogic\UxonObject|null $uxon
-     */
-    public function __construct(AiAgentSelectorInterface $selector, UxonObject $uxon = null)
-    {
-        $this->workbench = $selector->getWorkbench();
-        $this->selector = $selector;
-        $this->skillsUxon = new UxonObject();
-        if ($uxon !== null) {
-            $this->importUxonObject($uxon);
-        }
-    }
 
     /**
      * Initializes all configured prompt components once.
@@ -380,10 +322,8 @@ class GenericAssistant implements AiAgentInterface
     
     protected function setSkills(UxonObject $skills) : AiAgentInterface
     {
-        $this->skillsUxon = $skills;
-        $this->skills = null;
+        parent::setSkills($skills);
         $this->systemPromptRendered = null;
-        $this->tools = null;
         return $this;
     }
 
@@ -456,32 +396,6 @@ class GenericAssistant implements AiAgentInterface
     protected function getConcepts() : array
     {
         return $this->concepts ?? [];
-    }
-
-    /**
-     * Initializes the configured skills once.
-     */
-    protected function initSkills(AiPromptInterface $prompt) : void
-    {
-        if ($this->skills !== null) {
-            return;
-        }
-
-        $this->skills = [];
-        foreach ($this->skillsUxon as $placeholder => $skillUxon) {
-            $this->skills[] = AiFactory::createSkillFromUxon($this, $prompt, $placeholder, $skillUxon);
-        }
-        $this->tools = null;
-    }
-
-    /**
-     * Returns the initialized skills.
-     *
-     * @return AiSkillInterface[]
-     */
-    protected function getSkills() : array
-    {
-        return $this->skills ?? [];
     }
 
     /**
@@ -730,107 +644,6 @@ class GenericAssistant implements AiAgentInterface
 
     /**
      * 
-     * @param string $alias
-     * @return \axenox\GenAI\Interfaces\AiAgentInterface
-     */
-    protected function setAlias(string $alias) : AiAgentInterface
-    {
-        $this->alias = $alias;
-        return $this;
-    }
-
-    /**
-     * 
-     * @return \exface\Core\Interfaces\Selectors\AliasSelectorInterface
-     */
-    public function getSelector() : AliasSelectorInterface
-    {
-        return $this->selector;
-    }
-
-    /**
-     * 
-     * @param string $name
-     * @return \axenox\GenAI\Interfaces\AiAgentInterface
-     */
-    protected function setName(string $name) : AiAgentInterface
-    {
-        $this->name = $name;
-        return $this;
-    }
-
-    protected function getModelData() : DataSheetInterface
-    {
-        if ($this->agentDataSheet === null) {
-            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT');
-            $sheet->getColumns()->addFromSystemAttributes();
-            $sheet->getColumns()->addMultiple([
-                'NAME'
-            ]);
-            $sheet->getFilters()->addConditionFromString('ALIAS_WITH_NS', $this->getAliasWithNamespace(), ComparatorDataType::EQUALS);
-            $sheet->dataRead();
-            switch ($sheet->countRows()) {
-                case 0: throw new AiAgentNotFoundError('AI agent "' . $this->getSelector()->__toString() . '" not found!');
-                case 1: break;
-                default: throw new AiAgentNotFoundError('Multiple AI agents found for "' . $this->getSelector()->__toString() . '"!');
-            }
-            $this->agentDataSheet = $sheet;
-        }
-        return $this->agentDataSheet;
-    }
-
-    protected function getVersionModelData() : DataSheetInterface
-    {
-        if($this-> versionDataSheet === null){
-            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_AGENT_VERSION');
-            $sheet->getColumns()->addMultiple([
-                    'VERSION',
-                    'ENABLED_FLAG',
-                    'DATA_CONNECTION'
-                ]);
-            $sheet->dataRead();
-            $this->versionDataSheet = $sheet;
-        }
-        return $this->versionDataSheet;
-        
-    }
-
-    protected function getVersionRow()  {
-        if($this->versionRow === null){
-            $this->versionRow = $this->getVersionModelData()->getRow($this->getVersionModelData()->getColumn('VERSION')->findRowByValue($this->getVersion()));
-        }
-        return $this->versionRow;
-    }
-
-    /**
-     * 
-     * @return string
-     */
-    public function getUid() : string
-    {
-        return $this->getModelData()->getCellValue('UID', 0);
-    }
-
-    /**
-     * 
-     * @return string
-     */
-    public function getName() : string
-    {
-        return $this->getModelData()->getCellValue('NAME', 0);
-    }
-
-    /**
-     *
-     * @return string
-     */
-    public function getVersion() : string
-    {
-        return $this->getSelector()->getVersion();
-    }
-
-    /**
-     * 
      * @return array|null
      */
     protected function getResponseJsonSchema() : ?array
@@ -1021,66 +834,19 @@ class GenericAssistant implements AiAgentInterface
     }
 
     /**
-     * Tools (function calls) made available to the LLM
-     * 
-     * ```
-     *   {
-     *      "tools": {
-     *          "GetDocs": {
-     *              "description": "Load markdown from our documentation by URL",
-     *              "arguments": [
-     *                  {
-     *                      "name": "uri",
-     *                      "description": "Markdown file URL - absolute (with https://...) or relative to api/docs on this server",
-     *                      "data_type": {
-     *                          "alias": "exface.Core.String"
-     *                      }
-     *                  }
-     *              ]
-     *          }
-     *      }
-     *  }
-     *  
-     * ```
-     * @uxon-property tools
-     * @uxon-type \axenox\GenAI\Common\AbstractAiTool[]
-     * @uxon-template {"": {"alias": "", "description": ""}}
-     * 
-     * @param \exface\Core\CommonLogic\UxonObject $objectWithToolDefs
-     * @return GenericAssistant
+     * Adds tools contributed by configured skills and concepts.
+     *
+     * @param ToolBox $toolBox
+     * @return \Throwable[]
      */
-    protected function setTools(UxonObject $objectWithToolDefs) : AiAgentInterface
+    protected function configureAdditionalTools(ToolBox $toolBox) : array
     {
-        foreach ($objectWithToolDefs as $toolName => $toolUxon) {
-            $this->toolsUxon[$toolName] = $toolUxon;
-        }
-        $this->tools = null;
-        return $this;
-    }
-
-    /**
-     * Initializes the configured tools once.
-     */
-    protected function initTools() : void
-    {
-        if ($this->tools !== null) {
-            return;
-        }
-
+        $warnings = parent::configureAdditionalTools($toolBox);
         $this->conceptToolsUxon = [];
         foreach ($this->getConcepts() as $concept) {
             foreach ($concept->getToolModels() as $toolName => $toolUxon) {
                 $this->conceptToolsUxon[$toolName] = $toolUxon;
             }
-        }
-
-        $toolBox = new ToolBox($this->workbench);
-        $warnings = [];
-
-        foreach ($this->getSkills() as $skill) {
-            $source = 'skill "' . $skill->getPlaceholder() . '"';
-            $toolBox->appendTools($skill->getTools(), $source);
-            $warnings = array_merge($warnings, $skill->getWarnings());
         }
 
         foreach ($this->conceptToolsUxon as $toolName => $toolUxon) {
@@ -1091,51 +857,7 @@ class GenericAssistant implements AiAgentInterface
             );
         }
 
-        foreach ($this->toolsUxon ?? [] as $toolName => $toolUxon) {
-            $toolBox->prepend(
-                AiFactory::createToolFromUxon($this->workbench, $toolUxon, $toolName),
-                $toolName,
-                'agent configuration'
-            );
-        }
-
-        $this->toolWarnings = array_merge($warnings, $toolBox->getWarnings());
-        $this->tools = $toolBox->getTools();
-    }
-
-    /**
-     * @return AiToolInterface[]
-     */
-    public function getTools() : array
-    {
-        if ($this->tools === null) {
-            $this->initTools();
-        }
-        return $this->tools;
-    }
-
-    /**
-     * @param string $name
-     * @return AiToolInterface
-     */
-    public function getTool(string $name) : AiToolInterface
-    {
-        foreach ($this->getTools() as $tool) {
-            if ($tool->getName() === $name) {
-                return $tool;
-            }
-        }
-        throw new AiAgentRuntimeError(
-            $this,
-            'Tool "' . $name . '" not found!',
-            $this->getAliasWithNamespace()
-        );
-    }
-
-    protected function addTool(AiToolInterface $tool) : AiAgentInterface
-    {
-        $this->tools[$tool->getName()] = $tool;
-        return $this;
+        return $warnings;
     }
 
     /**
@@ -1168,36 +890,6 @@ class GenericAssistant implements AiAgentInterface
         return $this->promptSuggestions;
     }
     
-    public function getWorkbench()
-    {
-        return $this->workbench;
-    }
-
-    /**
-     * @param DebugMessage $debugWidget
-     * @return void
-     */
-    public function createDebugWidget(DebugMessage $debugWidget)
-    {
-        foreach ($debugWidget->getTabs() as $tab) {
-            if ($tab->getCaption() === 'AI Agent') {
-                return $debugWidget;
-            }
-        }
-        $tab = $debugWidget->createTab();
-        $tab->setCaption('AI Agent');
-        $tab->setWidgets(new UxonObject([[
-            'widget_type' => 'InputUxon',
-            'disabled' => true,
-            'width' => '100%',
-            'height' => '100%',
-            'hide_caption' => true,
-            'value' => $this->exportUxonObject()->toJson(),
-        ]]));
-        $debugWidget->addTab($tab);
-        return $debugWidget;
-    }
-
     /**
      * Maximum number of tool calls before a response
      * 

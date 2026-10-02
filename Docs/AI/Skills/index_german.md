@@ -52,6 +52,18 @@ Der eingebundene Skill bereitet zuerst seine eigenen Concepts und verschachtelte
 
 Tool-Namen sollten möglichst eindeutig sein. Kommt derselbe Name mehrfach vor, hat der später eingebundene Skill Vorrang. Ein direkt im aktuellen Skill konfiguriertes Tool hat Vorrang vor seinen eingebundenen Skills. Ein direkt am Agenten konfiguriertes Tool hat Vorrang vor allen Skill-Tools. Wenn dabei ein Tool ersetzt wird, wird eine Warnung in der Conversation gespeichert.
 
+## MCP-Endpunkte
+
+Skills, die einem `McpServer`-Endpunkt zugeordnet sind, dienen als wiederverwendbare Tool-Bündel.
+Direkte und verschachtelte Skill-Tools werden über MCP veröffentlicht, ohne einen KI-Prompt zu
+erzeugen. Skill-Instructions und Concepts, einschließlich der von Concepts beigesteuerten Tools,
+sind promptabhängig und werden deshalb von MCP nicht geladen. Direkt am Endpunkt konfigurierte
+Tools haben Vorrang vor gleichnamigen Skill-Tools.
+
+Nach einer Änderung eines Skills oder seiner Zuordnung muss der MCP-Prozess neu gestartet werden.
+Skills sind nicht versioniert. Eine Skill-Änderung wirkt sich daher nach dem Neustart auf alle
+Endpunktversionen aus, die diesen Skill verwenden.
+
 ## Eigene Prototypen
 
 Apps können eigene Skill-Prototypen unter `AI/Skills/*.php` bereitstellen. Ein Prototyp muss `AiSkillInterface` implementieren; die Erweiterung des Verhaltens von `GenericSkill` ist der übliche Ausgangspunkt. Der ausgewählte Prototyp bestimmt die UXON-Eigenschaften im Power-UI-Editor.

@@ -11,12 +11,13 @@
     },
     "require": {
         "exface/core": "^1.0",
+        "mcp/sdk": "~0.8",
         "npm-asset/deep-chat": "^2",
         "symfony/expression-language": "^5.3||^6"
     },
     "autoload": {
         "psr-4": {
-            "\\axenox\\AI\\": ""
+            "axenox\\GenAI\\": ""
         },
         "exclude-from-classmap": [
             "/Config/",
@@ -24,6 +25,9 @@
             "/Model/"
         ]
     },
+    "bin": [
+        "bin/mcp"
+    ],
     "extra": {
         "app": {
             "app_uid": "0x11efbd2d8f0ae0babd2dc84bd653ed63",

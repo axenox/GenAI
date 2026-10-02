@@ -8,10 +8,12 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Uxon\AiSkillUxonSchema;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\AppInterface;
 use exface\Core\Templates\BracketHashStringTemplateRenderer;
 use exface\Core\Templates\Placeholders\AppPlaceholders;
@@ -26,8 +28,8 @@ class GenericSkill implements AiSkillInterface
 {
     use ImportUxonObjectTrait;
 
-    private AiAgentInterface $agent;
-    private AiPromptInterface $prompt;
+    private AiTaskHandlerInterface $handler;
+    private ?AiPromptInterface $prompt;
     private string $placeholder;
     private UxonObject $uxon;
     private string $instructions = '';
@@ -45,16 +47,15 @@ class GenericSkill implements AiSkillInterface
     private bool $autoAppend = true;
 
     /**
-     * Creates a skill in the context of the consuming agent and prompt.
+     * Creates a skill for a task handler and an optional prompt-rendering context.
      */
-    // TODO Remove the prompt from the skill constructor and receive it only for prompt-dependent rendering.
     public function __construct(
-        AiAgentInterface $agent,
-        AiPromptInterface $prompt,
+        AiTaskHandlerInterface $handler,
+        ?AiPromptInterface $prompt,
         string $placeholder,
         UxonObject $uxon = null
     ) {
-        $this->agent = $agent;
+        $this->handler = $handler;
         $this->prompt = $prompt;
         $this->placeholder = $placeholder;
         $this->uxon = $uxon ?? new UxonObject();
@@ -125,16 +126,18 @@ class GenericSkill implements AiSkillInterface
     public function getTools() : array
     {
         if ($this->tools === null) {
-            $toolBox = new ToolBox($this->agent->getWorkbench());
+            $toolBox = new ToolBox($this->handler->getWorkbench());
 
-            foreach ($this->getConcepts() as $concept) {
-                $source = 'concept in skill "' . $this->getPlaceholder() . '"';
-                foreach ($concept->getToolModels() as $toolName => $toolUxon) {
-                    $toolBox->append(
-                        AiFactory::createToolFromUxon($this->agent->getWorkbench(), $toolUxon, $toolName),
-                        $toolName,
-                        $source
-                    );
+            if ($this->prompt !== null && $this->handler instanceof AiAgentInterface) {
+                foreach ($this->getConcepts() as $concept) {
+                    $source = 'concept in skill "' . $this->getPlaceholder() . '"';
+                    foreach ($concept->getToolModels() as $toolName => $toolUxon) {
+                        $toolBox->append(
+                            AiFactory::createToolFromUxon($this->handler->getWorkbench(), $toolUxon, $toolName),
+                            $toolName,
+                            $source
+                        );
+                    }
                 }
             }
 
@@ -148,7 +151,7 @@ class GenericSkill implements AiSkillInterface
             foreach ($this->toolsUxon as $toolName => $toolUxon) {
                 $source = 'skill "' . $this->getPlaceholder() . '"';
                 $toolBox->append(
-                    AiFactory::createToolFromUxon($this->agent->getWorkbench(), $toolUxon, $toolName),
+                    AiFactory::createToolFromUxon($this->handler->getWorkbench(), $toolUxon, $toolName),
                     $toolName,
                     $source
                 );
@@ -165,7 +168,7 @@ class GenericSkill implements AiSkillInterface
     }
 
     /**
-        * Returns tool configuration warnings from this skill and its nested skills.
+     * Returns tool configuration warnings from this skill and its nested skills.
      *
      * @return \Throwable[]
      */
@@ -245,7 +248,7 @@ class GenericSkill implements AiSkillInterface
         $this->skills = [];
         foreach ($skills as $placeholder => $skillUxon) {
             $this->skills[] = AiFactory::createSkillFromUxon(
-                $this->agent,
+                $this->handler,
                 $this->prompt,
                 $placeholder,
                 $skillUxon
@@ -277,13 +280,16 @@ class GenericSkill implements AiSkillInterface
      */
     private function getConcepts() : array
     {
+        if ($this->prompt === null || ! $this->handler instanceof AiAgentInterface) {
+            return [];
+        }
         if ($this->concepts === null) {
             $this->concepts = [];
             $configRenderer = $this->createRenderer();
             foreach ($this->conceptsUxon as $placeholder => $conceptUxon) {
                 $renderedUxon = UxonObject::fromJson($configRenderer->render($conceptUxon->toJson()));
                 $this->concepts[] = AiFactory::createConceptFromUxon(
-                    $this->agent,
+                    $this->handler,
                     $this->prompt,
                     $placeholder,
                     $renderedUxon
@@ -299,6 +305,11 @@ class GenericSkill implements AiSkillInterface
      */
     private function renderInstructions() : string
     {
+        if ($this->prompt === null || ! $this->handler instanceof AiAgentInterface) {
+            throw new RuntimeException(
+                'Cannot render instructions of skill "' . $this->getPlaceholder() . '" without an AI prompt.'
+            );
+        }
         if ($this->renderedInstructions === null) {
             $renderer = $this->createRenderer();
             foreach ($this->getConcepts() as $concept) {
@@ -318,7 +329,7 @@ class GenericSkill implements AiSkillInterface
      */
     private function createRenderer() : BracketHashStringTemplateRenderer
     {
-        $workbench = $this->agent->getWorkbench();
+        $workbench = $this->handler->getWorkbench();
         $renderer = new BracketHashStringTemplateRenderer($workbench);
         $renderer->addPlaceholder(new FormulaPlaceholders($workbench, null, null, '='));
         $renderer->addPlaceholder(new ConfigPlaceholders($workbench, '~config:'));
@@ -326,7 +337,7 @@ class GenericSkill implements AiSkillInterface
         if (null !== $app = $this->getApp()) {
             $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
         }
-        if ($this->prompt->hasInputData()) {
+        if ($this->prompt !== null && $this->prompt->hasInputData()) {
             $renderer->addPlaceholder(new DataRowPlaceholders($this->prompt->getInputData(), 0, '~input:'));
         }
 
@@ -338,6 +349,9 @@ class GenericSkill implements AiSkillInterface
      */
     private function getApp() : ?AppInterface
     {
+        if ($this->prompt === null) {
+            return null;
+        }
         if ($this->prompt->isTriggeredOnPage() && $this->prompt->getPageTriggeredOn()->hasApp()) {
             return $this->prompt->getPageTriggeredOn()->getApp();
         }

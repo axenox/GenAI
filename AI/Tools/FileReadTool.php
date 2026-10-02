@@ -5,7 +5,7 @@ use axenox\GenAI\AI\Traits\FileAccessToolTrait;
 use axenox\GenAI\Common\AbstractAiTool;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use axenox\GenAI\Interfaces\KnowledgeBagInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
@@ -102,7 +102,7 @@ class FileReadTool extends AbstractAiTool
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiToolInterface::invoke()
      */
-    public function invoke(AiAgentInterface $agent, TaskInterface $task, array $arguments): AiToolResultInterface
+    public function invoke(AiTaskHandlerInterface $agent, TaskInterface $task, array $arguments): AiToolResultInterface
     {
         $relativePath = (string) ($arguments[0] ?? '');
         $fileInfo = $this->getFileInfo($relativePath, $this->getBasePathAbsolute(), $task);

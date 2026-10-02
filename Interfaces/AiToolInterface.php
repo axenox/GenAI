@@ -10,7 +10,7 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
  * A tool is a function, that the LLM can call to interact with our system.
  * 
  * A tool has a name and an `invoke()` method, which receives arguments provided by the LLM and
- * some context information - namely the agent and the current task. If the tool is called directly by an LLM, the
+ * some context information - namely the task handler and the current task. If the tool is called directly by an LLM, the
  * task is the AI prompt, but tools can also be called by other parts of the system - e.g. an MCP server - where the
  * passed task would be something else.
  *
@@ -31,12 +31,12 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
 {
     /**
      *
-     * @param AiAgentInterface $agent
+    * @param AiTaskHandlerInterface $agent
         * @param TaskInterface $task
      * @param array $arguments
     * @return AiToolResultInterface
      */
-    public function invoke(AiAgentInterface $agent, TaskInterface $task, array $arguments) : AiToolResultInterface;
+    public function invoke(AiTaskHandlerInterface $agent, TaskInterface $task, array $arguments) : AiToolResultInterface;
 
     /**
      * Summary of getArguments

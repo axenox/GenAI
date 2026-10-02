@@ -1,17 +1,13 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 use exface\Core\CommonLogic\UxonObject;
-use exface\Core\Interfaces\AliasInterface;
-use exface\Core\Interfaces\iCanBeConvertedToUxon;
-use exface\Core\Interfaces\iCanGenerateDebugWidgets;
-use exface\Core\Interfaces\WorkbenchDependantInterface;
 
 /**
  * 
  * @author Andrej Kabachnik
  *
  */
-interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGenerateDebugWidgets, WorkbenchDependantInterface
+interface AiAgentInterface extends AiTaskHandlerInterface
 {
     /**
      * @param AiPromptInterface $prompt
@@ -28,16 +24,6 @@ interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGe
     public function getPromptSuggestions(): array;
 
     /**
-     * Returns the persisted agent UID.
-     */
-    public function getUid() : string;
-
-    /**
-     * Returns the exact configured agent version.
-     */
-    public function getVersion() : string;
-
-    /**
      * Returns the model connection used by this agent.
      */
     public function getConnection() : AiConnectorInterface;
@@ -46,17 +32,6 @@ interface AiAgentInterface extends iCanBeConvertedToUxon, AliasInterface, iCanGe
      * Returns whether the agent runs in development mode.
      */
     public function getDevmode() : bool;
-
-    /**
-     * @param string $name
-     * @return AiToolInterface
-     */
-    public function getTool(string $name) : AiToolInterface;
-
-    /**
-     * @return AiToolInterface[]
-     */
-    public function getTools() : array;
 
     /**
      * Returns the UxonObject containing the concepts

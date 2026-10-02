@@ -52,6 +52,17 @@ The included skill prepares its own concepts and nested skills before its instru
 
 Tool names should be unique where possible. If the same name occurs more than once, the later nested skill takes precedence. A tool configured directly in the current skill takes precedence over its included skills, and a tool configured directly on the agent takes precedence over all skill tools. A warning is stored in the conversation when a tool is replaced this way.
 
+## MCP endpoints
+
+Skills assigned to an `McpServer` endpoint act as reusable tool bundles. Direct and nested skill
+tools are advertised through MCP without creating an AI prompt. Skill instructions and concepts,
+including tools contributed by concepts, are prompt-dependent and are therefore not loaded by MCP.
+Tools configured directly on the endpoint take precedence over tools with the same name from a
+skill.
+
+Restart the MCP process after changing a skill or its assignment. Skills are non-versioned, so a
+skill change affects every endpoint version that uses it after restart.
+
 ## Custom prototypes
 
 Apps can provide custom skill prototypes under `AI/Skills/*.php`. A prototype must implement `AiSkillInterface`; extending the behavior of `GenericSkill` is the normal starting point. The selected prototype controls the UXON properties offered by the Power UI editor.
