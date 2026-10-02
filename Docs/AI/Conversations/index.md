@@ -1,6 +1,6 @@
 # Conversations
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Conversations/index.md)
 
 A conversation is a persisted exchange between an individual participant and exactly one executing AI. The individual participant is usually a user, but it may also be another AI or an orchestrating agent.
 

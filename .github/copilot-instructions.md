@@ -101,7 +101,12 @@ Changes to agent, skill, tool, or concept prototypes must include the correspond
 - Tool prototypes: `Docs/AI/Tools/index.md`
 - Concept prototypes: `Docs/AI/Concepts/index.md`
 
-All documentation is maintained in English and German. Keep every `index.md` and `index_german.md` pair synchronized; for additional pages, such as `prompting.md`, update the corresponding `_german.md` file in the same change. Each language version must link to its counterpart directly below the page title.
+### Documentation structure
+
+- English documentation starts at `Docs/index.md` and lives directly below `Docs`.
+- German documentation starts at `Docs/Translations/de/index.md` and mirrors the English directory structure and filenames below `Docs/Translations/de`.
+- Navigation links must be relative and remain within the current language tree. Language-switch links must point to the corresponding page in the other tree.
+- Keep every English/German page pair synchronized. Each page must link to its counterpart directly below the page title.
 
 Keep usage guidance, configuration, limitations, and UXON prototype links synchronized with the implementation. Prototypes owned by another app must be documented in that app rather than added to the GenAI prototype reference.
 

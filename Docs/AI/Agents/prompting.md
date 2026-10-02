@@ -1,6 +1,6 @@
 # Tips and tricks for agent prompts
 
-[Deutsch](prompting_german.md)
+[Deutsch](../../Translations/de/AI/Agents/prompting.md)
 
 These notes complement the general description of agent versions without repeating the basics from the overview.
 

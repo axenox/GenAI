@@ -1,6 +1,6 @@
 # AI Agents
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Agents/index.md)
 
 An agent is the functional unit that receives a prompt and generates a response from the LLM. In the configuration, an agent consists of two levels:
 

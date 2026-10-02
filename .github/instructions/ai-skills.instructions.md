@@ -20,4 +20,4 @@ AI skills are persisted, non-versioned agent building blocks with a selectable P
 
 ## Documentation maintenance
 
-Update `Docs/AI/Skills/index.md` and `Docs/AI/Skills/index_german.md` together whenever skill behavior or configuration changes.
+Update `Docs/AI/Skills/index.md` and `Docs/Translations/de/AI/Skills/index.md` together whenever skill behavior or configuration changes.

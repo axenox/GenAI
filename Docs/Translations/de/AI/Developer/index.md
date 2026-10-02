@@ -1,6 +1,6 @@
 # Developer-Architektur
 
-[English](index.md)
+[English](../../../../AI/Developer/index.md)
 
 Diese Seite beschreibt die Verantwortungsgrenzen der GenAI-Bausteine. Die Detailseiten dokumentieren deren konkrete Konfiguration und vorhandene Prototypen.
 
@@ -102,7 +102,7 @@ sequenceDiagram
     Agent-->>Participant: AiResponse
 ```
 
-Der Message-Content wird als String gespeichert; zusätzliche strukturierte Daten liegen in `AI_MESSAGE.DATA`. Details zur unveränderlichen Agent-Zuordnung stehen in der [Conversation-Dokumentation](../Conversations/index_german.md).
+Der Message-Content wird als String gespeichert; zusätzliche strukturierte Daten liegen in `AI_MESSAGE.DATA`. Details zur unveränderlichen Agent-Zuordnung stehen in der [Conversation-Dokumentation](../Conversations/index.md).
 
 Runtime-Komponenten hängen nach Möglichkeit von Interfaces ab. Insbesondere erhält `AiConversation` einen `AiAgentInterface` statt eines konkreten Agent-Prototyps und keinen requestgebundenen Prompt. Ihre nächste Message-Sequenznummer lädt die Conversation bei Bedarf selbst über `getSequenceNumber()` und erhöht sie zentral über `incrementSequenceNumber()`.
 
@@ -175,7 +175,7 @@ flowchart TD
     ItemDone --> Complete[Finish workflow run]
 ```
 
-Der aktuell vorhandene `WorkflowRunLog` persistiert Runs und geordnete Steps einschließlich Status, Outcome, Dauer, Fehler und optionaler Child-Conversation. Eine allgemeine konfigurierbare Workflow-Engine mit Definitionen, Graphvalidierung, Waiting und Human Gates ist weiterhin Zielarchitektur; ihr Stand ist in der [Roadmap für agentische Workflows](../../Roadmap/Agentic_workflows.md) beschrieben.
+Der aktuell vorhandene `WorkflowRunLog` persistiert Runs und geordnete Steps einschließlich Status, Outcome, Dauer, Fehler und optionaler Child-Conversation. Eine allgemeine konfigurierbare Workflow-Engine mit Definitionen, Graphvalidierung, Waiting und Human Gates ist weiterhin Zielarchitektur; ihr Stand ist in der [Roadmap für agentische Workflows](../../../../Roadmap/Agentic_workflows.md) beschrieben.
 
 ## Verantwortungsregeln für Implementierungen
 
@@ -192,10 +192,10 @@ Der aktuell vorhandene `WorkflowRunLog` persistiert Runs und geordnete Steps ein
 
 ## Detailreferenzen
 
-- [Agenten](../Agents/index_german.md)
-- [Prompting](../Agents/prompting_german.md)
-- [Conversations](../Conversations/index_german.md)
-- [Skills](../Skills/index_german.md)
-- [Tools](../Tools/index_german.md)
-- [Concepts](../Concepts/index_german.md)
-- [Roadmap für agentische Workflows](../../Roadmap/Agentic_workflows.md)
+- [Agenten](../Agents/index.md)
+- [Prompting](../Agents/prompting.md)
+- [Conversations](../Conversations/index.md)
+- [Skills](../Skills/index.md)
+- [Tools](../Tools/index.md)
+- [Concepts](../Concepts/index.md)
+- [Roadmap für agentische Workflows](../../../../Roadmap/Agentic_workflows.md)

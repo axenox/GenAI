@@ -1,6 +1,6 @@
 # Referenz der Agenten-Tools
 
-[English](index.md)
+[English](../../../../AI/Tools/index.md)
 
 Tools ermöglichen es einem Agenten, während der Verarbeitung einer Anfrage Informationen abzurufen oder eine klar begrenzte Aktion auszuführen. Anders als Concepts werden Tools beim Erstellen des Prompts nicht automatisch ausgewertet. Das Modell entscheidet anhand der aktuellen Frage, der Tool-Beschreibung und der Anweisungen des Agenten, ob es sie aufruft.
 

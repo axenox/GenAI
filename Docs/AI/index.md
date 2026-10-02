@@ -1,6 +1,6 @@
 # AI
 
-[Deutsch](index_german.md)
+[Deutsch](../Translations/de/AI/index.md)
 
 The GenAI framework consists of agents and their conversations, reusable skills, automatically rendered concepts, and on-demand tools. Scheduler configurations start agents autonomously; agentic workflows coordinate multiple controlled steps and record their execution.
 

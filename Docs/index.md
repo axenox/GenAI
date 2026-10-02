@@ -1,6 +1,6 @@
 # GenAI
 
-[Deutsch](index_german.md)
+[Deutsch](Translations/de/index.md)
 
 The `axenox.GenAI` app provides the framework for configuring, running, testing, and continuously improving AI agents in ExFace applications.
 

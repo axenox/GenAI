@@ -1,6 +1,6 @@
 # Agent tool reference
 
-[Deutsch](index_german.md)
+[Deutsch](../../Translations/de/AI/Tools/index.md)
 
 Tools let an agent retrieve information or perform a bounded operation while it is processing a request. Unlike concepts, tools are not evaluated automatically when the prompt is built. The model decides whether to call them based on the current question, the tool description, and the instructions of the agent.
 
