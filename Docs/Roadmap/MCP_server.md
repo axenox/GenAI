@@ -386,7 +386,7 @@ Four rules are specific to an MCP server:
   
 Usable from the very first commit of Phase 1 and requires nothing but PHP. MCP STDIO framing is one JSON object per line (no `Content-Length` headers, unlike LSP), so a plain text file piped into the process is a valid client session.  
   
-`Tests/Mcp/smoke.jsonl`:  
+`Tests/Integration/Mcp/smoke.jsonl`:
   
 ```json  
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0"}}}
@@ -396,7 +396,7 @@ Usable from the very first commit of Phase 1 and requires nothing but PHP. MCP S
 ```  
   
 ```powershell  
-Get-Content .\Tests\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools  
+Get-Content .\Tests\Integration\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools
 ```  
   
 Caveats worth knowing before trusting the result:  
@@ -408,7 +408,7 @@ Caveats worth knowing before trusting the result:
 The most valuable early assertion is `STDOUT` purity:  
   
 ```powershell  
-Get-Content .\Tests\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools 2> stderr.log |  
+Get-Content .\Tests\Integration\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools 2> stderr.log |
     ForEach-Object { $null = ($_ | ConvertFrom-Json) }   # throws on the first non-JSON line  
 ```  
   
@@ -418,7 +418,7 @@ Everything diagnostic must end up in `stderr.log` or the workbench log instead. 
   
 ```powershell  
 $env:XDEBUG_TRIGGER = 1  
-Get-Content .\Tests\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools  
+Get-Content .\Tests\Integration\Mcp\smoke.jsonl | php vendor\bin\mcp axenox.genai:developer-tools
 ```  
   
 Whenever a bug is reproducible without a real client, reproduce it here first and debug it here - the other approaches only add a spawning harness between you and the process.  

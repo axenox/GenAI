@@ -1,2 +1,6 @@
 # PHPStorm
 .idea/
+
+# PHPUnit
+.phpunit.cache/
+phpunit.xml

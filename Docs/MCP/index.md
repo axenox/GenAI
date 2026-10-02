@@ -74,16 +74,19 @@ mcp-inspector --cli php .\bin\mcp customer.App.data_tools:0.1.0 --method tools/l
 
 ## Automated verification
 
-Verify the PHP task-handler contract:
+Run the workbench-free MCP unit tests:
 
-```powershell
-php .\Tests\Mcp\assert-task-handler-contract.php
+```shell
+composer test:unit
 ```
+
+See [Testing](../Testing/index.md) for the complete test strategy and the command used inside an
+ExFace installation.
 
 For the `ide_mcp_server` endpoint exposing the `SearchModelComponents` tool shown above, run:
 
 ```powershell
-.\Tests\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
+.\Tests\Integration\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
 ```
 
 The smoke test verifies generated schema metadata, named-to-positional argument normalization, a
@@ -95,7 +98,7 @@ that publishes such metadata.
 The underlying JSON-RPC session can also be piped into the endpoint directly:
 
 ```powershell
-Get-Content .\Tests\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
+Get-Content .\Tests\Integration\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
 ```
 
 Closing `STDIN` ends the server. Protocol responses appear on `STDOUT`; PHP and server diagnostics

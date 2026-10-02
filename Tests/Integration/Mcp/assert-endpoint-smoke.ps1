@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$server = Resolve-Path (Join-Path $PSScriptRoot '..\..\bin\mcp')
+$server = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\bin\mcp')
 $inputFile = Resolve-Path (Join-Path $PSScriptRoot 'endpoint-smoke.jsonl')
 $stdoutFile = [System.IO.Path]::GetTempFileName()
 $stderrFile = [System.IO.Path]::GetTempFileName()
