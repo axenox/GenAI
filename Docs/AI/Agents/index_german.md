@@ -9,6 +9,18 @@ Ein Agent ist die funktionale Einheit, die einen Prompt empfängt und eine Antwo
 
 Dadurch kann ein Agent mehrere Versionen besitzen. Aufrufende Komponenten verwenden den Alias des Agenten und optional eine Versionsbedingung. Die Factory wählt anschließend die passende aktivierte Version aus. Neue Prompts, Tools oder Concepts sollten daher immer dann als neue Agentenversionen gepflegt werden, wenn Verhaltensänderungen nachvollziehbar bleiben müssen.
 
+## Task-Handler und MCP-Endpunkte
+
+`AiTaskHandlerInterface` enthält die gemeinsame Identität sowie das Workbench- und Tool-Hosting.
+Normale KI-Agenten erweitern diesen Vertrag über `AiAgentInterface` um Prompts, Konversationen und
+Modellverbindungen. Der Prototyp `McpServer` ist ein Task-Handler, aber kein KI-Agent: Er stellt
+konfigurierte Tools bereit, ohne Prompts vorzutäuschen oder eine LLM-Verbindung zu benötigen.
+
+Für MCP-Endpunkte `axenox/genai/AI/Agents/McpServer.php` als `PROTOTYPE_CLASS` verwenden. Tools
+können direkt in `CONFIG_UXON` konfiguriert oder durch Skills bereitgestellt werden, die der
+Endpunktversion zugeordnet sind. Skill-Instructions, Skill-Concepts und Modellverbindungen werden
+für diesen Prototyp nicht geladen.
+
 ## Verwandte Themen
 
 - [Prompting, Concepts und Tools](prompting_german.md)

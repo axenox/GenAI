@@ -1,6 +1,7 @@
 <?php
 namespace axenox\GenAI\Factories;
 
+use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiConversation;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Common\Selectors\AiSkillSelector;
@@ -10,6 +11,8 @@ use axenox\GenAI\Exceptions\AiSkillNotFoundError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerWithoutConnectionInterface;
 use axenox\GenAI\Interfaces\AiSkillInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Common\Selectors\AiAgentSelector;
@@ -188,8 +191,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      */
     // TODO Remove the prompt dependency from skill creation and pass it only when rendering a skill.
     public static function createSkillFromUxon(
-        AiAgentInterface $agent,
-        AiPromptInterface $prompt,
+        AiTaskHandlerInterface $handler,
+        ?AiPromptInterface $prompt,
         string $placeholder,
         UxonObject $uxon
     ) : AiSkillInterface {
@@ -199,8 +202,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
 
         return static::createSkillFromSelector(
-            new AiSkillSelector($agent->getWorkbench(), $alias),
-            $agent,
+            new AiSkillSelector($handler->getWorkbench(), $alias),
+            $handler,
             $prompt,
             $placeholder
         );
@@ -211,8 +214,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      */
     public static function createSkillFromSelector(
         AiSkillSelectorInterface $selector,
-        AiAgentInterface $agent,
-        AiPromptInterface $prompt,
+        AiTaskHandlerInterface $handler,
+        ?AiPromptInterface $prompt,
         string $placeholder
     ) : AiSkillInterface {
         $dataSheet = DataSheetFactory::createFromObjectIdOrAlias(
@@ -253,7 +256,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
                 $selector->getWorkbench()->filemanager()->getPathToVendorFolder()
                 . DIRECTORY_SEPARATOR . $prototypePath
             );
-            $skill = new $class($agent, $prompt, $placeholder, $uxon);
+            $skill = new $class($handler, $prompt, $placeholder, $uxon);
         } catch (AiSkillNotFoundError $e) {
             throw $e;
         } catch (\Throwable $e) {
@@ -273,10 +276,27 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return $skill;
     }
 
+    /**
+     * Creates a chat-capable AI agent from its versioned selector.
+     */
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface
     {
-        list($alias, $versionConstraint) = explode(':', $aliasWithVersion);
-        $versionConstraint = $versionConstraint ?? '*';
+        $handler = static::createTaskHandlerFromString($workbench, $aliasWithVersion);
+        if (! $handler instanceof AiAgentInterface) {
+            throw new AiAgentNotFoundError("AI task handler '$aliasWithVersion' does not handle AI prompts");
+        }
+        return $handler;
+    }
+
+    /**
+     * Creates a configured task handler from an alias and semantic version constraint.
+     */
+    public static function createTaskHandlerFromString(
+        WorkbenchInterface $workbench,
+        string $aliasWithVersion
+    ) : AiTaskHandlerInterface
+    {
+        list($alias, $versionConstraint) = array_pad(explode(':', $aliasWithVersion, 2), 2, '*');
 
         $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_AGENT_VERSION');
         $ds->getFilters()->addConditionFromString('AI_AGENT__ALIAS_WITH_NS', $alias, ComparatorDataType::EQUALS);
@@ -298,10 +318,22 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
         
         // Find the best fitting version for the given semantic version constraint
-        $versionCol = $ds->getColumn('VERSION');
+        $versionCol = $ds->getColumns()->get('VERSION');
         $versions = $versionCol->getValues();
         $bestFitVersion = SemanticVersionDataType::findVersionBest($versionConstraint, $versions);
         $agentRow = $ds->getRow($versionCol->findRowByValue($bestFitVersion));
+        if (! (bool) $agentRow['ENABLED_FLAG']) {
+            throw new AiAgentNotFoundError(
+                "AI task handler '$aliasWithVersion' is disabled. Restart the MCP server after selecting an enabled endpoint version."
+            );
+        }
+        /** @var class-string<AbstractAiTaskHandler> $prototypeClass */
+        $prototypeClass = PhpFilePathDataType::findClassInFile(
+            $workbench->filemanager()->getPathToVendorFolder()
+            . DIRECTORY_SEPARATOR
+            . $agentRow['PROTOTYPE_CLASS']
+        );
+        $requiresConnection = ! is_a($prototypeClass, AiTaskHandlerWithoutConnectionInterface::class, true);
 
         // Prepare the agent UXON
         $uxon = UxonObject::fromAnything($agentRow['CONFIG_UXON']);
@@ -314,36 +346,39 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         // Add required props from the data row
         $uxon->setProperty('name', $agentRow['AI_AGENT__NAME']);
         $uxon->setProperty('alias', $agentRow['AI_AGENT__ALIAS']);
-        $uxon->setProperty('instructions', $agentRow['INSTRUCTIONS']);
+        if ($requiresConnection) {
+            $uxon->setProperty('instructions', $agentRow['INSTRUCTIONS']);
+        }
         
-        // Make sure, there is an LLM connection. If there is one defined, use it regularly. If not,
-        // see if the previous version had one and inherit it.
-        if (null !== $val = $agentRow['DATA_CONNECTION']) {
-            $uxon->setProperty('data_connection_alias', $val);
-        } else {
-            $val = self::findAgentConnection($bestFitVersion, $ds);
-            if ($val !== null) {
-                // If a previous connection is found, use it and save a customizing record - just like
-                // an admin would do when setting the local connection.
-                $customizingDs = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.Core.CUSTOMIZING');
-                $customizingDs->addRow([
-                    'TABLE_NAME' => 'exf_ai_agent_version',
-                    'COLUMN_NAME' => 'data_connection_oid',
-                    'ROW_UID' => $agentRow['UID'],
-                    'VALUE' => $val,
-                ]);
+        if ($requiresConnection) {
+            // Make sure, there is an LLM connection. If there is one defined, use it regularly. If not,
+            // see if the previous version had one and inherit it.
+            if (null !== $val = $agentRow['DATA_CONNECTION']) {
                 $uxon->setProperty('data_connection_alias', $val);
-                $customizingDs->dataCreate(false);
             } else {
-                // If we did not find a previously used connection either, leave it blank - the agent will
-                // be instantiated, but will probably not be usable. Still, this will allow to render 
-                // chats and will only issue an error if they are really used.
+                $val = self::findAgentConnection($bestFitVersion, $ds);
+                if ($val !== null) {
+                    // If a previous connection is found, use it and save a customizing record - just like
+                    // an admin would do when setting the local connection.
+                    $customizingDs = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'exface.Core.CUSTOMIZING');
+                    $customizingDs->addRow([
+                        'TABLE_NAME' => 'exf_ai_agent_version',
+                        'COLUMN_NAME' => 'data_connection_oid',
+                        'ROW_UID' => $agentRow['UID'],
+                        'VALUE' => $val,
+                    ]);
+                    $uxon->setProperty('data_connection_alias', $val);
+                    $customizingDs->dataCreate(false);
+                } else {
+                    // If we did not find a previously used connection either, leave it blank - the agent will
+                    // be instantiated, but will probably not be usable. Still, this will allow to render
+                    // chats and will only issue an error if they are really used.
+                }
             }
         }
 
         // Create a new selector with the exact version
         $selectorWithVersion = new AiAgentSelector($workbench, $alias . VersionedSelectorInterface::VERSION_SEPARATOR . $bestFitVersion);
-        $prototypeClass = PhpFilePathDataType::findClassInFile($workbench->filemanager()->getPathToVendorFolder() . DIRECTORY_SEPARATOR . $agentRow['PROTOTYPE_CLASS']);
         $agent = new $prototypeClass($selectorWithVersion, $uxon);
 
         return $agent;

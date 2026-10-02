@@ -1,21 +1,21 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Widgets\DebugMessage;
 
 class AiAgentRuntimeError extends RuntimeException
 {
-    private AiAgentInterface $agent;
+    private AiTaskHandlerInterface $agent;
     
-    public function __construct(AiAgentInterface $agent, string $message, string $alias, \Throwable $previous = null)
+    public function __construct(AiTaskHandlerInterface $agent, string $message, string $alias, \Throwable $previous = null)
     {
         parent::__construct($message, $alias, $previous);
         $this->agent = $agent;
     }
     
-    public function getAgent(): AiAgentInterface
+    public function getAgent(): AiTaskHandlerInterface
     {
         return $this->agent;
     }

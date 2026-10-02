@@ -389,7 +389,7 @@ Usable from the very first commit of Phase 1 and requires nothing but PHP. MCP S
 `Tests/Mcp/smoke.jsonl`:  
   
 ```json  
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0"}}}  
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0"}}}
 {"jsonrpc":"2.0","method":"notifications/initialized"}  
 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}  
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ping","arguments":{}}}  
@@ -584,10 +584,15 @@ Describe in `GenAI/Docs/MCP`, how to test the created MCP server.
 The adapter is successful when an unchanged existing AI tool is listed and invoked with correctly validated arguments.  
   
 ### Phase 3: Configured MCP endpoints  
+
+Implementation status: the standalone `McpServer`, shared `AiTaskHandlerInterface`, exact-version
+endpoint loading, isolated `McpCapabilityRegistry`, Composer binary, OS-user-authenticated fresh
+Workbench scopes, assigned skill tool bundles and bilingual designer/testing documentation are
+implemented. Manual acceptance with two persisted endpoint selectors in both IDEs remains.
   
 - Add the specialized `McpServer` agent prototype without an LLM connection requirement.  
 - Add an endpoint loader that resolves aliases and semantic versions.  
-- Implement `McpCapabilityRegistry` using only tools configured on the selected endpoint.  
+- Implement `McpCapabilityRegistry` using direct tools and skill tools configured for the selected endpoint.
 - Add `vendor/bin/mcp <endpoint-selector>` to the GenAI Composer package.  
 - Implement `AiMcpCliServerFacade` and a fresh workbench operation scope with authentication and authorization.  
 - Add designer-facing documentation and a default development endpoint with a conservative tool set.  

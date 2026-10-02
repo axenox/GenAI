@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\Traits;
 
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
@@ -16,10 +16,10 @@ trait NotesToolTrait
     /**
      * Creates a notes DataSheet scoped to the invoking agent and authenticated user.
      *
-     * @param AiAgentInterface $agent
+    * @param AiTaskHandlerInterface $agent
      * @return DataSheetInterface
      */
-    protected function createScopedNotesSheet(AiAgentInterface $agent) : DataSheetInterface
+    protected function createScopedNotesSheet(AiTaskHandlerInterface $agent) : DataSheetInterface
     {
         $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->getWorkbench(), self::NOTES_OBJECT_ALIAS);
         $sheet->getFilters()->addConditionFromString(
@@ -39,10 +39,10 @@ trait NotesToolTrait
     /**
      * Resolves the model UID of the invoking agent.
      *
-     * @param AiAgentInterface $agent
+    * @param AiTaskHandlerInterface $agent
      * @return string
      */
-    protected function getAgentUid(AiAgentInterface $agent) : string
+    protected function getAgentUid(AiTaskHandlerInterface $agent) : string
     {
         if (method_exists($agent, 'getUid')) {
             return $agent->getUid();

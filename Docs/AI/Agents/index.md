@@ -9,6 +9,17 @@ An agent is the functional unit that receives a prompt and generates a response 
 
 This allows an agent to have multiple versions. Calling components use the agent alias and, optionally, a version constraint. The factory then selects the appropriate enabled version. New prompts, tools, or concepts should therefore be maintained as new agent versions whenever behavioral changes need to remain traceable.
 
+## Task handlers and MCP endpoints
+
+`AiTaskHandlerInterface` contains the shared identity, Workbench and tool-host behavior. Regular AI
+agents extend it through `AiAgentInterface` and add prompts, conversations and model connections.
+The `McpServer` prototype is a task handler but not an AI agent: it exposes configured tools without
+pretending to handle prompts or requiring an LLM connection.
+
+Use `axenox/genai/AI/Agents/McpServer.php` as `PROTOTYPE_CLASS` for MCP endpoints. Tools can be
+configured directly in `CONFIG_UXON` or contributed by skills assigned to the endpoint version.
+Skill instructions, skill concepts and model connections are not loaded for this prototype.
+
 ## Related topics
 
 - [Prompting, concepts, and tools](prompting.md)
