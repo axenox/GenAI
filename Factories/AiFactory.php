@@ -56,54 +56,26 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     public static function createConversationFromPrompt(
         AiAgentInterface $agent,
         AiPromptInterface $prompt
-    ) : AiConversationInterface {
+    ) : AiConversationInterface 
+    {
         $conversationId = $prompt->getConversationUid();
+        $conversation = static::createConversation($agent, $conversationId);
         if ($conversationId === null) {
-            $conversation = static::createConversation($agent);
             $prompt->setConversationUid($conversation->getConversationId());
-            return $conversation;
         }
 
-        return static::createConversationFromUid($agent, $conversationId);
+        return $conversation;
     }
 
     /**
-     * Persists a new conversation with an empty title.
+     * Creates a new conversation or continues the conversation with the supplied ID.
      */
     public static function createConversation(
-        AiAgentInterface $agent
-    ) : AiConversationInterface {
-        $transaction = $agent->getWorkbench()->data()->startTransaction();
-
-        try {
-            $conversation = DataSheetFactory::createFromObjectIdOrAlias(
-                $agent->getWorkbench(),
-                'axenox.GenAI.AI_CONVERSATION'
-            );
-            $connectionId = null;
-            try {
-                $connectionId = $agent->getConnection()->getId();
-            } catch (\Throwable $e) {
-                $agent->getWorkbench()->getLogger()->logException($e);
-            }
-
-            $conversation->addRow([
-                'AI_AGENT' => $agent->getUid(),
-                'AI_AGENT_VERSION_NO' => $agent->getVersion(),
-                'USER' => $agent->getWorkbench()->getSecurity()->getAuthenticatedUser()->getUid(),
-                'TITLE' => '',
-                'DEVMODE' => $agent->getDevmode() ? 1 : 0,
-                'CONNECTION' => $connectionId
-            ]);
-            $conversation->dataCreate(false, $transaction);
-            $conversationId = $conversation->getUidColumn()->getValue(0);
-            $transaction->commit();
-
-            return new AiConversation($agent, $conversationId);
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            throw $e;
-        }
+        AiAgentInterface $agent,
+        ?string $conversationId = null
+    ) : AiConversationInterface 
+    {
+        return new AiConversation($agent, $conversationId);
     }
 
     /**
@@ -112,9 +84,9 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     public static function createConversationFromUid(
         AiAgentInterface $agent,
         string $conversationId
-    ) : AiConversationInterface {
-        $conversation = new AiConversation($agent, $conversationId);
-        return $conversation;
+    ) : AiConversationInterface 
+    {
+        return static::createConversation($agent, $conversationId);
     }
 
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)
