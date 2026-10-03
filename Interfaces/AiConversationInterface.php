@@ -11,12 +11,12 @@ use exface\Core\Interfaces\Exceptions\ExceptionInterface;
  * orchestrating agent. A conversation belongs to exactly one agent and agent version. Multi-agent
  * interactions use separate child conversations connected by an orchestration timeline.
  *
- * The conversation owns persistence and retrieval of the messages exchanged by its participants.
+ * The conversation owns its complete persistence lifecycle and retrieval of exchanged messages.
  */
 interface AiConversationInterface
 {
     /**
-    * Returns the persisted conversation ID supplied by the factory.
+     * Returns the persisted conversation ID.
      *
      * @return string
      */
@@ -36,16 +36,6 @@ interface AiConversationInterface
      * Overwrites the persisted conversation title.
      */
     public function setTitle(string $title) : AiConversationInterface;
-
-    /**
-     * Returns the UID of the exact agent version assigned to this conversation.
-     */
-    public function getAgentVersionUID() : string;
-
-    /**
-     * Returns the next sequence number, loading it from persistence on first access.
-     */
-    public function getSequenceNumber() : int;
 
     /**
      * Returns TRUE when the conversation already contains its system prompt.

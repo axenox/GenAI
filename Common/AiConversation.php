@@ -26,8 +26,8 @@ use exface\Core\Widgets\Markdown;
 /**
  * Handles all persistence and message bookkeeping for an AI conversation.
  *
- * AiFactory supplies the persisted identity. Mutable runtime state such as the next message
- * sequence number is loaded lazily by the conversation itself.
+ * Creates a persisted conversation when no ID is supplied or continues the existing conversation
+ * identified by the supplied ID. Mutable runtime state is loaded lazily.
  */
 class AiConversation implements AiConversationInterface
 {
@@ -42,21 +42,61 @@ class AiConversation implements AiConversationInterface
     private ?int $sequenceNumber = null;
 
     /**
+     * Creates a new persisted conversation or prepares an existing conversation for continuation.
+     *
      * @param AiAgentInterface $agent Owning agent instance.
-     * @param string $conversationId Existing conversation ID resolved by the factory.
+     * @param string|null $conversationId Existing conversation ID or null to create a conversation.
      */
     public function __construct(
         AiAgentInterface $agent,
-        string $conversationId
+        ?string $conversationId = null
     )
     {
         $this->agent = $agent;
         $this->workbench = $agent->getWorkbench();
-        $this->conversationId = $conversationId;
+        $this->conversationId = $conversationId ?? $this->saveNewConversation();
     }
 
     /**
-     * Returns the persisted conversation ID supplied by the factory.
+     * Persists the initial conversation record and returns its generated ID.
+     */
+    protected function saveNewConversation() : string
+    {
+        $transaction = $this->workbench->data()->startTransaction();
+
+        try {
+            $conversation = DataSheetFactory::createFromObjectIdOrAlias(
+                $this->workbench,
+                'axenox.GenAI.AI_CONVERSATION'
+            );
+            $connectionId = null;
+            try {
+                $connectionId = $this->agent->getConnection()->getId();
+            } catch (\Throwable $e) {
+                $this->workbench->getLogger()->logException($e);
+            }
+
+            $conversation->addRow([
+                'AI_AGENT' => $this->agent->getUid(),
+                'AI_AGENT_VERSION_NO' => $this->agent->getVersion(),
+                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
+                'TITLE' => '',
+                'DEVMODE' => $this->agent->getDevmode() ? 1 : 0,
+                'CONNECTION' => $connectionId
+            ]);
+            $conversation->dataCreate(false, $transaction);
+            $conversationId = $conversation->getUidColumn()->getValue(0);
+            $transaction->commit();
+
+            return $conversationId;
+        } catch (\Throwable $e) {
+            $transaction->rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Returns the persisted conversation ID.
      */
     public function getConversationId() : string
     {
@@ -112,7 +152,7 @@ class AiConversation implements AiConversationInterface
     /**
      * Returns the UID of the exact agent version assigned to this conversation.
      */
-    public function getAgentVersionUID() : string
+    protected function getAgentVersionUID() : string
     {
         return $this->getConversationData()['AGENT_VERSION'];
     }
@@ -180,7 +220,7 @@ class AiConversation implements AiConversationInterface
     /**
      * Returns the next sequence number, loading it from persistence on first access.
      */
-    public function getSequenceNumber() : int
+    protected function getSequenceNumber() : int
     {
         if ($this->sequenceNumber === null) {
             $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
