@@ -8,7 +8,7 @@ use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Events\OnAiToolCallEvent;
 use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Common\DataQueries\AiQuery;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
@@ -114,7 +114,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         $this->init($prompt);
 
         // Initialize the data query
-        $query = new OpenAiApiDataQuery($this->workbench);
+        $query = new AiQuery($this->workbench);
         // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
         // prompt will be used as title.
         $query->appendMessage($prompt->getUserPrompt());
@@ -188,7 +188,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         try {
             $conversation->saveResponse(
                 $performedQuery,
-                $performedQuery->getAnswerMarkdown($performedQuery),
+                $performedQuery->getAnswerMarkdown(),
                 $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null
             );
             return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
@@ -221,7 +221,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
                 $tool = $this->getTool($call->getToolName());
                 $args = array_values($call->getArguments());
                 if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    $resultOfTool = null;
                     try {
                         $this->getWorkbench()->eventManager()->dispatch(new OnBeforeAiToolCallEvent($tool));
                     } catch (\Throwable $e) {
@@ -251,6 +250,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
                     }
                     $conversation->saveExceptions($exceptions);
                     
+                    // TODO why are we checking for a specific method here? Why is it not in the interface???
                     $durationMs = method_exists($resultOfTool, 'getDurationMs')
                         ? $resultOfTool->getDurationMs()
                         : null;
@@ -286,6 +286,9 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             $conversation->saveToolResponses($performedQuery, $toolCallResponses);
             $toolCallResponses = [];
             $performedQuery = $this->getConnection()->query($performedQuery);
+            if (! $performedQuery instanceof AiQueryInterface) {
+                throw new AiPromptError($this, $prompt, 'AI connection returned an invalid query type: expecting instance of AiQueryInterface.');
+            }
             //$query->clearPreviousToolCalls();
         }
         return $performedQuery;
@@ -546,10 +549,10 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     /**
      * 
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
-     * @param \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery $query
+    * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
      * @return \axenox\GenAI\Common\AiResponse
      */
-    protected function parseDataQueryResponse(AiPromptInterface $prompt, OpenAiApiDataQuery $query, string $conversationId) : AiResponse
+    protected function parseDataQueryResponse(AiPromptInterface $prompt, AiQueryInterface $query, string $conversationId) : AiResponse
     {
         if($this->hasResponseJsonSchema()){
             $response = new AiResponse($prompt, $query->getAnswerMarkdown(), $conversationId, $query->getAnswerJson());

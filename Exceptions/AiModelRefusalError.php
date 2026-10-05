@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 
 class AiModelRefusalError extends AiProviderDataQueryError
 {
@@ -10,13 +10,13 @@ class AiModelRefusalError extends AiProviderDataQueryError
     private ?string $refusalCategory;
 
     public function __construct(
-        OpenAiApiDataQuery $query,
-        string $message,
-        ?\Throwable $previous = null,
-        ?bool $retryDecision = null,
-        ?string $modelName = null,
-        ?string $providerName = null,
-        ?string $refusalCategory = null
+        AiQueryInterface    $query,
+        string              $message,
+        ?\Throwable         $previous = null,
+        ?bool               $retryDecision = null,
+        ?string             $modelName = null,
+        ?string             $providerName = null,
+        ?string             $refusalCategory = null
     )
     {
         $this->providerName = $providerName;
@@ -24,7 +24,7 @@ class AiModelRefusalError extends AiProviderDataQueryError
         parent::__construct($query, $message, $previous, $retryDecision, $modelName);
     }
 
-    protected function generateMessage(OpenAiApiDataQuery $query, string $message) : string
+    protected function generateMessage(AiQueryInterface $query, string $message) : string
     {
         $result = 'Das Modell hat die Anfrage aus Sicherheitsbedenken abgelehnt.';
 

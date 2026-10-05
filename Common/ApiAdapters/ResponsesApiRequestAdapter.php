@@ -1,8 +1,8 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
@@ -29,7 +29,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
         $this->connector = $connector;
     }
 
-    public function buildBody(OpenAiApiDataQuery $query): string
+    public function buildBody(AiQueryInterface $query): string
     {
         $json = [
             'model' => $this->connector->getModelName(),
@@ -192,7 +192,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
      */
    
 
-    protected function buildJsonInput(OpenAiApiDataQuery $query): array
+    protected function buildJsonInput(AiQueryInterface $query): array
     {
         $messages = $query->getMessages(true);
         $input = [];
@@ -304,7 +304,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
     /**
      * Builds Responses API instructions from old system/developer messages.
      */
-    protected function buildInstructions(OpenAiApiDataQuery $query): ?string
+    protected function buildInstructions(AiQueryInterface $query): ?string
     {
         $messages = $query->getMessages(true);
         $instructions = [];

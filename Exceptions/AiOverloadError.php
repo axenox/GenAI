@@ -1,26 +1,26 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 
 class AiOverloadError extends AiProviderDataQueryError
 {
     private ?string $providerName;
 
     public function __construct(
-        OpenAiApiDataQuery $query,
-        string $message,
+        AiQueryInterface $query,
+        string      $message,
         ?\Throwable $previous = null,
-        ?bool $retryDecision = null,
-        ?string $modelName = null,
-        ?string $providerName = null
+        ?bool       $retryDecision = null,
+        ?string     $modelName = null,
+        ?string     $providerName = null
     )
     {
         $this->providerName = $providerName;
         parent::__construct($query, $message, $previous, $retryDecision, $modelName);
     }
 
-    protected function generateMessage(OpenAiApiDataQuery $query, string $message) : string
+    protected function generateMessage(AiQueryInterface $query, string $message) : string
     {
         $result = 'Die Verbindung zum KI-Anbieter ist derzeit überlastet.';
         $result .= $this->generateProviderMessage($this->providerName);

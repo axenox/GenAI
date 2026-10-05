@@ -1,8 +1,6 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
-
 interface HttpResponseAdapterInterface
 {
     
@@ -85,10 +83,10 @@ interface HttpResponseAdapterInterface
      * specific error (for example overload, refusal, invalid request, etc.).
      * If no mapping is possible, return a generic provider query error.
      *
-     * @param OpenAiApiDataQuery $query
+    * @param AiQueryInterface $query
      * @param \Exception $e
      * @return \Exception
      */
-    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception;
+    public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception;
 
 }

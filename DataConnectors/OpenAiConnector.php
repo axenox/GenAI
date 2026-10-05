@@ -9,7 +9,7 @@ use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\AbstractDataConnector;
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataConnectors\Traits\IDoNotSupportTransactionsTrait;
 use exface\Core\DataTypes\ArrayDataType;
@@ -70,8 +70,8 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
      */
     final protected function performQuery(DataQueryInterface $query)
     {
-        if (! $query instanceof OpenAiApiDataQuery) {
-            throw new DataQueryFailedError($query, 'Invalid query type for connection ' . $this->getAliasWithNamespace() . ': expecting instance of OpenAiApiDataQuery');
+        if (! $query instanceof AiQueryInterface) {
+            throw new DataQueryFailedError($query, 'Invalid query type for connection ' . $this->getAliasWithNamespace() . ': expecting instance of AiQueryInterface');
         }
         
         $requestAdapter = $this->getRequestAdapter();
@@ -215,7 +215,7 @@ class OpenAiConnector extends AbstractDataConnector implements AiConnectorInterf
      * 
      * @see AiConnectorInterface::getTemperature()
      */
-    public function getTemperature(OpenAiApiDataQuery $query) : ?float
+    public function getTemperature(AiQueryInterface $query) : ?float
     {
         return $query->getTemperature() ?? $this->temperature;
     }

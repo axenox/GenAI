@@ -1,8 +1,8 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\DataConnectors\ClaudeConnector;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
@@ -20,7 +20,7 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         $this->connector = $connector;
     }
 
-    public function buildBody(OpenAiApiDataQuery $query): string
+    public function buildBody(AiQueryInterface $query): string
     {
         $json = [
             'model' => $this->connector->getModelName(),
@@ -54,7 +54,7 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    protected function buildSystemPrompt(OpenAiApiDataQuery $query): ?string
+    protected function buildSystemPrompt(AiQueryInterface $query): ?string
     {
         $messages = $query->getMessages(true);
         $instructions = [];
@@ -78,7 +78,7 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return implode("\n\n", $instructions);
     }
 
-    protected function buildMessages(OpenAiApiDataQuery $query): array
+    protected function buildMessages(AiQueryInterface $query): array
     {
         $messages = [];
 

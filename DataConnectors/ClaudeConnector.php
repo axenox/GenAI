@@ -3,7 +3,7 @@ namespace axenox\GenAI\DataConnectors;
 
 use axenox\GenAI\Common\ApiAdapters\ClaudeMessagesApiRequestAdapter;
 use axenox\GenAI\Common\ApiAdapters\ClaudeMessagesApiResponseAdapter;
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\Exceptions\DataSources\DataConnectionConfigurationError;
@@ -77,7 +77,7 @@ class ClaudeConnector extends OpenAiConnector
         return $this;
     }
 
-    public function getTemperature(OpenAiApiDataQuery $query) : ?float
+    public function getTemperature(AiQueryInterface $query) : ?float
     {
         return $query->getTemperature() ?? $this->temperature;
     }

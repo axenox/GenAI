@@ -2,7 +2,7 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Exceptions\AiInvalidRequestError;
 use axenox\GenAI\Exceptions\AiMaxTokensExceededError;
 use axenox\GenAI\Exceptions\AiModelRefusalError;
@@ -16,7 +16,7 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
 
-    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception
     {
         $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
 

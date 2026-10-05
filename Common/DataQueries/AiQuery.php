@@ -27,7 +27,7 @@ use axenox\GenAI\Common\AiToolCall;
  * 
  * Inspired by OpenAI chat completion API: https://platform.openai.com/docs/api-reference/chat/create
  */
-class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
+class AiQuery extends AbstractDataQuery implements AiQueryInterface
 {
 
     private $workbench;
@@ -86,15 +86,15 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      * 
      * @param string $content
      * @param string $role
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
      */
-    public function appendMessage(string $content, string $role = AiMessageTypeDataType::USER) : OpenAiApiDataQuery
+    public function appendMessage(string $content, string $role = AiMessageTypeDataType::USER) : AiQuery
     {
         $this->messages[] = ['content' => $content, 'role' => $role];
         return $this;
     }
 
-    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : OpenAiApiDataQuery
+    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : AiQuery
     {
         if (!$existingCall){
             $this->messages[] = $requestMessage;
@@ -119,9 +119,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
      * 
      * @param string $content
      * @param string $role
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
      */
-    public function prependMessage(string $content, string $role) : OpenAiApiDataQuery
+    public function prependMessage(string $content, string $role) : AiQuery
     {
         array_unshift($this->messages, ['content'=> $content,'role'=> $role]);
         return $this;
@@ -130,9 +130,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     /**
      * 
      * @param float $temperature
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
      */
-    public function setTemperature(float $temperature) : OpenAiApiDataQuery
+    public function setTemperature(float $temperature) : AiQuery
     {
         $this->temperature = $temperature;
         return $this;
@@ -147,7 +147,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->temperature;
     }
 
-    public function setConversationUid(string $conversationUid) : OpenAiApiDataQuery
+    public function setConversationUid(string $conversationUid) : AiQuery
     {
         $this->conversationUid = $conversationUid;
         return $this;
@@ -210,12 +210,12 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
-     * 
      * @param string $text
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     *@see \axenox\GenAI\Interfaces\AiQueryInterface
+     *
      */
-    public function setSystemPrompt(string $text) : OpenAiApiDataQuery
+    public function setSystemPrompt(string $text) : AiQuery
     {
         $this->systemPrompt = $text;
         return $this;
@@ -225,9 +225,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     /**
      * 
      * @param \Psr\Http\Message\RequestInterface $request
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
      */
-    public function withRequest(RequestInterface $request) : OpenAiApiDataQuery
+    public function withRequest(RequestInterface $request) : AiQuery
     {
         $clone = clone $this;
         $clone->request = $request;
@@ -246,9 +246,9 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
     /**
      * 
      * @param \Psr\Http\Message\ResponseInterface $response
-     * @return \axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery
+     * @return \axenox\GenAI\Common\DataQueries\AiQuery
      */
-    public function withResponse(ResponseInterface $response, HttpResponseAdapterInterface $adapter, float $costs = null) : OpenAiApiDataQuery
+    public function withResponse(ResponseInterface $response, HttpResponseAdapterInterface $adapter, float $costs = null) : AiQuery
     {
         $clone = clone $this;
         $clone->response = $response;
@@ -257,7 +257,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $clone;
     }
 
-    public function withWarnings(array $warnings) : OpenAiApiDataQuery
+    public function withWarnings(array $warnings) : AiQuery
     {
         $clone = clone $this;
         $clone->warnings = $warnings;
@@ -471,7 +471,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->responseAdapter->getFinishReason();
     }
 
-    public function addTool(AiToolInterface $tool) : OpenAiApiDataQuery 
+    public function addTool(AiToolInterface $tool) : AiQuery
     {
         $this->tools[] = $tool;
         return $this;
@@ -503,7 +503,7 @@ class OpenAiApiDataQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->responseAdapter->getToolCalls();
     }
     
-    public function setFiles(array $files): OpenAiApiDataQuery
+    public function setFiles(array $files): AiQuery
     {
         $this->files = $files;
         return $this;
