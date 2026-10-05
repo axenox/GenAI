@@ -191,7 +191,7 @@
         {
             "_EXPORT_SUMMARY": "Outcome [OUTCOME]",
             "CREATED_ON": "2026-09-16 14:29:39",
-            "MODIFIED_ON": "2026-09-16 17:17:04",
+            "MODIFIED_ON": "2026-10-05 11:21:26",
             "CREATED_BY_USER": "0x11f0a52882c8e6b0a528025041000001",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f18273493a41c68273025041000001",
@@ -206,7 +206,18 @@
             "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": 0,
             "DELETE_WITH_RELATED_OBJECT": 0,
-            "DEFAULT_DISPLAY_UXON": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "completed": "~OK",
+                    "partially_failed": "orange",
+                    "failed": "~ERROR",
+                    "skipped": "lightgray",
+                    "no_work": "lightgray"
+                }
+            },
             "COMMENTS": "",
             "NAME": "Outcome",
             "RELATION_CARDINALITY": "",
