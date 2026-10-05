@@ -701,7 +701,7 @@
         {
             "_EXPORT_SUMMARY": "Node type [NODE_TYPE]",
             "CREATED_ON": "2026-09-16 14:29:40",
-            "MODIFIED_ON": "2026-09-16 15:22:54",
+            "MODIFIED_ON": "2026-10-05 11:19:01",
             "CREATED_BY_USER": "0x11f0a52882c8e6b0a528025041000001",
             "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "UID": "0x11f1ae6349f353d2ae63025041000001",
@@ -716,7 +716,19 @@
             "DEFAULT_EDITOR_UXON": null,
             "COPY_WITH_RELATED_OBJECT": 0,
             "DELETE_WITH_RELATED_OBJECT": 0,
-            "DEFAULT_DISPLAY_UXON": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "agent": "#95bff4",
+                    "start": "#bfc4cd",
+                    "exit": "#bfc4cd",
+                    "workflow": "#f4e29a",
+                    "decision": "#dabff8",
+                    "action": "#a7ecbf"
+                }
+            },
             "COMMENTS": "",
             "NAME": "Node type",
             "RELATION_CARDINALITY": "",

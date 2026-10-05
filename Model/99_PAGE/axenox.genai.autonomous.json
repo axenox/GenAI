@@ -11,7 +11,7 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2026-06-30 01:53:15",
     "modified_by_user_selector": "0x11e8fe1c902c8ebea23ee4b318306b9a",
-    "modified_on": "2026-09-28 19:43:37",
+    "modified_on": "2026-10-05 11:12:37",
     "contents": {
         "widget_type": "SplitHorizontal",
         "object_alias": "axenox.GenAI.AI_AUTONOMOUS",
@@ -251,7 +251,7 @@
                         "widget_type": "SplitVertical",
                         "panels": [
                             {
-                                "height": "30%",
+                                "height": "40%",
                                 "widgets": [
                                     {
                                         "widget_type": "SplitHorizontal",
@@ -271,6 +271,11 @@
                                                                     "attribute_alias": "DATE",
                                                                     "comparator": ">=",
                                                                     "value": "-3m"
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "MAX_COST",
+                                                                    "comparator": ">",
+                                                                    "value": 0
                                                                 }
                                                             ],
                                                             "sorters": [
@@ -282,14 +287,14 @@
                                                         },
                                                         "series": [
                                                             {
-                                                                "type": "line",
+                                                                "type": "column",
                                                                 "caption": "Average cost",
                                                                 "x_attribute_alias": "DATE",
                                                                 "y_attribute_alias": "AVG_COST",
                                                                 "y_axis_no": 0
                                                             },
                                                             {
-                                                                "type": "line",
+                                                                "type": "spline",
                                                                 "caption": "Maximum cost",
                                                                 "x_attribute_alias": "DATE",
                                                                 "y_attribute_alias": "MAX_COST",
@@ -313,6 +318,11 @@
                                                                     "attribute_alias": "DATE",
                                                                     "comparator": ">=",
                                                                     "value": "-3m"
+                                                                },
+                                                                {
+                                                                    "attribute_alias": "AVG_DURATION_MINUTES",
+                                                                    "comparator": ">",
+                                                                    "value": 0.05
                                                                 }
                                                             ],
                                                             "sorters": [
@@ -324,14 +334,14 @@
                                                         },
                                                         "series": [
                                                             {
-                                                                "type": "line",
+                                                                "type": "column",
                                                                 "caption": "Average duration (min.)",
                                                                 "x_attribute_alias": "DATE",
                                                                 "y_attribute_alias": "AVG_DURATION_MINUTES",
                                                                 "y_axis_no": 0
                                                             },
                                                             {
-                                                                "type": "line",
+                                                                "type": "spline",
                                                                 "caption": "Maximum duration (min.)",
                                                                 "x_attribute_alias": "DATE",
                                                                 "y_attribute_alias": "MAX_DURATION_MINUTES",
@@ -368,10 +378,12 @@
                                                         "attribute_alias": "OUTCOME"
                                                     },
                                                     {
-                                                        "attribute_alias": "DURATION_MINUTES"
+                                                        "attribute_alias": "DURATION_MINUTES",
+                                                        "footer": "AVG"
                                                     },
                                                     {
-                                                        "attribute_alias": "COST"
+                                                        "attribute_alias": "COST",
+                                                        "footer": "AVG"
                                                     },
                                                     {
                                                         "attribute_alias": "USER__LABEL"
