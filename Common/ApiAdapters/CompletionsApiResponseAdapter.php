@@ -2,7 +2,7 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Exceptions\AiModelRefusalError;
 use axenox\GenAI\Exceptions\AiProviderDataQueryError;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
@@ -13,7 +13,7 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
 
-    public function enrichError(OpenAiApiDataQuery $query, \Exception $e) : \Exception
+    public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception
     {
         $finishReason = (string) ($this->json['choices'][0]['finish_reason'] ?? 'unknown');
         $model = isset($this->json['model']) ? (string) $this->json['model'] : null;

@@ -2,9 +2,11 @@
 namespace axenox\GenAI\Interfaces;
 use exface\Core\Interfaces\DataSources\DataQueryInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
- * Common interface for queries for LLM connectors
+ * Common interface for queries to LLM connectors - stands for a single request/response cycle with the LLM.
  * 
  * The connector takes care of sending messages and receiving responses from a specific LLM.
  * Each type of LLM API requires a spearate AiQuery class, that will extract from its raw response
@@ -15,6 +17,72 @@ use exface\Core\Interfaces\Filesystem\FileInterface;
  */
 interface AiQueryInterface extends DataQueryInterface
 {
+    /**
+     * Returns the messages to send to the LLM.
+     *
+     * @param bool $includeConversation
+     * @return array
+     */
+    public function getMessages(bool $includeConversation = false) : array;
+
+    /**
+     * Returns the query-specific sampling temperature.
+     *
+     * @return float|null
+     */
+    public function getTemperature() : ?float;
+
+    /**
+     * Returns the JSON schema requested for the response.
+     *
+     * @return array|null
+     */
+    public function getResponseJsonSchema() : ?array;
+
+    /**
+     * Returns the tools available to the LLM.
+     *
+     * @return AiToolInterface[]
+     */
+    public function getTools() : array;
+
+    /**
+     * Returns a copy containing the HTTP request sent to the provider.
+     *
+     * @param RequestInterface $request
+     * @return AiQueryInterface
+     */
+    public function withRequest(RequestInterface $request) : AiQueryInterface;
+
+    /**
+     * Returns a copy containing the provider response and its adapter.
+     *
+     * @param ResponseInterface $response
+     * @param HttpResponseAdapterInterface $adapter
+     * @param float|null $costs
+     * @return AiQueryInterface
+     */
+    public function withResponse(ResponseInterface $response, HttpResponseAdapterInterface $adapter, float $costs = null) : AiQueryInterface;
+
+    /**
+     * Returns a copy containing warnings produced while processing the response.
+     *
+     * @param array $warnings
+     * @return AiQueryInterface
+     */
+    public function withWarnings(array $warnings) : AiQueryInterface;
+
+    /**
+     * Appends an assistant tool call and its result for the next provider request.
+     *
+     * @param bool $existingCall
+     * @param string $toolResponse
+     * @param string $callId
+     * @param array $requestMessage
+     * @return AiQueryInterface
+     */
+    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : AiQueryInterface;
+
     /**
      * Returns the answer of the LLM as text (raw)
      * 

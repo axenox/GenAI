@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 
 class AiMaxTokensExceededError extends AiInvalidRequestError
 {
@@ -10,14 +10,14 @@ class AiMaxTokensExceededError extends AiInvalidRequestError
     private ?int $allowedMaxTokens;
 
     public function __construct(
-        OpenAiApiDataQuery $query,
-        string $message,
-        ?\Throwable $previous = null,
-        ?bool $retryDecision = null,
-        ?string $modelName = null,
-        ?string $providerName = null,
-        ?int $requestedMaxTokens = null,
-        ?int $allowedMaxTokens = null
+        AiQueryInterface    $query,
+        string              $message,
+        ?\Throwable         $previous = null,
+        ?bool               $retryDecision = null,
+        ?string             $modelName = null,
+        ?string             $providerName = null,
+        ?int                $requestedMaxTokens = null,
+        ?int                $allowedMaxTokens = null
     )
     {
         $this->requestedMaxTokens = $requestedMaxTokens;
@@ -25,7 +25,7 @@ class AiMaxTokensExceededError extends AiInvalidRequestError
         parent::__construct($query, $message, $previous, $retryDecision, $modelName, $providerName);
     }
 
-    protected function generateMessage(OpenAiApiDataQuery $query, string $message) : string
+    protected function generateMessage(AiQueryInterface $query, string $message) : string
     {
         $result = 'Die angegebene Tokenanzahl im Request überschreitet das Maximum.';
 

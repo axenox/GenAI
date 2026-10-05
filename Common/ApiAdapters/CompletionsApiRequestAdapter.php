@@ -1,8 +1,8 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
@@ -20,7 +20,7 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
         $this->connector = $connector;    
     }
 
-    public function buildBody(OpenAiApiDataQuery $query): string
+    public function buildBody(AiQueryInterface $query): string
     {
         if ($query->hasFiles()) {
             throw new \LogicException(
@@ -165,7 +165,7 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
         return $schema;
     }
     
-    protected function buildJsonMessages(OpenAiApiDataQuery $query) : array
+    protected function buildJsonMessages(AiQueryInterface $query) : array
     {
         // TODO add a AiMessageInterface abstraction for every individual message. Currently they are returned
         // here is the completions format already. Other adapter will need to translate this format into theirs.

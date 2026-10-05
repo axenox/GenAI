@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\Exceptions;
 
-use axenox\GenAI\Common\DataQueries\OpenAiApiDataQuery;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\AiProviderErrorInterface;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
 
@@ -12,11 +12,11 @@ class AiProviderDataQueryError extends DataQueryFailedError implements AiProvide
     protected ?string $modelName;
 
     public function __construct(
-        OpenAiApiDataQuery $query,
-        string $message,
+        AiQueryInterface $query,
+        string      $message,
         ?\Throwable $previous = null,
-        ?bool $retryDecision = null,
-        ?string $modelName = null
+        ?bool       $retryDecision = null,
+        ?string     $modelName = null
     )
     {
         $this->retryDecision = $retryDecision;
@@ -25,7 +25,7 @@ class AiProviderDataQueryError extends DataQueryFailedError implements AiProvide
         parent::__construct($query, $this->generateMessage($query, $message), null, $previous);
     }
 
-    protected function generateMessage(OpenAiApiDataQuery $query, string $message) : string
+    protected function generateMessage(AiQueryInterface $query, string $message) : string
     {
         $result = 'Die KI-Anfrage konnte nicht verarbeitet werden.';
         $result .= $this->generateModelMessage();
