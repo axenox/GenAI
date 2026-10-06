@@ -256,6 +256,12 @@ class GenericSkill implements AiSkillInterface
      */
     private function getConcepts() : array
     {
+        // FIXME remove the inner stat of a GenericSkill defined by $this->prompt. After all, the skill itself does
+        // not depend on the $prompt, the resulting instructions - do. So getInstructions() probably need a $prompt
+        // parameter.
+        // TODO distinguish between concepts and other prompt placeholders - like GenericAssistant does with `getConcepts()`
+        // separated from `getPlaceholderResolvers($prompt)`. This will allow other skill prototypes to add their own
+        // placeholders easily - similarly to ho SqlAdminAssistant adds its connection-related placeholders.
         if ($this->prompt === null || ! $this->handler instanceof AiAgentInterface) {
             return [];
         }

@@ -99,13 +99,19 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * Initializes all configured prompt components once.
+     * TODO why do we need this inner state of the GenericAssistant defined by the $prompt? It interferes with the idea
+     * of handling prompts independently. We should move back to explicit prompt dependency in getConcepts() and
+     * probably getSkills() too. In the case of getSkills() we could also leave each skill prompt-independent, but
+     * give Skill::getInstructions() the $prompt as argument underlining that the instruction rendering actually needs
+     * the prompt context - for concepts inside the skills.
      */
     protected function init(AiPromptInterface $prompt) : void
     {
-        // TODO Remove the prompt dependency (in the constructors from Concepts and Skills) so we can load this without a prompt.
-        // Beacause a Prompt is not Permanent and may change between calls.
+        // Concepts depend on the prompt (the describe the context of it)
         $this->initConcepts($prompt);
+        // Skills may have concepts too
         $this->initSkills($prompt);
+        // Tools are prompt-independent
         $this->initTools();
     }
 
@@ -411,7 +417,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         $renderer = $this->createPromptRenderer($prompt);
         $this->init($prompt);
 
-        foreach ($this->getConcepts() as $placeholderResolver) {
+        foreach ($this->getPlaceholderResolvers($prompt) as $placeholderResolver) {
             $renderer->addPlaceholder($placeholderResolver);
         }
 
@@ -430,6 +436,23 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             }
         }
         return $this->systemPromptRendered;
+    }
+
+    /**
+     * Returns an array of resolvers for placeholders in instructions.
+     * 
+     * Placeholders may be defined
+     * 
+     * - by the agent designer in the form of concepts (each concept replaces a placeholder)
+     * - by the agent prototype itself in case it has its own special context - e.g. the axenox.IDE.SqlAdminAssistant
+     * "knows" which data connection it is working with.
+     * 
+     * @param AiPromptInterface $prompt
+     * @return AiConceptInterface[]
+     */
+    protected function getPlaceholderResolvers(AiPromptInterface $prompt) : array
+    {
+        return $this->getConcepts();
     }
 
     /**
