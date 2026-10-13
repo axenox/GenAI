@@ -557,15 +557,15 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `search_query` | Ja | Suchbegriff für die Modellsuche. |
-| `object_type` | Nein | Optionaler Typfilter wie `exf_object`, `exf_attribute`, `exf_page` oder `exf_object_action`. |
+| `component` | Nein | Exakter Komponententypfilter, beispielsweise `object`, `attribute`, `page` oder `action`. Die erlaubten Werte werden wie bei `ModelComponentInfoTool` aus der Component Registry erzeugt. |
 | `rows_limit` | Nein | Optionale maximale Zeilenanzahl. Standard ist `50`. |
 | `rows_offset` | Nein | Optionaler Pagination-Offset. Standard ist `0`. |
 
-**Verwendung.** Das Tool kapselt `DataSheetReadTool` und setzt `object_alias`, Spalten und den UXON-Suchfilter bereits vordefiniert. Sie übergeben nur den Suchbegriff und optional einschränkende Argumente.
+**Verwendung.** Das Tool liest `exface.Core.SEARCH_RESULT` mit vordefinierten Spalten und einem UXON-Suchfilter. Sie übergeben den Suchbegriff und optional einen Registry-Komponentenschlüssel, um `COMPONENT` auf exakte Gleichheit zu filtern. Das Argument `component` ersetzt `object_type`; passen Sie bestehende Tool-Argumentkonfigurationen entsprechend an.
 
 **So sieht es aus.** Die KI gibt einen Suchbegriff ein, zum Beispiel `search_query = "\"exface.Core.USER\""`, und bekommt dazu passende Verwendungs-Trefferzeilen zurück.
 
-**Ergebnis und Grenzen.** Das Ergebnis wird wie bei `DataSheetReadTool` als Markdown zurückgegeben und enthält Treffer mit Kontextfeldern wie Objektname, Instanzname und Instanzalias.
+**Ergebnis und Grenzen.** Das Ergebnis ist eine Markdown-Tabelle mit Komponente, Selektor, Name und Fundstelle. Jeder Komponentenwert in `SEARCH_RESULT` muss einem Schlüssel in der Component Registry entsprechen. Die derzeit deklarierten Argumente `rows_limit` und `rows_offset` werden von diesem Tool nicht angewendet.
 
 ## `ModelComponentInfoTool`
 
