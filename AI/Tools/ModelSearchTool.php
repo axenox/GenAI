@@ -8,8 +8,9 @@ use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
-use exface\Core\DataTypes\StringDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
@@ -37,7 +38,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
 class ModelSearchTool extends AbstractAiTool
 {
     public const ARG_SEARCH_QUERY = 'search_query';
-    public const ARG_OBJECT_TYPE = 'object_type';
+    public const ARG_COMPONENT = 'component';
     public const ARG_ROWS_LIMIT = 'rows_limit';
     public const ARG_ROWS_OFFSET = 'rows_offset';
 
@@ -49,7 +50,7 @@ class ModelSearchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        list($query, $objType, $limit, $offset) = $arguments;
+        list($query, $component, $limit, $offset) = array_pad($arguments, 4, null);
         
         if (! $query) {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_query');
@@ -68,6 +69,9 @@ class ModelSearchTool extends AbstractAiTool
         $sheet->getFilters()->addConditionFromString(
             'UXON', $query
         );
+        if ($component !== null && $component !== '') {
+            $sheet->getFilters()->addConditionFromString('COMPONENT', $component, ComparatorDataType::EQUALS);
+        }
         $sheet->dataRead();
 
         return new AiToolResultString($this, $arguments, $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
@@ -95,6 +99,7 @@ class ModelSearchTool extends AbstractAiTool
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
+        $allComponents = $workbench->getComponentRegistry()->getComponentKeys();
 
         return [
             (new ServiceParameter($self))
@@ -107,8 +112,12 @@ class ModelSearchTool extends AbstractAiTool
                     'ShowModelSearchDialog'
                 ]),
             (new ServiceParameter($self))
-                ->setName(self::ARG_OBJECT_TYPE)
-                ->setDescription('Optional object type filter (for example `exf_object`, `exf_attribute`, `exf_page`, `exf_object_action`)')
+                ->setName(self::ARG_COMPONENT)
+                ->setDescription('Optional component type filter (for example `object`, `attribute`, `page`, `action`), using the same component types as ModelComponentInfoTool')
+                ->setDataType(new UxonObject([
+                    'alias' => 'exface.Core.GenericStringEnum',
+                    'values' => array_combine($allComponents, $allComponents)
+                ]))
                 ->setRequired(false),
             (new ServiceParameter($self))
                 ->setName(self::ARG_ROWS_LIMIT)

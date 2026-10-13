@@ -557,15 +557,15 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `search_query` | Yes | Search term for the model search. |
-| `object_type` | No | Optional type filter such as `exf_object`, `exf_attribute`, `exf_page`, or `exf_object_action`. |
+| `component` | No | Exact component type filter, such as `object`, `attribute`, `page`, or `action`. Allowed values are generated from the Component Registry, as in `ModelComponentInfoTool`. |
 | `rows_limit` | No | Optional maximum row count. Defaults to `50`. |
 | `rows_offset` | No | Optional pagination offset. Defaults to `0`. |
 
-**How to use.** The tool wraps `DataSheetReadTool` and predefines `object_alias`, columns, and the UXON search filter. You only provide the search term and optional narrowing arguments.
+**How to use.** The tool reads `exface.Core.SEARCH_RESULT` with predefined columns and a UXON search filter. Provide the search term and optionally a registry component key to filter `COMPONENT` by exact equality. The `component` argument replaces `object_type`; update existing tool argument configurations accordingly.
 
 **What it looks like.** The AI enters a search term, for example `search_query = "\"exface.Core.USER\""`, and receives matching usage rows.
 
-**Result and limits.** The result is rendered like `DataSheetReadTool` output and includes matched model entities with usage context fields such as object name, instance name, and instance alias.
+**Result and limits.** The result is a Markdown table with component, selector, name, and match location. Each component value in `SEARCH_RESULT` must correspond to a key in the Component Registry. The currently declared `rows_limit` and `rows_offset` arguments are not applied by this tool.
 
 ## `ModelComponentInfoTool`
 
