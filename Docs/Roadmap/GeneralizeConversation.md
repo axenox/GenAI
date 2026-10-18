@@ -8,7 +8,8 @@ The log contains typed messages. Some describe user input, system instructions, 
 
 Keep three responsibilities distinct:
 
-- `AiConversation` owns persisted interaction history and its designer-facing representation.
+- `AiConversation` owns persisted interaction history and its designer-facing representation. Reading messages from the conversation, we must be able to restore all data sent to and received from conversation parties. In particular, LLM connectors must be able to regenerate all messages to send to the LLM from the conversation
+    - A sub-level of the conversation is the `axenox.GenAI.AI_TOOL_CALL` object, that stores every tool call separately to support deeper introspection and statistics. So while a conversation message stores all tool calls requested by an LLM in a single response (because this is important to recreate the message for the next LLM request), the separate tool call storage will store each tool separately with its result, status, execution time and other metadata.
 - `AiQuery` transfers an API-agnostic LLM exchange between an agent and its connector. It is used only when this framework calls an LLM.
 - AI connectors and their API adapters translate queries into provider requests and normalize provider responses.
 
@@ -22,53 +23,73 @@ Generalize `AiConversation` and the relevant factory methods to accept `AiTaskHa
 
 Expose the owner as `getTaskHandler()` and migrate `getAgent()` callers. Retain exact handler-version validation and authenticated-user authorization. Do not rename every existing metamodel alias merely to change the PHP contract; existing agent/version relations can initially represent both kinds of configured handler.
 
-Record the source (`agent` or `mcp`) and optional client/session metadata. Agents explicitly supply connection and development-mode information where applicable. Message model, tokens, and cost are optional facts, not dependencies on the owner's capabilities. A connectionless conversation must not call `getConnection()` or manufacture missing LLM data.
+Record the source (`agent` or `mcp`) explicitly in a new `TYPE` attribute of the conversation. Also add a `TOPIC_ID` attribute, which holding an external identifier for the conversation: e.g. MCP session id, ticket ID for autonomous ticket workers, etc. Agents explicitly supply connection information where applicable. Message model, tokens, and cost are optional facts, not dependencies on the owner's capabilities. A connectionless conversation must not call `getConnection()` or manufacture missing LLM data.
+
+The development-mode is independent context information, that can be set regardless of the conversation type. It allows to exclude tests and debug runs from statistics. It is not implemented properly yet, though. 
 
 An agent conversation may contain system instructions; an MCP conversation need not contain any. System-prompt rules remain an agent-runtime concern rather than a prerequisite for shared logging.
 
 ### Typed messages
 
-Introduce a small normalized conversation-message contract with these initial types:
-
-- system instructions;
-- user input;
-- assistant/LLM response;
-- tool execution;
-- standalone warning;
-- standalone error.
+The existing AiMessageTypeDataType contains all conversation message types. Change it when adding or removing types. 
 
 Each message has stable identity, conversation identity, sequence, timestamps, display content, and structured data. LLM participant roles and provider-specific message formats are not the definition of a conversation message.
 
-Conversation persistence accepts message data, calls, and results without requiring `AiQueryInterface`. Agent-side composition extracts normalized LLM response and usage data from a query before logging it.
+Conversation persistence accepts message data, calls, and results only requiring `AiQueryInterface` if the message comes from the LLM and expects token counts or other metadata. 
 
-Preserve structured evidence independently of its rendered display. Do not persist live tool instances, Workbench objects, or provider SDK objects as message payloads. Raw request/response details may be retained as bounded diagnostic metadata where useful, but do not determine the main timeline layout.
+### One message per tool request
 
-### One message per tool execution
+Each time on or more tool calls are requested from the workbench, we record an conversation message of type `tool`. A tool request from an LLM may include multiple tool calls, while an MCP call will target a single tool (note sure: can there be multiple tools in an mcp calling?). A conversation message represents the entire request and the corresponding response. The individual tool calls are additionally logged in the DB as via `axenox.GenAI.AI_TOOL_CALL` object. This two-layer structure serves multiple purposes:
 
-Create one conversation message immediately before invoking each tool, then enrich that same message with its result or normalized failure. Do not append a separate result message or delay persistence until the whole batch completes.
+- keep the conversation condensed and easy to read 
+- simplify reconstructing the message chain to be sent to the LLM if the conversation continues
+- supporting tool statistics and analysis to continuously improve tools and analyze LLM "chain-of-though"
+
+Create one conversation message immediately before handling the received batch of tool calls, then enrich that same message with tool results after all tools ran or failed. Do not append a separate result message. 
 
 The lifecycle is:
 
-1. Persist and commit the call identity, tool identity, arguments, sequence, start time, and in-progress state.
-2. Invoke the tool only after initial persistence succeeds, with no database transaction held open during execution.
-3. Update the same message with result data, completion time, duration, diagnostics, failure state, and combined display content.
-4. Preserve the message UID, original call data, and sequence during enrichment.
+1. Persist and commit the call identity, sequence,  in-progress state and tool list with arguments by calling `$conversation->saveToolCalls()`  and remember the returned message UID. 
+2. Invoke each tool:
+	1. Fire `OnBeforeAiToolCallEvent` 
+    2. Call tool `invoke()` and record the result
+	3. Fire `OnAiToolCallEvent` 
+3. Update the same message with results of the tool calls including completion time, duration, diagnostics, failure state, and combined display content: `$conversation->saveToolResults()`. This should also record the individual `AI_TOOL_CALL` entries. 
 
 An illustrative flow is:
 
 ```php
-$messageId = $conversation->startToolCall($call);
-$result = $executor->execute($handler, $task, $tool, $arguments);
-$conversation->completeToolCall($messageId, $result);
+$messageId = $conversation->saveToolCalls($calls);
+$results = [];
+foreach ($calls as $call) {
+    $results[] = $tool->invoke($arguments);
+}
+$conversation->saveToolResult($messageId, $results$);
 ```
 
-The executor must expose normalized failures or allow the caller to record a terminal failure before propagating it. Saving a call must never execute it. Fatal execution failures and recoverable tool failures must remain distinguishable.
+Use the existing message type `tool` for the new combined tool messages. Serialize calls and results as UXON in separate properties of the data JSON in the message:
 
-Use the existing `AI_TOOL_CALL` records as structured execution detail linked to the combined message. Assign one authoritative owner to each execution field and keep related updates consistent. Batch grouping can be derived for display; retain batch correlation without duplicating per-call messages.
+```
+{
+	calls: [{}], 
+	results: [{}]
+}
+```
+
+Write an SQL migration to transform existing `TOOL` and `TOOLCALLING` message pairs into combined `TOOL` steps in order to allow agents to continue future conversations after the refactoring. 
+
+Use the existing `axenox.GenAI.AI_TOOL_CALL` object as structured execution detail linked to the combined message. These individual tool call records show status and metadata.
 
 Retain raw client arguments separately from parsed execution arguments where they differ. Correlate results using stable message identity and call identity, not array positions. Distinguish repeated calls from retries or duplicate writes.
 
-If execution is interrupted or result persistence fails, the initial message remains evidence of an attempted invocation with completion unconfirmed. It does not prove that execution started, succeeded, or had no side effects. Never automatically rerun a tool to repair its audit record.
+### Tool error handling
+
+Since an LLM should still receive tool results even if they include errors, we need to catch all errors during tool invocation and categorize them. 
+
+- Committing the tool message before invocation ensures it remains logged even if something goes entirely wrong. 
+- Errors caught inside tools should be caught and included in the tool result. It is important to distinguish between non-critical logical errors, that result from bad calls (these can be avoided by trying to call the tool again with different arguments) and truly unexpected errors that result from broken tools. Neither should stop other tool from the same request from being executed. Instead, the broken tool result will explain the error to the caller.
+- Individual AI_TOOL_CALL entries should be made for successful tool calls and for failures with corresponding results and metadata. It is OK to write them at the very end of every tool batch as they serve statics primarily.
+- Errors during logging individual AI_TOOL_CALL entries are non-fatal - tool results should still be returned to the LLM. The errors should be logged using `$workbench->getLogger()->logException()`.
 
 ### Shared tool execution
 
@@ -82,20 +103,58 @@ Tool diagnostics belong to the combined execution message. Standalone warnings/e
 
 ### API-agnostic queries and typed results
 
-Remove database history loading from `AiQuery`. Agent-side history composition loads the conversation and selects relevant context before building the query. Audit history is not automatically model context: errors, monitoring state, and presentation text must not be blindly replayed to the LLM.
+Remove database history loading from `AiQuery`. Instead pass the entire `AiConversation` to the query and make it available to the LLM API, that converts the query to requests. The API implementation should decide, what conversation messages it will send to the LLM as context and what format it will use (e.g. JSON or string). 
+
+The `AiConversation` class owns conversation storage and provides methods to fetch messages by type. 
+
+Audit history is not automatically model context: errors, monitoring state, and presentation text must not be blindly replayed to the LLM.
 
 Replace provider-shaped message arrays with normalized query messages, call batches, and typed tool results. Retain call IDs, ordering, batch identity, and any continuation data required by providers without making their wire formats the shared contract.
 
 Pass `AiToolResultInterface` instances through the query instead of calling `getValueWithMetadata()` in the agent. For example:
 
 ```php
-$conversation->completeToolCall($messageId, $result);
+$conversation->saveToolCall($call, $result);
 $query->appendToolResult($call, $result);
 ```
 
-These are independent consumers of the same call/result data. Persistence must not supply the LLM-facing rendering, and query serialization must not supply the audit representation.
+These are independent consumers of the same call/result data. Persistence must not supply the LLM-facing rendering, and query serialization must not supply the audit representation. 
 
-Provide access to original structured result values where available. The current string-returning `getValue()` cannot recover a value already flattened by the result class. Preserve existing string helpers during migration; do not guess whether arbitrary text is JSON.
+For example, tool results can be represented by different classes: `AiToolResultString`, `AiToolResultData`, etc. They are serialized in different ways for different purposes:
+
+- as string or JSON for LLM - this is controlled by the LLM API adapters
+- as UXON for a completely reinstantiatable dump in the data of a conversation message. This is used to read the conversation and instatiate result objects from messages as if they were freshly received by the tool. 
+- as string in conversation messages for easy reading (this is a different string, that the LLM gets!)
+
+Provide access to original structured result values by converting them to UXON and saving in conversation message data:
+
+```
+{
+	call: {
+		arguments: {
+		
+		}
+	}, 
+	result: {
+		class: \axenox\GenAI\Common\AI ToolResultString, 
+		type: {
+			// $dataType->exportUxonObject() 
+		}, 
+		value:, 
+		appendix: {}, 
+		exceptions: []
+	} 
+	
+}
+```
+
+Use reasonable UXON depth. We do not need to introduce full UXON representations of exceptions just to fill the array here - save the messages only. Similarly, do not save entire file contents in appendix values - use links instead. In the end, LLM APIs must not care about whether a tool result is "fresh" or reconstructed from conversation data. The contents send to the LLM must be identical in both cases. 
+
+In future we will add more complex tool results like `AiToolResultData` representing a data sheet. In this case, the result UXON should reproduce the original result object (e.g. DataSheet) when loaded from conversation message. 
+
+The current string-returning `getValue()` cannot recover a value already flattened by the result class. 
+
+During migration, assume all existing tool results are of type `AiToolResultString`, do not attempt to parse them. Just use the entire result as value. Do not guess whether arbitrary text is JSON.
 
 Request adapters choose plain text, Markdown, JSON-encoded text, or supported structured content according to the actual API contract. Completions tool messages, Responses function-call output, and Claude tool-result blocks remain adapter concerns. A combined conversation message may expand into multiple protocol items.
 
