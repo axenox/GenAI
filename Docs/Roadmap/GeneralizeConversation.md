@@ -354,11 +354,13 @@ Deliver each phase with focused verification before layering the next. Do not cl
 
 ## Open items
 
+Only unresolved design details are listed here. Decisions already recorded in the architecture remain implementation requirements, not open questions.
+
 ### Message and storage contract
 
-- Finalize message fields, payload versioning, lifecycle states, and the start/complete signatures.
-- Finalize per-call projection fields and statistics-repair behavior, keeping `AI_MESSAGE` authoritative for reconstruction and embedded diagnostics. Choose the single usage attribution location.
-- Specify the conversation-backed call/result read API replacing `AiToolCallResponse` for consumers and compatibility for existing role values, payloads, exports, and owner accessors.
+- Finalize the remaining message fields, payload-version identifiers, lifecycle state values, and exact `saveToolCalls()` / `saveToolResults()` parameter and return types.
+- Finalize per-call projection fields and the mechanism for repairing missing statistics records.
+- Specify concrete signatures for the conversation-backed call/result read API and compatibility for existing role values, payloads, exports, and owner accessors.
 - Specify migration pairing rules and the compatibility path for incomplete or ambiguous legacy split messages without guessing correlations.
 
 ### MCP correlation and scope
@@ -369,25 +371,24 @@ Deliver each phase with focused verification before layering the next. Do not cl
 
 ### Execution and failure semantics
 
-- Define process-level interruptions versus caught invocation failures. Align `isFailed()` with deliverable failure results, executor behavior, LLM error outputs, and MCP error results; caught tool failures must not stop the rest of the batch.
-- Finalize the shared start/complete caller contract and event-listener failure semantics, including failures before invocation and after a side effect has completed.
-- Specify duplicate-write behavior, call identity scope, safe completion retries, recovery of stale messages, and atomic sequence allocation under concurrency.
-- Define an explicit diagnostic path when result persistence fails after a side-effecting tool completes; audit repair must not rerun the tool.
+- Specify how caught error severity determines the persisted `isFailed()` flag, independently of whether a failure result can be delivered.
+- Define event-listener failure semantics, including failures before invocation and after a side effect has completed.
+- Specify duplicate-write behavior, safe completion retries, recovery of stale messages, and atomic sequence allocation under concurrency.
+- Choose the notification and audit-repair mechanism when combined-result persistence fails after a side-effecting tool completes.
 
 ### Query, history, and usage
 
-- Finalize structured-value access and normalized query types, including provider-specific continuation metadata carried as opaque data where necessary.
-- Finalize the fresh-only exception accessor migration from the current plural API and compatibility for legacy diagnostic payloads. The new contract uses ordered `errors` and `warnings` message arrays through `getErrors()` and `getWarnings()`, independent of exception objects and live tools.
-- Specify adapter-owned history selection and conversation-owned reconstruction from new combined messages and legacy split messages without replaying tool execution. Define how adapters deduplicate fresh query results already present in the conversation.
-- Define supported cross-LLM/API transitions from completed turns, semantic content mappings, and explicit recovery or rejection for nonportable unfinished exchanges. Treat exact historical request reproduction as optional diagnostics, not a continuation requirement.
+- Finalize structured-value accessor signatures, normalized query/message types, and the versioned provider-extension schema.
+- Specify the API transition from the current plural exception accessor and compatibility mappings for legacy diagnostic payloads.
+- Specify concrete history-selection and fresh/persisted deduplication rules, and how a query's context boundary is represented across batch enrichment.
+- Define the supported cross-LLM/API transition matrix, per-content-type semantic mappings, and recovery or rejection rules for nonportable unfinished exchanges.
 - Choose the usage attribution record and its timeline representation, preserving totals for tool-requesting and final-answer exchanges.
-- Define explicit serialization for snapshots, debug views, attachments, and results that cannot be represented as plain JSON.
+- Define explicit serialization for debug views, attachment references, and values not directly representable as JSON. Exact historical request snapshots are optional and are not a continuation gate.
 
 ### Security and operations
 
 - Finalize redaction, payload limits, retention, attachment authorization, and safe rendering policies, including explicit replay-unavailable states when required content has been redacted or expired.
-- Apply ownership checks to every message creation and enrichment, including updates by message UID.
-- Decide how monitoring refreshes in-progress messages and exposes completion-unconfirmed executions without misrepresenting them as safe to retry.
+- Choose the monitoring refresh mechanism and presentation of completion-unconfirmed executions without suggesting that tools are safe to retry.
 
 ## Verification criteria
 
