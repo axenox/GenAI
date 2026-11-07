@@ -3,6 +3,11 @@ namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Common\Mcp\McpCapabilityRegistry;
 use axenox\GenAI\Common\Mcp\McpWorkbenchScope;
+use axenox\GenAI\Common\Mcp\McpRequestBridge;
+use axenox\GenAI\Common\Mcp\McpRequestContext;
+use axenox\GenAI\Common\Mcp\McpConversationObserver;
+use axenox\GenAI\Common\Mcp\McpPersistenceGuard;
+use axenox\GenAI\AI\Agents\McpServer;
 use Mcp\Server;
 
 /**
@@ -27,13 +32,23 @@ abstract class McpFactory
         try {
             $handler = AiFactory::createTaskHandlerFromString($workbench, $handlerSelector);
             $exactSelector = $handler->getSelector()->toString();
+            $bridge = new McpRequestBridge();
+            $observer = new McpConversationObserver(
+                $exactSelector,
+                McpRequestContext::newId(),
+                $bridge,
+                $handler instanceof McpServer ? $handler->getConversationInactivityTimeoutSeconds() : 300,
+                $handler instanceof McpServer ? $handler->getConversationGroupingScope() : 'session'
+            );
             $builder = Server::builder()->setServerInfo(
                 $handler->getName(),
                 $handler->getVersion(),
                 'Exposes tools configured on the selected ExFace MCP endpoint.'
             );
+            $builder->setEventDispatcher($observer);
+            $builder->addRequestHandler(new McpPersistenceGuard($bridge));
 
-            (new McpCapabilityRegistry($exactSelector))->registerTools($builder, $handler);
+            (new McpCapabilityRegistry($exactSelector, $bridge))->registerTools($builder, $handler);
 
             return $builder->build();
         } finally {

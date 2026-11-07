@@ -32,7 +32,9 @@ Zum Beispiel:
       "alias": "axenox.GenAI.ModelSearchTool",
       "description": "Searches model components and their usages."
     }
-  }
+  },
+  "conversation_inactivity_timeout_seconds": 300,
+  "conversation_grouping_scope": "session"
 }
 ```
 
@@ -44,6 +46,46 @@ Der Start-Scope löst die Versionsbedingung einmalig auf. Jeder registrierte Too
 diesen exakten Selektor und erstellt den Endpoint in einem frischen, mit dem Betriebssystembenutzer
 authentifizierten Workbench-Scope neu. Nach Änderungen an Tools, Skills, Skill-Zuordnungen oder der
 Endpoint-Konfiguration muss der MCP-Prozess neu gestartet werden.
+
+## Gemeinsames Conversation-Protokoll
+
+MCP-Anfragen nutzen dasselbe Monitoring wie Agents, ohne LLM-Verbindung. Vor jedem Tool-Aufruf
+wird eine kombinierte Tool-Nachricht gespeichert. Einzelne Datensätze zeigen `IN_PROGRESS`,
+`SUCCEEDED` oder `FAILED`; der Abschluss ergänzt dieselbe Nachricht. Externe Prompts, Instructions,
+Antworten, Abrechnung, Tokens oder Modellnutzung werden nicht vermutet.
+
+`conversation_inactivity_timeout_seconds` muss eine positive Ganzzahl sein (Standard `300`).
+`conversation_grouping_scope` ist `session` (Standard) oder `user`. Jede empfangene Anfrage verlängert
+das Inaktivitätsfenster; an der Timeout-Grenze beginnt eine neue Conversation. User-Gruppierung kann
+gleichzeitige Clients oder Chats vermischen. Authentifizierter Benutzer und exakte Endpoint-Version
+bilden stets getrennte Grenzen.
+
+Clients können in Tool-Aufrufen eine nicht leere Zeichenfolge über
+`_meta["axenox.GenAI/chat_id"]` senden. Unterschiedliche IDs trennen Conversations innerhalb des
+konfigurierten Scopes; solche Gruppen unterliegen keinem Inaktivitäts-Timeout. Die ID dient nur der
+Zuordnung, nicht der Autorisierung. Es wird nicht angenommen, dass VS Code diese Erweiterung sendet.
+Ohne sie beschreibt der Titel eine MCP-Session mit Endpoint, erstem angefragtem Tool und Startzeit,
+kein vermutetes Chat-Thema. Handshake-Sessions verwenden die native SDK-UUID; moderne zustandslose
+Anfragen verwenden zur Gruppierung die UUID der STDIO-Verbindung und speichern ihre native
+Request-Session separat. JSON-RPC-IDs behalten ihren Ganzzahl-/String-Typ; jede Ausführung bekommt
+eine neue Call-ID.
+
+Unbekannte Tools und ungültige Schemas, die als SDK-`CallToolRequest` beobachtbar sind, werden als
+fehlgeschlagene Versuche mit korrigierenden Warnungen protokolliert. Die SDK-Ablehnungsantwort bleibt
+unverändert. Autorisierungsablehnungen bleiben ebenfalls fehlgeschlagene Versuche, keine separaten
+Fehlernachrichten. Leere Pflichtwerte, die beim Parsen der Plattformargumente abgelehnt werden,
+erhalten ebenfalls korrigierende Warnungen statt separater Infrastrukturfehler.
+Echte Defekte und Infrastrukturfehler erzeugen separate `ERROR`-Nachrichten.
+Scheitert die anfängliche verbindliche Speicherung, verhindert ein offizieller SDK-Fehler die
+Ausführung. Ein Konvertierungsfehler erhält Ergebnis und Ausführungszustand, liefert einen MCP-Fehler
+und führt das Tool niemals erneut aus. Jeder Scope authentifiziert und beendet seine Workbench; der
+langlebige Server behält nur Definitionen und skalare Korrelationskennungen.
+
+Gespeicherte Argumente sind **SDK-sichtbar**, nicht ursprüngliches Wire-JSON: Die assoziative
+SDK-Dekodierung verliert einige verschachtelte `{}`-/`[]`-Unterschiede. Normalisierte positionale
+Ausführungsargumente werden separat gespeichert. Es gibt keine Raw-Framing-Abfanglogik, kopierte
+Protokollimplementierung oder SDK-Forks. Fehlerhafte Eingaben, die vor Entstehung eines Tool-Requests
+abgelehnt werden, sind nicht als Conversation-Eintrag zugesichert.
 
 ## Endpoint starten und prüfen
 
@@ -89,7 +131,7 @@ Die vollständige Teststrategie und der Befehl für eine ExFace-Installation sin
 Für den Endpoint `ide_mcp_server` mit dem oben gezeigten Tool `SearchModelComponents` ausführen:
 
 ```powershell
-.\Tests\Integration\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
+.\Tests\PHPUnit\Integration\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
 ```
 
 Der Smoke-Test prüft generierte Schema-Metadaten, die Umwandlung benannter in positionale
@@ -102,7 +144,7 @@ Tool, das solche Metadaten veröffentlicht.
 Die zugrunde liegende JSON-RPC-Session kann auch direkt in den Endpoint geleitet werden:
 
 ```powershell
-Get-Content .\Tests\Integration\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
+Get-Content .\Tests\PHPUnit\Integration\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
 ```
 
 Das Schließen von `STDIN` beendet den Server. Protokollantworten erscheinen auf `STDOUT`; PHP- und

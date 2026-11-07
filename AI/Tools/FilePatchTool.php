@@ -127,7 +127,7 @@ class FilePatchTool extends AbstractAiTool
 
         $verb = $fileExists ? 'patched' : 'created';
         $message = 'File ' . $verb . ': ' . $relativePath . ' (' . count($blocks) . ' block(s) applied)';
-        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
     }
 
     /**

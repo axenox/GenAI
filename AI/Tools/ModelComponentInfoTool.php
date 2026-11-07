@@ -37,7 +37,7 @@ class ModelComponentInfoTool extends AbstractAiTool
                 throw new AiToolRuntimeWarning($this, $prompt, 'No documentation found for component ' . $component . ' with selector ' . $selector);
         }
         
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array

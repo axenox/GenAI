@@ -74,7 +74,7 @@ class ModelSearchTool extends AbstractAiTool
         }
         $sheet->dataRead();
 
-        return new AiToolResultString($this, $arguments, $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
     }
     
     protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet) : string

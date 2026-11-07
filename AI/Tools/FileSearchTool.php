@@ -145,7 +145,7 @@ class FileSearchTool extends AbstractAiTool
 
         $searchDirs = $this->resolveSearchDirectories($globPattern, $basePath);
         if (empty($searchDirs)) {
-            return new AiToolResultString($this, $arguments, '- No matches found.', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), '- No matches found.', $this->getReturnDataType());
         }
 
         $finder = new Finder();
@@ -213,7 +213,7 @@ class FileSearchTool extends AbstractAiTool
         }
 
         if (empty($matchedFiles)) {
-            return new AiToolResultString($this, $arguments, '- No matches found.', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), '- No matches found.', $this->getReturnDataType());
         }
 
         usort($matchedFiles, function (array $a, array $b): int {
@@ -239,7 +239,7 @@ class FileSearchTool extends AbstractAiTool
         }
         $markdown .= "\n";
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

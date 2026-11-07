@@ -2,13 +2,13 @@
 
 [Deutsch](../../Translations/de/AI/Conversations/index.md)
 
-A conversation is a persisted exchange between an individual participant and exactly one executing AI. The individual participant is usually a user, but it may also be another AI or an orchestrating agent.
+A conversation is a persisted exchange between an individual participant and exactly one executing task handler. Its type is `agent` for model-backed conversations or `mcp` for MCP tool activity. The individual participant is usually a user, but it may also be another AI or an orchestrating agent.
 
 ## Agent and agent-version assignment
 
 Every conversation belongs to exactly one agent and exactly one agent version. This assignment is immutable after the conversation is created. It keeps the system prompt, tools, model configuration, and responses attributable to the agent version that actually produced them.
 
-An initialized conversation has **exactly one system prompt**. On its first run, `AiAgentInterface::renderSystemPrompt()` renders that prompt as a string and `saveSystemPrompt()` persists it. It is immutable afterwards. Every later run exclusively loads the persisted prompt through `AiConversationInterface::getSystemPrompt()`; the agent does not render it again.
+An initialized agent conversation has **exactly one system prompt**. On its first run, `AiAgentInterface::renderSystemPrompt()` renders that prompt as a string and `saveSystemPrompt()` persists it. It is immutable afterwards. Every later run exclusively loads the persisted prompt through `AiConversationInterface::getSystemPrompt()`; the agent does not render it again.
 
 Runtime instances of tools assigned to the agent version may be reconstructed for a new request. This does not render the prompt again and does not change the persisted system prompt.
 
@@ -25,25 +25,43 @@ An incorrect agent or version assignment raises `AiConversationAgentVersionMisma
 
 `AiConversationInterface` exposes the assignment:
 
-- `getAgent()` returns the executing `AiAgentInterface`;
-- `getAgentVersionUID()` returns the UID of the exact assigned agent version;
+- `getTaskHandler()` returns the executing `AiTaskHandlerInterface`;
 - `getTitle()` loads the current title;
 - `setTitle()` overwrites the title;
 - `getConversationId()` returns the conversation UID.
 
-The `AiConversation` constructor receives only the `AiAgentInterface` and conversation UID. It lazily loads the title and agent-version UID from its persisted record and does not retain the current prompt. This keeps the persisted conversation independent of an individual request and concrete agent implementations.
+The `AiConversation` constructor receives the `AiTaskHandlerInterface` and conversation UID. It lazily loads the title and agent-version UID from its persisted record and does not retain the current prompt. This keeps the persisted conversation independent of an individual request and concrete agent implementations.
 
 A new conversation initially has an empty title. When the first user prompt is saved, `saveUserPrompt()` derives the initial title from it. An explicit `setTitle()` call overwrites the existing title at any time.
 
 ## Messages
 
-Every persisted message conceptually consists of a content string and structured data. Content is stored in `AI_MESSAGE.MESSAGE`; additional data is serialized into `AI_MESSAGE.DATA`. The role, user, model, and sequence number complete the record.
+Every message has stable identity, conversation identity, sequence, display text and structured
+data. `AiMessageInterface` exposes these through `getUid()`, `getConversationId()`,
+`getSequenceNumber()`, `getText()`, `getRole()` and `getData()`. Display text is stored in
+`AI_MESSAGE.MESSAGE`; full reconstructable payloads are stored in `AI_MESSAGE.DATA`.
+Monitoring previews are never substituted for model context.
 
-`saveSystemPrompt()` and `saveUserPrompt()` receive content and data directly. Specialized methods for tool calls, tool responses, agent responses, warnings, and errors derive the same two components from their runtime objects.
+`getMessages($type, $afterSequence, $throughSequence)` returns typed messages with optional type
+and sequence bounds. Each tool batch exposes ordered `getCalls()` and call-ID-keyed
+`getToolResults()`. `saveToolCalls()` records a requested batch; `saveToolResults()` completes it.
+Per-call start/end records provide monitoring detail without becoming a second history source.
+
+Normalized model content lives in `data.content`; exact API continuation fields live in
+`data.provider.completions`, `.responses` or `.claude`. Model, tokens and costs belong to their
+own exchange. Missing usage remains unknown (`null`), not an invented zero.
+
+`isBroken()` marks incomplete or unavailable history. Adapters explicitly reject unsupported
+replay rather than inventing results, silently dropping content or rerunning historical tools.
+Completed text/JSON exchanges can resume through another supported API; provider-specific
+continuation fields are reused only by their originating API.
 
 `saveSystemPrompt()` ignores further save attempts once a system prompt exists. Every subsequent message receives the next sequence number.
 
-The next sequence number belongs to conversation state. Its internal value starts as `null`. On first access, `getSequenceNumber()` loads the highest persisted `SEQUENCE_NUMBER` and returns its successor; later access uses the cached value. While saving, `incrementSequenceNumber()` returns the current number and then advances the local counter. The factory therefore neither loads nor passes sequence state to the constructor.
+Sequence allocation belongs to conversation persistence, not to queries or provider adapters.
+`AiResponse::getMessages()` captures only the current execution; the conversation retains the
+complete history. Storage failures do not erase actual in-memory tool results or trigger automatic
+retries of writes or execution.
 
 ## Multi-agent workflows
 

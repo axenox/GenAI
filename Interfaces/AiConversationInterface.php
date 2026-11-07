@@ -1,162 +1,49 @@
 <?php
 namespace axenox\GenAI\Interfaces;
 
-use axenox\GenAI\Common\AiToolCallResponse;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 
 /**
- * Represents a persisted conversation between two participants A and B.
- *
- * In the AI runtime one participant is the owning agent and the other is typically a user or an
- * orchestrating agent. A conversation belongs to exactly one agent and agent version. Multi-agent
- * interactions use separate child conversations connected by an orchestration timeline.
- *
- * The conversation owns its complete persistence lifecycle and retrieval of exchanged messages.
+ * Authorized, exact-version interaction history shared by agents and MCP endpoints.
  */
 interface AiConversationInterface
 {
-    /**
-     * Returns the persisted conversation ID.
-     *
-     * @return string
-     */
     public function getConversationId() : string;
-
-    /**
-     * Returns the agent participating in this conversation.
-     */
-    public function getAgent() : AiAgentInterface;
-
-    /**
-     * Returns the persisted conversation title.
-     */
+    public function getTaskHandler() : AiTaskHandlerInterface;
+    /** @return string[] Message UIDs written by this instance, excluding concurrent turns. */
+    public function getWrittenMessageIds() : array;
     public function getTitle() : string;
-
-    /**
-     * Overwrites the persisted conversation title.
-     */
     public function setTitle(string $title) : AiConversationInterface;
-
     /**
-     * Returns TRUE when the conversation already contains its system prompt.
+     * Ordered detached history with exclusive lower and inclusive upper sequence boundaries.
+     *
+     * @return AiMessageInterface[]
      */
+    public function getMessages(?string $type = null, ?int $afterSequence = null, ?int $throughSequence = null) : array;
     public function hasSystemPrompt() : bool;
-
-    /**
-     * Returns the conversation's single persisted system prompt.
-     */
     public function getSystemPrompt() : string;
-
-    /**
-     * Persists the rendered system prompt for the current conversation.
-     *
-    * @param string $systemPrompt Rendered system prompt text.
-    * @param array $data Normalized message metadata and payload.
-     *
-     * @return string Conversation ID used for the stored message.
-     */
+    /** Persists instructions and returns the conversation UID for compatibility. */
     public function saveSystemPrompt(string $systemPrompt, array $data = []) : string;
-
+    /** Persists user content and immutable attachments; returns the conversation UID. */
+    public function saveUserPrompt(string $userPrompt, array $files = [], array $data = []) : string;
     /**
-     * Persists the current user prompt for the conversation.
+     * Commits batch identity before any invocation; returns the combined message UID.
      *
-      * @param string $userPrompt User message text.
-      * @param array $files Files attached to the message.
-      * @param array $data Additional message information.
-     *
-     * @return string Conversation ID used for the stored message.
+     * @param AiToolCallInterface[] $calls Ordered calls with unique IDs within the batch.
      */
-     public function saveUserPrompt(string $userPrompt, array $files = [], array $data = []) : string;
-
+    public function saveToolCalls(array $calls, array $data = []) : string;
     /**
-     * Persists an assistant tool-call request message.
+     * Completes the existing message without changing its identity or initial call data.
      *
-     * @param AiQueryInterface $query Query containing tool calls and token/cost metadata.
+     * @param array<string, AiToolResultInterface> $results Results keyed by original call ID.
      */
-    public function saveToolCallRequest(AiQueryInterface $query) : void;
-
-    /**
-     * Persists the final assistant response message.
-     *
-     * @param AiQueryInterface $query Query containing completion metadata.
-     * @param string $answer Resolved assistant answer to display.
-     * @param array|null $fullJsonResponse Optional raw JSON response payload.
-     */
+    public function saveToolResults(string $messageId, array $results, array $data = []) : void;
+    /** Commits an IN_PROGRESS detail before invocation; returns its UID. */
+    public function saveToolCallStart(string $messageId, AiToolCallInterface $call, array $data = []) : string;
+    /** Completes an existing detail; persistence errors throw without re-executing tools. */
+    public function saveToolCallEnd(string $recordId, AiToolResultInterface $result, array $data = []) : void;
     public function saveResponse(AiQueryInterface $query, string $answer, ?array $fullJsonResponse = null) : void;
-
-    /**
-     * Persists tool execution responses.
-     *
-      * @param AiQueryInterface $query Query that triggered tool execution.
-      * @param AiToolCallResponse[] $responses Tool execution responses.
-     *
-     * @return AiToolCallResponse[]|null
-     */
-    public function saveToolResponses(AiQueryInterface $query, array $responses) : ?array;
-
-    /**
-     * Splits tool exceptions by severity and persists them.
-     *
-     * @param array $exceptions Exception payloads attached by tools.
-     */
-    public function saveExceptions(array $exceptions) : void;
-
-    /**
-     * Persists a fatal conversation error as an ERROR message.
-     *
-     * @param \Throwable $error Original error.
-     * @param array $tools Tool metadata to include in payload.
-     * @param array|null $responseJsonSchema Optional JSON schema metadata.
-     * @return ExceptionInterface Normalized platform exception.
-     */
-    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface;
-
-    /**
-     * Persists warning payloads as WARNING messages.
-     *
-     * @param array $warnings Warning payloads from connector/tools.
-     */
+    /** Logs and persists an operational error; only this message receives ERROR_LOG_ID. */
+    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null, array $data = []) : ExceptionInterface;
     public function saveWarnings(array $warnings) : void;
-
-    /**
-     * Retrieves all user messages from the conversation.
-     *
-     * @return array Array of user message strings.
-     */
-    public function getUserMessages() : array;
-
-    /**
-     * Retrieves all assistant messages from the conversation.
-     *
-     * @return array Array of assistant message strings.
-     */
-    public function getAssistantMessages() : array;
-
-    /**
-     * Retrieves all tool messages from the conversation.
-     *
-     * @return array Array of tool message strings.
-     */
-    public function getToolMessages() : array;
-
-    /**
-     * Retrieves all tool calling messages from the conversation.
-     *
-     * @return array Array of tool calling message strings.
-     */
-    public function getToolCallingMessages() : array;
-
-    /**
-     * Retrieves all warning messages from the conversation.
-     *
-     * @return array Array of warning message strings.
-     */
-    public function getWarningMessages() : array;
-
-    /**
-     * Retrieves all error messages from the conversation.
-     *
-     * @return array Array of error message strings.
-     */
-    public function getErrorMessages() : array;
 }

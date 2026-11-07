@@ -148,7 +148,7 @@ class FileReadTool extends AbstractAiTool
             $result .= $this->buildInstructionsChapter($fileInfo, $task, true);
         }
 
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**

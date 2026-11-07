@@ -3,8 +3,12 @@ namespace axenox\GenAI\Common\Mcp;
 
 use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\DataTypes\JsonDataType;
 use exface\Core\DataTypes\LogLevelDataType;
+use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\Exceptions\UnexpectedValueException;
+use exface\Core\CommonLogic\DataTypes\AbstractDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\Tasks\TaskInterface;
@@ -57,6 +61,14 @@ class AiToolMcpAdapter
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $task, array $namedArguments) : CallToolResult
     {
         $result = $this->tool->invoke($agent, $task, $this->normalizeArguments($namedArguments));
+        return $this->renderResult($result);
+    }
+
+    /**
+     * Renders a completed result without invoking its tool again.
+     */
+    public function renderResult(AiToolResultInterface $result) : CallToolResult
+    {
         $isError = $result->isFailed();
         $diagnostics = [];
 
@@ -78,12 +90,14 @@ class AiToolMcpAdapter
             $meta['appendix'] = $result->getAppendix();
         }
 
-        return new CallToolResult(
+        $response = new CallToolResult(
             [new TextContent($result->getValueWithMetadata())],
             $isError,
             null,
             $meta !== [] ? $meta : null
         );
+        json_encode($response, JSON_THROW_ON_ERROR);
+        return $response;
     }
 
     /**
@@ -98,15 +112,27 @@ class AiToolMcpAdapter
         foreach ($this->tool->getArguments() as $parameter) {
             $name = $parameter->getName();
             if (array_key_exists($name, $namedArguments)) {
-                $positionalArguments[] = $parameter->parseValue($namedArguments[$name]);
+                $positionalArguments[] = $this->parseArgumentValue($parameter, $namedArguments[$name]);
             } elseif ($parameter->hasDefaultValue()) {
-                $positionalArguments[] = $parameter->parseValue($parameter->getDefaultValue());
+                $positionalArguments[] = $this->parseArgumentValue($parameter, $parameter->getDefaultValue());
             } else {
                 $positionalArguments[] = null;
             }
         }
 
         return $positionalArguments;
+    }
+
+    private function parseArgumentValue(ServiceParameterInterface $parameter, mixed $value) : mixed
+    {
+        try {
+            return $parameter->parseValue($value);
+        } catch (UnexpectedValueException $error) {
+            if ($parameter->isRequired() && AbstractDataType::isValueEmpty($value)) {
+                throw new InvalidArgumentException('Required tool argument "' . $parameter->getName() . '" cannot be empty.', null, $error);
+            }
+            throw $error;
+        }
     }
 
     /**

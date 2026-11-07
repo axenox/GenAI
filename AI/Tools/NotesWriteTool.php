@@ -83,7 +83,7 @@ class NotesWriteTool extends AbstractAiTool
         }
 
         $uid = $sheet->getUidColumn()->getValue(0);
-        return new AiToolResultString($this, $arguments, 'Note saved with UID ' . $uid . '.', $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), 'Note saved with UID ' . $uid . '.', $this->getReturnDataType());
     }
 
     /**

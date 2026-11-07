@@ -3,6 +3,7 @@ namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiConversation;
+use axenox\GenAI\Common\AiPayload;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Common\Selectors\AiSkillSelector;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
@@ -29,6 +30,8 @@ use exface\Core\DataTypes\SemanticVersionDataType;
 use exface\Core\DataTypes\SortingDirectionsDataType;
 use exface\Core\DataTypes\StringDataType;
 use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\Exceptions\DataSources\DataQueryUniqueConstraintError;
+use exface\Core\Exceptions\Behaviors\ConcurrentWriteError;
 use exface\Core\Exceptions\UxonParserError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
@@ -59,7 +62,10 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     ) : AiConversationInterface 
     {
         $conversationId = $prompt->getConversationUid();
-        $conversation = static::createConversation($agent, $conversationId);
+        $conversation = static::createConversation($agent, $conversationId, [
+            'type' => 'agent', 'devmode' => $agent->getDevmode(),
+            'connection' => $agent->getConnection()->getId()
+        ]);
         if ($conversationId === null) {
             $prompt->setConversationUid($conversation->getConversationId());
         }
@@ -71,22 +77,127 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * Creates a new conversation or continues the conversation with the supplied ID.
      */
     public static function createConversation(
-        AiAgentInterface $agent,
-        ?string $conversationId = null
+        AiTaskHandlerInterface $agent,
+        ?string $conversationId = null,
+        array $context = []
     ) : AiConversationInterface 
     {
-        return new AiConversation($agent, $conversationId);
+        return new AiConversation($agent, $conversationId, $context);
     }
 
     /**
      * Restores an existing conversation for the current agent and user.
      */
     public static function createConversationFromUid(
-        AiAgentInterface $agent,
-        string $conversationId
+        AiTaskHandlerInterface $agent,
+        string $conversationId,
+        array $context = []
     ) : AiConversationInterface 
     {
-        return static::createConversation($agent, $conversationId);
+        return static::createConversation($agent, $conversationId, $context);
+    }
+
+    /** Resolves an authorized MCP activity group without retaining a live Workbench between calls. */
+    public static function resolveMcpConversation(
+        AiTaskHandlerInterface $handler,
+        array $context,
+        int $timeoutSeconds = 300,
+        string $scope = 'session'
+    ) : AiConversationInterface
+    {
+        if ($timeoutSeconds < 1 || !in_array($scope, ['session', 'user'], true)) {
+            throw new InvalidArgumentException('Invalid MCP conversation grouping configuration');
+        }
+        if ($scope === 'session' && empty($context['session_id'])) {
+            throw new InvalidArgumentException('Session-scoped MCP logging requires a session identity');
+        }
+        $workbench = $handler->getWorkbench();
+        $user = $workbench->getSecurity()->getAuthenticatedUser()->getUid();
+        $chat = $context['chat_id'] ?? null;
+        if ($chat !== null && (!is_string($chat) || trim($chat) === '')) {
+            throw new InvalidArgumentException('MCP chat identifier must be a non-empty string');
+        }
+        $key = hash('sha256', AiPayload::encode([
+            'mcp', $user, $handler->getUid(), $handler->getVersion(),
+            $scope, $scope === 'session' ? $context['session_id'] : null, $chat
+        ]));
+        $receipt = microtime(true);
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $transaction = $workbench->data()->startTransaction();
+            $creatingGroup = false;
+            $previousGroupId = null;
+            try {
+                $sheet = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_CONVERSATION');
+                $sheet->getFilters()->addConditionFromString('MCP_GROUP_KEY', $key);
+                $sheet->getFilters()->addConditionFromString('USER', $user);
+                $sheet->getFilters()->addConditionFromString('AI_AGENT', $handler->getUid());
+                $sheet->getFilters()->addConditionFromString('AI_AGENT_VERSION_NO', $handler->getVersion());
+                $sheet->getFilters()->addConditionFromString('TYPE', 'mcp');
+                $sheet->getColumns()->addMultiple(['UID', 'DATA', 'DEVMODE']);
+                $sheet->dataRead();
+                if ($sheet->countRows() > 1) {
+                    throw new InvalidArgumentException('MCP activity key is not unique');
+                }
+                if ($sheet->countRows() === 1) {
+                    $row = $sheet->getRow(0);
+                    $previousGroupId = $row['UID'];
+                    $activity = empty($row['DATA']) ? [] : AiPayload::decode($row['DATA']);
+                    $last = (float) ($activity['last_activity_at'] ?? 0);
+                    $update = $sheet->copy()->extractSystemColumns();
+                    $update->getFilters()->addConditionFromString('MCP_GROUP_KEY', $key);
+                    $update->getFilters()->addConditionFromString('DATA', $row['DATA']);
+                    if ($chat !== null || $receipt - $last < $timeoutSeconds) {
+                        $activity['last_activity_at'] = max($receipt, $last);
+                        $update->getColumns()->addFromExpression('DATA')->setValue(0, AiPayload::encode($activity));
+                        if ($update->dataUpdate(false, $transaction) !== 1) {
+                            $transaction->rollback();
+                            continue;
+                        }
+                        $conversation = new AiConversation($handler, $row['UID'], ['type' => 'mcp']);
+                        $transaction->commit();
+                        return $conversation;
+                    }
+                    $update->getColumns()->addFromExpression('MCP_GROUP_KEY')->setValue(0, null);
+                    if ($update->dataUpdate(false, $transaction) !== 1) {
+                        $transaction->rollback();
+                        continue;
+                    }
+                }
+                $title = $handler->getName() . ' - ' . ($context['tool_name'] ?? 'MCP') . ' - ' . date('Y-m-d H:i:s');
+                $creatingGroup = true;
+                $conversation = new AiConversation($handler, null, [
+                    'type' => 'mcp', 'devmode' => $context['devmode'] ?? false,
+                    'topic_id' => $chat ?? ($context['session_id'] ?? null),
+                    'title' => StringDataType::truncate($title, 100, false),
+                    'group_key' => $key, 'data' => [
+                        'session_id' => $context['session_id'] ?? null,
+                        'chat_id' => $chat, 'last_activity_at' => $receipt
+                    ]
+                ], $transaction);
+                $transaction->commit();
+                return $conversation;
+            } catch (\Throwable $error) {
+                if (!$transaction->isRolledBack()) { $transaction->rollback(); }
+                if (!$creatingGroup && $error instanceof ConcurrentWriteError) { continue; }
+                $cause = $error;
+                while ($cause !== null && !($cause instanceof DataQueryUniqueConstraintError)) {
+                    $cause = $cause->getPrevious();
+                }
+                if (!$creatingGroup || $cause === null) { throw $error; }
+                // Retry only a competing creator, never an unrelated persistence failure.
+                $check = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_CONVERSATION');
+                $check->getFilters()->addConditionFromString('MCP_GROUP_KEY', $key);
+                $check->getFilters()->addConditionFromString('USER', $user);
+                $check->getFilters()->addConditionFromString('AI_AGENT', $handler->getUid());
+                $check->getFilters()->addConditionFromString('AI_AGENT_VERSION_NO', $handler->getVersion());
+                $check->getFilters()->addConditionFromString('TYPE', 'mcp');
+                $check->getColumns()->addFromExpression('UID');
+                $check->dataRead();
+                if ($check->countRows() !== 1 || $check->getRow(0)['UID'] === $previousGroupId) { throw $error; }
+                $workbench->getLogger()->logException($error);
+            }
+        }
+        throw new InvalidArgumentException('Concurrent MCP conversation allocation exhausted');
     }
 
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)

@@ -18,6 +18,8 @@
         "widget_type": "DataTable",
         "object_alias": "axenox.GenAI.AI_CONVERSATION",
         "filters": [
+            {"attribute_alias": "TYPE"},
+            {"attribute_alias": "TOPIC_ID"},
             {
                 "attribute_alias": "DATE",
                 "widget_type": "RangeSpinnerFilter",
@@ -46,6 +48,8 @@
             }
         ],
         "columns": [
+            {"attribute_alias": "TYPE"},
+            {"attribute_alias": "TOPIC_ID"},
             {
                 "attribute_alias": "CREATED_ON"
             },
@@ -68,7 +72,7 @@
                 "hint": "Total number of messages in this conversation"
             },
             {
-                "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== WARNING)",
+                "attribute_alias": "WARNING_COUNT",
                 "caption": "W.",
                 "hint": "Number of warnings in the conversation",
                 "cell_widget": {
@@ -119,6 +123,7 @@
             }
         ],
         "buttons": [
+            {"caption": "Refresh", "action_alias": "exface.Core.RefreshWidget", "icon": "refresh"},
             {
                 "caption": "Details",
                 "bind_to_double_click": true,

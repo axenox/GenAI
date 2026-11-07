@@ -77,7 +77,7 @@ class ModelObjectSearchTool extends AbstractAiTool
         if (empty($rows)) {
             $msg = 'No objects found for object_name "' . $objectName . '".';
             $warning = new AiToolRuntimeWarning($this, $prompt, $msg);
-            return new AiToolResultString($this, $arguments, $msg, $this->getReturnDataType(), [], [$warning]);
+            return new AiToolResultString($this->getWorkbench(), $msg, $this->getReturnDataType(), [], [$warning]);
         }
 
         $resultColumns = [];
@@ -93,7 +93,7 @@ class ModelObjectSearchTool extends AbstractAiTool
 {$table}
 MD;
 
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**

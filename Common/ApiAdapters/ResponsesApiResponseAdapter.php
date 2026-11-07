@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+    private array $providerOutput;
 
     public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception
     {
@@ -32,6 +33,7 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
     public function __construct(ResponseInterface $response)
     {
         $this->json = JsonDataType::decodeJson($response->getBody()->__toString(), true);
+        $this->providerOutput = json_decode($response->getBody()->__toString(), false, 512, JSON_THROW_ON_ERROR)->output ?? [];
     }
 
     protected function getResponseData() : array
@@ -42,6 +44,40 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
     public function getUsage() : array
     {
         return $this->json['usage'] ?? [];
+    }
+
+    /** {@inheritDoc} */
+    public function getContent() : array
+    {
+        $content = [];
+        foreach ($this->json['output'] ?? [] as $item) {
+            if (($item['type'] ?? null) === 'message') {
+                foreach ($item['content'] ?? [] as $block) {
+                    if (($block['type'] ?? null) === 'output_text') {
+                        $content[] = ['type' => 'text', 'text' => $block['text'] ?? ''];
+                    } elseif (($block['type'] ?? null) === 'refusal') {
+                        $content[] = ['type' => 'text', 'text' => $block['refusal'] ?? ''];
+                    } else {
+                        $content[] = ['type' => 'unsupported', 'provider_type' => $block['type'] ?? 'unknown'];
+                    }
+                }
+            } elseif (!in_array($item['type'] ?? null, ['function_call', 'reasoning'], true)) {
+                $content[] = ['type' => 'unsupported', 'provider_type' => $item['type'] ?? 'unknown'];
+            }
+        }
+        return $content;
+    }
+
+    /** {@inheritDoc} */
+    public function getProviderData() : array
+    {
+        return ['responses' => ['output' => $this->providerOutput, 'status' => $this->json['status'] ?? null]];
+    }
+
+    /** {@inheritDoc} */
+    public function getModel() : ?string
+    {
+        return $this->json['model'] ?? null;
     }
 
     /**
@@ -89,18 +125,18 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface
      */
-    public function getTokensInPrompt() : int
+    public function getTokensInPrompt() : ?int
     {
-        return (int) ($this->json['usage']['input_tokens'] ?? 0);
+        return $this->json['usage']['input_tokens'] ?? null;
     }
 
     /**
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface
      */
-    public function getTokensInAnswer() : int
+    public function getTokensInAnswer() : ?int
     {
-        return (int) ($this->json['usage']['output_tokens'] ?? 0);
+        return $this->json['usage']['output_tokens'] ?? null;
     }
 
     /**
@@ -134,7 +170,8 @@ class ResponsesApiResponseAdapter implements HttpResponseAdapterInterface
             $result[] = new AiToolCall(
                 $call['name'] ?? '',
                 $call['call_id'] ?? '',
-                json_decode($call['arguments'] ?? '{}', true) ?? []
+                AiContextRenderer::arguments($call['arguments'] ?? '{}'),
+                $call['arguments'] ?? '{}'
             );
         }
 

@@ -14,7 +14,15 @@ Keep three responsibilities distinct:
 
 The linked `axenox.GenAI.AI_TOOL_CALL` object is the per-call detail and statistics layer. A conversation message retains the entire requested batch and its results so adapters can reconstruct the exchange. Individual call records expose each call's result, status, duration, and metadata without becoming a second source for reconstructing history.
 
-This is a refactoring plan, not a description of already implemented behavior. The technical contracts below specify the implementation target; illustrative orchestration examples omit operational error handling.
+The shared persistence, typed results, agent/API integration, MCP logging, schema migrations,
+and monitoring model are implemented. The technical contracts below record the agreed design;
+illustrative orchestration examples omit operational error handling.
+
+Validation covers detached reconstruction, lossless values, fresh exchanges, provider replay,
+failure isolation, and the installed MCP endpoint. The dedicated MySQL migration fixture requires
+`GENAI_SCHEMA_TEST_DSN` and is skipped when it is not provisioned. SQL Server/PostgreSQL execution,
+live LLM continuation, and real overlapping database allocation still require deployment-level
+verification; pure replay tests do not substitute for those checks.
 
 ## Architecture
 

@@ -88,20 +88,20 @@ class GetDocsTool extends AbstractAiTool
         if(! $this->checkSecurity($url)){
             $errorMsg = $this->getSecurityFailurMessage();
             $warning = new AiToolRuntimeWarning($this, $prompt, $errorMsg);
-            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType(), [], [$warning]);
+            return new AiToolResultString($this->getWorkbench(), $errorMsg, $this->getReturnDataType(), [], [$warning]);
         }
         
         if(StringDataType::endsWith($url,"php")){
             $phpPrinter = new CodeMarkdownPrinter($this->getWorkbench(), $url);
             $markdown = $phpPrinter->getMarkdown();
-            return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
         }
         
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
             $md = $docsFacade->getDocsMarkdown($url);
-            $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $md, $this->getReturnDataType());
 
             // Some docs responses may return an error/warning page as markdown instead of throwing.
             if (preg_match('/\b(error|warning)\b/i', $md) === 1) {
@@ -118,9 +118,8 @@ class GetDocsTool extends AbstractAiTool
                 $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load docs markdown. ' . $e->getMessage(), null, $e);
             }
 
-            $this->getWorkbench()->getLogger()->logException($exception);
             $errorMsg = 'ERROR: file not found!';
-            return (new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType()))
+            return (new AiToolResultString($this->getWorkbench(), $errorMsg, $this->getReturnDataType()))
                 ->addException($exception);
         }
     }

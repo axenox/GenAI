@@ -336,8 +336,7 @@ class DataSheetReadTool extends AbstractAiTool
         $rendered = $this->renderOutput($dataSheet, $prompt);
 
         $result = new AiToolResultString(
-            $this,
-            [$dataSheet->exportUxonObject()->toArray()],
+            $this->getWorkbench(),
             $rendered,
             $this->getReturnDataType()
         );

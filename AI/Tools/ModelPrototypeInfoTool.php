@@ -47,7 +47,7 @@ class ModelPrototypeInfoTool extends AbstractAiTool
         $printer = new UxonPrototypeMarkdownPrinter($this->getWorkbench(), $selector);
         $markdown = $printer->getMarkdown();
         
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

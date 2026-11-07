@@ -154,7 +154,7 @@
                                                 "hint": "Total number of tool requests (possibly with multiple tool calls each) in the conversation"
                                             },
                                             {
-                                                "attribute_alias": "AI_MESSAGE__ROLE:COUNT_IF(== WARNING)",
+                                                "attribute_alias": "WARNING_COUNT",
                                                 "caption": "W.",
                                                 "hint": "Number of warnings in the conversation",
                                                 "cell_widget": {

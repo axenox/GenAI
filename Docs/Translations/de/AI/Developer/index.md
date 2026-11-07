@@ -11,7 +11,7 @@ Diese Seite beschreibt die Verantwortungsgrenzen der GenAI-Bausteine. Die Detail
 | Agent | Einen Prompt mit einer definierten Rolle bearbeiten | Instructions und Kontext zusammenführen, Tools anbieten, das Modell aufrufen und Antworten validieren | Zeitpläne, globale Workflow-Routen oder fremde Conversations verwalten |
 | Agent-Version | Eine reproduzierbare ausführbare Agent-Konfiguration festhalten | Prototyp, Instructions, Verbindung, Skills, Concepts, Tools und Antwortschema eindeutig bestimmen | Während einer laufenden Conversation unbemerkt wechseln |
 | Prompt | Die aktuelle Eingabe und ihren Laufzeitkontext transportieren | User-Text, Eingabedaten, Seite, Metaobjekt und Conversation-UID bereitstellen | Langfristigen Zustand oder Workflow-Fortschritt besitzen |
-| Conversation | Den geordneten Austausch zwischen einem individuellen Teilnehmer und einer Agent-Version persistieren | System-, User-, Tool-, Assistant-, Warning- und Error-Nachrichten nachvollziehbar speichern | Mehrere Agenten oder Agent-Versionen in derselben Conversation mischen |
+| Conversation | Den geordneten Austausch für einen authentifizierten Benutzer und eine exakte Task-Handler-Version persistieren | Typisierte Protokollierung für Agenten und MCP-Endpunkte gemeinsam nutzen | Benutzer, Quellen, Handler oder Versionen in derselben Conversation mischen |
 | Skill | Wiederverwendbare fachliche Fähigkeit paketieren | Instructions, Concepts und Tools kombinieren und einer Agent-Version zugeordnet werden | Selbstständig laufen, planen oder Conversation-Zustand besitzen |
 | Concept | Erforderlichen Kontext beim Aufbau des System-Prompts erzeugen | Kleine, relevante und möglichst stabile Informationen automatisch rendern | Große oder selten benötigte Daten ungefragt in jeden Prompt laden |
 | Tool | Eine klar begrenzte Operation auf Anforderung ausführen | Validierte Argumente verarbeiten, lesen oder autorisierte Seiteneffekte ausführen und strukturierte Ergebnisse liefern | Den Gesamtworkflow steuern, Berechtigungen umgehen oder unbegrenzte Aktionen anbieten |
@@ -64,9 +64,9 @@ Verhaltensänderungen, die nachvollziehbar bleiben müssen, gehören in eine neu
 
 ## Prompt und Conversation
 
-Der Prompt ist ein kurzlebiges Eingabeobjekt. Die Conversation ist der dauerhafte, geordnete Verlauf. Eine Conversation gehört genau einem individuellen Teilnehmer und genau einer Agent-Version. Der Teilnehmer ist meistens ein Benutzer, kann in orchestrierten Abläufen aber auch ein anderer Agent beziehungsweise dessen Workflow sein.
+Der Prompt ist ein kurzlebiges Eingabeobjekt. Die Conversation ist der dauerhafte, geordnete Verlauf. Sie gehört einem authentifizierten Benutzer, einer Quelle (`agent` oder `mcp`) und einer exakten Task-Handler-Version. Agent- und MCP-Conversations nutzen dieselbe Persistenz, sind jedoch nicht austauschbar.
 
-Eine initialisierte Conversation besitzt exakt einen unveränderlichen System-Prompt. Nur wenn noch keiner vorhanden ist, ruft der Agent `renderSystemPrompt()` auf und speichert dessen String-Ergebnis. Andernfalls lädt er den persistierten Prompt. Diese Verzweigung verhindert, dass spätere Konfigurationsänderungen den Kontext eines laufenden Gesprächs rückwirkend verändern.
+Eine initialisierte Agent-Conversation besitzt exakt einen unveränderlichen System-Prompt. Nur wenn noch keiner vorhanden ist, ruft der Agent `renderSystemPrompt()` auf und speichert dessen String-Ergebnis. Andernfalls lädt er den persistierten Prompt. Diese Verzweigung verhindert, dass spätere Konfigurationsänderungen den Kontext eines laufenden Gesprächs rückwirkend verändern.
 
 ```mermaid
 sequenceDiagram
@@ -104,7 +104,42 @@ sequenceDiagram
 
 Der Message-Content wird als String gespeichert; zusätzliche strukturierte Daten liegen in `AI_MESSAGE.DATA`. Details zur unveränderlichen Agent-Zuordnung stehen in der [Conversation-Dokumentation](../Conversations/index.md).
 
-Runtime-Komponenten hängen nach Möglichkeit von Interfaces ab. Insbesondere erhält `AiConversation` einen `AiAgentInterface` statt eines konkreten Agent-Prototyps und keinen requestgebundenen Prompt. Ihre nächste Message-Sequenznummer lädt die Conversation bei Bedarf selbst über `getSequenceNumber()` und erhöht sie zentral über `incrementSequenceNumber()`.
+Runtime-Komponenten hängen nach Möglichkeit von Interfaces ab. `AiConversation` erhält einen
+`AiTaskHandlerInterface` statt eines konkreten Agent-Prototyps und keinen requestgebundenen Prompt.
+Die Persistenz ist für die Vergabe der Nachrichtensequenz zuständig.
+
+### Queries, Adapter und Responses
+
+- Ein `AiQuery` entspricht genau einem Connector-Aufruf. `getConversation()` liefert den Besitzer
+  des Verlaufs; `getContextMessages()` liefert den vom Aufrufer ausgewählten, losgelösten typisierten
+  Snapshot. Queries lesen keine DataSheets und entscheiden nicht, welche gespeicherten Nachrichten
+  das Modell erhalten soll.
+- `GenericAssistant` erzeugt nach jeder Tool-Runde eine neue Query. `withToolResults()` erhält
+  typisierte Ausführungsergebnisse nach Aufruf-ID und optional nach Nachrichten-UID.
+  `getToolResultBatches()` erhält diese Nachrichtenzuordnung bei wiederverwendeten Provider-Aufruf-IDs.
+  Numerisch aussehende Aufruf-IDs bleiben in Aufrufreihenfolge und Provider-Requests Strings;
+  von PHP in Integer umgewandelte Ergebnis-Map-Schlüssel werden ohne Änderung ihrer Zuordnung akzeptiert.
+  Eingaben und Antwort-/Nutzungsdaten früherer
+  Queries bleiben unverändert; alle vorherigen Aufrufgruppen und Ergebnisse bleiben genau einmal erhalten.
+- API-Adapter wählen geeignete Nachrichtentypen, rendern vollständige Werte mit dauerhaften
+  Diagnosen und deduplizierten Anhängen und erzeugen protokollspezifische Aufrufe/Ergebnisse.
+  Fortsetzungen derselben API behalten OpenAI-Responses-Output-Items einschließlich verschlüsselter
+  Reasoning-Daten und Claude-Content-Blöcke einschließlich Thinking-Signaturen. Abgeschlossener
+  API-übergreifender Text-/JSON-Verlauf wird semantisch übertragen.
+- `getResponseMessage()` / `getResponseData()` liefern normalisierte `content`-Blöcke, API-getrennte
+  `provider`-Erweiterungen, das tatsächliche Modell und nullable Token-/Kostendaten. Fehlende Nutzung
+  bleibt unbekannt statt standardmäßig null Tokens. Provider-Objekte, Tools und Workbench-Instanzen
+  gehören nicht in Nachrichten-Nutzdaten.
+- `AiResponse::getConversation()` liefert den Besitzer des Verlaufs; `getMessages()` enthält nur
+  den losgelösten Ausschnitt der aktuellen Ausführung. Metriken und Kriterien prüfen Aufrufe in
+  diesen Nachrichten; `AiToolCallResponse` und dessen aggregierte Getter entfallen.
+
+Nachrichtenbezogene Anhänge werden von der autorisierten Conversation-Schicht mit MIME-Typ,
+Dateiname, Digest und erhaltenem Inhalt geladen. Responses und Claude ordnen unterstützte Anhänge
+der ursprünglichen User-Nachricht zu; Query-weite Dateien dienen nur als Fallback ohne typisierten
+Kontext. Fehlende, verweigerte oder geänderte Anhänge, nicht unterstützte Inhaltszuordnungen und
+wiederhergestellte unvollständige Tool-Gruppen führen zu ausdrücklichen Replay-Fehlern statt
+erfundener Ausgaben oder eingesetzter Vorschauen.
 
 ## Skills, Concepts und Tools
 

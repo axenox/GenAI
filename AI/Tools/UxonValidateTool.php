@@ -77,8 +77,7 @@ class UxonValidateTool extends AbstractAiTool
             );
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode($diagnostics, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType()
             );
@@ -90,11 +89,9 @@ class UxonValidateTool extends AbstractAiTool
                 null,
                 $e
             );
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode(['error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType(),
                 [],

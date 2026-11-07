@@ -44,7 +44,7 @@ class ModelObjectInfoTool extends AbstractAiTool
         $searchTerm = trim((string) ($arguments[0] ?? ''));
         if ($searchTerm === '') {
             $error = new AiToolRuntimeError($this, $prompt, 'Missing required argument: `search_term`');
-            return new AiToolResultString($this, $arguments, $error->getMessage(), $this->getReturnDataType(), [], [$error]);
+            return new AiToolResultString($this->getWorkbench(), $error->getMessage(), $this->getReturnDataType(), [], [$error]);
         }
 
         try {
@@ -69,14 +69,14 @@ class ModelObjectInfoTool extends AbstractAiTool
             $ds->dataRead();
         } catch (\Throwable $e) {
             $error = new AiToolRuntimeError($this, $prompt, 'Failed to search objects: ' . $e->getMessage(), null, $e);
-            return new AiToolResultString($this, $arguments, $e->getMessage(), $this->getReturnDataType(), [], [$error]);
+            return new AiToolResultString($this->getWorkbench(), $e->getMessage(), $this->getReturnDataType(), [], [$error]);
         }
 
         $rows = $ds->getRows();
         if (empty($rows)) {
             $notFoundMsg = 'No objects found for term "' . $searchTerm . '".';
             $warning = new AiToolRuntimeWarning($this, $prompt, $notFoundMsg);
-            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType(), [], [$warning]);
+            return new AiToolResultString($this->getWorkbench(), $notFoundMsg, $this->getReturnDataType(), [], [$warning]);
         }
 
         $objectMarkdowns = [];
@@ -98,7 +98,7 @@ class ModelObjectInfoTool extends AbstractAiTool
 
         if (empty($objectAliases)) {
             $notFoundMsg = 'No objects found for search query `' . $searchTerm . '`.';
-            return new AiToolResultString($this, $arguments, $notFoundMsg, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $notFoundMsg, $this->getReturnDataType());
         }
         
         if (in_array($searchTerm, $objectAliases)) {
@@ -117,7 +117,7 @@ Objects matching `{$searchTerm}`:
 {$details}
 MD;
 
-        $toolResult = new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        $toolResult = new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
         foreach ($toolWarnings as $warning) {
             $toolResult->addException($warning);
         }

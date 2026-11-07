@@ -66,7 +66,6 @@ class ModelComponentImportTool extends AbstractAiTool
                     if (! $item instanceof UxonObject) {
                         $warning = (new AiToolRuntimeError($this, $prompt, 'Skipped invalid import row at index ' . $index . '.'))
                             ->setLogLevel(LoggerInterface::WARNING);
-                        $this->getWorkbench()->getLogger()->logException($warning);
                         $warnings[] = $warning;
                         continue;
                     }
@@ -82,7 +81,7 @@ class ModelComponentImportTool extends AbstractAiTool
             }
 
             $message = $messages === [] ? 'No Data Imported' : implode("\n", $messages);
-            $result = new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
             foreach ($warnings as $warning) {
                 $result->addException($warning);
             }
@@ -93,9 +92,8 @@ class ModelComponentImportTool extends AbstractAiTool
             $exception = $e instanceof ExceptionInterface
                 ? $e
                 : new AiToolRuntimeError($this, $prompt, 'Error during import. ' . $e->getMessage(), null, $e);
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
-            return (new AiToolResultString($this, $arguments, $message, $this->getReturnDataType()))
+            return (new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType()))
                 ->addException($exception);
         }
     }

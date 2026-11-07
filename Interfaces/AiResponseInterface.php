@@ -2,7 +2,6 @@
 namespace axenox\GenAI\Interfaces;
 
 use exface\Core\Interfaces\Tasks\ResultDataInterface;
-use axenox\GenAI\Common\AiToolCallResponse;
 
 /**
  * 
@@ -16,12 +15,11 @@ interface AiResponseInterface extends ResultDataInterface
     public function getJson(): array;
     public function getConversationId() : string ;
 
-    //ToolResponse
+    /** Returns the history owner, if associated with a conversation. */
+    public function getConversation() : ?AiConversationInterface;
 
-    /**
-     * @return AiToolCallResponse[]
-     */
-    public function getToolCallResponses(): array;
+    /** @return AiMessageInterface[] Messages produced during this execution only. */
+    public function getMessages() : array;
     
     public function addOKStatusMessage(string $message) : AiResponseInterface;
     

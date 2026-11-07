@@ -27,6 +27,22 @@ Skill instructions, skill concepts and model connections are not loaded for this
 - [Tool reference](../Tools/index.md)
 - [Concept reference](../Concepts/index.md)
 
+## Exchanges and tool continuation
+
+`GenericAssistant` creates a new `AiQuery` for every model submission, including each tool
+round. Each query captures detached, typed conversation context; earlier queries keep their
+original request, response and usage metadata. Prior assistant call batches and their correlated
+results remain in context exactly once.
+
+Tool execution and normalization use the shared `AiToolExecutor`. The conversation stores ordered
+calls and typed results; the selected API adapter decides how to send their complete values,
+errors, warnings and deduplicated appendix to the model. No tool-result response wrappers are used.
+The recursive call limit still applies to consecutive model tool rounds.
+
+`AiResponse::getConversation()` exposes the history owner. `getMessages()` contains only the
+current execution, including tool messages and any unsaved in-memory messages after a completion
+write fails. Test metrics and criteria inspect those messages, never calls from earlier turns.
+
 ## Structure of an agent version
 
 An agent version defines how the agent is created at runtime:

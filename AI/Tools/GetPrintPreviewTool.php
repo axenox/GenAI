@@ -160,7 +160,7 @@ class GetPrintPreviewTool extends AbstractAiTool
         }
         
         $concatenated = $this->concatenate($results);
-        return new AiToolResultString($this, $arguments, $concatenated, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $concatenated, $this->getReturnDataType());
     }
 
     /**

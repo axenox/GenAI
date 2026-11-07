@@ -4,20 +4,22 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$server = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\bin\mcp')
+$server = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\bin\mcp')
 $inputFile = Resolve-Path (Join-Path $PSScriptRoot 'endpoint-smoke.jsonl')
-$stdoutFile = [System.IO.Path]::GetTempFileName()
-$stderrFile = [System.IO.Path]::GetTempFileName()
+$php = (Get-Command php -CommandType Application -ErrorAction Stop).Source
+$runId = [Guid]::NewGuid().ToString('N')
+$stdoutFile = Join-Path $PSScriptRoot "smoke-$runId.stdout"
+$stderrFile = Join-Path $PSScriptRoot "smoke-$runId.stderr"
 
 try {
-    $process = Start-Process -FilePath 'php' `
-        -ArgumentList @($server.Path, $EndpointSelector) `
-        -RedirectStandardInput $inputFile.Path `
-        -RedirectStandardOutput $stdoutFile `
-        -RedirectStandardError $stderrFile `
-        -NoNewWindow `
-        -Wait `
-        -PassThru
+    $ErrorActionPreference = 'Continue'
+    try {
+        $stdout = Get-Content $inputFile.Path | & $php $server.Path $EndpointSelector 2> $stderrFile
+        $process = [PSCustomObject]@{ ExitCode = $LASTEXITCODE }
+        $stdout | Set-Content $stdoutFile -Encoding UTF8
+    } finally {
+        $ErrorActionPreference = 'Stop'
+    }
 
     if ($process.ExitCode -ne 0) {
         throw "MCP endpoint exited with code $($process.ExitCode): $(Get-Content $stderrFile -Raw)"
@@ -70,6 +72,11 @@ try {
     $pingResponse = $responses | Where-Object { $_.id -eq 8 } | Select-Object -First 1
     if ($null -ne $pingResponse.error) {
         throw "The server did not recover from endpoint validation failures"
+    }
+
+    $unknownTool = $responses | Where-Object { $_.id -eq 9 } | Select-Object -First 1
+    if ($null -eq $unknownTool -or $unknownTool.error.code -ne -32602) {
+        throw "Unknown tool did not retain the official SDK invalid-parameters rejection"
     }
 
     Write-Host "MCP endpoint smoke test passed: schema, invocation, validation, recovery, clean STDOUT."

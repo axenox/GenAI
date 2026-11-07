@@ -3,7 +3,7 @@
 namespace axenox\GenAI\AI\Metrics;
 
 use axenox\GenAI\AI\Metrics\UxonConfigData\ToolCheckData;
-use axenox\genAI\common\AbstractTestMetric;
+use axenox\GenAI\Common\AbstractTestMetric;
 use axenox\GenAI\Common\AiTestRating;
 use axenox\GenAI\Factories\AiTestingFactory;
 use axenox\GenAI\Interfaces\AiResponseInterface;
@@ -59,7 +59,12 @@ class ToolCheckTestMetric extends AbstractTestMetric
         //TODO Example when no argument is given or something like that
         //and split in Parts
 
-        $toolCalls = $response->getToolCallResponses();
+        $toolCalls = [];
+        foreach ($response->getMessages() as $message) {
+            foreach ($message->getCalls() as $call) {
+                $toolCalls[] = $call;
+            }
+        }
         
         //TODO cons, pros, Explanation
         if($this->toolCallForbidden){
@@ -127,7 +132,7 @@ class ToolCheckTestMetric extends AbstractTestMetric
             } else {
                 $callScores = [];
                 foreach ($toolCallsForName as $call) {
-                    /** @var AiToolCallResponse $call */
+                    /** @var \axenox\GenAI\Interfaces\AiToolCallInterface $call */
                     $args = $call->getArguments() ?? [];
                     $keys = \array_keys($args);
 

@@ -1,7 +1,7 @@
 # Unit tests
 
 Unit tests must not start or mock the ExFace Workbench. They cover code that can be exercised through
-plain values, reflection, or narrow interface mocks. Put unit test classes below `Tests/Unit` and
+plain values, reflection, or narrow interface mocks. Put unit test classes below `Tests/PHPUnit/Unit` and
 name them with the `Test.php` suffix.
 
 Run the suite from a standalone GenAI checkout with:

@@ -26,7 +26,7 @@ Installation verwendet:
 vendor/bin/phpunit -c vendor/axenox/genai/phpunit.xml.dist --testsuite unit
 ```
 
-Konventionen und Ablageorte beschreibt der [Leitfaden für Unit-Tests](../../../../Tests/Unit/Readme.md).
+Konventionen und Ablageorte beschreibt der [Leitfaden für Unit-Tests](../../../../Tests/PHPUnit/Unit/Readme.md).
 
 ## Integrationstests
 
@@ -38,7 +38,7 @@ Der MCP-Endpoint-Smoke-Test startet den echten STDIO-Server und benötigt einen 
 Endpoint:
 
 ```powershell
-Tests/Integration/Mcp/assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
+Tests/PHPUnit/Integration/Mcp/assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
 ```
 
 Das geprüfte Protokollverhalten ist unter [MCP-Server testen](../MCP/index.md#automatische-prüfung)

@@ -1,7 +1,7 @@
 <?php
 namespace axenox\GenAI\AI\TestCriteria;
 
-use axenox\genAI\common\AbstractTestCriterion;
+use axenox\GenAI\Common\AbstractTestCriterion;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
@@ -24,7 +24,12 @@ class ToolResponseTestCriterion extends AbstractTestCriterion
     
     public function getValue(AiResponseInterface $response): string
     {
-        $toolCallResponses = $response->getToolCallResponses();
+        $toolCallResponses = [];
+        foreach ($response->getMessages() as $message) {
+            foreach ($message->getCalls() as $call) {
+                $toolCallResponses[] = $call;
+            }
+        }
 
         $output = "";
         $lastIndex = count($toolCallResponses) - 1;
@@ -39,7 +44,7 @@ class ToolResponseTestCriterion extends AbstractTestCriterion
 
             if (is_array($arguments)) {
                 foreach ($arguments as $key => $value) {
-                    $output .= $key . ' = "' . $value . '"' . "\n";
+                    $output .= $key . ' = "' . (is_scalar($value) ? (string) $value : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"' . "\n";
                 }
             } else {
                 $output .= $arguments . "\n";

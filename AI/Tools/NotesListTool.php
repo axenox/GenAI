@@ -65,7 +65,7 @@ class NotesListTool extends AbstractAiTool
             $markdown .= "\n\n" . MarkdownDataType::buildMarkdownTableFromArray($rows);
         }
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

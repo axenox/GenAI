@@ -52,7 +52,7 @@ class NotesReadTool extends AbstractAiTool
         $result = '## ' . $sheet->getCellValue('TOPIC', 0) . "\n\n"
             . 'Type: `' . $sheet->getCellValue('TYPE', 0) . "`\n\n"
             . $sheet->getCellValue('NOTE', 0);
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**

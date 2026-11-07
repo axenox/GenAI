@@ -35,13 +35,13 @@ class MockTool extends AbstractAiTool
                 if($pair instanceof RequestResponsePairs){
                     if($pair->isMatch($var)){
                         $response = $pair->getResponse();
-                        return new AiToolResultString($this, $arguments, $response, $this->getReturnDataType());
+                        return new AiToolResultString($this->getWorkbench(), $response, $this->getReturnDataType());
                     }
                 }
             }
         }
         
-        return new AiToolResultString($this, $arguments, $this->sampleResponse, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $this->sampleResponse, $this->getReturnDataType());
     }
 
     /**

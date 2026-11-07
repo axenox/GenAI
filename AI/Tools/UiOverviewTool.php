@@ -76,7 +76,7 @@ class UiOverviewTool extends AbstractAiTool
             $cachedMarkdown = $this->getWorkbench()->getCache()->getPool(self::CACHE_POOL)->get($cacheKey);
             if (is_string($cachedMarkdown)) {
                 $this->activeTask = null;
-                return new AiToolResultString($this, $arguments, $cachedMarkdown, $this->getReturnDataType());
+                return new AiToolResultString($this->getWorkbench(), $cachedMarkdown, $this->getReturnDataType());
             }
         } catch (\Throwable $e) {
             $this->getWorkbench()->getLogger()->logException($e);
@@ -130,7 +130,7 @@ class UiOverviewTool extends AbstractAiTool
                 $this->getWorkbench()->getLogger()->logException($e);
             }
         }
-        $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType(), [], $this->warnings);
+        $result = new AiToolResultString($this->getWorkbench(), $md, $this->getReturnDataType(), [], $this->warnings);
         $this->activeTask = null;
         return $result;
     }
@@ -622,7 +622,7 @@ class UiOverviewTool extends AbstractAiTool
     }
 
     /**
-     * Records and logs a recoverable rendering problem.
+     * Records a recoverable rendering problem for reporting by the shared executor.
      *
      * @param string $message
      * @param \Throwable $previous
@@ -640,7 +640,6 @@ class UiOverviewTool extends AbstractAiTool
             return;
         }
         $warning = new AiToolRuntimeWarning($this, $this->activeTask, $message, null, $previous);
-        $this->getWorkbench()->getLogger()->logException($warning);
         $this->warnings[] = $warning;
     }
 

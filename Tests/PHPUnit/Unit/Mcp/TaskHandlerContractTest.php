@@ -1,5 +1,5 @@
 <?php
-namespace axenox\GenAI\Tests\Unit\Mcp;
+namespace axenox\GenAI\Tests\PHPUnit\Unit\Mcp;
 
 use axenox\GenAI\AI\Agents\GenericAssistant;
 use axenox\GenAI\AI\Agents\McpServer;

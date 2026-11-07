@@ -119,7 +119,7 @@ class UiWidgetInfoTool extends AbstractAiTool
                 $facade->buildHtmlBody($widget);
             }
 
-            return new AiToolResultString($this, $arguments, $widgetMarkdown, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $widgetMarkdown, $this->getReturnDataType());
         } catch (ExceptionInterface $e) {
             return $this->createInvalidPageResult(
                 $prompt,
@@ -148,7 +148,6 @@ class UiWidgetInfoTool extends AbstractAiTool
         ExceptionInterface $pageError,
         ?string $widgetMarkdown = null
     ): AiToolResultInterface {
-        $this->getWorkbench()->getLogger()->logException($pageError);
 
         $urlMarkdown = MarkdownDataType::escapeString($url);
         $errorMarkdown = MarkdownDataType::escapeString($pageError->getMessage());
@@ -171,8 +170,7 @@ MD;
         $warning->setLogLevel(LoggerInterface::WARNING);
 
         return new AiToolResultString(
-            $this,
-            $arguments,
+            $this->getWorkbench(),
             $resultMessage,
             $this->getReturnDataType(),
             [],
@@ -181,7 +179,7 @@ MD;
     }
 
     /**
-     * Creates and logs a failed tool result.
+     * Creates a failed tool result for reporting by the shared executor.
      *
     * @param TaskInterface $prompt
      * @param array $arguments
@@ -196,9 +194,8 @@ MD;
         ?\Throwable $previous = null
     ): AiToolResultInterface {
         $error = new AiToolRuntimeError($this, $prompt, $message, null, $previous);
-        $this->getWorkbench()->getLogger()->logException($error);
         $resultMessage = $message . ' See ' . $this->buildLogLink($error->getId()) . '.';
-        return new AiToolResultString($this, $arguments, $resultMessage, $this->getReturnDataType(), [], [$error]);
+        return new AiToolResultString($this->getWorkbench(), $resultMessage, $this->getReturnDataType(), [], [$error]);
     }
 
     /**

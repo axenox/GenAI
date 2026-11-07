@@ -104,7 +104,7 @@ class CommandLineTool extends AbstractAiTool
         
         $markdown = MarkdownDataType::escapeCodeBlock($output, 'text');
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

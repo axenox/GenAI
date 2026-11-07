@@ -30,7 +30,7 @@ class GetLogEntryTool extends AbstractAiTool
         $printer = new LogEntryMarkdownPrinter($this->getWorkbench(), $logId, $logFilePath);
         $markdown = $printer->getMarkdown();
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

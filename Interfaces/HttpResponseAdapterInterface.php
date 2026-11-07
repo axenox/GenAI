@@ -3,6 +3,14 @@ namespace axenox\GenAI\Interfaces;
 
 interface HttpResponseAdapterInterface
 {
+    /** Returns normalized content blocks, not monitoring previews. */
+    public function getContent() : array;
+
+    /** Returns exact continuation fields under the API namespace. */
+    public function getProviderData() : array;
+
+    /** Returns the actual provider model, unknown when omitted. */
+    public function getModel() : ?string;
     
     public function getUsage() : array;
 
@@ -31,13 +39,13 @@ interface HttpResponseAdapterInterface
      *
      * @return int
      */
-    public function getTokensInPrompt() : int;
+    public function getTokensInPrompt() : ?int;
 
     /**
      *
      * @return int
      */
-    public function getTokensInAnswer() : int;
+    public function getTokensInAnswer() : ?int;
 
     /**
      *

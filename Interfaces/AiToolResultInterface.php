@@ -3,6 +3,7 @@ namespace axenox\GenAI\Interfaces;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 /**
  * A container for the result of an individual tools - similar to task results in actions
@@ -10,25 +11,14 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
+interface AiToolResultInterface extends WorkbenchDependantInterface, iCanBeConvertedToUxon, \Stringable
 {
-
     /**
-     * @return AiToolInterface
-     */
-    public function getTool(): AiToolInterface;
-
-    /**
-     * @return array
-     */
-    public function getArguments(): array;
-    
-    /**
-     * Returns the tool response as a string
+     * Returns the actual typed tool response value.
      * 
-     * @return string
+     * @return mixed
      */
-    public function getValue() : string;
+    public function getValue() : mixed;
 
     /**
      * Returns the tool response together with metadata intended for the LLM.
@@ -67,17 +57,20 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
     public function getAppendix() : array;
 
     /**
-     * Returns all stored exceptions for this tool response.
-     *
-     * Consumers classify severity via ExceptionInterface::getLogLevel()
-     * (e.g. warning vs error persistence).
+     * Returns transient execution exceptions. Restored results return an empty array.
      *
      * @return ExceptionInterface[]
      */
     public function getExceptions() : array;
 
+    /** @return string[] Durable error messages, including captured remediation hints. */
+    public function getErrors() : array;
+
+    /** @return string[] Durable warning messages, including captured remediation hints. */
+    public function getWarnings() : array;
+
     /**
-     * Adds a non-critical error or warning to the tool result
+     * Adds an error or warning to the tool result. ERROR and higher levels mark it failed.
      * 
      * @param \Throwable $exception
      * @return AiToolResultInterface
@@ -85,9 +78,15 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
     public function addException(\Throwable $exception) : AiToolResultInterface;
 
     /**
-     * Returns TRUE if the tool could not be executed (= result should not be sent to LLM) and FALSE otherwise
+     * Returns TRUE if execution failed. Failed results still carry useful diagnostics.
      * 
      * @return bool
      */
     public function isFailed() : bool;
+
+    public function setFailed(bool $failed) : self;
+
+    public function getDurationMs() : ?float;
+
+    public function setDurationMs(float $milliseconds) : AiToolResultInterface;
 }

@@ -58,7 +58,11 @@ A definition selects its prototype with `alias` or `class` and can override the 
 
 The built-in argument templates are used when `arguments` is omitted. Override them only when the agent needs more specific terminology, examples, or a restricted schema. Tool instructions should also state when a call is mandatory, for example: "Read the object definition before proposing UXON that references its attributes."
 
-Tool results sent back to the model explicitly identify attached errors and warnings. Diagnostics contain their severity and message as well as the remediation hint from the exception's message model when available. If errors prevented a result, the response clearly states that no result was produced because errors occurred. Conversation messages and tool-call records persist this enriched result so the same diagnostics are visible in the conversation UI; the result object's raw value remains available separately. Critical failures additionally tell the model not to repeat the same call unchanged.
+Tool results sent back to the model explicitly identify attached errors and warnings. Diagnostics contain their severity and message as well as the remediation hint captured from the exception's message model when available. Errors at level `ERROR` or higher mark execution as failed; warnings alone do not. Rejected calls can be explicitly marked failed even with warning-only diagnostics. Failed results tell the model not to repeat the same call unchanged and remain available for inspection. The shared executor reports attached diagnostics once; tools must not additionally log the same exceptions.
+
+Results retain their original value, data-type configuration, appendix, ordered error and warning messages, failure state, and execution duration in reconstructable UXON. Restored results do not execute the tool or resolve remediation hints again, and do not contain transient exception objects. Tool identity and arguments belong to the call, not its result. Framework consumers use `getErrors()`, `getWarnings()`, and `isFailed()` for durable diagnostics and explicit rendering methods for text. `AiToolResultString` receives the Workbench directly; `AiToolResultFactory` restores only this supported result class. A future structured result can use the shared typed-value contract without requiring string conversion.
+
+`getValue()` preserves the actual value type, including booleans, null, and numbers. Explicit text rendering retains the compatible boolean spellings `true` and `false`; it does not change the stored value.
 
 ## File access configuration
 
@@ -752,6 +756,6 @@ replacement text
 
 ## Failure behavior
 
-Tools return a typed value together with zero or more exceptions. Runtime errors cover invalid arguments, denied paths, failed commands, I/O failures, and invalid model operations. Warnings can represent partial results or missing optional data. Prompt implementations may surface these exceptions to the LLM as warnings.
+Tools return a typed value with durable error and warning messages. Fresh results additionally expose transient exceptions for the shared reporting boundary; reconstructed results do not. Runtime failures include failed commands, I/O failures, and invalid model operations. Warnings can represent partial results, missing optional data, or a rejected request; explicit failure state distinguishes rejected calls from successful calls with warnings. Consumers must not infer success from an empty exception collection.
 
 Tool access does not replace ExFace authorization. Data operations, actions, facades, logs, files, and commands must still be limited to the permissions and paths required by the agent's use case.

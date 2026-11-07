@@ -75,7 +75,7 @@ class NotesSearchTool extends AbstractAiTool
         }
 
         $result = empty($matches) ? 'No matching notes found.' : implode("\n\n", $matches);
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**

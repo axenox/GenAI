@@ -24,7 +24,7 @@ When developing GenAI inside an ExFace installation, run the root PHPUnit binary
 vendor/bin/phpunit -c vendor/axenox/genai/phpunit.xml.dist --testsuite unit
 ```
 
-See the [unit test contributor guide](../../Tests/Unit/Readme.md) for test placement and conventions.
+See the [unit test contributor guide](../../Tests/PHPUnit/Unit/Readme.md) for test placement and conventions.
 
 ## Integration tests
 
@@ -35,7 +35,7 @@ authentication, data sources, or external services.
 The MCP endpoint smoke test starts the real STDIO server and requires a configured endpoint:
 
 ```powershell
-Tests/Integration/Mcp/assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
+Tests/PHPUnit/Integration/Mcp/assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
 ```
 
 See [MCP server testing](../MCP/index.md#automated-verification) for the verified protocol behavior.

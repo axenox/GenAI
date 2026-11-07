@@ -58,7 +58,6 @@ class DataSheetImportTool extends AbstractAiTool
                     if (! $item instanceof UxonObject) {
                         $warning = (new AiToolRuntimeError($this, $prompt, 'Skipped invalid import row at index ' . $index . '.'))
                             ->setLogLevel(LoggerInterface::WARNING);
-                        $this->getWorkbench()->getLogger()->logException($warning);
                         $warnings[] = $warning;
                         continue;
                     }
@@ -78,7 +77,7 @@ class DataSheetImportTool extends AbstractAiTool
                 $message = implode("\n", $messages);
             }
 
-            $result = new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
             foreach ($warnings as $warning) {
                 $result->addException($warning);
             }
@@ -90,8 +89,7 @@ class DataSheetImportTool extends AbstractAiTool
                 $exception = new AiToolRuntimeError($this, $prompt, 'Error during import. ' . $e->getMessage(), null, $e);
             }
 
-            $agent->getWorkbench()->getLogger()->logException($exception);
-            $result = (new AiToolResultString($this, $arguments, $message, $this->getReturnDataType()))
+            $result = (new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType()))
                 ->addException($exception);
         }
 

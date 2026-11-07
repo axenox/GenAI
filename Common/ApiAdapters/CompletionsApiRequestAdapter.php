@@ -52,7 +52,7 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
             $json['temperature'] = $val;
         }
 
-        $json = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
 
         // FIXME don't use arrays for JSON schemas because array do not distinguish between `[]` and `{}`.
         // Need to use \stdClass instead when building the request.
@@ -169,7 +169,13 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
     {
         // TODO add a AiMessageInterface abstraction for every individual message. Currently they are returned
         // here is the completions format already. Other adapter will need to translate this format into theirs.
-        $messages = $query->getMessages(true);
+        $messages = AiContextRenderer::messages($query, 'completions');
+        foreach ($messages as &$message) {
+            if (isset($message['_provider']['completions']['message'])) {
+                $message = (array) $message['_provider']['completions']['message'];
+            }
+            unset($message['_provider'], $message['_failed'], $message['_attachments'], $message['_content']);
+        }
         return $messages;
     }
 

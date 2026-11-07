@@ -61,7 +61,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
             $json['temperature'] = $val;
         }
 
-        $json = json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
         
         // FIXME don't use arrays for JSON schemas because array do not distinguish between `[]` and `{}`.
         // Need to use \stdClass instead when building the request.
@@ -194,7 +194,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
 
     protected function buildJsonInput(AiQueryInterface $query): array
     {
-        $messages = $query->getMessages(true);
+        $messages = AiContextRenderer::messages($query, 'responses');
         $input = [];
 
         foreach ($messages as $message) {
@@ -210,6 +210,13 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
                     'call_id' => $message['tool_call_id'] ?? $message['call_id'] ?? '',
                     'output' => $this->normalizeMessageText($message['content'] ?? ''),
                 ];
+                continue;
+            }
+
+            if (isset($message['_provider']['responses']['output'])) {
+                foreach ($message['_provider']['responses']['output'] as $item) {
+                    $input[] = $item;
+                }
                 continue;
             }
 
@@ -241,6 +248,21 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
             }
 
             $content = $this->normalizeContentBlocks($role, $message['content'] ?? '');
+            if (!empty($message['_attachments'])) {
+                $content = [];
+                foreach ($message['_content'] as $block) {
+                    $block = (array) $block;
+                    if ($block['type'] === 'text') {
+                        $content[] = ['type' => $role === 'assistant' ? 'output_text' : 'input_text', 'text' => $block['text']];
+                        continue;
+                    }
+                    $mime = $block['mime_type'];
+                    $url = 'data:' . $mime . ';base64,' . $block['contents_base64'];
+                    $content[] = str_starts_with($mime, 'image/')
+                        ? ['type' => 'input_image', 'image_url' => $url]
+                        : ['type' => 'input_file', 'filename' => $block['filename'], 'file_data' => $url];
+                }
+            }
 
             $input[] = [
                 'type' => 'message',
@@ -249,7 +271,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
             ];
         }
 
-        foreach ($query->getFiles() as $file) {
+        foreach ($query->getContextMessages() === [] ? $query->getFiles() : [] as $file) {
             $input[] = [
                 'type' => 'message',
                 'role' => 'user',
@@ -306,7 +328,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
      */
     protected function buildInstructions(AiQueryInterface $query): ?string
     {
-        $messages = $query->getMessages(true);
+        $messages = AiContextRenderer::messages($query, 'responses');
         $instructions = [];
 
         foreach ($messages as $message) {

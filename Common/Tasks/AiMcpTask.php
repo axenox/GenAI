@@ -17,7 +17,7 @@ class AiMcpTask extends GenericTask
      * @param WorkbenchInterface $workbench Workbench scope owned by the operation.
      * @param string $endpointSelector Selector of the MCP endpoint.
      */
-    public function __construct(WorkbenchInterface $workbench, string $endpointSelector)
+    public function __construct(WorkbenchInterface $workbench, string $endpointSelector, private array $mcpContext = [])
     {
         parent::__construct($workbench);
         $this->endpointSelector = $endpointSelector;
@@ -29,5 +29,10 @@ class AiMcpTask extends GenericTask
     public function getEndpointSelector() : string
     {
         return $this->endpointSelector;
+    }
+
+    public function getMcpContext() : array
+    {
+        return $this->mcpContext;
     }
 }

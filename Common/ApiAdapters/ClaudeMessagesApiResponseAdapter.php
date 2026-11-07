@@ -15,6 +15,7 @@ use Psr\Http\Message\ResponseInterface;
 class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 {
     private array $json;
+    private array $providerContent;
 
     public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception
     {
@@ -63,6 +64,7 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
     public function __construct(ResponseInterface $response)
     {
         $this->json = JsonDataType::decodeJson($response->getBody()->__toString(), true);
+        $this->providerContent = json_decode($response->getBody()->__toString(), false, 512, JSON_THROW_ON_ERROR)->content ?? [];
     }
 
     protected function getResponseData() : array
@@ -73,6 +75,32 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
     public function getUsage() : array
     {
         return $this->json['usage'] ?? [];
+    }
+
+    /** {@inheritDoc} */
+    public function getContent() : array
+    {
+        $content = [];
+        foreach ($this->json['content'] ?? [] as $block) {
+            if (($block['type'] ?? null) === 'text') {
+                $content[] = ['type' => 'text', 'text' => $block['text'] ?? ''];
+            } elseif (!in_array($block['type'] ?? null, ['tool_use', 'thinking', 'redacted_thinking'], true)) {
+                $content[] = ['type' => 'unsupported', 'provider_type' => $block['type'] ?? 'unknown'];
+            }
+        }
+        return $content;
+    }
+
+    /** {@inheritDoc} */
+    public function getProviderData() : array
+    {
+        return ['claude' => ['content' => $this->providerContent, 'stop_reason' => $this->json['stop_reason'] ?? null]];
+    }
+
+    /** {@inheritDoc} */
+    public function getModel() : ?string
+    {
+        return $this->json['model'] ?? null;
     }
 
     public function getAnswerRaw() : string
@@ -97,14 +125,14 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
         return $this->hasToolCalls() === false && ($this->getFinishReason() !== 'pause_turn');
     }
 
-    public function getTokensInPrompt() : int
+    public function getTokensInPrompt() : ?int
     {
-        return (int) ($this->json['usage']['input_tokens'] ?? 0);
+        return $this->json['usage']['input_tokens'] ?? null;
     }
 
-    public function getTokensInAnswer() : int
+    public function getTokensInAnswer() : ?int
     {
-        return (int) ($this->json['usage']['output_tokens'] ?? 0);
+        return $this->json['usage']['output_tokens'] ?? null;
     }
 
     public function getFinishReason() : string
@@ -188,15 +216,18 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
     {
         $result = [];
 
-        foreach (($this->json['content'] ?? []) as $block) {
+        foreach ($this->providerContent as $block) {
+            $block = (array) $block;
             if (($block['type'] ?? null) !== 'tool_use') {
                 continue;
             }
 
+            $raw = json_encode($block['input'] ?? new \stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
             $result[] = new AiToolCall(
                 $block['name'] ?? '',
                 $block['id'] ?? '',
-                is_array($block['input'] ?? null) ? $block['input'] : []
+                AiContextRenderer::arguments($raw),
+                $raw
             );
         }
 

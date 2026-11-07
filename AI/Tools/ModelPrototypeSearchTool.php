@@ -62,7 +62,7 @@ class ModelPrototypeSearchTool extends AbstractAiTool
             $prototypeResult = (new ModelPrototypeInfoTool($this->getWorkbench()))->invoke($agent, $prompt, [$selector]);
             $markdown .= "\n\n## Prototype details\n\n" . $prototypeResult->getValueAsMarkdown();
         }
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
     
     protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet, string $query, string $component) : string

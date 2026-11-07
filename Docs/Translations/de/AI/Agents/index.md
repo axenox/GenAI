@@ -28,6 +28,24 @@ für diesen Prototyp nicht geladen.
 - [Tool-Referenz](../Tools/index.md)
 - [Concept-Referenz](../Concepts/index.md)
 
+## Exchanges und Tool-Fortsetzungen
+
+`GenericAssistant` erzeugt für jeden Modellaufruf einen neuen `AiQuery`, auch für jede Tool-Runde.
+Jede Query enthält einen losgelösten, typisierten Conversation-Kontext; frühere Queries behalten
+ihre ursprünglichen Request-, Response- und Nutzungsdaten. Vorherige Assistant-Aufrufgruppen
+und deren zugeordnete Ergebnisse bleiben genau einmal im Kontext.
+
+Ausführung und Normalisierung erfolgen über den gemeinsamen `AiToolExecutor`. Die Conversation
+speichert geordnete Aufrufe und typisierte Ergebnisse; der gewählte API-Adapter entscheidet, wie
+vollständige Werte, Fehler, Warnungen und deduplizierte Anhänge an das Modell gesendet werden.
+Tool-Ergebnis-Response-Wrapper entfallen. Das Rekursionslimit gilt weiterhin für aufeinanderfolgende
+Tool-Runden des Modells.
+
+`AiResponse::getConversation()` liefert den Besitzer des Verlaufs. `getMessages()` enthält nur
+die aktuelle Ausführung, einschließlich Tool-Nachrichten und nach einem fehlgeschlagenen
+Abschluss-Schreibvorgang noch im Speicher vorhandener Nachrichten. Testmetriken und Kriterien
+prüfen diese Nachrichten statt Aufrufe früherer Turns.
+
 ## Aufbau einer Agentenversion
 
 Eine Agentenversion legt fest, wie der Agent zur Laufzeit erstellt wird:

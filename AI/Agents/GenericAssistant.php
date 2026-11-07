@@ -3,16 +3,12 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiResponse;
-use axenox\GenAI\Common\AiToolCallResponse;
-use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Common\AiToolExecutor;
 use axenox\GenAI\Common\ToolBox;
-use axenox\GenAI\Events\OnAiToolCallEvent;
-use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
 use axenox\GenAI\Common\DataQueries\AiQuery;
 use axenox\GenAI\Exceptions\AiConceptRenderingError;
 use axenox\GenAI\Exceptions\AiConnectionNotFoundError;
 use axenox\GenAI\Exceptions\AiPromptError;
-use axenox\GenAI\Exceptions\AiToolCriticalError;
 use axenox\GenAI\Exceptions\AiToolRuntimeError;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
@@ -92,9 +88,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     private $maxNumberOfCalls = 10;
 
-    /** @var AiToolCallResponse[] */
-    private array $toolCalls = [];
-
     private $promptSuggestions = [];
 
     /**
@@ -119,18 +112,9 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     {
         $this->init($prompt);
 
-        // Initialize the data query
-        $query = new AiQuery($this->workbench);
-        // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
-        // prompt will be used as title.
-        $query->appendMessage($prompt->getUserPrompt());
-        $query->setFiles($prompt->getFiles());
-        
         // Create or restore the conversation for this execution.
         $conversation = AiFactory::createConversationFromPrompt($this, $prompt);
-        $conversationId = $conversation->getConversationId();
-        $query->setConversationUid($conversationId);
-
+        $previousMessageIds = $conversation->getWrittenMessageIds();
 
         try {
             if ($conversation->hasSystemPrompt()) {
@@ -138,7 +122,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             } else {
                 $systemPrompt = $this->renderSystemPrompt($prompt);
             }
-            $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to prepare AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
@@ -146,19 +129,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             $this->workbench->getLogger()->logException($e);
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
             */
-        }
-
-        // Add JSON schema
-        if($this->hasResponseJsonSchema()) {
-            $query->setResponseJsonSchema($this->getResponseJsonSchema());
-            if ($val = $this->getResponseAnswerPath()) {
-                $query->setResponseAnswerPath($val);
-            }
-        }
-        
-        // Add tools
-        foreach ($this->getTools() as $tool) {
-            $query->addTool($tool);
         }
 
         // Now save the conversation messages for system and user prompts including all their metadata metadata
@@ -177,6 +147,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         }
 
         try {
+            $query = $this->createExchangeQuery($prompt, $conversation, $systemPrompt);
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
@@ -197,22 +168,52 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
                 $performedQuery->getAnswerMarkdown(),
                 $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null
             );
-            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
-            throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
+            $this->getWorkbench()->getLogger()->logException($e);
+            try {
+                $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
+            } catch (\Throwable $loggingError) {
+                $this->getWorkbench()->getLogger()->logException($loggingError);
+            }
         }
+        $response = $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
+        $response->setConversation($conversation);
+        $currentMessageIds = array_diff($conversation->getWrittenMessageIds(), $previousMessageIds);
+        $response->setMessages(array_values(array_filter(
+            $conversation->getMessages(),
+            static fn($message) => in_array($message->getUid(), $currentMessageIds, true)
+        )), $performedQuery->getToolResultBatches());
+        return $response;
+    }
+
+    /** Creates a fresh exchange with a detached snapshot of all prior eligible history. */
+    protected function createExchangeQuery(AiPromptInterface $prompt, AiConversationInterface $conversation, string $systemPrompt) : AiQuery
+    {
+        $query = new AiQuery($this->getWorkbench());
+        $query->setConversation($conversation);
+        $query->setContextMessages($conversation->getMessages());
+        $query->setSystemPrompt($systemPrompt);
+        $query->appendMessage($prompt->getUserPrompt());
+        $query->setFiles($prompt->getFiles());
+        if ($this->hasResponseJsonSchema()) {
+            $query->setResponseJsonSchema($this->getResponseJsonSchema());
+            if ($path = $this->getResponseAnswerPath()) {
+                $query->setResponseAnswerPath($path);
+            }
+        }
+        foreach ($this->getTools() as $tool) {
+            $query->addTool($tool);
+        }
+        return $query;
     }
 
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
-        $toolCallResponses = [];
         // Check if the LLM has put some tool calls in its response
         while ($performedQuery->hasToolCalls()) {
             $numberOfCallResponses++;
-            $conversation->saveToolCallRequest($performedQuery);
-
             if ($numberOfCallResponses > $this->maxNumberOfCalls) {
                 // Add an AiQueryError that will accept the $performedQuery too, so that we see the actual
                 // HTTP messages in the logs
@@ -220,82 +221,17 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             }
 
             $requestedCalls = $performedQuery->getToolCalls();
-            $existingCall = false;
-
-            foreach($requestedCalls as $call){
-                $resultOfTool = null;
-                $tool = $this->getTool($call->getToolName());
-                $args = array_values($call->getArguments());
-                if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    try {
-                        $this->getWorkbench()->eventManager()->dispatch(new OnBeforeAiToolCallEvent($tool));
-                    } catch (\Throwable $e) {
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    $toolStartedAt = microtime(true);
-                    try {
-                        $resultOfTool = $tool->invoke($this, $prompt, $args);
-                        $exceptions = $resultOfTool->getExceptions();
-                    } catch (\Throwable $e) {
-                        if (! $e instanceof AiToolCriticalError) {
-                            $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
-                        }
-                        $e->setToolCall($call);
-                        $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage(), null, [], [$e]);
-                        $exceptions = [$e];
-                    } finally {
-                        if ($resultOfTool !== null && method_exists($resultOfTool, 'setDurationMs')) {
-                            $resultOfTool->setDurationMs((microtime(true) - $toolStartedAt) * 1000);
-                        }
-                    }
-                    foreach ($exceptions as $e) {
-                        if ($e instanceof AiToolCriticalError) {
-                            $e->setToolCall($call);
-                        }
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    $conversation->saveExceptions($exceptions);
-                    
-                    // TODO why are we checking for a specific method here? Why is it not in the interface???
-                    $durationMs = method_exists($resultOfTool, 'getDurationMs')
-                        ? $resultOfTool->getDurationMs()
-                        : null;
-                    try {
-                        $this->getWorkbench()->eventManager()->dispatch(new OnAiToolCallEvent($resultOfTool, $durationMs));
-                    } catch (\Throwable $e) {
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    
-                } else {
-                    $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
-                    // TODO is this actually an error? Should we log an exception here?
-                } 
-
-                //to prevent duplication on calls
-                $callId = $call->getCallId();
-
-                $toolCallResponses[$callId] = new AiToolCallResponse(
-                    $call->getToolName(),
-                    $callId,
-                    $call->getArguments(),
-                    $resultOfTool
-                );
-
-                $this->toolCalls[] = $toolCallResponses[$callId];
-                
-                // TODO move rendering tool result as string to the API adapters. 
-                // Having the result rendering logic in the tool result itself is not flexible enough! The adapter should
-                // decide, if the result should be represented as markdown, as JSON or maybe even as XML!
-                $performedQuery->appendToolMessages($existingCall, $resultOfTool->getValueWithMetadata(), $callId, $performedQuery->getResponseMessage());
-                $existingCall = true;
+            $messageId = $conversation->saveToolCalls($requestedCalls, $performedQuery->getResponseData());
+            $results = AiToolExecutor::executeBatch($conversation, $prompt, $messageId, $requestedCalls);
+            $query = $this->createExchangeQuery($prompt, $conversation, $performedQuery->getSystemPrompt() ?? '');
+            foreach ($performedQuery->getToolResultBatches() as $priorMessageId => $priorResults) {
+                $query = $query->withToolResults($priorResults, $priorMessageId);
             }
-            $conversation->saveToolResponses($performedQuery, $toolCallResponses);
-            $toolCallResponses = [];
-            $performedQuery = $this->getConnection()->query($performedQuery);
+            $query = $query->withToolResults($results, $messageId);
+            $performedQuery = $this->getConnection()->query($query);
             if (! $performedQuery instanceof AiQueryInterface) {
                 throw new AiPromptError($this, $prompt, 'AI connection returned an invalid query type: expecting instance of AiQueryInterface.');
             }
-            //$query->clearPreviousToolCalls();
         }
         return $performedQuery;
     }
@@ -582,7 +518,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         } else {
             $response = new AiResponse($prompt, $query->getAnswerMarkdown(), $conversationId);
         }
-        $response->setToolCalls($this->toolCalls);
         return $response;
     }
 

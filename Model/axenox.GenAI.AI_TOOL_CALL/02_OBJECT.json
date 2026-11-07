@@ -116,7 +116,7 @@
                                 "width": "50%"
                             },
                             {
-                                "attribute_alias": "FAILED",
+                                "attribute_alias": "STATE",
                                 "widget_type": "Display",
                                 "width": "50%"
                             },
@@ -134,12 +134,24 @@
                     },
                     {
                         "widget_type": "WidgetGroup",
+                        "caption": "Lifecycle (empty timing means unknown)",
+                        "widgets": [
+                            {"attribute_alias": "STARTED_ON", "widget_type": "Display"},
+                            {"attribute_alias": "FINISHED_ON", "widget_type": "Display"},
+                            {"attribute_alias": "AI_MESSAGE", "widget_type": "Display"},
+                            {"attribute_alias": "CALL_ID", "widget_type": "Display"},
+                            {"attribute_alias": "ARGUMENTS", "widget_type": "InputText", "readonly": true}
+                        ]
+                    },
+                    {
+                        "widget_type": "WidgetGroup",
                         "caption": "Tool Call",
                         "width": 2,
                         "widgets": [
                             {
                                 "attribute_alias": "CALL_DISPLAY",
-                                "widget_type": "Markdown",
+                                "widget_type": "InputText",
+                                "readonly": true,
                                 "hide_caption": true,
                                 "width": "100%"
                             }
@@ -151,11 +163,31 @@
                         "width": 2,
                         "widgets": [
                             {
-                                "attribute_alias": "RESULT",
-                                "widget_type": "Markdown",
-                                "hide_caption": true,
+                                "value": "=Left(RESULT, 16000)",
+                                "widget_type": "InputText",
+                                "readonly": true,
+                                "caption": "Result preview (first 16,000 characters)",
                                 "width": "100%",
                                 "height": "max"
+                            },
+                            {
+                                "widget_type": "Display",
+                                "value": "=If(Left(RESULT, 16000, false, false) != RESULT, 'Preview truncated. Use Full result to inspect the retained value.', '')"
+                            }
+                        ],
+                        "buttons": [
+                            {
+                                "caption": "Full result",
+                                "action": {
+                                    "alias": "exface.Core.ShowDialog",
+                                    "dialog": {
+                                        "widget_type": "Dialog",
+                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                        "widgets": [
+                                            {"attribute_alias": "RESULT", "widget_type": "InputText", "readonly": true}
+                                        ]
+                                    }
+                                }
                             }
                         ]
                     }

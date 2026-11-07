@@ -15,17 +15,39 @@ class AiToolCall implements AiToolCallInterface, JsonSerializable
     private $callId = null;
 
     private $arguments = [];
+    private ?string $rawArguments;
+    private ?array $executionArguments;
+    private ?string $toolAlias;
 
-    public function __construct(string $toolName, string $callId, array $arguments)
+    public function __construct(string $toolName, string $callId, array $arguments, ?string $rawArguments = null, ?array $executionArguments = null, ?string $toolAlias = null)
     {
         $this->toolName = $toolName;
         $this->callId = $callId;
         $this->arguments = $arguments;
+        $this->rawArguments = $rawArguments;
+        $this->executionArguments = $executionArguments;
+        $this->toolAlias = $toolAlias;
     }
 
-    public function jsonSerialize() {
-        return get_object_vars($this);
+    public function jsonSerialize() : array {
+        return [
+            'tool_name' => $this->toolName,
+            'call_id' => $this->callId,
+            'arguments' => (object) $this->arguments,
+            'raw_arguments' => $this->rawArguments,
+            'execution_arguments' => $this->executionArguments,
+            'tool_alias' => $this->toolAlias
+        ];
     }
+
+    /** Returns original provider argument text, when actually available. */
+    public function getRawArguments() : ?string { return $this->rawArguments; }
+
+    /** Returns separately parsed positional arguments, when prepared by the caller. */
+    public function getExecutionArguments() : ?array { return $this->executionArguments; }
+
+    /** Returns the historical application alias without resolving a live tool. */
+    public function getToolAlias() : ?string { return $this->toolAlias; }
     
     public function getToolName() : string
     {

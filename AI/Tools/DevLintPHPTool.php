@@ -80,8 +80,7 @@ class DevLintPHPTool extends AbstractAiTool
         }
 
         return new AiToolResultString(
-            $this,
-            $arguments,
+            $this->getWorkbench(),
             MarkdownDataType::escapeCodeBlock($output, 'text'),
             $this->getReturnDataType()
         );

@@ -71,8 +71,7 @@ class UxonAutosuggestTool extends AbstractAiTool
             }
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 $result->getContent(),
                 $this->getReturnDataType()
             );
@@ -84,11 +83,9 @@ class UxonAutosuggestTool extends AbstractAiTool
                 null,
                 $e
             );
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode(['error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType(),
                 [],

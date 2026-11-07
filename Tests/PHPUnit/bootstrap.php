@@ -1,6 +1,6 @@
 <?php
 
-$packageRoot = dirname(__DIR__);
+$packageRoot = dirname(__DIR__, 2);
 $autoloadCandidates = [
     $packageRoot . '/vendor/autoload.php',
     dirname($packageRoot, 2) . '/autoload.php'

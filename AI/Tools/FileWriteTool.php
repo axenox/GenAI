@@ -78,7 +78,7 @@ class FileWriteTool extends AbstractAiTool
         }
         
         $message = 'File saved: ' . $relativePath;
-        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
     }
 
     /**

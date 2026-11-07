@@ -1,8 +1,8 @@
 <?php
 namespace axenox\GenAI\Common;
 
-use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\CodeDataType;
 use exface\Core\DataTypes\HtmlDataType;
 use exface\Core\DataTypes\LogLevelDataType;
@@ -13,6 +13,7 @@ use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
+use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * Generic string AI tool result - most tools will produce strings
@@ -20,27 +21,27 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
  */
 class AiToolResultString implements AiToolResultInterface
 {
-    private AiToolInterface $tool;
-    private array $arguments;
+    private WorkbenchInterface $workbench;
     private mixed $value;
     private ?DataTypeInterface $type;
     private array $appendix;
     /** @var ExceptionInterface[] */
     private array $exceptions;
-    private bool $hasCriticalErrors = false;
+    private array $errors = [];
+    private array $warnings = [];
+    private bool $failed = false;
     private ?float $durationMs = null;
 
     /**
-     * @param AiToolInterface $tool
+     * @param WorkbenchInterface $workbench
      * @param $value
      * @param DataTypeInterface $type
      * @param array $appendix
      * @param \Throwable[] $exceptions
      */
-    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [], array $exceptions = [])
+    public function __construct(WorkbenchInterface $workbench, mixed $value = '', ?DataTypeInterface $type = null, array $appendix = [], array $exceptions = [])
     {
-        $this->tool = $tool;
-        $this->arguments = $arguments;
+        $this->workbench = $workbench;
         $this->value = $value;
         $this->type = $type;
         $this->appendix = $appendix;
@@ -53,33 +54,10 @@ class AiToolResultString implements AiToolResultInterface
 
     /**
      * {@inheritDoc}
-     * @see AiToolResultInterface::getTool()
-     */
-    public function getTool(): AiToolInterface
-    {
-        return $this->tool;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getArguments()
-     */
-    public function getArguments(): array
-    {
-        return $this->arguments;
-    }
-
-    /**
-     * {@inheritDoc}
      * @see AiToolResultInterface::getValue()
      */
-    public function getValue(): string
+    public function getValue(): mixed
     {
-        switch (true) {
-            case is_bool($this->value):
-                return $this->value ? 'true' : 'false';
-                
-        }
         return $this->value;
     }
 
@@ -89,27 +67,9 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function getValueWithMetadata(): string
     {
-        $value = $this->getValue();
-        $errors = [];
-        $warnings = [];
-
-        foreach ($this->getExceptions() as $exception) {
-            $logLevel = $exception->getLogLevel();
-            $diagnostic = strtoupper($logLevel) . ': ' . $exception->getMessage();
-            try {
-                $hint = $exception->getMessageModel($this->getWorkbench())->getHint();
-            } catch (\Throwable $e) {
-                $hint = null;
-            }
-            if ($hint !== null && trim($hint) !== '') {
-                $diagnostic .= "\nRemediation: " . trim($hint);
-            }
-            if (LogLevelDataType::compareLogLevels($logLevel, LoggerInterface::WARNING) <= 0) {
-                $warnings[] = $diagnostic;
-            } else {
-                $errors[] = $diagnostic;
-            }
-        }
+        $value = (string) $this;
+        $errors = $this->getErrors();
+        $warnings = $this->getWarnings();
 
         $metadata = [];
         if ($errors !== []) {
@@ -119,7 +79,7 @@ class AiToolResultString implements AiToolResultInterface
             $metadata[] = $errorStatus . "\n\nErrors:\n" . implode("\n\n", $errors);
         }
         if ($this->isFailed()) {
-            $metadata[] = 'The tool failed critically. Do not repeat the same call unchanged.';
+            $metadata[] = 'The tool execution failed. Do not repeat the same call unchanged.';
         }
         if ($warnings !== []) {
             $metadata[] = "Tool warnings:\n" . implode("\n\n", $warnings);
@@ -139,7 +99,7 @@ class AiToolResultString implements AiToolResultInterface
     public function getValueAsMarkdown(bool $includeMetadata = false): string
     {
         $type = $this->getValueDataType();
-        $value = $includeMetadata ? $this->getValueWithMetadata() : $this->getValue();
+        $value = $includeMetadata ? $this->getValueWithMetadata() : (string) $this;
         switch (true) {
             case $type instanceof HtmlDataType:
             case $type instanceof MarkdownDataType:
@@ -184,6 +144,16 @@ class AiToolResultString implements AiToolResultInterface
         return $this->exceptions;
     }
 
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+
+    public function getWarnings(): array
+    {
+        return $this->warnings;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -208,10 +178,23 @@ class AiToolResultString implements AiToolResultInterface
     public function addException(\Throwable $exception) : AiToolResultInterface
     {
         if (! $exception instanceof ExceptionInterface) {
-            $exception = new InternalError("Error in AI tool `{$this->tool->getName()}`. {$exception->getMessage()}", null, $exception);
+            $exception = new InternalError('Error in AI tool. ' . $exception->getMessage(), null, $exception);
         }
-        if (LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::CRITICAL) >= 0) {
-            $this->hasCriticalErrors = true;
+        $logLevel = $exception->getLogLevel();
+        $diagnostic = strtoupper($logLevel) . ': ' . $exception->getMessage();
+        try {
+            $hint = $exception->getMessageModel($this->getWorkbench())->getHint();
+        } catch (\Throwable $e) {
+            $hint = null;
+        }
+        if ($hint !== null && trim($hint) !== '') {
+            $diagnostic .= "\nRemediation: " . trim($hint);
+        }
+        if (LogLevelDataType::compareLogLevels($logLevel, LoggerInterface::WARNING) <= 0) {
+            $this->warnings[] = $diagnostic;
+        } else {
+            $this->errors[] = $diagnostic;
+            $this->failed = true;
         }
         $this->exceptions[] = $exception;
         return $this;
@@ -223,7 +206,7 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function getWorkbench()
     {
-        return $this->tool->getWorkbench();
+        return $this->workbench;
     }
 
     /**
@@ -232,7 +215,11 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function __toString() : string
     {
-        return $this->getValue();
+        $value = $this->getValue();
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        return is_array($value) || is_object($value) ? AiPayload::encode($value) : (string) $value;
     }
 
     /**
@@ -241,6 +228,89 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function isFailed() : bool
     {
-        return $this->hasCriticalErrors;
+        return $this->failed;
+    }
+
+    public function setFailed(bool $failed): self
+    {
+        $this->failed = $failed;
+        return $this;
+    }
+
+    public function exportUxonObject(): UxonObject
+    {
+        $type = $this->getValueDataType();
+        $typeUxon = $type->exportUxonObject()->copy();
+        if (! $typeUxon->hasProperty('alias')) {
+            $typeUxon->setProperty('alias', '\\' . get_class($type));
+        }
+        // CodeDataType does not export its language, which controls Markdown rendering.
+        if ($type instanceof CodeDataType) {
+            $typeUxon->setProperty('language', $type->getLanguage());
+        }
+        return new UxonObject([
+            'class' => '\\' . static::class,
+            'type' => $typeUxon->toArray(),
+            'value' => $this->value,
+            'appendix' => $this->appendix,
+            'errors' => $this->errors,
+            'warnings' => $this->warnings,
+            'failed' => $this->failed,
+            'duration_ms' => $this->durationMs
+        ]);
+    }
+
+    public function importUxonObject(UxonObject $uxon): void
+    {
+        $data = $uxon->toArray();
+        if (! array_key_exists('value', $data)) {
+            throw new \UnexpectedValueException('AI tool result is missing its value.');
+        }
+        $type = $data['type'] ?? null;
+        if ($type !== null && ! $type instanceof UxonObject) {
+            if (! is_array($type) && ! $type instanceof \stdClass) {
+                throw new \UnexpectedValueException('AI tool result type must be a UXON object.');
+            }
+            $type = new UxonObject((array) $type);
+        }
+        $errors = $this->importMessages($data['errors'] ?? [], 'errors');
+        $warnings = $this->importMessages($data['warnings'] ?? [], 'warnings');
+        $appendix = $this->importMessages($data['appendix'] ?? [], 'appendix');
+        if (isset($data['failed']) && ! is_bool($data['failed'])) {
+            throw new \UnexpectedValueException('AI tool result failed must be a boolean.');
+        }
+        $duration = $data['duration_ms'] ?? null;
+        if ($duration !== null && ((! is_int($duration) && ! is_float($duration)) || ! is_finite($duration) || $duration < 0)) {
+            throw new \UnexpectedValueException('AI tool result duration must be a non-negative finite number.');
+        }
+        $this->type = $type === null ? null : DataTypeFactory::createFromUxon($this->workbench, $type);
+        $this->value = $data['value'];
+        $this->errors = $errors;
+        $this->warnings = $warnings;
+        $this->appendix = $appendix;
+        $this->failed = $data['failed'] ?? $errors !== [];
+        $this->durationMs = $duration === null ? null : (float) $duration;
+        $this->exceptions = [];
+    }
+
+    private function importMessages(mixed $messages, string $property): array
+    {
+        if ($messages instanceof UxonObject) {
+            $messages = $messages->toArray();
+        }
+        if (! is_array($messages) || ! array_is_list($messages)) {
+            throw new \UnexpectedValueException('AI tool result ' . $property . ' must be an ordered string array.');
+        }
+        foreach ($messages as $message) {
+            if (! is_string($message)) {
+                throw new \UnexpectedValueException('AI tool result ' . $property . ' must contain only strings.');
+            }
+        }
+        return $messages;
+    }
+
+    public static function getUxonSchemaClass(): ?string
+    {
+        return null;
     }
 }

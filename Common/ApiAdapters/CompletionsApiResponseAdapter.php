@@ -49,6 +49,24 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
     {
         return $this->json['usage'] ?? [];
     }
+
+    /** {@inheritDoc} */
+    public function getContent() : array
+    {
+        return [['type' => 'text', 'text' => $this->getAnswerRaw()]];
+    }
+
+    /** {@inheritDoc} */
+    public function getProviderData() : array
+    {
+        return ['completions' => ['message' => $this->getResponseMessage(), 'finish_reason' => $this->getFinishReason()]];
+    }
+
+    /** {@inheritDoc} */
+    public function getModel() : ?string
+    {
+        return $this->json['model'] ?? null;
+    }
     
     /**
      * {@inheritDoc}
@@ -56,7 +74,7 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
      */
     public function getAnswerRaw() : string
     {
-        $fullAnswer = $this->json['choices'][0]['message']['content'];
+        $fullAnswer = $this->json['choices'][0]['message']['content'] ?? '';
         return $fullAnswer;
     }
 
@@ -82,18 +100,18 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface
      */
-    public function getTokensInPrompt() : int
+    public function getTokensInPrompt() : ?int
     {
-        return $this->json['usage']['prompt_tokens'];
+        return $this->json['usage']['prompt_tokens'] ?? null;
     }
 
     /**
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\HttpResponseAdapterInterface
      */
-    public function getTokensInAnswer() : int
+    public function getTokensInAnswer() : ?int
     {
-        return $this->json['usage']['completion_tokens'];
+        return $this->json['usage']['completion_tokens'] ?? null;
     }
 
     /**
@@ -112,9 +130,9 @@ class CompletionsApiResponseAdapter implements HttpResponseAdapterInterface
     public function getToolCalls() : array
     {
         $result = [];
-        foreach($this->json['choices'][0]['message']['tool_calls'] as $call) {
+        foreach(($this->json['choices'][0]['message']['tool_calls'] ?? []) as $call) {
             $function = $call['function'];
-            $result[] = new AiToolCall($function['name'], $call['id'], json_decode($function['arguments'], true));
+            $result[] = new AiToolCall($function['name'], $call['id'], AiContextRenderer::arguments($function['arguments']), $function['arguments']);
         }
         return $result;
     }

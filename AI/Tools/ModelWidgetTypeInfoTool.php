@@ -167,11 +167,11 @@ class ModelWidgetTypeInfoTool extends AbstractAiTool
                     }
             }
             
-            return new AiToolResultString($this, $arguments, $output, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $output, $this->getReturnDataType());
         }
         catch(\Throwable $e){
             $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load widget metadata. ' . $e->getMessage(), null, $e);
-            return new AiToolResultString($this, $arguments, 'ERROR: file not found!', $this->getReturnDataType(), [], [$exception]);
+            return new AiToolResultString($this->getWorkbench(), 'ERROR: file not found!', $this->getReturnDataType(), [], [$exception]);
         }
     }
     

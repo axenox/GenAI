@@ -72,7 +72,7 @@ class FolderReadTool extends AbstractAiTool
         $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
         
         if (! is_dir($absolutePath)) {
-            return new AiToolResultString($this, $arguments, 'Folder does not exist', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), 'Folder does not exist', $this->getReturnDataType());
         }
 
         if (! is_readable($absolutePath)) {
@@ -81,7 +81,7 @@ class FolderReadTool extends AbstractAiTool
 
         $markdown = '- ' . rtrim(FilePathDataType::normalize($relativePath, '/'), '/') . '/';
         $markdown .= $this->buildMdTreeLevel($absolutePath, $basePath, 1);
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

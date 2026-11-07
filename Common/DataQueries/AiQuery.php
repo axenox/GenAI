@@ -1,18 +1,13 @@
 <?php
 namespace axenox\GenAI\Common\DataQueries;
 
-use axenox\GenAI\AI\Agents\GenericAssistant;
-use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\DataTypes\ArrayDataType;
-use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Filesystem\FileInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\DebugMessage;
@@ -20,19 +15,27 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
-use axenox\GenAI\Common\AiToolCall;
+use axenox\GenAI\Interfaces\AiConversationInterface;
+use axenox\GenAI\Interfaces\AiMessageInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
+use axenox\GenAI\Common\AiPayload;
+use axenox\GenAI\Factories\AiToolResultFactory;
+use exface\Core\CommonLogic\UxonObject;
+use axenox\GenAI\Common\ApiAdapters\AiMessageSnapshot;
 
 /**
- * Data query in OpenAI style
- * 
- * Inspired by OpenAI chat completion API: https://platform.openai.com/docs/api-reference/chat/create
+ * One API-agnostic model exchange with detached typed request context.
  */
 class AiQuery extends AbstractDataQuery implements AiQueryInterface
 {
 
     private $workbench;
 
-    private $messages = null;
+    private $messages = [];
+    private ?AiConversationInterface $conversation = null;
+    private array $contextMessages = [];
+    private array $toolResults = [];
+    private array $toolResultBatches = [];
 
     private $systemPrompt = null;
 
@@ -40,8 +43,6 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
 
     private $conversationUid = null;
     
-    private $conversationData = null;
-
     private $request = null;
 
     private $response = null;
@@ -72,14 +73,99 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
         if ($systemPrompt = $this->getSystemPrompt()) {
             $messages[] = ['content' => $systemPrompt, 'role' => AiMessageTypeDataType::SYSTEM];
         }
-        if ($includeConversation === true) {
-            foreach ($this->getConversationData()->getRows() as $row) {
-                if(!in_array($row['ROLE'] ,[AiMessageTypeDataType::SYSTEM, AiMessageTypeDataType::TOOL, AiMessageTypeDataType::TOOLCALLING, AiMessageTypeDataType::WARNING, AiMessageTypeDataType::ERROR]))
-                    $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
-            }
-        }
         $messages = array_merge($messages, $this->messages);
         return $messages;
+    }
+
+    /** Returns the history owner without loading or formatting history. */
+    public function getConversation() : ?AiConversationInterface
+    {
+        return $this->conversation;
+    }
+
+    /** Associates this exchange with its history owner. */
+    public function setConversation(AiConversationInterface $conversation) : AiQuery
+    {
+        $this->conversation = $conversation;
+        $this->conversationUid = $conversation->getConversationId();
+        return $this;
+    }
+
+    /** Takes a detached snapshot selected by the caller. */
+    public function setContextMessages(array $messages) : AiQuery
+    {
+        $this->contextMessages = [];
+        foreach ($messages as $message) {
+            if (!$message instanceof AiMessageInterface) {
+                throw new \InvalidArgumentException('AI context requires typed conversation messages.');
+            }
+            $this->contextMessages[] = new AiMessageSnapshot($this->workbench, $message);
+        }
+        return $this;
+    }
+
+    /** Returns detached typed input, never a database-backed view. */
+    public function getContextMessages() : array
+    {
+        return array_map(static fn(AiMessageInterface $message) => clone $message, $this->contextMessages);
+    }
+
+    /** Returns correlated results without response wrappers or formatting. */
+    public function getToolResults() : array
+    {
+        return array_map(fn(AiToolResultInterface $result) => $this->snapshotToolResult($result), $this->toolResults);
+    }
+
+    /** Accepts typed execution results while retaining their call-ID correlation. */
+    public function withToolResults(array $results, ?string $messageId = null) : AiQueryInterface
+    {
+        $clone = clone $this;
+        if ($messageId === null && $this->contextMessages !== []) {
+            $messageId = end($this->contextMessages)->getUid();
+        }
+        foreach ($results as $id => $result) {
+            $id = (string) $id;
+            if ($id === '' || !$result instanceof AiToolResultInterface) {
+                throw new \InvalidArgumentException('AI tool results must be typed and keyed by a non-empty call ID.');
+            }
+            $clone->toolResults[$id] = $this->snapshotToolResult($result);
+            if ($messageId !== null) {
+                $clone->toolResultBatches[$messageId][$id] = $clone->toolResults[$id];
+            }
+        }
+        return $clone;
+    }
+
+    /** Returns execution results scoped to their message, allowing provider call-ID reuse. */
+    public function getToolResultBatches() : array
+    {
+        $batches = [];
+        foreach ($this->toolResultBatches as $messageId => $results) {
+            $batches[$messageId] = array_map(fn(AiToolResultInterface $result) => $this->snapshotToolResult($result), $results);
+        }
+        return $batches;
+    }
+
+    /** Detaches semantic JSON values while retaining the typed durable contract. */
+    private function snapshotToolResult(AiToolResultInterface $result) : AiToolResultInterface
+    {
+        return AiToolResultFactory::createFromUxon($this->workbench, new UxonObject(
+            AiPayload::decode(AiPayload::encode($result->exportUxonObject()->toArray()))
+        ));
+    }
+
+    /** Returns normalized response content and explicit exchange metadata. */
+    public function getResponseData() : array
+    {
+        return [
+            'content' => $this->responseAdapter->getContent(),
+            'provider' => $this->responseAdapter->getProviderData(),
+            'model' => $this->responseAdapter->getModel(),
+            'tokens_prompt' => $this->getTokensInPrompt(),
+            'tokens_completion' => $this->getTokensInAnswer(),
+            'cost' => $this->getCosts(),
+            'finish_reason' => $this->getFinishReason(),
+        ];
     }
 
     /**
@@ -94,27 +180,6 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
         return $this;
     }
 
-    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : AiQuery
-    {
-        if (!$existingCall){
-            $this->messages[] = $requestMessage;
-        }
-        
-        $this->messages[] = [
-            'tool_call_id' => $callId,
-            'content' => $toolResponse, 
-            'role' => AiMessageTypeDataType::TOOL
-        ];
-
-        return $this;
-    }
-
-    public function clearPreviousToolCalls()
-    {
-        $this->messages = array_filter($this->messages, function ($message) {
-            return isset($message['role']) && $message['role'] === AiMessageTypeDataType::USER;
-        });
-    }
     /**
      * 
      * @param string $content
@@ -165,40 +230,6 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
      * 
      * @return \exface\Core\Interfaces\DataSheets\DataSheetInterface
      */
-    protected function getConversationData() : DataSheetInterface
-    {
-        // TODO move this logic to AiConversation class
-        if ($this->conversationData === null) {
-            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-            $sheet->getColumns()->addMultiple([
-                'UID',
-                'MESSAGE',
-                'ROLE'
-            ]);
-            $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationUid());
-            $sheet->getFilters()->addConditionFromString('ROLE', AiMessageTypeDataType::ERROR, ComparatorDataType::EQUALS_NOT);
-            $sheet->getSorters()->addFromString('SEQUENCE_NUMBER','ASC');
-            $sheet->dataRead();
-            $this->conversationData = $sheet;
-            
-
-            foreach ($sheet->getRows() as $row) {
-                if ($row['ROLE'] === AiMessageTypeDataType::USER) {
-                    // TODO load files here by reading them for the message. Which messages can actually include files?
-                        $filesSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
-                        $filesSheet->getFilters()->addConditionFromString('AI_MESSAGE', $row['UID'], ComparatorDataType::EQUALS);
-                        $filesSheet->getColumns()->addMultiple([
-                            'PATHNAME_RELATIVE',
-                            'CONTENTS'
-                        ]);
-                        $filesSheet->dataRead();
-                }
-            }
-
-        }
-        return $this->conversationData;
-    }
-
     /**
      * 
      * @return string
@@ -373,18 +404,18 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiQueryInterface
      */
-    public function getTokensInPrompt() : int
+    public function getTokensInPrompt() : ?int
     {
-        return $this->responseAdapter->getTokensInPrompt();
+        return $this->responseAdapter?->getTokensInPrompt();
     }
 
     /**
      * {@inheritDoc}
      * @see \axenox\GenAI\Interfaces\AiQueryInterface
      */
-    public function getTokensInAnswer() : int
+    public function getTokensInAnswer() : ?int
     {
-        return $this->responseAdapter->getTokensInAnswer();
+        return $this->responseAdapter?->getTokensInAnswer();
     }
 
     /**
@@ -404,17 +435,6 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
                 
         }
         throw new DataQueryFailedError($this, 'User message cannot be found');
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
-     */
-    public function getSequenceNumber() : int
-    {
-        $storedSheet = $this->getConversationData();
-        $cnt = $storedSheet->countRows();
-        return $cnt;
     }
 
     public function setResponseJsonSchema(array $value)
@@ -528,7 +548,7 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function getResponseMessage() : array
     {
-        return $this->responseAdapter->getResponseMessage();
+        return $this->getResponseData();
     }
 
 }

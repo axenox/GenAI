@@ -51,12 +51,12 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
             ];
         }
 
-        return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
     }
 
     protected function buildSystemPrompt(AiQueryInterface $query): ?string
     {
-        $messages = $query->getMessages(true);
+        $messages = AiContextRenderer::messages($query, 'claude');
         $instructions = [];
 
         foreach ($messages as $message) {
@@ -82,7 +82,7 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
     {
         $messages = [];
 
-        foreach ($query->getMessages(true) as $message) {
+        foreach (AiContextRenderer::messages($query, 'claude') as $message) {
             $role = $message['role'] ?? 'user';
 
             if ($role === 'system' || $role === 'developer') {
@@ -97,9 +97,15 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
                             'type' => 'tool_result',
                             'tool_use_id' => $message['tool_call_id'] ?? $message['call_id'] ?? '',
                             'content' => $this->normalizeMessageText($message['content'] ?? ''),
+                            'is_error' => $message['_failed'] ?? false,
                         ],
                     ],
                 ];
+                continue;
+            }
+
+            if (isset($message['_provider']['claude']['content'])) {
+                $messages[] = ['role' => 'assistant', 'content' => $message['_provider']['claude']['content']];
                 continue;
             }
 
@@ -137,13 +143,35 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
                 continue;
             }
 
+            $blocks = $this->normalizeContentBlocks($message['content'] ?? '');
+            if (!empty($message['_attachments'])) {
+                $blocks = [];
+            }
+            foreach (!empty($message['_attachments']) ? $message['_content'] : [] as $attachment) {
+                $attachment = (array) $attachment;
+                if ($attachment['type'] === 'text') {
+                    $blocks[] = ['type' => 'text', 'text' => $attachment['text']];
+                    continue;
+                }
+                $mime = $attachment['mime_type'];
+                $source = ['type' => 'base64', 'media_type' => $mime, 'data' => $attachment['contents_base64']];
+                if (str_starts_with($mime, 'image/')) {
+                    $blocks[] = ['type' => 'image', 'source' => $source];
+                } elseif ($mime === 'application/pdf') {
+                    $blocks[] = ['type' => 'document', 'source' => $source, 'title' => $attachment['filename']];
+                } elseif (str_starts_with($mime, 'text/')) {
+                    $blocks[] = ['type' => 'document', 'source' => ['type' => 'text', 'media_type' => 'text/plain', 'data' => base64_decode($attachment['contents_base64'], true)], 'title' => $attachment['filename']];
+                } else {
+                    throw new \LogicException('Claude does not support retained attachment type ' . $mime . '.');
+                }
+            }
             $messages[] = [
                 'role' => ($role === 'assistant' ? 'assistant' : 'user'),
-                'content' => $this->normalizeContentBlocks($message['content'] ?? ''),
+                'content' => $blocks,
             ];
         }
 
-        if ($query->hasFiles()) {
+        if ($query->getContextMessages() === [] && $query->hasFiles()) {
             foreach ($query->getFiles() as $file) {
                 $fileInfo = $file->getFileInfo();
                 $filename = method_exists($fileInfo, 'getFilename') ? $fileInfo->getFilename() : 'upload.bin';

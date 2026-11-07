@@ -2,13 +2,13 @@
 
 [English](../../../../AI/Conversations/index.md)
 
-Eine Conversation ist ein persistiertes Gespräch zwischen einem individuellen Teilnehmer und genau einer ausführenden KI. Der individuelle Teilnehmer ist typischerweise ein Benutzer, kann aber auch eine andere KI beziehungsweise ein orchestrierender Agent sein.
+Eine Conversation ist ein persistiertes Gespräch zwischen einem individuellen Teilnehmer und genau einem ausführenden Task-Handler. Ihr Typ ist `agent` für modellgestützte Gespräche oder `mcp` für MCP-Tool-Aktivität. Der individuelle Teilnehmer ist typischerweise ein Benutzer, kann aber auch eine andere KI beziehungsweise ein orchestrierender Agent sein.
 
 ## Zuordnung zu Agent und Agent-Version
 
 Jede Conversation gehört genau zu einem Agenten und genau einer Agent-Version. Diese Zuordnung ist nach dem Erstellen der Conversation unveränderlich. Dadurch bleiben System-Prompt, Tools, Modellkonfiguration und Antworten eindeutig der tatsächlich verwendeten Agent-Version zugeordnet.
 
-Eine initialisierte Conversation besitzt **exakt einen System-Prompt**. Dieser wird beim ersten Lauf durch `AiAgentInterface::renderSystemPrompt()` als String gerendert und mit `saveSystemPrompt()` gespeichert. Danach ist er unveränderlich. Bei jedem weiteren Lauf wird ausschließlich der persistierte System-Prompt über `AiConversationInterface::getSystemPrompt()` geladen; der Agent rendert ihn nicht erneut.
+Eine initialisierte Agent-Conversation besitzt **exakt einen System-Prompt**. Dieser wird beim ersten Lauf durch `AiAgentInterface::renderSystemPrompt()` als String gerendert und mit `saveSystemPrompt()` gespeichert. Danach ist er unveränderlich. Bei jedem weiteren Lauf wird ausschließlich der persistierte System-Prompt über `AiConversationInterface::getSystemPrompt()` geladen; der Agent rendert ihn nicht erneut.
 
 Die Laufzeitinstanzen der zur Agent-Version gehörenden Tools dürfen für einen neuen Request erneut aufgebaut werden. Das ist keine erneute Prompt-Erzeugung und verändert den gespeicherten System-Prompt nicht.
 
@@ -25,25 +25,45 @@ Bei einer falschen Agent- oder Versionszuordnung wird `AiConversationAgentVersio
 
 Das `AiConversationInterface` stellt die Zuordnung bereit:
 
-- `getAgent()` liefert den ausführenden `AiAgentInterface`;
-- `getAgentVersionUID()` liefert die UID der exakt zugeordneten Agent-Version;
+- `getTaskHandler()` liefert den ausführenden `AiTaskHandlerInterface`;
 - `getTitle()` lädt den aktuellen Titel;
 - `setTitle()` überschreibt den Titel;
 - `getConversationId()` liefert die UID der Conversation.
 
-`AiConversation` erhält im Konstruktor nur den `AiAgentInterface` und die Conversation-UID. Sie lädt Titel und Agent-Version-UID bei Bedarf aus ihrem persistierten Datensatz und speichert keinen aktuellen Prompt. Dadurch bleibt die persistierte Conversation unabhängig vom einzelnen Request und von konkreten Agent-Implementierungen.
+`AiConversation` erhält im Konstruktor den `AiTaskHandlerInterface` und die Conversation-UID. Sie lädt Titel und Agent-Version-UID bei Bedarf aus ihrem persistierten Datensatz und speichert keinen aktuellen Prompt. Dadurch bleibt die persistierte Conversation unabhängig vom einzelnen Request und von konkreten Agent-Implementierungen.
 
 Eine neue Conversation besitzt zunächst einen leeren Titel. Beim Speichern des ersten User-Prompts erzeugt `saveUserPrompt()` daraus den initialen Titel. Ein expliziter Aufruf von `setTitle()` überschreibt den vorhandenen Titel jederzeit.
 
 ## Nachrichten
 
-Jede gespeicherte Nachricht besteht fachlich aus einem Content-String und strukturierten Daten. Der Content wird in `AI_MESSAGE.MESSAGE`, die zusätzlichen Daten werden serialisiert in `AI_MESSAGE.DATA` gespeichert. Rolle, Benutzer, Modell und Sequenznummer ergänzen den Datensatz.
+Jede Nachricht besitzt eine stabile Identität, Conversation-Identität, Sequenz, Anzeigetext und
+strukturierte Daten. `AiMessageInterface` stellt diese über `getUid()`, `getConversationId()`,
+`getSequenceNumber()`, `getText()`, `getRole()` und `getData()` bereit. Anzeigetext steht in
+`AI_MESSAGE.MESSAGE`; vollständig rekonstruierbare Nutzdaten stehen in `AI_MESSAGE.DATA`.
+Monitoring-Vorschauen ersetzen niemals Modellkontext.
 
-`saveSystemPrompt()` und `saveUserPrompt()` erhalten Content und Data direkt. Die spezialisierten Methoden für Tool-Aufrufe, Tool-Antworten, Agent-Antworten, Warnungen und Fehler erzeugen dieselben beiden Bestandteile aus ihren jeweiligen Laufzeitobjekten.
+`getMessages($type, $afterSequence, $throughSequence)` liefert typisierte Nachrichten mit optionalen
+Typ- und Sequenzgrenzen. Jede Tool-Gruppe stellt geordnete `getCalls()` und nach Aufruf-ID
+zugeordnete `getToolResults()` bereit. `saveToolCalls()` speichert die angeforderte Gruppe;
+`saveToolResults()` schließt sie ab. Einzelne Start-/End-Datensätze liefern Monitoring-Details,
+ohne eine zweite Quelle für den Verlauf zu bilden.
+
+Normalisierte Modellinhalte stehen in `data.content`; exakte API-Fortsetzungsdaten stehen in
+`data.provider.completions`, `.responses` oder `.claude`. Modell, Tokens und Kosten gehören
+zum jeweiligen Exchange. Fehlende Nutzungsdaten bleiben unbekannt (`null`) statt erfundener Nullwerte.
+
+`isBroken()` markiert unvollständigen oder nicht verfügbaren Verlauf. Adapter lehnen nicht
+unterstütztes Replay ausdrücklich ab, statt Ergebnisse zu erfinden, Inhalte stillschweigend
+wegzulassen oder historische Tools erneut auszuführen. Abgeschlossene Text-/JSON-Exchanges können
+über eine andere unterstützte API fortgesetzt werden; API-spezifische Fortsetzungsdaten werden
+nur von ihrer ursprünglichen API wiederverwendet.
 
 `saveSystemPrompt()` ignoriert weitere Speicherversuche, sobald ein System-Prompt vorhanden ist. Alle weiteren Nachrichten erhalten eine fortlaufende Sequenznummer.
 
-Die nächste Sequenznummer gehört zum Zustand der Conversation. Ihr interner Wert beginnt mit `null`. `getSequenceNumber()` lädt beim ersten Zugriff die höchste persistierte `SEQUENCE_NUMBER` und liefert deren Nachfolger; spätere Zugriffe verwenden den gecachten Wert. Beim Speichern liefert `incrementSequenceNumber()` die aktuelle Nummer und erhöht anschließend den lokalen Zähler. Die Factory muss die Sequenz daher weder laden noch an den Konstruktor übergeben.
+Die Sequenzvergabe gehört zur Conversation-Persistenz, nicht zu Queries oder API-Adaptern.
+`AiResponse::getMessages()` erfasst nur die aktuelle Ausführung; die Conversation behält den
+vollständigen Verlauf. Speicherfehler löschen keine tatsächlichen Tool-Ergebnisse im Speicher
+und führen nicht zu automatischen Schreib- oder Ausführungswiederholungen.
 
 ## Multi-Agent-Abläufe
 

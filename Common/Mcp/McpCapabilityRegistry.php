@@ -3,6 +3,7 @@ namespace axenox\GenAI\Common\Mcp;
 
 use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
 use Mcp\Server\Builder;
+use Mcp\Server\RequestContext;
 
 /**
  * Registers only the tools exposed by one exact-version MCP task handler.
@@ -14,7 +15,7 @@ class McpCapabilityRegistry
     /**
      * @param string $handlerSelector Exact versioned selector retained for all tool calls.
      */
-    public function __construct(string $handlerSelector)
+    public function __construct(string $handlerSelector, private ?McpRequestBridge $bridge = null)
     {
         $this->handlerSelector = $handlerSelector;
     }
@@ -25,9 +26,18 @@ class McpCapabilityRegistry
     public function registerTools(Builder $builder, AiTaskHandlerInterface $handler) : Builder
     {
         foreach ($handler->getTools() as $tool) {
-            $builder->add(
-                (new AiToolMcpAdapter($tool))->createDefinition(),
-                new AiToolMcpHandler($this->handlerSelector, $tool->getName())
+            $definition = (new AiToolMcpAdapter($tool))->createDefinition();
+            $operation = new AiToolMcpHandler($this->handlerSelector, $tool->getName(), $this->bridge);
+            $builder->addTool(
+                static function (RequestContext $context) use ($operation) {
+                    $request = $context->getRequest();
+                    return $operation->executeRequest($request->arguments, $context->getClientGateway(), $request);
+                },
+                name: $definition->name,
+                title: $definition->title,
+                description: $definition->description,
+                inputSchema: $definition->inputSchema,
+                annotations: $definition->annotations
             );
         }
 

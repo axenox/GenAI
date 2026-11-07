@@ -86,7 +86,7 @@ class SqlDbmlTool extends AbstractAiTool
             );
         }
 
-        return new AiToolResultString($this, $arguments, $dbml, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $dbml, $this->getReturnDataType());
     }
     
     protected function findObjects(SqlDataConnectorInterface $connection, string $query) : array

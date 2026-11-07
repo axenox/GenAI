@@ -141,10 +141,18 @@
                                     },
                                     {
                                         "widget_type": "WidgetGroup",
-                                        "caption": "Cost",
+                                        "caption": "LLM usage/cost (empty means unknown; MCP has none)",
                                         "widgets": [
                                             {
                                                 "attribute_alias": "TOKENS_PROMPT"
+                                            },
+                                            {
+                                                "widget_type": "WidgetGroup",
+                                                "caption": "Tool batch timing (empty means unknown; in progress is not a liveness guarantee)",
+                                                "widgets": [
+                                                    {"attribute_alias": "STARTED_ON", "widget_type": "Display"},
+                                                    {"attribute_alias": "FINISHED_ON", "widget_type": "Display"}
+                                                ]
                                             },
                                             {
                                                 "attribute_alias": "TOKENS_COMPLETION"
@@ -168,11 +176,33 @@
                                         ]
                                     },
                                     {
-                                        "attribute_alias": "MESSAGE",
-                                        "widget_type": "Markdown",
+                                        "value": "=Left(MESSAGE, 16000)",
+                                        "widget_type": "InputText",
+                                        "readonly": true,
+                                        "caption": "Message preview (first 16,000 characters)",
                                         "hide_caption": true,
                                         "height": "max",
                                         "width": "100%"
+                                    },
+                                    {
+                                        "widget_type": "Display",
+                                        "value": "=If(Left(MESSAGE, 16000, false, false) != MESSAGE, 'Preview truncated. Inspect the full retained message using Full message.', '')"
+                                    }
+                                ],
+                                "buttons": [
+                                    {
+                                        "caption": "Full message",
+                                        "action": {
+                                            "alias": "exface.Core.ShowDialog",
+                                            "dialog": {
+                                                "widget_type": "Dialog",
+                                                "object_alias": "axenox.GenAI.AI_MESSAGE",
+                                                "widgets": [
+                                                    {"attribute_alias": "MESSAGE", "widget_type": "InputText", "readonly": true},
+                                                    {"attribute_alias": "DATA", "widget_type": "InputJson", "readonly": true}
+                                                ]
+                                            }
+                                        }
                                     }
                                 ]
                             },

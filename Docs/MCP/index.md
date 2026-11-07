@@ -32,7 +32,9 @@ For example:
       "alias": "axenox.GenAI.ModelSearchTool",
       "description": "Searches model components and their usages."
     }
-  }
+  },
+  "conversation_inactivity_timeout_seconds": 300,
+  "conversation_grouping_scope": "session"
 }
 ```
 
@@ -42,6 +44,41 @@ load prompt-dependent concepts. Direct endpoint tools override same-named skill 
 The startup scope resolves the version constraint once. Every registered tool handler retains that
 exact selector and recreates the endpoint in a fresh, OS-user-authenticated Workbench scope. Restart
 the MCP process after changing tools, skills, skill assignments, or endpoint configuration.
+
+## Shared conversation log
+
+MCP requests use the same conversation monitoring as agents, without an LLM connection. A combined
+tool message is committed before the SDK invokes any tool. Individual records show `IN_PROGRESS`,
+`SUCCEEDED`, or `FAILED`; completion enriches that original message. No external prompts,
+instructions, answers, billing, tokens, or model usage are inferred.
+
+`conversation_inactivity_timeout_seconds` must be a positive integer (default `300`).
+`conversation_grouping_scope` is `session` (default) or `user`. Every received call extends the
+inactivity window; at the timeout boundary a new conversation begins. User scope can mix concurrent
+clients or chats. Authenticated user and exact endpoint version always separate groups.
+
+Clients may supply a non-empty string in tool-call `_meta["axenox.GenAI/chat_id"]`. Distinct IDs
+separate conversations within the configured scope; these groups do not expire through inactivity.
+The ID is correlation, not authorization. VS Code is not assumed to send this extension.
+Without it, the title describes an MCP session using endpoint, first requested tool and start time,
+not a guessed external-chat topic. Handshake sessions retain the native SDK UUID; modern stateless
+requests use the STDIO connection-lifetime UUID for grouping and retain their native request session
+separately. JSON-RPC IDs retain their integer/string type; every execution gets a fresh call ID.
+
+Unknown tools and invalid schemas observable as SDK `CallToolRequest` objects are logged as failed
+attempts with corrective warnings, while the SDK's rejection response remains unchanged.
+Empty required values rejected during platform argument parsing also receive corrective warnings,
+not standalone infrastructure errors.
+Authorization denials likewise remain failed attempts, not standalone errors. Real defects and
+infrastructure failures produce separate `ERROR` messages. If initial authoritative logging fails,
+an official SDK error prevents invocation. Conversion failure preserves the completed result and
+execution state, returns an MCP error, and never re-executes the tool. Each scope authenticates and
+stops its Workbench; the long-lived server keeps only definitions and scalar correlation identifiers.
+
+Retained arguments are **SDK-visible**, not original wire JSON: associative SDK decoding loses some
+nested `{}`/`[]` distinctions. Normalized positional execution arguments are retained separately.
+There is no raw-framing interception, copied protocol implementation, or SDK fork. Malformed input
+rejected before a tool request exists is not promised as a conversation entry.
 
 ## Start and inspect the endpoint
 
@@ -86,7 +123,7 @@ ExFace installation.
 For the `ide_mcp_server` endpoint exposing the `SearchModelComponents` tool shown above, run:
 
 ```powershell
-.\Tests\Integration\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
+.\Tests\PHPUnit\Integration\Mcp\assert-endpoint-smoke.ps1 -EndpointSelector axenox.GenAI.ide_mcp_server
 ```
 
 The smoke test verifies generated schema metadata, named-to-positional argument normalization, a
@@ -98,7 +135,7 @@ that publishes such metadata.
 The underlying JSON-RPC session can also be piped into the endpoint directly:
 
 ```powershell
-Get-Content .\Tests\Integration\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
+Get-Content .\Tests\PHPUnit\Integration\Mcp\endpoint-smoke.jsonl | php .\bin\mcp axenox.GenAI.ide_mcp_server
 ```
 
 Closing `STDIN` ends the server. Protocol responses appear on `STDOUT`; PHP and server diagnostics

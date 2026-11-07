@@ -116,6 +116,8 @@
                             {
                                 "caption": "Conversation",
                                 "widgets": [
+                                    {"attribute_alias": "TYPE", "widget_type": "Display"},
+                                    {"attribute_alias": "TOPIC_ID", "widget_type": "Display"},
                                     {
                                         "attribute_alias": "TITLE"
                                     },
@@ -149,6 +151,8 @@
                                             }
                                         ],
                                         "columns": [
+                                            {"attribute_alias": "STARTED_ON"},
+                                            {"attribute_alias": "FINISHED_ON"},
                                             {
                                                 "attribute_alias": "ROLE"
                                             },
@@ -176,6 +180,7 @@
                                             }
                                         ],
                                         "buttons": [
+                                            {"caption": "Refresh", "action_alias": "exface.Core.RefreshWidget", "icon": "refresh"},
                                             {
                                                 "caption": "Message details",
                                                 "bind_to_double_click": true,
@@ -236,15 +241,17 @@
                                                 "caption": "Tool Call Text"
                                             },
                                             {
-                                                "attribute_alias": "FAILED"
+                                                "attribute_alias": "STATE"
                                             }
                                         ],
                                         "columns": [
+                                            {"attribute_alias": "STARTED_ON"},
+                                            {"attribute_alias": "FINISHED_ON"},
                                             {
                                                 "attribute_alias": "CREATED_ON"
                                             },
                                             {
-                                                "attribute_alias": "FAILED"
+                                                "attribute_alias": "STATE"
                                             },
                                             {
                                                 "attribute_alias": "RESULT_LENGTH_CHARS"
@@ -252,6 +259,7 @@
                                             {
                                                 "attribute_alias": "EXECUTION_TIME_MS"
                                             },
+                                            {"attribute_alias": "AI_MESSAGE"},
                                             {
                                                 "attribute_alias": "TOOL_ALIAS"
                                             },
@@ -270,12 +278,13 @@
                                             }
                                         ],
                                         "buttons": [
+                                            {"caption": "Refresh", "action_alias": "exface.Core.RefreshWidget", "icon": "refresh"},
                                             {
                                                 "caption": "Tool call details",
                                                 "bind_to_double_click": true,
                                                 "action": {
                                                     "alias": "exface.core.ShowObjectInfoDialog",
-                                                    "disable_buttons": true
+                                                    "disable_buttons": false
                                                 }
                                             }
                                         ]

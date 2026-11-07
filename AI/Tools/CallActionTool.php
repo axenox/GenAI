@@ -64,7 +64,7 @@ class CallActionTool extends AbstractAiTool
                 $dataType = DataTypeFactory::createFromPrototype($this->getWorkbench(), StringDataType::class);
         }
         
-        return new AiToolResultString($this, $arguments, $resultString, $dataType);
+        return new AiToolResultString($this->getWorkbench(), $resultString, $dataType);
     }
     
     protected function getAction(BracketHashStringTemplateRenderer $renderer) : ActionInterface

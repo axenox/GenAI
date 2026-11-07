@@ -9,14 +9,31 @@ use Psr\Http\Message\ResponseInterface;
  * Common interface for queries to LLM connectors - stands for a single request/response cycle with the LLM.
  * 
  * The connector takes care of sending messages and receiving responses from a specific LLM.
- * Each type of LLM API requires a spearate AiQuery class, that will extract from its raw response
- * (typically a JSON) all information required by the agents.
+ * API adapters normalize provider responses and project detached typed context into wire requests.
+ * Queries neither load persisted history nor allocate conversation message sequences.
  * 
  * @author Andrej Kabachnik
  *
  */
 interface AiQueryInterface extends DataQueryInterface
 {
+    /** Returns the history owner, if any. */
+    public function getConversation() : ?AiConversationInterface;
+
+    /** Returns detached, typed context selected for this exchange. */
+    public function getContextMessages() : array;
+
+    /** Returns results keyed by call ID without flattening. */
+    public function getToolResults() : array;
+
+    /** Returns a detached query containing typed results keyed by call ID. */
+    public function withToolResults(array $results, ?string $messageId = null) : AiQueryInterface;
+
+    /** Returns call-ID-keyed execution results grouped by their originating message UID. */
+    public function getToolResultBatches() : array;
+
+    /** Returns normalized content, namespaced provider data and explicit usage. */
+    public function getResponseData() : array;
     /**
      * Returns the messages to send to the LLM.
      *
@@ -73,17 +90,6 @@ interface AiQueryInterface extends DataQueryInterface
     public function withWarnings(array $warnings) : AiQueryInterface;
 
     /**
-     * Appends an assistant tool call and its result for the next provider request.
-     *
-     * @param bool $existingCall
-     * @param string $toolResponse
-     * @param string $callId
-     * @param array $requestMessage
-     * @return AiQueryInterface
-     */
-    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : AiQueryInterface;
-
-    /**
      * Returns the answer of the LLM as text (raw)
      * 
      * @return string
@@ -126,19 +132,13 @@ interface AiQueryInterface extends DataQueryInterface
      * 
      * @return int
      */
-    public function getTokensInPrompt() : int;
+    public function getTokensInPrompt() : ?int;
     
     /**
      * 
      * @return int
      */
-    public function getTokensInAnswer() : int;
-
-    /**
-     * 
-     * @return int
-     */
-    public function getSequenceNumber() : int;
+    public function getTokensInAnswer() : ?int;
 
     /**
      * 

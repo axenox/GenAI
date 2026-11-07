@@ -11,7 +11,7 @@ This page defines the responsibility boundaries of the GenAI building blocks. Th
 | Agent | Process a prompt within one defined role | Assemble instructions and context, expose tools, invoke the model, and validate responses | Own schedules, global workflow routing, or conversations of other agents |
 | Agent version | Preserve one reproducible executable agent configuration | Define prototype, instructions, connection, skills, concepts, tools, and response schema | Change unnoticed during an active conversation |
 | Prompt | Carry the current input and runtime context | Provide user text, input data, page, metaobject, and conversation UID | Own durable state or workflow progress |
-| Conversation | Persist an ordered exchange between one individual participant and one agent version | Store system, user, tool, assistant, warning, and error messages | Mix several agents or agent versions in one conversation |
+| Conversation | Persist an ordered exchange for one authenticated user and exact task-handler version | Share typed logging between agents and MCP endpoints | Mix users, sources, handlers, or versions in one conversation |
 | Skill | Package a reusable domain capability | Combine instructions, concepts, and tools for assignment to agent versions | Execute independently, plan, or own conversation state |
 | Concept | Produce required context while building the system prompt | Render small, relevant, mostly stable information automatically | Load large or rarely needed data into every prompt |
 | Tool | Perform one bounded operation on demand | Validate arguments, read data or perform authorized side effects, and return structured results | Control the overall workflow, bypass permissions, or expose unrestricted operations |
@@ -64,9 +64,9 @@ Behavior changes that must remain traceable belong in a new agent version. An ac
 
 ## Prompt and conversation
 
-A prompt is short-lived input. A conversation is the durable ordered history. It belongs to exactly one individual participant and one agent version. The participant is usually a user, but in orchestrated execution it can also be another agent or its workflow.
+A prompt is short-lived input. A conversation is the durable ordered history. It belongs to one authenticated user, one source (`agent` or `mcp`), and one exact task-handler version. Agent conversations and MCP endpoint conversations share persistence but cannot be interchanged.
 
-An initialized conversation has exactly one immutable system prompt. The agent calls `renderSystemPrompt()` and persists its string result only when no system prompt exists. Otherwise, it loads the persisted prompt. This branch prevents later configuration changes from retroactively changing the context of an active conversation.
+An initialized agent conversation has exactly one immutable system prompt. The agent calls `renderSystemPrompt()` and persists its string result only when no system prompt exists. Otherwise, it loads the persisted prompt. This branch prevents later configuration changes from retroactively changing the context of an active conversation.
 
 ```mermaid
 sequenceDiagram
@@ -104,7 +104,38 @@ sequenceDiagram
 
 Message content is stored as a string while additional structured data is stored in `AI_MESSAGE.DATA`. See the [conversation documentation](../Conversations/index.md) for immutable agent assignment details.
 
-Runtime components depend on interfaces wherever possible. In particular, `AiConversation` receives an `AiAgentInterface` instead of a concrete agent prototype and does not retain a request-bound prompt. The conversation lazily loads its next message sequence through `getSequenceNumber()` and advances it centrally through `incrementSequenceNumber()`.
+Runtime components depend on interfaces wherever possible. `AiConversation` receives an
+`AiTaskHandlerInterface` instead of a concrete agent prototype and does not retain a request-bound
+prompt. Persistence owns message sequence allocation.
+
+### Queries, adapters and responses
+
+- An `AiQuery` represents exactly one connector submission. `getConversation()` exposes its history
+  owner; `getContextMessages()` returns the caller-selected detached typed snapshot. Queries do not
+  read DataSheets or decide which persisted messages the model should see.
+- `GenericAssistant` creates a fresh query after every tool round. `withToolResults()` receives
+  typed execution results keyed by call ID and optionally scoped by message UID.
+  `getToolResultBatches()` preserves that message-level correlation when providers reuse call IDs.
+  Numeric-looking call IDs remain strings in call order and provider requests; PHP's integer-cast
+  result-map keys are accepted without changing their correlation.
+  Earlier query input and response/usage metadata remain
+  unchanged, while all prior call batches and results are retained exactly once.
+- API adapters select eligible message types, render complete values with durable diagnostics and
+  deduplicated appendix, and produce protocol-specific calls/results. Same-API continuation retains
+  OpenAI Responses output items (including encrypted reasoning) and Claude content blocks (including
+  thinking signatures). Completed cross-API text/JSON history is projected semantically.
+- `getResponseMessage()` / `getResponseData()` expose normalized `content` blocks, API-namespaced
+  `provider` extensions, actual model and nullable token/cost metadata. Missing usage is unknown,
+  never zero by default. Provider objects, tools and Workbench instances are not message payloads.
+- `AiResponse::getConversation()` provides the history owner; `getMessages()` is the detached
+  current-execution subset, not all conversation history. Metrics and criteria inspect calls in
+  these messages; `AiToolCallResponse` and its aggregate getters are removed.
+
+Message-associated attachments are hydrated by the authorized conversation layer with MIME type,
+filename, digest and retained contents. Responses and Claude map supported attachments on the
+original user message; query-wide files are only a fallback for queries without typed context.
+Missing/denied/changed attachments, unsupported content mappings and restored incomplete tool
+batches produce explicit replay errors, never fabricated outputs or preview substitutions.
 
 ## Skills, concepts, and tools
 
