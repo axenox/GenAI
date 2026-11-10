@@ -53,7 +53,7 @@ Create one conversation message immediately before handling the received batch o
 The lifecycle is:
 
 1. The caller asks `AiConversation::saveToolCalls()` to persist and commit the batch identity, call identities, sequence, start time, and arguments, retaining the returned message UID. The end time is initially absent; combined messages have no lifecycle-state field. Initial persistence failure prevents the entire batch from running. No database transaction remains open during execution.
-2. The caller coordinates per-call persistence around the shared executor. Attempt to save and commit an individual `AI_TOOL_CALL` entry immediately before each invocation, linked to the combined message and marked `IN_PROGRESS`. If that write fails, execute the tool anyway, report the persistence error through the platform logger, and attempt to record an error message in the conversation. The executor dispatches `OnBeforeAiToolCallEvent`, invokes the tool, captures its typed result or normalizes its failure, and dispatches `OnAiToolCallEvent`. Immediately after execution, attempt to update and commit the individual entry with its result, end time, duration, diagnostics, and terminal state. A before-listener failure skips that tool; an after-listener failure preserves its result and execution outcome, as specified below.
+2. The caller coordinates per-call persistence around the handler's shared `callTool()` method. Attempt to save and commit an individual `AI_TOOL_CALL` entry immediately before each invocation, linked to the combined message and marked `IN_PROGRESS`. If that write fails, execute the tool anyway, report the persistence error through the platform logger, and attempt to record an error message in the conversation. The handler dispatches `OnBeforeAiToolCallEvent`, invokes the tool, captures its typed result or normalizes its failure, and dispatches `OnAiToolCallEvent`. Immediately after execution, attempt to update and commit the individual entry with its result, end time, duration, diagnostics, and terminal state. A before-listener failure skips that tool; an after-listener failure preserves its result and execution outcome, as specified below.
 3. After every call has returned or failed, the caller passes the correlated results to `AiConversation::saveToolResults()`. It enriches the same message with results, end time, duration, diagnostics, and combined display content, preserving its UID, sequence, and original call data. Individual call records are written around each invocation, not deferred to batch completion.
 
 Replace the individual call's `FAILED` flag with an enum containing `IN_PROGRESS`, `SUCCEEDED`, and `FAILED`. `IN_PROGRESS` means invocation is about to begin and completion has not been recorded; after interruption it does not prove whether execution or side effects occurred. `SUCCEEDED` includes warning-only results. `FAILED` means execution returned or threw a failure, even though its error result remains deliverable to the AI. A failed post-call update leaves the stored entry `IN_PROGRESS`; never automatically re-execute the tool to repair it.
@@ -68,36 +68,37 @@ An illustrative flow is:
 $messageId = $conversation->saveToolCalls($calls);
 $results = [];
 foreach ($calls as $call) {
-	$results[$call->getCallId()] = $executor->execute($handler, $task, $call);
+	$results[$call->getCallId()] = $handler->callTool($task, $call);
 }
 $conversation->saveToolResults($messageId, $results);
 ```
 
-Use the existing message type `tool` for the new combined tool messages. Serialize calls and results as UXON in separate properties of the data JSON in the message:
+Use the existing message type `tool` for the new combined tool messages. Store calls and results as arrays in separate properties of the data JSON in the message, with an explicit `call_id` in every entry. The `calls` array defines request order; correlate results by ID, never by array position. No separate order list is needed:
 
 ```json
 {
-    "call_order": ["call_5GExRKnOGFplVilv2MH0bsBt"],
-    "calls": {
-        "call_5GExRKnOGFplVilv2MH0bsBt": {
+    "calls": [
+        {
             "call_id": "call_5GExRKnOGFplVilv2MH0bsBt",
             "tool_name": "read_vendor_file",
             "arguments": {
                 "path": "exface/core/DataTypes/ComparatorDataType.php"
             }
         }
-    },
-    "results": {
-        "call_5GExRKnOGFplVilv2MH0bsBt": {
+    ],
+    "results": [
+        {
+            "call_id": "call_5GExRKnOGFplVilv2MH0bsBt",
             "class": "\\axenox\\GenAI\\Common\\AiToolResultString",
             "type": {
                 "alias": "exface.Core.String"
             },
             "value": "stringified tool output",
+            "failed": false,
             "appendix": {},
             "errors": [],
             "warnings": []
-        }
+        ]
     }
 }
 ```
@@ -123,7 +124,7 @@ If execution is interrupted or combined-result persistence fails, the initial me
 Since an LLM should still receive tool results even if they include errors, we need to catch all errors during tool invocation and categorize them. 
 
 - Committing the tool message before invocation ensures it remains logged even if something goes entirely wrong. 
-- Tools include handled failures in typed results; the executor catches remaining invocation failures and normalizes them. Distinguish invalid calls that can be corrected from unexpected tool defects. Neither kind prevents other calls in the batch from running. Failed results remain deliverable to the LLM or MCP client.
+- Tools include handled failures in typed results; the handler's `callTool()` method catches remaining invocation failures and normalizes them. Distinguish invalid calls that can be corrected from unexpected tool defects. Neither kind prevents other calls in the batch from running. Failed results remain deliverable to the LLM or MCP client.
 - Write and commit individual `AI_TOOL_CALL` entries immediately before and after each invocation, retaining their link to the combined message and using the agreed three-state enum.
 - Failure to create or update an individual `AI_TOOL_CALL` entry is non-fatal: execute the tool despite a failed pre-call write, retain completed results despite a failed post-call write, and report persistence errors through `$workbench->getLogger()->logException()` and a conversation error message. These are operational errors, not tool execution failures; they do not change a successful tool result to `FAILED`. Failure of either reporting path must not prevent invocation or discard completed results.
 - Failure to enrich the authoritative conversation message is different from a missing individual call record. Return the actual completed in-memory results to the AI, report the persistence failure through the platform logger, and attempt a separate conversation `ERROR` message. Leave the combined message without an end time and retain whichever individual call records were saved successfully. Do not add automatic repair jobs or persistence retries. On later continuation, pass retained messages with their completeness indicator to the adapter, which decides whether and how to continue without fabricated results, repeated execution, or silent information loss.
@@ -134,17 +135,17 @@ Create a separate `ERROR` conversation message for every real error, including t
 
 ### Shared tool execution
 
-Extract shared invocation, timing, event dispatch, and failure normalization from `GenericAssistant` into an executor accepting `TaskInterface`. Use it from both the agent and MCP paths without introducing a prompt dependency for MCP.
+Move shared tool resolution, invocation, timing, event dispatch, and failure normalization from `GenericAssistant` into `AbstractAiTaskHandler::callTool($task, $call)`, exposed through `AiTaskHandlerInterface`. Accept `TaskInterface` and return `AiToolResultInterface`. Both the agent and MCP paths call this method on their configured handler without introducing a prompt dependency for MCP. Resolve the requested tool through the handler's configured tools. Do not introduce a separate executor class; `ToolBox` remains responsible for tool collection, merging, and configuration warnings rather than runtime execution.
 
 If an `OnBeforeAiToolCallEvent` listener throws an unexpected error, do not invoke that tool. Produce a deliverable failure result, mark the individual call `FAILED`, report the error through the platform logger and a separate conversation `ERROR` message, and continue the other calls in the batch. A before-listener may perform required preparation or checks, so its failure is not treated like a non-blocking logging failure.
 
 If an `OnAiToolCallEvent` listener throws after execution, preserve the tool's original result and `SUCCEEDED` or `FAILED` outcome. Report the listener failure as a separate operational `ERROR` through the platform logger and conversation, and continue other calls. Do not retry the tool or turn a successful execution into a failed tool result because an after-listener failed.
 
-Agent and MCP callers coordinate `saveToolCalls()` and `saveToolResults()` around the shared executor using identical batch semantics. The executor owns invocation, timing, events, and failure normalization, not persistence or protocol rendering. `AiConversation` owns storage, reconstruction, and display rendering, not invocation. Tool results continue to use `AiToolResultInterface`. Call identity, tool identity, and arguments belong to the conversation's call data, with results correlated by call ID. Migrate consumers to that conversation-backed read contract before removing `AiToolCallResponse`; do not introduce a replacement wrapper duplicating these fields.
+Agent and MCP callers coordinate `saveToolCalls()` and `saveToolResults()` around the handler's `callTool()` method using identical batch semantics. This method owns tool resolution, invocation, timing, events, and failure normalization, not persistence or protocol rendering. `AiConversation` owns storage, reconstruction, and display rendering, not invocation. Tool results continue to use `AiToolResultInterface`. Call identity, tool identity, and arguments belong to the conversation's call data, with results correlated by call ID. Migrate consumers to that conversation-backed read contract before removing `AiToolCallResponse`; do not introduce a replacement wrapper duplicating these fields.
 
 Split MCP argument normalization and protocol result conversion from actual invocation. The MCP handler needs access to the typed result before converting it into `CallToolResult`. Keep protocol behavior at the MCP boundary and use the official SDK.
 
-The executor collects tool diagnostics once and returns them with the result; conversation persistence embeds them in the combined message and creates correlated standalone `ERROR` messages for real errors. Standalone warnings remain available for failures outside tool execution. Define one platform-reporting boundary so tools, events, and callers do not log the same exception repeatedly. Persistence failures are separate operational diagnostics, not invented tool failures.
+The handler's `callTool()` method collects tool diagnostics once and returns them with the result; conversation persistence embeds them in the combined message and creates correlated standalone `ERROR` messages for real errors. Standalone warnings remain available for failures outside tool execution. Define one platform-reporting boundary so tools, events, and callers do not log the same exception repeatedly. Persistence failures are separate operational diagnostics, not invented tool failures.
 
 ### API-agnostic queries and typed results
 
@@ -195,11 +196,11 @@ Tool results must not require or retain an `AiToolInterface` instance. Inject th
 
 Exception objects are transient execution details, not part of result UXON. Retain the current plural `getExceptions()` API for compatibility: fresh results return their original exceptions, while reconstructed results return an empty array. No new singular accessor is required. Migrate framework consumers to durable `getErrors()`, `getWarnings()`, and `isFailed()` rather than using exception availability for rendering, counting, or failure handling. Do not serialize or manufacture exception objects during import.
 
-Persist multiple error and warning messages in separate ordered collections. `getErrors()` and `getWarnings()` return message arrays for both fresh and reconstructed results, with empty arrays when no diagnostics exist. Adding a diagnostic appends to its collection without overwriting earlier messages. `AiToolRuntimeError` exceptions contribute error messages; `AiToolRuntimeWarning` exceptions contribute warning messages. The executor normalizes unexpected invocation failures into error diagnostics as well, so they are not lost merely because their original exception class differs. Classification happens while the result is fresh; restoring the message collections must not require recreating those exceptions.
+Persist multiple error and warning messages in separate ordered collections. `getErrors()` and `getWarnings()` return message arrays for both fresh and reconstructed results, with empty arrays when no diagnostics exist. Adding a diagnostic appends to its collection without overwriting earlier messages. `AiToolRuntimeError` exceptions contribute error messages; `AiToolRuntimeWarning` exceptions contribute warning messages. The handler's `callTool()` method normalizes unexpected invocation failures into error diagnostics as well, so they are not lost merely because their original exception class differs. Classification happens while the result is fresh; restoring the message collections must not require recreating those exceptions.
 
 Capture any remediation text included in adapter output while the result is fresh; reconstruction must not resolve it again from potentially changed message definitions. Persist failure state independently of exception availability, so `isFailed()`, diagnostic counters, monitoring, and adapter rendering remain correct when no exception object exists. Consumers must use these stable message accessors for diagnostics, not infer success from an empty exception collection. Preserve every error and warning and their order through persistence and rendering; monitoring counts the corresponding entries rather than treating each result as at most one error or warning.
 
-Provide access to original structured result values through this export/import contract. The following is the value at `results[callId]`, not an alternative singular call/result message schema:
+Provide access to original structured result values through this export/import contract. The following is the result-class-owned UXON included in a `results` array entry. Message serialization adds the entry's `call_id` as correlation metadata; it is not part of the typed result object's export/import contract or an alternative singular call/result message schema:
 
 ```json
 {
@@ -374,11 +375,41 @@ These are implementation gaps to resolve, not competing architectural recommenda
 - Existing warning/error counts depend on separate message roles. Adapt aggregation for embedded tool diagnostics.
 - `isFailed()` is documented as forbidding delivery to the LLM and currently uses a critical-or-higher threshold. Change it to the agreed `ERROR`-or-higher tool-diagnostic threshold without prohibiting delivery of failure results.
 
+## Class structure
+
+The following inventory groups related classes and interfaces by responsibility. "Changed" means an existing contract or implementation changes; "new" identifies an expected addition. Where no class name is agreed, the entry describes the required responsibility without prescribing another standalone class.
+
+| Class or group | Change | Distinct role and responsibilities |
+| --- | --- | --- |
+| `AiConversation` / `AiConversationInterface` | Changed | Own authorized, handler-version-bound persistence and ordered history for agent and MCP conversations. Allocate message sequences, create/enrich combined tool messages, write individual call details, retain attachments, reconstruct typed messages/results, and provide designer-facing display content and diagnostic counts. Supply detached history snapshots without selecting model context, invoking tools, or rendering provider requests. |
+| `AiMessage` / `AiMessageInterface` | New implementation; extended interface | Represent one persisted timeline entry, with identity, sequence, display text, structured content, ordered calls, correlated typed results, and completeness information. Own lossless `exportJson()` / `importJson()` for `AI_MESSAGE.DATA` only, including typed-result export/reconstruction. Do not perform database access or protocol rendering. |
+| `AiFactory` and result reconstruction factory mapping | Changed; new mapping | Create conversations for any `AiTaskHandlerInterface` with explicit source/development/connection context. Reconstruct only trusted, supported result classes using the current Workbench and their UXON import contract, never arbitrary stored class names or original tool instances. The mapping's placement is not yet prescribed as a separate factory class. |
+| `AbstractAiTaskHandler` / `AiTaskHandlerInterface` | Changed | Provide the shared `callTool()` entry point for configured-tool resolution, invocation, timing, before/after events, and failure normalization. Accept `TaskInterface` and return typed results. Do not own conversation persistence, the LLM loop, or MCP serialization. |
+| `GenericAssistant` | Changed | Own agent instructions and LLM orchestration. Coordinate batch/detail persistence around inherited `callTool()`, create a fresh query for every connector submission, and retain actual results when completion logging fails. Delegate provider rendering to adapters. |
+| `McpServer` | Changed | Expose connectionless endpoint configuration, including conversation grouping scope and inactivity timeout. Use the same handler execution contract without introducing prompt or LLM-connection requirements. |
+| `AiToolCall` / `AiToolCallInterface` | Changed | Carry historical call identity, tool name/optional alias, original typed arguments, optional raw argument text, and separately normalized execution arguments. Keep call metadata separate from result values and correlate calls within their message/batch. |
+| `AiToolResultString` / `AiToolResultInterface` and other result implementations | Changed | Own typed values, durable failure state, ordered error/warning messages, appendix references, captured remediation, and result-specific UXON export/import. Receive Workbench directly where needed; retain exceptions only for fresh execution. Require neither a live tool nor call metadata, and do not own LLM serialization. |
+| AI tool implementations in GenAI, IDE, and other affected producers | Changed as required | Continue implementing the actual capability through `invoke()`. Migrate result construction to the decoupled result contract and preserve typed values and diagnostics. Do not duplicate the handler's shared invocation lifecycle or conversation logging. |
+| `AiQuery` / `AiQueryInterface` | Changed | Represent exactly one connector exchange with a detached typed history snapshot, conversation access, and fresh-result overlays correlated by message/call identity. Keep request context stable and response/usage state exchange-local. Perform no database history loading or provider-specific context selection. |
+| Completions, Responses, and Claude request/response adapters | Changed as a group | Request adapters select eligible context, serialize typed content/results, enforce target protocol rules, and report continuation limitations. Response adapters capture full semantic output, calls, usage, and required provider continuation data before display extraction. Neither side owns persistence or tool invocation. |
+| `OpenAiConnector`, `ClaudeConnector`, and affected connector subclasses | Changed as required | Submit each fresh query through the appropriate adapters and attach only that exchange's response and usage metadata. Keep transport/provider concerns outside conversation storage and shared tool execution. |
+| `AiResponse` and its response interface | Changed | Expose the conversation and only the messages generated for the response turn, including live typed overlays when persistence failed. Preserve turn boundaries and generated identities so concurrent turns do not contaminate consumers or metrics. |
+| `AiToolMcpHandler` | Changed | Recreate authorized request state in a per-call Workbench scope, coordinate detail writes and combined-message completion around the handler's `callTool()`, and preserve execution results independently of persistence or delivery failures. |
+| `AiToolMcpAdapter` | Changed | Retain MCP tool definitions, argument normalization, and typed-result conversion to official SDK `CallToolResult`. Stop invoking tools directly; protocol conversion happens after the handler has obtained the typed result. |
+| MCP SDK event integration and operation-local correlation bridge | New integration/plumbing; class placement to be determined | Observe request/session identity, resolve conversation grouping, and commit initial messages before SDK invocation. Correlate SDK events with tool handling using request-local scalar identifiers, capture observable SDK rejections, prevent execution after initial persistence failure, and clean up operation-local state. Retain no long-lived Workbench, handler, tool, or conversation objects. |
+| `AiMcpTask` | Changed | Carry explicit MCP request/correlation context needed by the per-call execution path, in addition to endpoint identity. Remain a `TaskInterface` implementation, not an agent prompt or conversation owner. |
+| `AiMessageTypeDataType` and the individual-call state enum data type | Existing message type updated as needed; new state type | Keep message types authoritative, including unresolved legacy types. Define individual-call `IN_PROGRESS`, `SUCCEEDED`, and `FAILED` through the platform enum pattern. Do not introduce combined-message lifecycle states or a competing provider-role hierarchy. |
+| `ToolCheckTestMetric`, `ToolResponseTestCriterion`, and related response consumers | Changed as a group | Inspect current-turn typed messages, ordered calls, results, and durable diagnostics rather than wrapper objects, flattened strings, or the whole conversation. |
+| Existing conversation/detail monitoring and attachment-access components | Changed as required | Present shared agent/MCP history, mixed per-call outcomes, completion-unconfirmed messages, correlated errors, and authorized full retained content. Keep bounded display previews separate from storage and adapter inputs; reuse existing attachment storage and authorization rather than introduce another storage hierarchy. |
+| `AiToolCallResponse` | Removed | Migrate transport and inspection consumers to typed results and message-owned call correlation before deletion. Do not introduce a replacement call/result wrapper. |
+
+`AiToolResultData` is future work: define its nested `data_sheet` UXON contract here, but do not require the class to be implemented in this refactoring. `ToolBox` keeps its collection/configuration role. There is no separate tool executor, JSON helper, provider-message hierarchy, or usage-record class introduced by this design.
+
 ## Implementation plan
 
 ### Phase 1: Shared logging contracts
 
-Generalize owner and factory parameters, introduce `getTaskHandler()`, and define typed message inputs using `AiMessageTypeDataType`. Remove mandatory connection/model/query dependencies from shared persistence, retaining the optional LLM-response query input for metadata extraction. Preserve exact-version and user checks. Add `TYPE` and `TOPIC_ID`, define their correlation scope, and make development mode explicit independent context. Establish typed-result export/import, the decoupled result constructor with all GenAI/IDE producer migrations, durable diagnostics, and lossless JSON in this phase so Phase 2 never writes non-reconstructable new results. Add only the remaining schema changes required for the agreed message contract.
+Generalize owner and factory parameters, introduce `getTaskHandler()`, and define typed message inputs using `AiMessageTypeDataType`. Remove mandatory connection/model/query dependencies from shared persistence, retaining the optional LLM-response query input for metadata extraction. Preserve exact-version and user checks. Add `TYPE` and `TOPIC_ID`, define their correlation scope, and make development mode explicit independent context. Establish typed-result export/import, the decoupled result constructor with all GenAI/IDE producer migrations, durable diagnostics, and message-owned lossless persistence through `exportJson()` / `importJson()` in this phase so Phase 2 never writes non-reconstructable new results. Add only the remaining schema changes required for the agreed message contract.
 
 ### Phase 2: Combined tool messages
 
@@ -386,7 +417,7 @@ Implement `saveToolCalls()` and `saveToolResults()` for one message per requeste
 
 ### Phase 3: Shared execution and MCP logging
 
-Extract the executor for invocation, timing, events, and failure normalization; agent and MCP callers coordinate the batch persistence lifecycle around it. Adapt the agent, split MCP normalization/conversion from invocation, and introduce durable session correlation through `TOPIC_ID`. Make both paths produce the same tool-message structure while preserving their separate task types, authorization, protocol rules, and Workbench lifecycles. Capture tool-specific diagnostic context during execution and keep call/result correlation in conversation data rather than introducing a new wrapper.
+Move shared tool resolution, invocation, timing, events, and failure normalization into `AbstractAiTaskHandler::callTool()`, exposed through `AiTaskHandlerInterface`; agent and MCP callers coordinate the batch persistence lifecycle around that method. Do not add a separate executor class or runtime execution responsibilities to `ToolBox`. Adapt the agent, split MCP normalization/conversion from invocation, and introduce durable session correlation through `TOPIC_ID`. Make both paths produce the same tool-message structure while preserving their separate task types, authorization, protocol rules, and Workbench lifecycles. Capture tool-specific diagnostic context during execution and keep call/result correlation in conversation data rather than introducing a new wrapper.
 
 ### Phase 4: Query and adapter separation
 
@@ -429,12 +460,14 @@ saveToolCallEnd(string $recordId, AiToolResultInterface $result, array $data = [
 
 - `getMessages()` returns `AiMessageInterface[]` in ascending sequence order, with an exclusive lower and inclusive upper sequence boundary. A null boundary is unbounded. Validate the optional type using `AiMessageTypeDataType`.
 - `$calls` is an ordered list of `AiToolCallInterface`; retain the existing `getCallId()` name, not a competing `getId()`. IDs must be unique within a new batch, not across the whole conversation. Calls carry the historical function name, optional application alias, original typed arguments, optional raw argument text, and separately normalized execution arguments.
-- `$results` maps call IDs to `AiToolResultInterface`. `$data` contains normalized content, provider extensions, usage where applicable, and batch/per-call execution timestamps and durations. It never contains a query, tool, Workbench, SDK object, or exception object. Validate correlation against the message's stored calls; do not pair by result-array position.
+- `$results` maps call IDs to `AiToolResultInterface` in the PHP API. Persist it as a JSON array with explicit `call_id` metadata on each exported result entry; the runtime index does not define the storage shape. `$data` contains normalized content, provider extensions, usage where applicable, and batch/per-call execution timestamps and durations. It never contains a query, tool, Workbench, SDK object, or exception object. Validate correlation against the message's stored calls; do not pair by result-array position.
 - `saveToolCalls()` returns the persisted message UID. `saveToolCallStart()` returns the detail-record UID. Each completes its short transaction before returning. Start failures throw; the caller aborts a batch for a combined-message failure but reports and proceeds for a detail-record failure.
 - `saveToolResults()` and `saveToolCallEnd()` update those existing UIDs, never create replacement completion records. Persistence failures throw to the coordinating caller, which applies the agreed non-fatal completion/reporting policy without losing the in-memory results. If detail creation failed, skip its completion update rather than insert a repair record.
 - Timing uses wall-clock start/end instants for inspection and monotonic elapsed milliseconds for duration. Retain timing in combined call data even when detail persistence fails. A batch end time is written only with its completed result set.
 
 Extend `AiMessageInterface` with `getUid(): string`, `getConversationId(): string`, `getSequenceNumber(): int`, `getData(): UxonObject`, `getCalls(): array`, `getToolResults(): array`, and `isBroken(): bool`. Keep existing `getText()` for designer-facing content and `getRole()` for the stored message type; neither defines model-context content. Calls are returned in stored order, with results keyed by call ID. Message types unrelated to tool exchanges return empty call/result collections; legacy tool-request/result types retain any recoverable calls/results. Completeness checks identify missing/mismatched results, undecodable required content, and unavailable required attachments without consulting current tool configuration. An unfinished message can be broken for reconstruction while its execution is still running; this is not a process-liveness signal.
+
+Also expose `exportJson(): string` and `importJson(string $json): void` through `AiMessageInterface`, implemented by `AiMessage` for persistence only. These methods serialize and restore the `AI_MESSAGE.DATA` payload, not the entire database row or an LLM/MCP request. `AiConversation` writes the exported JSON string and passes the stored string back to the message on loading; it remains responsible for database access, authorization, sequencing, and separately stored message fields. API adapters retain ownership of protocol serialization.
 
 `AiResponse` exposes `getConversation(): AiConversationInterface` and `getMessages(): array` restricted to the messages generated for that response turn. Capture the turn's lower sequence boundary before saving its user prompt and its upper boundary when the response is finalized; track generated message UIDs as well so interleaved turns cannot contaminate metrics. Retain fresh typed message/result overlays in the live response if persistence failed, without claiming those results are recoverable after restart. Migrate `ToolCheckTestMetric` and `ToolResponseTestCriterion` to iterate those tool messages and calls, not the entire conversation and not a replacement wrapper. Remove `getToolCallResponses()`, `setToolCalls()`, and `AiToolCallResponse` after these consumers migrate.
 
@@ -447,14 +480,16 @@ Individual calls retain their current fields, with `STATE` replacing `FAILED` an
 The combined `DATA` contains:
 
 - `content`: ordered normalized assistant content accompanying the calls, not the monitoring Markdown.
-- `call_order`: original call IDs in execution/request order; `calls`: a call-ID map with `call_id`, `tool_name`, optional `tool_alias`, typed `arguments`, optional `raw_arguments`, separate `execution_arguments`, and collected timing.
-- `results`: a call-ID map of result-class-owned exported UXON, including `class`, data-type UXON, retained value, `failed`, ordered `errors` / `warnings`, appendix references, and captured remediation text.
+- `calls`: an array in original request order, with `call_id`, `tool_name`, optional `tool_alias`, typed `arguments`, optional `raw_arguments`, separate `execution_arguments`, and collected timing in each entry. Array order is authoritative; do not store a separate order list.
+- `results`: an array whose entries contain explicit `call_id` correlation metadata alongside result-class-owned exported UXON, including `class`, data-type UXON, retained value, `failed`, ordered `errors` / `warnings`, appendix references, and captured remediation text. Result-array order does not determine call pairing or request order.
 - `provider`: data keyed by API identity (`openai.chat_completions`, `openai.responses`, `anthropic.messages`). Retain ordered provider items/blocks, response/item identities and required signatures/continuation fields without treating them as portable message roles.
 - `diagnostics`: correlation entries with a stable diagnostic ID, source, severity, optional call ID, and the separate error-message UID where saved. Result diagnostics and standalone errors share that ID; `ERROR_LOG_ID` exists only on the standalone `ERROR` message, never in the embedded diagnostic.
 
+Validate unique call IDs within each batch, unique result IDs, and that every result references a stored call. Missing results remain representable for incomplete batches. New writes reject duplicate or unknown IDs explicitly; imported malformed or legacy data remains subject to the existing completeness/compatibility rules rather than silently overwriting entries. Message import separates each result entry's `call_id` from the result UXON before reconstruction and may build an ID-keyed runtime index. This metadata does not add call identity to typed result objects or introduce a replacement response wrapper.
+
 Ordinary messages also retain ordered normalized content independently of their display text. Content distinguishes text, structured JSON, and attachment references; system messages can retain the original instruction role where required. Preserve full structured assistant answers before extracting a configured answer path.
 
-Use one shared lossless JSON encoding/decoding helper for the conversation and result boundary: explicit JSON errors, no numeric-string coercion, and object-preserving decoding. Do not use `UxonObject::toJson()` for semantic payloads: it currently enables `JSON_NUMERIC_CHECK`. Do not use `UxonObject::fromJson()` to recover semantic JSON object/array distinctions: it currently decodes associatively. Construct exported/imported UXON from validated data while preserving nested `stdClass` objects and lists; never recursively convert arbitrary semantic objects to associative arrays. Test `"00123"`, numeric-looking identifiers, `{}`, `[]`, null, booleans, nested objects, and Unicode. Non-JSON values require their supported result type's explicit UXON export; do not serialize arbitrary PHP objects or use PHP unserialization.
+Implement lossless JSON encoding/decoding in `AiMessage::exportJson()` / `importJson()`: explicit JSON errors, no numeric-string coercion, and object-preserving decoding. Do not introduce a separate JSON helper or change global `UxonObject` defaults for this refactoring. Continue using `UxonObject` for message data and typed-result export/import, but do not route semantic payload serialization through `UxonObject::toJson()`, which enables `JSON_NUMERIC_CHECK`, or `UxonObject::fromJson()`, which decodes associatively. Construct exported/imported UXON from validated data while preserving nested `stdClass` objects and lists; never recursively convert arbitrary semantic objects to associative arrays. Message export includes each result type's exported UXON, and import reconstructs typed results through the validated result factory without invoking tools. Verify that the DataSheet/database persistence path retains the JSON string without re-encoding it through coercing UXON methods. Test `"00123"`, numeric-looking identifiers, `{}`, `[]`, null, booleans, nested objects, and Unicode through a message export/store/load/import round trip. Non-JSON values require their supported result type's explicit UXON export; do not serialize arbitrary PHP objects or use PHP unserialization.
 
 `AiToolResultInterface` extends `iCanBeConvertedToUxon`, including its `getUxonSchemaClass()` requirement, and declares `getValue(): mixed`, `getErrors(): array`, `getWarnings(): array`, and `isFailed(): bool`. `getErrors()` / `getWarnings()` return ordered message strings with any captured remediation needed for stable rendering. Keep original exceptions fresh-only through `getExceptions()`. Decouple the string-result constructor to `WorkbenchInterface`, value, optional data type, appendix, and fresh exceptions; remove tool and call-argument parameters. Preserve explicit display methods for text consumers, but adapters own LLM serialization.
 
