@@ -65,34 +65,6 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "AI tool call state",
-            "CREATED_ON": "2026-11-10 18:00:42",
-            "MODIFIED_ON": "2026-11-10 18:00:42",
-            "CREATED_BY_USER": null,
-            "MODIFIED_BY_USER": null,
-            "UID": "0x11f1ace2264f790cace2025041000001",
-            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
-            "NAME": "AI tool call state",
-            "PROTOTYPE": "axenox/genai/DataTypes/AiToolCallStateDataType.php",
-            "CONFIG_UXON": null,
-            "VALIDATION_ERROR": null,
-            "DEFAULT_DISPLAY_UXON": {
-                "widget_type": "ColorIndicator",
-                "fill": true,
-                "color_only": false,
-                "color_scale": {
-                    "IN_PROGRESS": "orange",
-                    "SUCCEEDED": "green",
-                    "FAILED": "~ERROR"
-                }
-            },
-            "DEFAULT_EDITOR_UXON": {
-                "widget_type": "InputSelect"
-            },
-            "ALIAS": "AiToolCallState",
-            "SHORT_DESCRIPTION": "Historical execution state; in progress is not a liveness guarantee"
-        },
-        {
             "_EXPORT_SUMMARY": "AI test rating",
             "CREATED_ON": "2025-09-17 12:09:01",
             "MODIFIED_ON": "2025-12-03 15:29:14",
@@ -216,6 +188,34 @@
             },
             "ALIAS": "AiConversationType",
             "SHORT_DESCRIPTION": ""
+        },
+        {
+            "_EXPORT_SUMMARY": "AI tool call state",
+            "CREATED_ON": "2026-11-10 18:00:42",
+            "MODIFIED_ON": "2026-11-10 18:00:42",
+            "CREATED_BY_USER": null,
+            "MODIFIED_BY_USER": null,
+            "UID": "0x11f1ace2264f790cace2025041000001",
+            "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+            "NAME": "AI tool call state",
+            "PROTOTYPE": "axenox/genai/DataTypes/AiToolCallStateDataType.php",
+            "CONFIG_UXON": null,
+            "VALIDATION_ERROR": null,
+            "DEFAULT_DISPLAY_UXON": {
+                "widget_type": "ColorIndicator",
+                "fill": true,
+                "color_only": false,
+                "color_scale": {
+                    "IN_PROGRESS": "orange",
+                    "SUCCEEDED": "green",
+                    "FAILED": "~ERROR"
+                }
+            },
+            "DEFAULT_EDITOR_UXON": {
+                "widget_type": "InputSelect"
+            },
+            "ALIAS": "AiToolCallState",
+            "SHORT_DESCRIPTION": "Historical execution state; in progress is not a liveness guarantee"
         }
     ],
     "totals_rows": [],

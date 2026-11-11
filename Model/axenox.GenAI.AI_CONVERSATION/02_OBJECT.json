@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-11-10 18:12:28",
+            "MODIFIED_ON": "2026-11-11 13:15:19",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
@@ -117,20 +117,15 @@
                                 "caption": "Conversation",
                                 "widgets": [
                                     {
-                                        "attribute_alias": "TYPE",
-                                        "widget_type": "Display"
-                                    },
-                                    {
-                                        "attribute_alias": "TOPIC_ID",
-                                        "widget_type": "Display"
-                                    },
-                                    {
                                         "attribute_alias": "TITLE"
                                     },
                                     {
                                         "attribute_alias": "RATING_FEEDBACK",
-                                        "height": 4,
+                                        "height": 5,
                                         "hide_caption": true
+                                    },
+                                    {
+                                        "attribute_alias": "TOPIC_ID"
                                     },
                                     {
                                         "attribute_alias": "PAGE"
