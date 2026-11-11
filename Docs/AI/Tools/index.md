@@ -6,6 +6,28 @@ Tools let an agent retrieve information or perform a bounded operation while it 
 
 Use a tool for information that is too detailed, too volatile, or too expensive to include in every prompt. A good tool has one clear responsibility, narrowly scoped permissions, and a description that tells the model which uncertainty the call can resolve. This page documents all tool prototypes currently provided by `axenox.GenAI` and explains when and how to use them.
 
+## Results, failures and monitoring
+
+Agent and MCP execution share the configured handler's tool lifecycle. A batch is committed
+before execution, with per-call details committed immediately before and after each invocation.
+Before-event failures prevent that invocation; after-event failures preserve the original result.
+Neither logging failures nor delivery failures cause automatic tool retries.
+
+Results retain full text, type, supplementary instructions and ordered error/warning messages.
+Any diagnostic at `ERROR` severity or higher makes a result failed; warning-only results remain
+successful. Rejected calls are failed even when their corrective diagnostic is a warning.
+Failure does not prohibit sending the result to the LLM or MCP client.
+
+The combined message is the reconstruction source; detail records are for inspection and
+statistics. Missing detail records never replace retained results. Monitoring may show bounded
+previews; complete retained output remains available in message data. No automatic expiry is
+introduced.
+
+Tool implementations create `AiToolResultString` with the Workbench and value, not a live tool
+or call arguments. Exported result UXON contains `class`, data-type `type`, `value`, `failed`,
+`appendix`, `errors` and `warnings`. Only supported result classes are reconstructed. Stored
+diagnostics do not require exceptions or the original tool configuration.
+
 ## Choosing a tool
 
 | Requirement | Recommended tool |
@@ -58,7 +80,48 @@ A definition selects its prototype with `alias` or `class` and can override the 
 
 The built-in argument templates are used when `arguments` is omitted. Override them only when the agent needs more specific terminology, examples, or a restricted schema. Tool instructions should also state when a call is mandatory, for example: "Read the object definition before proposing UXON that references its attributes."
 
+### Shared argument binding
+
+Every tool exposes `normalizeArguments()`, implemented by `AbstractAiTool`. Agent and MCP calls
+use it through the shared task handler; concept and nested tool calls use the same method before
+`invoke()`. Concrete tools receive a complete positional list and do not supply their own defaults.
+Partial `arguments` overrides retain the remaining prototype parameters and their defaults.
+
+- Named arguments bind in configured parameter order; positional lists bind by position.
+- Only omitted parameters receive their configured `default_value`, including required parameters
+  with a default. Defaults and supplied scalar values are parsed by the service parameter.
+- Omitted optional parameters without a default become `null`. Explicit `null` remains `null`
+  for optional parameters and is rejected for required parameters, even if a default exists.
+- Missing required values, unknown names, excess positional values and scalar parsing failures
+  reject execution before tool events or side effects.
+- Structured JSON objects, arrays and configured UXON defaults become nested PHP arrays for UXON-consuming tools. Original
+  call arguments remain unchanged; normalized execution arguments are retained separately.
+
+Declare defaults in the parameter templates, not in `invoke()`. In particular, `CommandLineTool`
+and `GitTool` declare `folder = "."`; `UxonAutosuggestTool` declares `path = []` and `text = ""`.
+Tool-specific authorization and semantic checks remain the responsibility of the concrete tool.
+
 Tool results sent back to the model explicitly identify attached errors and warnings. Diagnostics contain their severity and message as well as the remediation hint from the exception's message model when available. If errors prevented a result, the response clearly states that no result was produced because errors occurred. Conversation messages and tool-call records persist this enriched result so the same diagnostics are visible in the conversation UI; the result object's raw value remains available separately. Critical failures additionally tell the model not to repeat the same call unchanged.
+
+Tools using built-in text comparisons can customize rejection text with `security_failure_message`
+(default: `This is not allowed`). This changes the message, not access permissions. There is no
+generic configurable `checks` or `message` property; use the concrete prototype's documented limits.
+
+## `CallActionTool`
+
+**Alias:** `axenox.GenAI.CallActionTool` | [UXON prototype](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CCallActionTool)
+
+**Purpose.** Calls a predefined ExFace action and returns its data or message.
+
+**Use when.** A known platform action implements the required operation. Configure `action`
+with that action's UXON and, optionally, `task` with a generic task model. Named task values
+belong below `task.parameters`, not `task.arguments`. Named tool arguments can be inserted as
+`[#argument_name#]` placeholders in the action and task models. Without `task`, an empty generic
+task is created.
+
+**Result and limits.** Data results are returned as JSON; other results use the action's message.
+Expose only narrowly scoped actions appropriate for the agent. This tool is not an unrestricted
+action selector: the action is selected in its configuration, not by a tool-call argument.
 
 ## File access configuration
 
@@ -746,7 +809,7 @@ replacement text
 | `request_response_pairs` | Ordered request matchers and their responses; the first match wins. |
 | `sample_response` | Fallback response when no pair matches. |
 
-**How to use.** Configure `sample_response` as a deterministic fallback and override the argument definition to resemble the tool under test. `request_response_pairs` is intended to select responses by request, but its current annotation and conversion implementation are incomplete.
+**How to use.** Configure `sample_response` as a deterministic fallback and override the argument definition to resemble the tool under test. `request_response_pairs` is discoverable in the UXON editor, but its conversion implementation is incomplete.
 
 **Result and limits.** The tool returns Markdown from the selected mock response. Until request-pair handling is corrected, rely on `sample_response` for predictable behavior.
 

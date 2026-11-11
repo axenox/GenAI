@@ -23,6 +23,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * Set `uid` to explicitly overwrite a known note. Without a UID, an existing note with the exact same topic is
  * replaced. User and agent identifiers are taken from the current request and cannot be supplied by the LLM.
  *
+ * ```json
+ * {"alias": "axenox.GenAI.NotesWriteTool"}
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 class NotesWriteTool extends AbstractAiTool
@@ -40,10 +45,10 @@ class NotesWriteTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $topic = trim((string) ($arguments[self::ARG_TOPIC] ?? $arguments[0] ?? ''));
-        $note = (string) ($arguments[self::ARG_NOTE] ?? $arguments[1] ?? '');
-        $uid = trim((string) ($arguments[self::ARG_UID] ?? $arguments[2] ?? ''));
-        $type = (string) ($arguments[self::ARG_NOTE_TYPE] ?? $arguments[3] ?? AiNoteTypeDataType::MEMORY);
+        $topic = trim((string) $arguments[0]);
+        $note = (string) $arguments[1];
+        $uid = trim((string) $arguments[2]);
+        $type = (string) $arguments[3];
         if ($topic === '') {
             throw new AiToolRuntimeError($this, $prompt, 'A topic is required to write a note.');
         }
@@ -83,7 +88,7 @@ class NotesWriteTool extends AbstractAiTool
         }
 
         $uid = $sheet->getUidColumn()->getValue(0);
-        return new AiToolResultString($this, $arguments, 'Note saved with UID ' . $uid . '.', $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), 'Note saved with UID ' . $uid . '.', $this->getReturnDataType());
     }
 
     /**

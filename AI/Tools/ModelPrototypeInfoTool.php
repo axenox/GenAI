@@ -20,6 +20,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * Use the fully qualified PHP class name or its file path relative to the
  * vendor folder to inspect the prototype's properties, types, and defaults.
  *
+ * ```json
+ * {"alias": "axenox.GenAI.ModelPrototypeInfoTool"}
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 class ModelPrototypeInfoTool extends AbstractAiTool
@@ -47,7 +52,7 @@ class ModelPrototypeInfoTool extends AbstractAiTool
         $printer = new UxonPrototypeMarkdownPrinter($this->getWorkbench(), $selector);
         $markdown = $printer->getMarkdown();
         
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

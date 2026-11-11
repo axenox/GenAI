@@ -24,6 +24,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
 /**
  * Save data to the data source by passing a UXON model for a DataSheet
  * 
+ * ```json
+ * {"alias": "axenox.GenAI.DataSheetImportTool"}
+ * 
+ * ```
+ * 
  * @author Brookly Fränzschky, Andrej Kabachnik
  */
 class DataSheetImportTool extends AbstractAiTool
@@ -41,12 +46,21 @@ class DataSheetImportTool extends AbstractAiTool
      */
     private ?array $dataSchemas = null;
 
+    /**
+     * Executes the configured tool and returns its typed outcome.
+     * 
+     * @throws AiToolRuntimeError
+     * @param AiTaskHandlerInterface $agent
+     * @param TaskInterface $prompt
+     * @param array<array-key,mixed> $arguments
+     * @return AiToolResultInterface
+     */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $result = null;
         $warnings = [];
         try{
-            $payload = $arguments[0] ?? null;
+            $payload = $arguments[0];
             if ($payload === null) {
                 throw new AiToolRuntimeError($this, $prompt, 'Missing data argument in ImportTool');
             }
@@ -58,7 +72,6 @@ class DataSheetImportTool extends AbstractAiTool
                     if (! $item instanceof UxonObject) {
                         $warning = (new AiToolRuntimeError($this, $prompt, 'Skipped invalid import row at index ' . $index . '.'))
                             ->setLogLevel(LoggerInterface::WARNING);
-                        $this->getWorkbench()->getLogger()->logException($warning);
                         $warnings[] = $warning;
                         continue;
                     }
@@ -78,7 +91,7 @@ class DataSheetImportTool extends AbstractAiTool
                 $message = implode("\n", $messages);
             }
 
-            $result = new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
             foreach ($warnings as $warning) {
                 $result->addException($warning);
             }
@@ -90,8 +103,7 @@ class DataSheetImportTool extends AbstractAiTool
                 $exception = new AiToolRuntimeError($this, $prompt, 'Error during import. ' . $e->getMessage(), null, $e);
             }
 
-            $agent->getWorkbench()->getLogger()->logException($exception);
-            $result = (new AiToolResultString($this, $arguments, $message, $this->getReturnDataType()))
+            $result = (new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType()))
                 ->addException($exception);
         }
 
@@ -100,10 +112,13 @@ class DataSheetImportTool extends AbstractAiTool
 
     /**
      * Target object schema used to validate and generate the `data_sheet` argument schema.
-     *
+     * 
      * @uxon-property save_as
      * @uxon-type \axenox\GenAI\Common\DataSheetSchema
      * @uxon-template {"object_alias":"my.App.REPORT","subsheets":[{"object_alias":"my.App.TOPIC","subsheets":[]}]}
+     * 
+     * @param UxonObject $uxon
+     * @return DataSheetImportTool
      */
     protected function setSaveAs(UxonObject $uxon): DataSheetImportTool
     {
@@ -117,19 +132,14 @@ class DataSheetImportTool extends AbstractAiTool
 
     /**
      * Alternative to `save_as`: list of possible import target schemas.
-     *
+     * 
      * @uxon-property data_schemas
      * @uxon-type \axenox\GenAI\Common\DataSheetSchema[]
-     * @uxon-template [
-     *   {
-     *     "object_alias": "my.App.REPORT",
-     *     "subsheets": []
-     *   },
-     *   {
-     *     "object_alias": "my.App.TOPIC",
-     *     "subsheets": []
-     *   }
-     * ]
+     * @uxon-template [{"object_alias": "my.App.REPORT", "subsheets": []}, {"object_alias": "my.App.TOPIC", "subsheets": []}]
+     * 
+     * @throws RuntimeException
+     * @param UxonObject $uxon
+     * @return DataSheetImportTool
      */
     protected function setDataSchemas(UxonObject $uxon): DataSheetImportTool
     {
@@ -149,6 +159,11 @@ class DataSheetImportTool extends AbstractAiTool
         return $this;
     }
 
+    /**
+     * Returns arguments in the order expected by the tool contract.
+     * 
+     * @return array<array-key,mixed>
+     */
     public function getArguments(): array
     {
         if (! $this->hasSchemaConfiguration()) {
@@ -168,6 +183,8 @@ class DataSheetImportTool extends AbstractAiTool
 
     /**
      * @return DataSheetSchema[]
+     * 
+     * @throws RuntimeException
      */
     protected function getDataSchemas(): array
     {
@@ -206,6 +223,11 @@ class DataSheetImportTool extends AbstractAiTool
         return $this->dataSchemas;
     }
 
+    /**
+     * Get Data Schema.
+     * 
+     * @return DataSheetSchema
+     */
     protected function getDataSchema(): DataSheetSchema
     {
         if ($this->dataSchema === null) {
@@ -215,6 +237,11 @@ class DataSheetImportTool extends AbstractAiTool
         return $this->dataSchema;
     }
 
+    /**
+     * Builds the schema for the DataSheet input argument.
+     * 
+     * @return array<array-key,mixed>
+     */
     protected function getDataSheetArgumentSchema(): array
     {
         $schemas = [];
@@ -229,11 +256,24 @@ class DataSheetImportTool extends AbstractAiTool
         return ["type" => "array", "items" => [ "anyOf" => $schemas]];
     }
 
+    /**
+     * Reports whether a schema has been configured for imported data.
+     * 
+     * @return bool
+     */
     protected function hasSchemaConfiguration(): bool
     {
         return $this->saveAsUxon !== null || $this->dataSchemasUxon !== null;
     }
 
+    /**
+     * Validates one configured schema node before using it for import.
+     * 
+     * @throws RuntimeException
+     * @param DataSheetSchema $schema
+     * @param string $path
+     * @return void
+     */
     protected function validateSchemaNode(DataSheetSchema $schema, string $path): void
     {
         $objectAlias = $schema->getObjectAlias();
@@ -257,6 +297,14 @@ class DataSheetImportTool extends AbstractAiTool
         }
     }
 
+    /**
+     * Resolves the configured metaobject in the current Workbench.
+     * 
+     * @throws RuntimeException
+     * @param string $objectAlias
+     * @param string $path
+     * @return MetaObjectInterface
+     */
     protected function getMetaObjectByAlias(string $objectAlias, string $path): MetaObjectInterface
     {
         try {
@@ -267,6 +315,12 @@ class DataSheetImportTool extends AbstractAiTool
     }
     
 
+    /**
+     * Builds the default argument definitions for this tool.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @return array<array-key,mixed>
+     */
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
@@ -279,6 +333,11 @@ class DataSheetImportTool extends AbstractAiTool
         ];
     }
 
+    /**
+     * Returns the datatype used to display the tool output.
+     * 
+     * @return DataTypeInterface
+     */
     public function getReturnDataType(): DataTypeInterface
     {
         return DataTypeFactory::createFromPrototype($this->getWorkbench(), MarkdownDataType::class);

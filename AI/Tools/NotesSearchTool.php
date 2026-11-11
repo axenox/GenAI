@@ -23,6 +23,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * The tool searches note topics and bodies. Use `excerpt_length` to control how much context each result includes,
  * then use the note UID to load a selected result completely.
  *
+ * ```json
+ * {"alias": "axenox.GenAI.NotesSearchTool"}
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 class NotesSearchTool extends AbstractAiTool
@@ -43,8 +48,8 @@ class NotesSearchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $query = trim((string) ($arguments[self::ARG_QUERY] ?? $arguments[0] ?? ''));
-        $type = (string) ($arguments[self::ARG_NOTE_TYPE] ?? $arguments[1] ?? self::TYPE_ALL);
+        $query = trim((string) $arguments[0]);
+        $type = (string) $arguments[1];
         if (! in_array($type, [self::TYPE_ALL, AiNoteTypeDataType::MEMORY, AiNoteTypeDataType::SUGGESTION], true)) {
             throw new AiToolRuntimeError(
                 $this,
@@ -75,12 +80,12 @@ class NotesSearchTool extends AbstractAiTool
         }
 
         $result = empty($matches) ? 'No matching notes found.' : implode("\n\n", $matches);
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**
      * Creates a compact, single-line excerpt around the matching query.
-     *
+     * 
      * @param string $note
      * @param string $query
      * @return string
@@ -101,13 +106,15 @@ class NotesSearchTool extends AbstractAiTool
 
     /**
      * Maximum number of note-body characters included in each search result.
-     *
+     * 
      * @uxon-property excerpt_length
      * @uxon-type integer
      * @uxon-default 300
-     *
+     * 
      * @param int $length
      * @return NotesSearchTool
+     * 
+     * @throws \InvalidArgumentException
      */
     protected function setExcerptLength(int $length) : NotesSearchTool
     {

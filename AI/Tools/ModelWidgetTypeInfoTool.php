@@ -45,20 +45,20 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ## Example configuration in an assistant
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You are an helpful assistant answering questions about a no-code platform for business web apps. Use here is an overview of the available documentation. [#app_docs_overview#]",
- *      "concepts: {
+ *      "concepts": {
  *          "app_docs_overview": {
  *              "alias": "axenox.GenAI.AppDocsConcept",
- *              "starting_page": "developer_docs/index.md"
+ *              "starting_page": "developer_docs/index.md",
  *              "app_alias": "exface.Core",
  *              "depth": 0
  *          }
  *      },
  *      "tools": {
  *          "get_widget": {
- *              "alias": "axenox.GenAI.GetWidgetTool",
+ *              "alias": "axenox.GenAI.ModelWidgetTypeInfoTool",
  *              "description": "Shows long description, properties, functions and presets of the requested Widget",
  *              "arguments": [
  *                  {
@@ -84,6 +84,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 3. A table of widget functions with columns: FUNCTION, TITLE
  * 4. A table of available presets with columns: NAME, DESCRIPTION, USABLE AS WRAPPER, IS PART OF APP
  * 
+ * 
+ * @author GitHub Copilot
  */
 class ModelWidgetTypeInfoTool extends AbstractAiTool
 {
@@ -110,9 +112,11 @@ class ModelWidgetTypeInfoTool extends AbstractAiTool
      * 
     * @param AiTaskHandlerInterface $agent The task handler invoking the tool
     * @param TaskInterface $prompt The current task context
-     * @param array $arguments Tool arguments, expects [0] to be the widget file path
+     * @param array<array-key,mixed> $arguments Tool arguments, expects [0] to be the widget file path
      * 
      * @return AiToolResultInterface Markdown-formatted widget documentation or error message
+     * 
+     * @throws AiToolRuntimeError
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
@@ -167,14 +171,21 @@ class ModelWidgetTypeInfoTool extends AbstractAiTool
                     }
             }
             
-            return new AiToolResultString($this, $arguments, $output, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $output, $this->getReturnDataType());
         }
         catch(\Throwable $e){
             $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load widget metadata. ' . $e->getMessage(), null, $e);
-            return new AiToolResultString($this, $arguments, 'ERROR: file not found!', $this->getReturnDataType(), [], [$exception]);
+            return new AiToolResultString($this->getWorkbench(), 'ERROR: file not found!', $this->getReturnDataType(), [], [$exception]);
         }
     }
     
+    /**
+     * Build Markdown Chapter For Widget Type.
+     * 
+     * @param DataSheetInterface $widgetDescriptionDs
+     * @param int $rowIdx
+     * @return string
+     */
     protected function buildMarkdownChapterForWidgetType(DataSheetInterface $widgetDescriptionDs, int $rowIdx) : string
     {
         $row = $widgetDescriptionDs->getRow($rowIdx);
@@ -238,8 +249,8 @@ class ModelWidgetTypeInfoTool extends AbstractAiTool
      * as readable markdown tables for the LLM output.
      * 
      * @param string $title The table title (rendered as h3 heading)
-     * @param array $headers Column headers for the table
-     * @param array $rows Array of associative arrays containing the data
+     * @param array<array-key,mixed> $headers Column headers for the table
+     * @param array<array-key,mixed> $rows Array of associative arrays containing the data
      * @param int $wrap Maximum character width before wrapping cell content
      * 
      * @return string Formatted markdown table with the given title

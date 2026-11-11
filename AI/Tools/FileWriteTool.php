@@ -19,17 +19,17 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ## Example configuration in an assistant
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You help write Markdown documentation",
  *      "tools": {
  *          "write_file": {
- *              "alias": "axenox.GenAI.WriteFileTool",
+ *              "alias": "axenox.GenAI.FileWriteTool",
  *              "description": "Create/overwrite a Markdown file",
  *              "use_vendor_folder_as_base": true,
  *              "allowed_paths": [
  *                  "axenox/*.md",
- *                  "exface/*.md",
+ *                  "exface/*.md"
  *              ],
  *              "arguments": [
  *                  {
@@ -51,6 +51,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class FileWriteTool extends AbstractAiTool
 {
@@ -66,8 +68,8 @@ class FileWriteTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $relativePath = (string) ($arguments[0] ?? '');
-        $content = (string) ($arguments[1] ?? '');
+        $relativePath = (string) $arguments[0];
+        $content = (string) $arguments[1];
         $basePath = $this->getBasePathAbsolute();
         $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
 
@@ -78,7 +80,7 @@ class FileWriteTool extends AbstractAiTool
         }
         
         $message = 'File saved: ' . $relativePath;
-        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
     }
 
     /**

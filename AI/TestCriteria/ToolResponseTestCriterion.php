@@ -5,13 +5,24 @@ use axenox\genAI\common\AbstractTestCriterion;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\RegularExpressionDataType;
 use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
+ * Evaluate the tool names and original arguments generated in the current response turn.
  * 
+ * Use this criterion with metrics that inspect tool usage; earlier conversation
+ * turns and their tools are not included.
+ * 
+ * ```json
+ * {"type": "ToolResponse", "metrics": []}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class ToolResponseTestCriterion extends AbstractTestCriterion
 {
@@ -22,9 +33,23 @@ class ToolResponseTestCriterion extends AbstractTestCriterion
     
     
     
-    public function getValue(AiResponseInterface $response): string
+    /**
+     * Returns the current response-turn tool evidence used by test metrics.
+     * 
+     * @param AiResponseInterface $response
+     * @return string
+     */
+    public function getValue(AiResponseInterface $response) : string
     {
-        $toolCallResponses = $response->getToolCallResponses();
+        $toolCallResponses = [];
+        foreach ($response->getMessages() as $message) {
+            if (! $message instanceof AiToolCallMessageInterface) {
+                continue;
+            }
+            foreach ($message->getCalls() as $call) {
+                $toolCallResponses[] = $call;
+            }
+        }
 
         $output = "";
         $lastIndex = count($toolCallResponses) - 1;
@@ -39,7 +64,10 @@ class ToolResponseTestCriterion extends AbstractTestCriterion
 
             if (is_array($arguments)) {
                 foreach ($arguments as $key => $value) {
-                    $output .= $key . ' = "' . $value . '"' . "\n";
+                    $value = is_string($value)
+                        ? '"' . $value . '"'
+                        : json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $output .= $key . ' = ' . $value . "\n";
                 }
             } else {
                 $output .= $arguments . "\n";

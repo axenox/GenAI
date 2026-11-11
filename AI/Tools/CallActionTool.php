@@ -26,6 +26,13 @@ use exface\Core\Templates\Placeholders\TranslationPlaceholders;
 
 /**
  * Call a predefined action
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.CallActionTool", "action": {"alias": "exface.Core.ReadData"}}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class CallActionTool extends AbstractAiTool
 {
@@ -39,7 +46,7 @@ class CallActionTool extends AbstractAiTool
     {
         $namedArgs = [];
         foreach ($this->getArguments() as $i => $param) {
-            $namedArgs[$param->getName()] = $arguments[$i] ?? null;
+            $namedArgs[$param->getName()] = $arguments[$i];
         }
         $workbench = $this->getWorkbench();
         $renderer = new BracketHashStringTemplateRenderer($workbench);
@@ -64,9 +71,15 @@ class CallActionTool extends AbstractAiTool
                 $dataType = DataTypeFactory::createFromPrototype($this->getWorkbench(), StringDataType::class);
         }
         
-        return new AiToolResultString($this, $arguments, $resultString, $dataType);
+        return new AiToolResultString($this->getWorkbench(), $resultString, $dataType);
     }
     
+    /**
+     * Renders configured argument placeholders and creates the action for this invocation.
+     * 
+     * @param BracketHashStringTemplateRenderer $renderer
+     * @return ActionInterface
+     */
     protected function getAction(BracketHashStringTemplateRenderer $renderer) : ActionInterface
     {
         $json = $this->actionUxon->toJson();
@@ -92,14 +105,10 @@ class CallActionTool extends AbstractAiTool
     }
 
     /**
-     * The task to be executed
-     * 
-     * @uxon-property task
-     * @uxon-type \exface\Core\CommonLogic\AbstractTask
-     * @uxon-template {"alias": ""}
+     * Renders the configured task or creates an empty generic task when none is configured.
      * 
      * @param BracketHashStringTemplateRenderer $renderer
-     * @return $this
+     * @return TaskInterface
      */
     protected function getTask(BracketHashStringTemplateRenderer $renderer) : TaskInterface
     {
@@ -117,12 +126,15 @@ class CallActionTool extends AbstractAiTool
     }
 
     /**
-     * The task to be called
-     *
+     * Configure the action's task, using parameters for named task values.
+     * 
+     * Insert named tool arguments as `[#argument_name#]` placeholders in the
+     * task model. These values are rendered before the action is invoked.
+     * 
      * @uxon-property task
      * @uxon-type \exface\Core\CommonLogic\Tasks\GenericTask
-     * @uxon-template {"arguments": {"": ""}}
-     *
+     * @uxon-template {"parameters": {"": ""}}
+     * 
      * @param UxonObject $uxon
      * @return $this
      */
@@ -150,7 +162,7 @@ class CallActionTool extends AbstractAiTool
 
     /**
      * Returns the first line of the tool class docblock as its default description.
-     *
+     * 
      * @return string|null
      * @throws \ReflectionException
      */

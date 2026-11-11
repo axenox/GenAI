@@ -17,13 +17,29 @@ use exface\Core\Interfaces\WorkbenchInterface;
 /**
  * Get detailed information about any model component: object, action, page, etc.
  * 
+ * ```json
+ * {"alias": "axenox.GenAI.ModelComponentInfoTool"}
  * 
+ * ```
+ * 
+ * 
+ * 
+ * @author GitHub Copilot
  */
 class ModelComponentInfoTool extends AbstractAiTool
 {
     const ARG_COMPONENT = 'component';
     const ARG_SELECTOR = 'selector';
 
+    /**
+     * Executes the configured tool and returns its typed outcome.
+     * 
+     * @throws AiToolRuntimeWarning
+     * @param AiTaskHandlerInterface $agent
+     * @param TaskInterface $prompt
+     * @param array<array-key,mixed> $arguments
+     * @return AiToolResultInterface
+     */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($component, $selector) = $arguments;
@@ -37,9 +53,15 @@ class ModelComponentInfoTool extends AbstractAiTool
                 throw new AiToolRuntimeWarning($this, $prompt, 'No documentation found for component ' . $component . ' with selector ' . $selector);
         }
         
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
+    /**
+     * Builds the default argument definitions for this tool.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @return array<array-key,mixed>
+     */
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);

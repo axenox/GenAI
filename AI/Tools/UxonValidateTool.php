@@ -35,6 +35,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * }
  *  
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class UxonValidateTool extends AbstractAiTool
 {
@@ -49,7 +51,7 @@ class UxonValidateTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        [$input, $objectSelector, $prototypeSelector, $schemaName] = array_pad($arguments, 4, null);
+        [$input, $objectSelector, $prototypeSelector, $schemaName] = $arguments;
 
         try {
             $uxon = UxonObject::fromAnything($input);
@@ -77,8 +79,7 @@ class UxonValidateTool extends AbstractAiTool
             );
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode($diagnostics, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType()
             );
@@ -90,11 +91,9 @@ class UxonValidateTool extends AbstractAiTool
                 null,
                 $e
             );
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode(['error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType(),
                 [],
@@ -105,7 +104,7 @@ class UxonValidateTool extends AbstractAiTool
 
     /**
      * Normalize a PHP class or prototype file path to a fully qualified class name.
-     *
+     * 
      * @param mixed $prototypeSelector
      * @return string|null
      */

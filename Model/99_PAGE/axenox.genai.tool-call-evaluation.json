@@ -37,8 +37,8 @@
                                 "id": "tool_calls_filter_tool_alias"
                             },
                             {
-                                "attribute_alias": "FAILED",
-                                "id": "tool_calls_filter_failed"
+                                "attribute_alias": "STATE",
+                                "id": "tool_calls_filter_state"
                             },
                             {
                                 "attribute_alias": "AI_CONVERSATION__AI_AGENT",
@@ -50,20 +50,34 @@
                         ],
                         "columns": [
                             {
+                                "attribute_alias": "STARTED_ON"
+                            },
+                            {
+                                "attribute_alias": "FINISHED_ON"
+                            },
+                            {
+                                "attribute_alias": "AI_MESSAGE"
+                            },
+                            {
+                                "calculation": "=Left(RESULT, 240)",
+                                "caption": "Result / diagnostics preview (240 chars)",
+                                "cell_widget": {
+                                    "widget_type": "InputText",
+                                    "readonly": true
+                                }
+                            },
+                            {
                                 "attribute_alias": "CREATED_ON"
                             },
                             {
-                                "attribute_alias": "FAILED",
+                                "attribute_alias": "STATE",
                                 "cell_widget": {
-                                    "widget_type": "Icon",
-                                    "color_scale": [
-                                        "",
-                                        "~ERROR"
-                                    ],
-                                    "icon_scale": [
-                                        "",
-                                        "exclamation-triangle"
-                                    ]
+                                    "widget_type": "ColorIndicator",
+                                    "color_scale": {
+                                        "IN_PROGRESS": "orange",
+                                        "SUCCEEDED": "green",
+                                        "FAILED": "~ERROR"
+                                    }
                                 }
                             },
                             {
@@ -98,6 +112,30 @@
                             }
                         ],
                         "buttons": [
+                            {
+                                "caption": "Refresh",
+                                "action_alias": "exface.Core.RefreshWidget",
+                                "icon": "refresh"
+                            },
+                            {
+                                "caption": "Combined message",
+                                "action": {
+                                    "alias": "exface.Core.ShowObjectInfoDialog",
+                                    "object_alias": "axenox.GenAI.AI_MESSAGE",
+                                    "input_mappers": [
+                                        {
+                                            "from_object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                            "to_object_alias": "axenox.GenAI.AI_MESSAGE",
+                                            "column_to_column_mappings": [
+                                                {
+                                                    "from": "AI_MESSAGE",
+                                                    "to": "UID"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
                             {
                                 "action_alias": "exface.Core.ShowObjectInfoDialog",
                                 "bind_to_double_click": true
@@ -151,8 +189,8 @@
                                                     "hidden": true
                                                 },
                                                 {
-                                                    "attribute_alias": "FAILED",
-                                                    "value": "=tool_calls_filter_failed",
+                                                    "attribute_alias": "STATE",
+                                                    "value": "=tool_calls_filter_state",
                                                     "hidden": true
                                                 },
                                                 {
@@ -226,8 +264,8 @@
                                                                     "hidden": true
                                                                 },
                                                                 {
-                                                                    "attribute_alias": "FAILED",
-                                                                    "value": "=tool_calls_filter_failed",
+                                                                    "attribute_alias": "STATE",
+                                                                    "value": "=tool_calls_filter_state",
                                                                     "hidden": true
                                                                 },
                                                                 {
@@ -280,8 +318,8 @@
                                                                     "hidden": true
                                                                 },
                                                                 {
-                                                                    "attribute_alias": "FAILED",
-                                                                    "value": "=tool_calls_filter_failed",
+                                                                    "attribute_alias": "STATE",
+                                                                    "value": "=tool_calls_filter_state",
                                                                     "hidden": true
                                                                 },
                                                                 {
@@ -344,8 +382,8 @@
                                                                     "hidden": true
                                                                 },
                                                                 {
-                                                                    "attribute_alias": "FAILED",
-                                                                    "value": "=tool_calls_filter_failed",
+                                                                    "attribute_alias": "STATE",
+                                                                    "value": "=tool_calls_filter_state",
                                                                     "hidden": true
                                                                 },
                                                                 {
@@ -405,9 +443,9 @@
                                                                     "hidden": true
                                                                 },
                                                                 {
-                                                                    "attribute_alias": "FAILED",
+                                                                    "attribute_alias": "STATE",
                                                                     "comparator": "=",
-                                                                    "value": 1
+                                                                    "value": "FAILED"
                                                                 }
                                                             ]
                                                         },

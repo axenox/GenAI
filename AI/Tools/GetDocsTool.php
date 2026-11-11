@@ -29,10 +29,10 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ## Example configuration in an assistant
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You are an helpful assistant answering questions about a no-code platform for business web apps. Use here is an overview of the available documentation. [#app_docs_overview#]",
- *      "concepts: {
+ *      "concepts": {
  *          "app_docs_overview": {
  *              "class": "axenox\\GenAI\\AI\\Concepts\\AppDocsConcept",
  *              "app_alias": "exface.Core",
@@ -57,9 +57,18 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class GetDocsTool extends AbstractAiTool
 {
+    /**
+     * Initializes the component with its Workbench and runtime context.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @param UxonObject|null $uxon
+     * @return void
+     */
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
         parent::__construct($workbench, $uxon);
@@ -79,6 +88,14 @@ class GetDocsTool extends AbstractAiTool
      */
     const ARG_URI = 'uri';
 
+    /**
+     * Executes the configured tool and returns its typed outcome.
+     * 
+     * @param AiTaskHandlerInterface $agent
+     * @param TaskInterface $prompt
+     * @param array<array-key,mixed> $arguments
+     * @return AiToolResultInterface
+     */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         list($url) = $arguments;
@@ -88,20 +105,20 @@ class GetDocsTool extends AbstractAiTool
         if(! $this->checkSecurity($url)){
             $errorMsg = $this->getSecurityFailurMessage();
             $warning = new AiToolRuntimeWarning($this, $prompt, $errorMsg);
-            return new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType(), [], [$warning]);
+            return new AiToolResultString($this->getWorkbench(), $errorMsg, $this->getReturnDataType(), [], [$warning]);
         }
         
         if(StringDataType::endsWith($url,"php")){
             $phpPrinter = new CodeMarkdownPrinter($this->getWorkbench(), $url);
             $markdown = $phpPrinter->getMarkdown();
-            return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
         }
         
         $docsFacade = FacadeFactory::createFromString(DocsFacade::class, $this->getWorkbench());
         $url = rtrim($url, '.');
         try{
             $md = $docsFacade->getDocsMarkdown($url);
-            $result = new AiToolResultString($this, $arguments, $md, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $md, $this->getReturnDataType());
 
             // Some docs responses may return an error/warning page as markdown instead of throwing.
             if (preg_match('/\b(error|warning)\b/i', $md) === 1) {
@@ -118,9 +135,8 @@ class GetDocsTool extends AbstractAiTool
                 $exception = new AiToolRuntimeError($this, $prompt, 'Failed to load docs markdown. ' . $e->getMessage(), null, $e);
             }
 
-            $this->getWorkbench()->getLogger()->logException($exception);
             $errorMsg = 'ERROR: file not found!';
-            return (new AiToolResultString($this, $arguments, $errorMsg, $this->getReturnDataType()))
+            return (new AiToolResultString($this->getWorkbench(), $errorMsg, $this->getReturnDataType()))
                 ->addException($exception);
         }
     }

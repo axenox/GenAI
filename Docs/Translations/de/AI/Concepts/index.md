@@ -136,6 +136,11 @@ Die Concept-Ausgabe wird beim Rendern des Prompts erzeugt und für diese Concept
 | `tool_definition` | Inline-UXON-Definition für ein temporäres Tool. Sein Funktionsname entspricht standardmäßig dem Concept-Platzhalter. |
 | `arguments` | Geordnete Werte, die an das ausgewählte Tool übergeben werden. |
 
+Argumente verwenden vor dem Aufruf die gemeinsame Bindung und Validierung des Tools:
+Ausgelassene Werte erhalten konfigurierte Standardwerte oder optional `null`; fehlende
+Pflichtwerte und ueberzaehlige Argumente werden abgewiesen. Explizites `null` wird nicht
+durch einen Standardwert ersetzt.
+
 **Verwendung.** Setzen Sie `tool_name`, um ein bereits vom Agenten bereitgestelltes Tool aufzurufen, oder geben Sie eine Inline-`tool_definition` für ein Tool an, das das Modell selbst nicht aufrufen soll. Übergeben Sie Positionswerte über `arguments`. Eingabeplatzhalter wie `[#~input:FIELD#]` können Konfiguration oder Argumente aus der ersten Prompt-Eingabezeile ableiten. Das Weglassen beider Tool-Selektoren ist ein Konfigurationsfehler.
 
 **Ergebnis und Grenzen.** Tool-Frontmatter wird vor dem Einfügen in Markdown konvertiert. Exceptions werden, soweit unterstützt, den Prompt-Warnungen hinzugefügt. Andere Fehler werden protokolliert und führen zu einer leeren Concept-Ausgabe. Da der Aufruf vor jeder Modellantwort ausgeführt wird, sollte er kostengünstig, eng gefiltert und begrenzt sein.

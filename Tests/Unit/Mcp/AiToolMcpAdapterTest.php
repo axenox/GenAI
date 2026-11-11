@@ -3,6 +3,7 @@ namespace axenox\GenAI\Tests\Unit\Mcp;
 
 use axenox\GenAI\Common\Mcp\AiToolMcpAdapter;
 use axenox\GenAI\Interfaces\AiToolInterface;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -40,37 +41,38 @@ class AiToolMcpAdapterTest extends TestCase
         $this->assertSame(10, $definition->inputSchema['properties']['limit']['default']);
     }
 
-    public function testNormalizesNamedArgumentsInParameterOrder() : void
+    /**
+     * MCP schema rejection must not contradict the shared default/null policy.
+     *
+     * @return void
+     */
+    public function testSchemaAllowsOmittedRequiredDefaultsAndOptionalNulls() : void
     {
-        $query = $this->createParameter('search_query', ['type' => 'string'], true);
-        $query->expects($this->once())
-            ->method('parseValue')
-            ->with('agent')
-            ->willReturn('AGENT');
-        $limit = $this->createParameter('limit', ['type' => 'integer'], false, '', 10);
-        $limit->expects($this->once())
-            ->method('parseValue')
-            ->with(2)
-            ->willReturn('2');
-        $adapter = new AiToolMcpAdapter($this->createTool([$query, $limit]));
+        $required = $this->createParameter('required', ['type' => 'string'], true, '', 'default');
+        $optional = $this->createParameter('optional', ['type' => 'integer', 'minimum' => 1], false);
+        $definition = (new AiToolMcpAdapter($this->createTool([$required, $optional])))->createDefinition();
 
+        $this->assertSame([], $definition->inputSchema['required']);
+        $this->assertSame(['type' => 'string', 'default' => 'default'], $definition->inputSchema['properties']['required']);
         $this->assertSame(
-            ['AGENT', '2'],
-            $adapter->normalizeArguments(['limit' => 2, 'search_query' => 'agent'])
+            ['anyOf' => [['type' => 'integer', 'minimum' => 1], ['type' => 'null']]],
+            $definition->inputSchema['properties']['optional']
         );
     }
 
-    public function testNormalizesDefaultsAndMissingRequiredArguments() : void
+    /**
+     * Configured structured defaults must serialize as JSON values instead of empty PHP objects.
+     *
+     * @return void
+     */
+    public function testSchemaPreservesStructuredUxonDefaults() : void
     {
-        $query = $this->createParameter('search_query', ['type' => 'string'], true);
-        $limit = $this->createParameter('limit', ['type' => 'integer'], false, '', 10);
-        $limit->expects($this->once())
-            ->method('parseValue')
-            ->with(10)
-            ->willReturn('10');
-        $adapter = new AiToolMcpAdapter($this->createTool([$query, $limit]));
+        $default = new UxonObject(['code' => '00123', 'nested' => ['enabled' => false]]);
+        $parameter = $this->createParameter('uxon', ['type' => 'object'], false, '', $default);
+        $definition = (new AiToolMcpAdapter($this->createTool([$parameter])))->createDefinition();
+        $schema = json_decode(json_encode($definition->inputSchema, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
 
-        $this->assertSame([null, '10'], $adapter->normalizeArguments([]));
+        $this->assertSame(['code' => '00123', 'nested' => ['enabled' => false]], $schema['properties']['uxon']['default']);
     }
 
     /**

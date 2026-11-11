@@ -23,6 +23,13 @@ use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * Imports model components using Core registry DataSheet templates.
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.ModelComponentImportTool"}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class ModelComponentImportTool extends AbstractAiTool
 {
@@ -35,12 +42,18 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Enriches and imports registry-approved model component DataSheets.
+     * 
+     * @throws AiToolRuntimeError
+     * @param AiTaskHandlerInterface $agent
+     * @param TaskInterface $prompt
+     * @param array<array-key,mixed> $arguments
+     * @return AiToolResultInterface
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $warnings = [];
         try {
-            $payload = $arguments[0] ?? null;
+            $payload = $arguments[0];
             if ($payload === null) {
                 throw new AiToolRuntimeError($this, $prompt, 'Missing data argument in ImportTool');
             }
@@ -66,7 +79,6 @@ class ModelComponentImportTool extends AbstractAiTool
                     if (! $item instanceof UxonObject) {
                         $warning = (new AiToolRuntimeError($this, $prompt, 'Skipped invalid import row at index ' . $index . '.'))
                             ->setLogLevel(LoggerInterface::WARNING);
-                        $this->getWorkbench()->getLogger()->logException($warning);
                         $warnings[] = $warning;
                         continue;
                     }
@@ -82,7 +94,7 @@ class ModelComponentImportTool extends AbstractAiTool
             }
 
             $message = $messages === [] ? 'No Data Imported' : implode("\n", $messages);
-            $result = new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+            $result = new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
             foreach ($warnings as $warning) {
                 $result->addException($warning);
             }
@@ -93,17 +105,19 @@ class ModelComponentImportTool extends AbstractAiTool
             $exception = $e instanceof ExceptionInterface
                 ? $e
                 : new AiToolRuntimeError($this, $prompt, 'Error during import. ' . $e->getMessage(), null, $e);
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
-            return (new AiToolResultString($this, $arguments, $message, $this->getReturnDataType()))
+            return (new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType()))
                 ->addException($exception);
         }
     }
 
     /**
      * Adds configured update timestamps to rows with an existing UID, including nested DataSheets.
-     *
+     * 
      * @param array<string, mixed> $dataSheetData
+     * 
+     * @throws \RuntimeException
+     * @return void
      */
     private function enrichOptimisticLockValues(array &$dataSheetData): void
     {
@@ -202,8 +216,10 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Returns the DataSheet schemas approved for component imports by Core.
-     *
+     * 
      * @return DataSheetSchema[]
+     * 
+     * @throws \RuntimeException
      */
     protected function getDataSchemas(): array
     {
@@ -231,6 +247,8 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Returns the fixed registry-derived component import argument.
+     * 
+     * @return array<array-key,mixed>
      */
     public function getArguments(): array
     {
@@ -250,7 +268,7 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Combines all registry-approved component schemas into one argument schema.
-     *
+     * 
      * @return array<string, mixed>
      */
     protected function getDataSheetArgumentSchema(): array
@@ -269,8 +287,10 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Returns the default argument template used before the registry schema is resolved.
-     *
+     * 
      * @return ServiceParameter[]
+     * 
+     * @param WorkbenchInterface $workbench
      */
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
@@ -286,6 +306,8 @@ class ModelComponentImportTool extends AbstractAiTool
 
     /**
      * Returns markdown for successful imports and import errors.
+     * 
+     * @return DataTypeInterface
      */
     public function getReturnDataType(): DataTypeInterface
     {

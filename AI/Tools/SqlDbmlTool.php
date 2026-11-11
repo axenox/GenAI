@@ -35,6 +35,11 @@ use exface\Core\Templates\Placeholders\FormulaPlaceholders;
  * Relations are derived from metamodel relations and not from foreign key constraints. This gives a good overview of the
  * DB structure, but is a DB agnostic abstraction at the same time.
  * 
+ * ```json
+ * {"alias": "axenox.GenAI.SqlDbmlTool"}
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 class SqlDbmlTool extends AbstractAiTool
@@ -50,8 +55,8 @@ class SqlDbmlTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $connectionSelector = trim((string) ($arguments[0] ?? ''));
-        $dataAddressSearch = trim((string) ($arguments[1] ?? ''));
+        $connectionSelector = trim((string) $arguments[0]);
+        $dataAddressSearch = trim((string) $arguments[1]);
         if ($connectionSelector === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: `connection`.');
         }
@@ -86,9 +91,16 @@ class SqlDbmlTool extends AbstractAiTool
             );
         }
 
-        return new AiToolResultString($this, $arguments, $dbml, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $dbml, $this->getReturnDataType());
     }
     
+    /**
+     * Finds the authorized metaobjects included in the DBML output.
+     * 
+     * @param SqlDataConnectorInterface $connection
+     * @param string $query
+     * @return array<array-key,mixed>
+     */
     protected function findObjects(SqlDataConnectorInterface $connection, string $query) : array
     {
 
@@ -185,6 +197,11 @@ class SqlDbmlTool extends AbstractAiTool
         return $type;
     }
 
+    /**
+     * Returns runtime tool constraints to include in the model instructions.
+     * 
+     * @return string|null
+     */
     public function getRules(): ?string
     {
         return <<<MD

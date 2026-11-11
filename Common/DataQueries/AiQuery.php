@@ -1,136 +1,131 @@
 <?php
 namespace axenox\GenAI\Common\DataQueries;
 
-use axenox\GenAI\AI\Agents\GenericAssistant;
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\DataTypes\AiFinishReasonDataType;
+use axenox\GenAI\Interfaces\AiConversationInterface;
+use axenox\GenAI\Interfaces\AiMessageInterface;
+use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\CommonLogic\DataQueries\AbstractDataQuery;
 use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\DataTypes\ArrayDataType;
-use exface\Core\DataTypes\ComparatorDataType;
-use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\DataSources\DataQueryFailedError;
-use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Interfaces\DataSheets\DataSheetInterface;
-use exface\Core\Interfaces\Filesystem\FileInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
 use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use axenox\GenAI\Interfaces\AiQueryInterface;
-use axenox\GenAI\DataTypes\AiMessageTypeDataType;
-use axenox\GenAI\Common\AiToolCall;
 
 /**
- * Data query in OpenAI style
+ * A single API-agnostic exchange with an LLM carrying the selected conversation messages.
  * 
- * Inspired by OpenAI chat completion API: https://platform.openai.com/docs/api-reference/chat/create
+ * The agent fills the query with messages selected from the conversation and request settings,
+ * the connector sends it and adds the response. Everything the agent needs from the response -
+ * answer, tool calls, finish reason - is derived from the generic response message created by
+ * the response adapter, so there is only one source of truth.
+ * 
+ * Queries are constructed by agents, not configured by users. They transport messages, 
+ * temperature, response JSONschema and other things between agent and LLM.
+ * 
+ * Technically AiQuery is a UXON prototype, but this currently not used anywhere - just inherited
+ * from AbstractDataQuery.
+ * 
+ * @author Andrej Kabachnik
  */
 class AiQuery extends AbstractDataQuery implements AiQueryInterface
 {
-
-    private $workbench;
-
-    private $messages = null;
-
-    private $systemPrompt = null;
+    private array $messages = [];
 
     private $temperature = null;
 
-    private $conversationUid = null;
+    private ?AiConversationInterface $conversation = null;
+
+    private ?RequestInterface $request = null;
+
+    private ?ResponseInterface $response = null;
     
-    private $conversationData = null;
-
-    private $request = null;
-
-    private $response = null;
     private ?HttpResponseAdapterInterface $responseAdapter = null;
+    
+    private ?AiMessageInterface $responseMessage = null;
 
     private $costs = null;
+    
     private array $warnings = [];
     
     private ?array $responseJsonSchema = null;
+    
     private ?string $responseAnswerPath = null;
 
-    private $tools = [];
-    
-    private $files = [];
+    private array $tools = [];
 
-    public function __construct(WorkbenchInterface $workbench)
+    /**
+     * Accepts the messages selected for the model context without copying or loading them.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @param AiConversationInterface|null $conversation
+     * @param AiMessageInterface[] $messages
+     * @return void
+     */
+    public function __construct(WorkbenchInterface $workbench, ?AiConversationInterface $conversation = null, array $messages = [])
     {
-        $this->workbench = $workbench;
+        $this->conversation = $conversation;
+        $this->messages = $messages;
     }
 
     /**
-     * 
-     * @return array
+     * {@inheritDoc}
+     * @see AiQueryInterface::getMessages()
      */
-    public function getMessages(bool $includeConversation = false) : array
+    public function getMessages() : array
     {
-        $messages = [];
-        if ($systemPrompt = $this->getSystemPrompt()) {
-            $messages[] = ['content' => $systemPrompt, 'role' => AiMessageTypeDataType::SYSTEM];
-        }
-        if ($includeConversation === true) {
-            foreach ($this->getConversationData()->getRows() as $row) {
-                if(!in_array($row['ROLE'] ,[AiMessageTypeDataType::SYSTEM, AiMessageTypeDataType::TOOL, AiMessageTypeDataType::TOOLCALLING, AiMessageTypeDataType::WARNING, AiMessageTypeDataType::ERROR]))
-                    $messages[] = ['content' => $row['MESSAGE'], 'role' => $row['ROLE']];
-            }
-        }
-        $messages = array_merge($messages, $this->messages);
-        return $messages;
+        return $this->messages;
     }
 
     /**
-     * 
-     * @param string $content
-     * @param string $role
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     * {@inheritDoc}
+     * @see AiQueryInterface::getConversation()
      */
-    public function appendMessage(string $content, string $role = AiMessageTypeDataType::USER) : AiQuery
+    public function getConversation() : AiConversationInterface
     {
-        $this->messages[] = ['content' => $content, 'role' => $role];
-        return $this;
-    }
-
-    public function appendToolMessages(bool $existingCall, string $toolResponse, string $callId, array $requestMessage) : AiQuery
-    {
-        if (!$existingCall){
-            $this->messages[] = $requestMessage;
+        if ($this->conversation === null) {
+            throw new \LogicException('This standalone query is not bound to a conversation.');
         }
-        
-        $this->messages[] = [
-            'tool_call_id' => $callId,
-            'content' => $toolResponse, 
-            'role' => AiMessageTypeDataType::TOOL
-        ];
-
-        return $this;
+        return $this->conversation;
     }
 
-    public function clearPreviousToolCalls()
-    {
-        $this->messages = array_filter($this->messages, function ($message) {
-            return isset($message['role']) && $message['role'] === AiMessageTypeDataType::USER;
-        });
-    }
     /**
+     * Adds a message to the end of the model context
      * 
-     * @param string $content
-     * @param string $role
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     * @param AiMessageInterface $message
+     * @return AiQuery
      */
-    public function prependMessage(string $content, string $role) : AiQuery
+    public function appendMessage(AiMessageInterface $message) : AiQuery
     {
-        array_unshift($this->messages, ['content'=> $content,'role'=> $role]);
+        $this->messages[] = $message;
         return $this;
     }
 
     /**
+     * Adds a message to the beginning of the model context
+     * 
+     * @param AiMessageInterface $message
+     * @return AiQuery
+     */
+    public function prependMessage(AiMessageInterface $message) : AiQuery
+    {
+        array_unshift($this->messages, $message);
+        return $this;
+    }
+
+    /**
+     * Control response variability when supported by the selected model.
+     * 
+     * @uxon-property temperature
+     * @uxon-type number
      * 
      * @param float $temperature
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     * @return AiQuery
      */
     public function setTemperature(float $temperature) : AiQuery
     {
@@ -139,93 +134,17 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
-     * 
-     * @return float|null
+     * {@inheritDoc}
+     * @see AiQueryInterface::getTemperature()
      */
     public function getTemperature() : ?float
     {
         return $this->temperature;
     }
 
-    public function setConversationUid(string $conversationUid) : AiQuery
-    {
-        $this->conversationUid = $conversationUid;
-        return $this;
-    }
-
-    public function getConversationUid() : string
-    {
-        if ($this->conversationUid === null) {
-            $this->conversationUid = UUIDDataType::generateSqlOptimizedUuid();
-        }
-        return $this->conversationUid;
-    }
-
-    /**
-     * 
-     * @return \exface\Core\Interfaces\DataSheets\DataSheetInterface
-     */
-    protected function getConversationData() : DataSheetInterface
-    {
-        // TODO move this logic to AiConversation class
-        if ($this->conversationData === null) {
-            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-            $sheet->getColumns()->addMultiple([
-                'UID',
-                'MESSAGE',
-                'ROLE'
-            ]);
-            $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationUid());
-            $sheet->getFilters()->addConditionFromString('ROLE', AiMessageTypeDataType::ERROR, ComparatorDataType::EQUALS_NOT);
-            $sheet->getSorters()->addFromString('SEQUENCE_NUMBER','ASC');
-            $sheet->dataRead();
-            $this->conversationData = $sheet;
-            
-
-            foreach ($sheet->getRows() as $row) {
-                if ($row['ROLE'] === AiMessageTypeDataType::USER) {
-                    // TODO load files here by reading them for the message. Which messages can actually include files?
-                        $filesSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
-                        $filesSheet->getFilters()->addConditionFromString('AI_MESSAGE', $row['UID'], ComparatorDataType::EQUALS);
-                        $filesSheet->getColumns()->addMultiple([
-                            'PATHNAME_RELATIVE',
-                            'CONTENTS'
-                        ]);
-                        $filesSheet->dataRead();
-                }
-            }
-
-        }
-        return $this->conversationData;
-    }
-
-    /**
-     * 
-     * @return string
-     */
-    public function getSystemPrompt() : ?string
-    {
-        return $this->systemPrompt;
-    }
-
     /**
      * {@inheritDoc}
-     * @param string $text
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
-     *@see \axenox\GenAI\Interfaces\AiQueryInterface
-     *
-     */
-    public function setSystemPrompt(string $text) : AiQuery
-    {
-        $this->systemPrompt = $text;
-        return $this;
-    }
-
-
-    /**
-     * 
-     * @param \Psr\Http\Message\RequestInterface $request
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     * @see AiQueryInterface::withRequest()
      */
     public function withRequest(RequestInterface $request) : AiQuery
     {
@@ -235,8 +154,9 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
+     * Returns the HTTP request sent to the provider if available
      * 
-     * @return RequestInterface
+     * @return RequestInterface|null
      */
     public function getRequest() : ?RequestInterface
     {
@@ -244,28 +164,60 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
-     * 
-     * @param \Psr\Http\Message\ResponseInterface $response
-     * @return \axenox\GenAI\Common\DataQueries\AiQuery
+     * {@inheritDoc}
+     * @see AiQueryInterface::withResponse()
      */
     public function withResponse(ResponseInterface $response, HttpResponseAdapterInterface $adapter, float $costs = null) : AiQuery
     {
         $clone = clone $this;
         $clone->response = $response;
         $clone->responseAdapter = $adapter;
+        $clone->responseMessage = null;
         $clone->costs = $costs;
         return $clone;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see AiQueryInterface::withWarnings()
+     */
     public function withWarnings(array $warnings) : AiQuery
     {
         $clone = clone $this;
-        $clone->warnings = $warnings;
+        foreach ($warnings as $warning) {
+            $clone->addWarning($warning);
+        }
         return $clone;
     }
 
     /**
-     * 
+     * {@inheritDoc}
+     * @see AiQueryInterface::addWarning()
+     */
+    public function addWarning(\Throwable|string $warning) : AiQuery
+    {
+        $this->warnings[] = $warning;
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiQueryInterface::getWarnings()
+     */
+    public function getWarnings() : array
+    {
+        $warnings = $this->warnings;
+        if ($this->responseAdapter !== null) {
+            foreach ($this->responseAdapter->getWarnings() as $warning) {
+                $warnings[] = $warning;
+            }
+        }
+        return $warnings;
+    }
+
+    /**
+     * Returns TRUE if an HTTP response was received.
+     *
      * @return bool
      */
     public function hasResponse() : bool
@@ -273,6 +225,12 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
         return $this->response !== null;
     }
 
+    /**
+     * Returns the HTTP response received from the provider.
+     *
+     * @throws DataQueryFailedError if there is no response yet
+     * @return ResponseInterface
+     */
     public function getResponse() : ResponseInterface
     {
         if ($this->response === null) {
@@ -282,17 +240,39 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
+     * Returns the response adapter or throws an error if there is no response yet
+     * 
+     * @throws DataQueryFailedError
+     * @return HttpResponseAdapterInterface
+     */
+    protected function getResponseAdapter() : HttpResponseAdapterInterface
+    {
+        if ($this->responseAdapter === null) {
+            throw new DataQueryFailedError($this, 'Cannot access LLM response before the query was sent!');
+        }
+        return $this->responseAdapter;
+    }
+
+    /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::getResponseMessage()
+     */
+    public function getResponseMessage() : AiMessageInterface
+    {
+        // Cache the message as the agent may enrich its tool calls (e.g. with tool aliases) before saving
+        if ($this->responseMessage === null) {
+            $this->responseMessage = $this->getResponseAdapter()->getResponseMessage();
+        }
+        return $this->responseMessage;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiQueryInterface::getCosts()
      */
     public function getCosts() : ?float
     {
         return $this->costs;
-    }
-
-    public function getWarnings() : array
-    {
-        return $this->warnings;
     }
 
     /**
@@ -302,8 +282,10 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
      */
     public function createDebugWidget(DebugMessage $debug_widget)
     {
-        if (null !== $request = $this->getRequest()) {
-            $renderer = new HttpMessageDebugger($request, ($this->hasResponse() ? $this->getResponse() : null), 'Data request', 'Data response');
+        $request = $this->getRequest();
+        $response = $this->hasResponse() ? $this->getResponse() : null;
+        if ($request !== null || $response !== null) {
+            $renderer = new HttpMessageDebugger($request, $response, 'Data request', 'Data response');
             $debug_widget = $renderer->createDebugWidget($debug_widget);
         }
         
@@ -312,15 +294,15 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswerRaw()
+     * @see AiQueryInterface::getAnswerRaw()
      */
     public function getAnswerRaw() : string
     {
-        return $this->responseAdapter->getAnswerRaw();
+        return $this->getResponseMessage()->getText();
     }
 
     /**
-     *
+     * {@inheritDoc}
      * @see AiQueryInterface::getAnswerMarkdown()
      */
     public function getAnswerMarkdown() : string
@@ -329,7 +311,7 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
             $json = $this->getAnswerJson();
 
             if ($this->getResponseAnswerPath() !== null) {
-                $matches = ArrayDataType::filterJsonPath($json, $this->getResponseAnswerPath());
+                $matches = ArrayDataType::filterJsonPath($json ?? [], $this->getResponseAnswerPath());
                 return $matches[0] ?? '';
             } else {
                 $answer = $json;
@@ -348,88 +330,99 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getAnswerJson()
+     * @see AiQueryInterface::getAnswerJson()
      */
     public function getAnswerJson() : ?array
     {
-         try {
-             $json = $this->responseAdapter->getAnswerJson();
-         } catch (\Throwable $e) {
-             throw new DataQueryFailedError($this, 'Expected JSON not received from LLM. ' . $e->getMessage(), null, $e);
-         }
-         return $json;
+        $text = $this->getAnswerRaw();
+        if (trim($text) === '') {
+            return null;
+        }
+        try {
+            $json = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable $e) {
+            throw new DataQueryFailedError($this, 'Expected JSON not received from LLM. ' . $e->getMessage(), null, $e);
+        }
+        return is_array($json) ? $json : null;
     }
     
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::isFinished()
      */
     public function isFinished() : bool
     {
-        return $this->responseAdapter->isFinished();
+        return $this->getFinishReason() === AiFinishReasonDataType::COMPLETED;
     }
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::getFinishReason()
+     */
+    public function getFinishReason() : string
+    {
+        return $this->getResponseAdapter()->getFinishReason();
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiQueryInterface::getTokensInPrompt()
      */
     public function getTokensInPrompt() : int
     {
-        return $this->responseAdapter->getTokensInPrompt();
+        return $this->getResponseAdapter()->getTokensInPrompt();
     }
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::getTokensInAnswer()
      */
     public function getTokensInAnswer() : int
     {
-        return $this->responseAdapter->getTokensInAnswer();
+        return $this->getResponseAdapter()->getTokensInAnswer();
     }
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::getModelName()
      */
-    public function getUserPrompt() : string
+    public function getModelName() : ?string
     {
-        foreach ($this->messages as $row) {
-            if($row['role'] === AiMessageTypeDataType::USER){
-                $userPrompt = $row['content'];
-                if (!isset($userPrompt) || trim($userPrompt) === "") {
-                    $userPrompt = " ";
-                }
-                return $userPrompt;
-            }
-                
-        }
-        throw new DataQueryFailedError($this, 'User message cannot be found');
+        return $this->getResponseAdapter()->getModelName();
     }
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * @see AiQueryInterface::getSequenceNumber()
      */
     public function getSequenceNumber() : int
     {
-        $storedSheet = $this->getConversationData();
-        $cnt = $storedSheet->countRows();
-        return $cnt;
+        return count($this->messages);
     }
 
+    /**
+     * Sets the runtime answer schema from a PHP array, outside query UXON import.
+     * 
+     * @param array<string,mixed> $value JSON schema already normalized by the caller.
+     * @return AiQuery
+     */
     public function setResponseJsonSchema(array $value)
     {
         $this->responseJsonSchema = $value;
         return $this;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see AiQueryInterface::getResponseJsonSchema()
+     */
     public function getResponseJsonSchema() : ?array
     {
         return $this->responseJsonSchema;
     }
 
     /**
-     *
+     * 
      * @return bool
      */
     protected function hasResponseJsonSchema() : bool
@@ -439,12 +432,15 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * If the AI should respond with JSON, specify the path where to find its answer/comment in that JSON
-     *
+     * 
      * @uxon-property response_answer_path
      * @uxon-type string
      * @uxon-template $.text
-     *
+     * 
      * @see AiQueryInterface::setResponseAnswerPath()
+     * 
+     * @param string $jsonPath
+     * @return AiQueryInterface
      */
     public function setResponseAnswerPath(string $jsonPath) : AiQueryInterface
     {
@@ -453,8 +449,7 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
-     * Returns the JSONpath to find the text answer in the response JSON if a response_json_schema was provided
-     * 
+     * {@inheritDoc}
      * @see AiQueryInterface::getResponseAnswerPath()
      */
     public function getResponseAnswerPath() : ?string
@@ -463,14 +458,11 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
-     * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
+     * Adds a configured tool available to the next model request.
+     * 
+     * @param AiToolInterface $tool
+     * @return AiQuery
      */
-    public function getFinishReason() : string
-    {
-        return $this->responseAdapter->getFinishReason();
-    }
-
     public function addTool(AiToolInterface $tool) : AiQuery
     {
         $this->tools[] = $tool;
@@ -478,7 +470,8 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     }
 
     /**
-     * @return AiToolInterface[]
+     * {@inheritDoc}
+     * @see AiQueryInterface::getTools()
      */
     public function getTools() : array
     {
@@ -487,48 +480,20 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
     
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::hasToolCalls()
+     * @see AiQueryInterface::hasToolCalls()
      */
     public function hasToolCalls() : bool
     {
-        return $this->responseAdapter->hasToolCalls();
+        return $this->getToolCalls() !== [];
     }
 
     /**
      * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface::getToolCalls()
+     * @see AiQueryInterface::getToolCalls()
      */
     public function getToolCalls() : array
     {
-        return $this->responseAdapter->getToolCalls();
+        $message = $this->getResponseMessage();
+        return $message instanceof AiToolCallMessageInterface ? $message->getCalls() : [];
     }
-    
-    public function setFiles(array $files): AiQuery
-    {
-        $this->files = $files;
-        return $this;
-    }
-    
-    public function hasFiles() : bool
-    {
-        return !empty($this->files);
-    }
-
-    /**
-     * @return FileInterface[]
-     */
-    public function getFiles() : array
-    {
-        return $this->files;
-    }
-    
-    /**
-     * {@inheritDoc}
-     * @see \axenox\GenAI\Interfaces\AiQueryInterface
-     */
-    public function getResponseMessage() : array
-    {
-        return $this->responseAdapter->getResponseMessage();
-    }
-
 }

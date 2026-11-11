@@ -3,6 +3,7 @@ namespace axenox\GenAI\Interfaces;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\WorkbenchDependantInterface;
+use exface\Core\Interfaces\iCanBeConvertedToUxon;
 
 /**
  * A container for the result of an individual tools - similar to task results in actions
@@ -10,39 +11,71 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
  * @author Andrej Kabachnik
  *
  */
-interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
+interface AiToolResultInterface extends WorkbenchDependantInterface, iCanBeConvertedToUxon, \Stringable
 {
 
     /**
-     * @return AiToolInterface
+     * Returns the retained typed value, independently of display or protocol rendering.
+     * 
+     * @return mixed
      */
-    public function getTool(): AiToolInterface;
+    public function getValue() : mixed;
 
     /**
-     * @return array
-     */
-    public function getArguments(): array;
-    
-    /**
-     * Returns the tool response as a string
+     * Returns durable error messages in occurrence order.
      * 
-     * @return string
+     * @return string[]
      */
-    public function getValue() : string;
+    public function getErrors() : array;
+
+    /**
+     * Returns durable warning messages in occurrence order.
+     * 
+     * @return string[]
+     */
+    public function getWarnings() : array;
+
+    /**
+     * @return \Throwable[] Fresh reporting failures, separate from the tool's execution outcome.
+     */
+    public function getOperationalErrors() : array;
+
+    /**
+     * Marks a rejected request as failed even when its diagnostic is a warning.
+     * 
+     * @param bool $failed
+     * @return AiToolResultInterface
+     */
+    public function setFailed(bool $failed) : AiToolResultInterface;
+
+    /**
+     * Returns the monotonic execution duration in milliseconds.
+     * 
+     * @return float|null
+     */
+    public function getDurationMs() : ?float;
+
+    /**
+     * Records the monotonic execution duration in milliseconds.
+     * 
+     * @param float $milliseconds
+     * @return AiToolResultInterface
+     */
+    public function setDurationMs(float $milliseconds) : AiToolResultInterface;
 
     /**
      * Returns the tool response together with metadata intended for the LLM.
-     *
+     * 
      * Metadata includes diagnostics attached to the result and may later include
      * standardized formats such as OKF without changing the raw result value.
-     *
+     * 
      * @return string
      */
     public function getValueWithMetadata() : string;
 
     /**
      * Returns the tool response formatted as Markdown.
-     *
+     * 
      * @param bool $includeMetadata Include diagnostics and other LLM-facing metadata.
      * @return string
      */
@@ -57,21 +90,21 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
 
     /**
      * Returns an array of additional instructions to be included in the tool response (e.g. explanations, etc.)
-     *
+     * 
      * Each tool can produce multiple appendix items. However, since LLM can call multiple tools at once, duplicate
      * appendix items may happen easily. Thus, appendix items are collected from all tool calls and duplicates are
      * removed before sending them to the LLM - that is the reason for having an array here instead of a string.
-     *
+     * 
      * @return string[]
      */
     public function getAppendix() : array;
 
     /**
      * Returns all stored exceptions for this tool response.
-     *
+     * 
      * Consumers classify severity via ExceptionInterface::getLogLevel()
      * (e.g. warning vs error persistence).
-     *
+     * 
      * @return ExceptionInterface[]
      */
     public function getExceptions() : array;
@@ -85,7 +118,7 @@ interface AiToolResultInterface extends WorkbenchDependantInterface, \Stringable
     public function addException(\Throwable $exception) : AiToolResultInterface;
 
     /**
-     * Returns TRUE if the tool could not be executed (= result should not be sent to LLM) and FALSE otherwise
+     * Returns TRUE for rejected calls or ERROR-or-higher diagnostics. Failed results remain deliverable.
      * 
      * @return bool
      */

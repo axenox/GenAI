@@ -28,7 +28,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ## Example tool
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You help users analyze business data",
  *      "tools": {
@@ -54,7 +54,7 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *       "object_alias": "exface.Core.WIDGET_SETUP",
  *       "columns": [
  *           {"name": "NAME", "attribute_alias": "NAME"},
- *           {"name": "VISIBILITY", "attribute_alias": "VISIBILITY"},
+ *           {"name": "VISIBILITY", "attribute_alias": "VISIBILITY"}
  *       ],
  *       "filters": {
  *           "operator": "AND",
@@ -62,9 +62,9 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *               {
  *                   "expression": "PAGE",
  *                   "comparator": "==",
- *                   "value": "0x11ef9d7a355bec329d7a005056bef75d",
+ *                   "value": "0x11ef9d7a355bec329d7a005056bef75d"
  *               }
- *           ],
+ *           ]
  *       },
  *       "rows_limit": null,
  *       "rows_offset": 0
@@ -79,15 +79,15 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *      "object_alias": "exface.Core.WIDGET_SETUP",
  *      "columns": [
  *          {"name": "NAME", "attribute_alias": "NAME"},
- *          {"name": "VISIBILITY", "attribute_alias": "VISIBILITY"},
+ *          {"name": "VISIBILITY", "attribute_alias": "VISIBILITY"}
  *      ],
  *      "rows": [
  *          {
  *              "NAME": "Andrejs Share-Test",
- *              "VISIBILITY": "PRIVATE",
+ *              "VISIBILITY": "PRIVATE"
  *          }, {
  *              "NAME": "Andrejs Share-Test",
- *              "VISIBILITY": "PRIVATE",
+ *              "VISIBILITY": "PRIVATE"
  *          }
  *      ],
  *      "totals_rows": [],
@@ -97,9 +97,9 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *              {
  *                  "expression": "PAGE",
  *                  "comparator": "==",
- *                  "value": "0x11ef9d7a355bec329d7a005056bef75d",
- *              },
- *          ],
+ *                  "value": "0x11ef9d7a355bec329d7a005056bef75d"
+ *              }
+ *          ]
  *      },
  *      "rows_limit": null,
  *      "rows_offset": 0
@@ -230,9 +230,11 @@ class DataSheetReadTool extends AbstractAiTool
      * @uxon-property output_mode
      * @uxon-type [markdown_table, markdown, json]
      * @uxon-default markdown_table
-     *
+     * 
      * @param string $mode
      * @return $this
+     * 
+     * @throws \InvalidArgumentException
      */
     protected function setOutputMode(string $mode)
     {
@@ -254,7 +256,7 @@ class DataSheetReadTool extends AbstractAiTool
      * @uxon-property header_level
      * @uxon-type integer
      * @uxon-default 2
-     *
+     * 
      * @param int $level
      * @return $this
      */
@@ -273,7 +275,7 @@ class DataSheetReadTool extends AbstractAiTool
      * @uxon-property include_object_description
      * @uxon-type boolean
      * @uxon-default true for markdown_table, false otherwise
-     *
+     * 
      * @param bool $includeObjectDescription
      * @return $this
      */
@@ -283,6 +285,11 @@ class DataSheetReadTool extends AbstractAiTool
         return $this;
     }
 
+    /**
+     * Reports whether object descriptions should be included in the output.
+     * 
+     * @return bool
+     */
     protected function isObjectDescriptionEnabled() : bool
     {
         if ($this->includeObjectDescription !== null) {
@@ -299,7 +306,7 @@ class DataSheetReadTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $dataSheetArg = $arguments[0] ?? null;
+        $dataSheetArg = $arguments[0];
         if ($dataSheetArg === null || $dataSheetArg === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: data_sheet');
         }
@@ -336,8 +343,7 @@ class DataSheetReadTool extends AbstractAiTool
         $rendered = $this->renderOutput($dataSheet, $prompt);
 
         $result = new AiToolResultString(
-            $this,
-            [$dataSheet->exportUxonObject()->toArray()],
+            $this->getWorkbench(),
             $rendered,
             $this->getReturnDataType()
         );
@@ -368,11 +374,11 @@ class DataSheetReadTool extends AbstractAiTool
     /**
      * Render the current data sheet in the configured output mode and return the final
      * tool output string.
-     *
+     * 
      * The returned value always starts with a short sentence describing the object, then
      * adds the rendered payload (JSON, markdown table or plain markdown), and optionally
      * appends a more detailed object description block if enabled.
-     *
+     * 
      * @param DataSheetInterface $dataSheet
     * @param TaskInterface|null $prompt
      * @return string Final text for the tool result. Never returns null.
@@ -429,11 +435,11 @@ class DataSheetReadTool extends AbstractAiTool
     
     /**
      * Create a plain markdown representation of the data sheet.
-     *
+     * 
      * Returns a markdown document with a heading and either a single-item bullet list or
      * one section per row. The method is intended for human-readable output and returns
      * the markdown text only; it does not attach warnings or modify the tool result.
-     *
+     * 
      * @param DataSheetInterface $dataSheet
     * @param TaskInterface|null $prompt
      * @return string Markdown text generated from the data sheet rows.
@@ -490,13 +496,13 @@ MD;
 
     /**
      * Determine a readable title for a markdown row section.
-     *
+     * 
      * The first non-empty, non-null value from the row is used as a display title. If no
      * meaningful value exists, the method returns null and the caller can fall back to a
      * generic entry label such as "Entry 1".
-     *
-     * @param array $row
-     * @param array $columns
+     * 
+     * @param array<array-key,mixed> $row
+     * @param array<array-key,mixed> $columns
      * @return string|null Human readable row title or null if no useful value was found.
      */
     protected function getMarkdownRowTitle(array $row, array $columns) : ?string
@@ -520,11 +526,11 @@ MD;
 
     /**
      * Try to fetch a markdown description for the meta object behind the data sheet.
-     *
+     * 
      * This method is optional and can be disabled via configuration. When available, it
      * returns a markdown block describing the object; otherwise it returns an empty string.
      * Recoverable failures are captured as warnings and do not break the tool response.
-     *
+     * 
      * @param DataSheetInterface $dataSheet
      * @param string|null $filters
     * @param TaskInterface|null $prompt
@@ -561,11 +567,11 @@ MD;
 
     /**
      * Normalize a scalar, array or object value into a markdown-safe string.
-     *
+     * 
      * This is used for table and list output so values can be inserted into markdown without
      * causing formatting issues. The method always returns a string; null values are rendered
      * as "null".
-     *
+     * 
      * @param mixed $value
      * @return string String representation safe to embed in markdown output.
      */
@@ -596,11 +602,11 @@ MD;
     
     /**
      * Create a markdown table from the data sheet rows.
-     *
+     * 
      * Returns a markdown header plus a table body generated from the selected columns. This
      * is the default output mode for the tool and is intended to produce compact, LLM-friendly
      * data output.
-     *
+     * 
      * @param DataSheetInterface $dataSheet
     * @param TaskInterface|null $prompt
      * @return string Markdown table string with a heading section.
@@ -628,7 +634,7 @@ MD;
     /**
      * Returns the JSON schema definitions for complex arguments.
      * 
-     * @return array Associative array of argument name => JSON schema
+     * @return array<array-key,mixed> Associative array of argument name => JSON schema
      */
     public static function getArgumentsJsonSchema(): array
     {
@@ -639,8 +645,10 @@ MD;
 
     /**
      * Builds the JSON schema for the DataSheet UXON argument.
-     *
-     * @return array
+     * 
+     * @return array<array-key,mixed>
+     * 
+     * @param bool $requireAllProperties
      */
     protected static function buildSchemaForDataSheet(bool $requireAllProperties = true): array
     {

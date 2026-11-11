@@ -3,7 +3,6 @@ namespace axenox\GenAI\AI\Agents;
 
 use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiResponse;
-use axenox\GenAI\Common\AiToolCallResponse;
 use axenox\GenAI\Common\AiToolResultString;
 use axenox\GenAI\Common\ToolBox;
 use axenox\GenAI\Events\OnAiToolCallEvent;
@@ -38,16 +37,12 @@ use exface\Core\Templates\Placeholders\FormulaPlaceholders;
  * 
  * ## Examples
  * 
- * ```
+ * ```json
  * {
- *   "system_prompt": "
- *      You are a helpful assistant, who will answer questions about the structure of the following database. 
- *      Here is the DB schema in DBML: \n\n[#metamodel_dbml#]
- *      Answer using the following locale \"[#=User('LOCALE')#]\"
- *   ",
- *   "system_concepts": {
- *     "metamodel_bmdb": {
- *       "class": "\\exface\\Core\\AI\\Concepts\\MetamodelDbmlConcept",
+ *   "instructions": "Answer questions about this schema:\n\n[#metamodel_dbml#]",
+ *   "concepts": {
+ *     "metamodel_dbml": {
+ *       "class": "\\axenox\\GenAI\\AI\\Concepts\\MetamodelDbmlConcept",
  *       "object_filters": {
  *         "operator": "AND",
  *         "conditions": [
@@ -92,9 +87,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     private $maxNumberOfCalls = 10;
 
-    /** @var AiToolCallResponse[] */
-    private array $toolCalls = [];
-
     private $promptSuggestions = [];
 
     /**
@@ -104,6 +96,9 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
      * probably getSkills() too. In the case of getSkills() we could also leave each skill prompt-independent, but
      * give Skill::getInstructions() the $prompt as argument underlining that the instruction rendering actually needs
      * the prompt context - for concepts inside the skills.
+     * 
+     * @param AiPromptInterface $prompt
+     * @return void
      */
     protected function init(AiPromptInterface $prompt) : void
     {
@@ -115,30 +110,20 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         $this->initTools();
     }
 
+    /**
+     * {@inheritDoc}
+     * @see AiAgentInterface::handle()
+     */
     public function handle(AiPromptInterface $prompt) : AiResponseInterface
     {
         $this->init($prompt);
-
-        // Initialize the data query
-        $query = new AiQuery($this->workbench);
-        // Add the user prompt. Do it before initializing the conversation - if it is a new conversation, the user
-        // prompt will be used as title.
-        $query->appendMessage($prompt->getUserPrompt());
-        $query->setFiles($prompt->getFiles());
-        
-        // Create or restore the conversation for this execution.
         $conversation = AiFactory::createConversationFromPrompt($this, $prompt);
-        $conversationId = $conversation->getConversationId();
-        $query->setConversationUid($conversationId);
-
-
         try {
             if ($conversation->hasSystemPrompt()) {
                 $systemPrompt = $conversation->getSystemPrompt();
             } else {
                 $systemPrompt = $this->renderSystemPrompt($prompt);
             }
-            $query->setSystemPrompt($systemPrompt);
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to prepare AI prompt. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
@@ -146,19 +131,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             $this->workbench->getLogger()->logException($e);
             return $this->createResponseUnavailable('Error contacting the assistant', $prompt, $e);
             */
-        }
-
-        // Add JSON schema
-        if($this->hasResponseJsonSchema()) {
-            $query->setResponseJsonSchema($this->getResponseJsonSchema());
-            if ($val = $this->getResponseAnswerPath()) {
-                $query->setResponseAnswerPath($val);
-            }
-        }
-        
-        // Add tools
-        foreach ($this->getTools() as $tool) {
-            $query->addTool($tool);
         }
 
         // Now save the conversation messages for system and user prompts including all their metadata metadata
@@ -177,6 +149,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         }
 
         try {
+            $query = $this->createQuery($conversation);
             $performedQuery = $this->getConnection()->query($query);
         } catch (\Throwable $e){
             $e = new AiPromptError($this, $prompt, 'Failed to query LLM. ' . $e->getMessage(), null, $e);
@@ -192,110 +165,114 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
         try {
-            $conversation->saveResponse(
-                $performedQuery,
-                $performedQuery->getAnswerMarkdown(),
-                $this->hasResponseJsonSchema() ? $performedQuery->getAnswerJson() : null
-            );
-            return $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
+            $conversation->saveResponse($performedQuery);
+            $response = $this->parseDataQueryResponse($prompt, $performedQuery, $conversation->getConversationId());
+            $response->setConversation($conversation, $conversation->getGeneratedMessages());
+            return $response;
         } catch (\Throwable $e) {
             $e = new AiPromptError($this, $prompt, 'Failed to process AI response. ' . $e->getMessage(), null, $e);
             throw $conversation->saveError($e, $this->getTools(), $this->getResponseJsonSchema());
         }
     }
 
+    /**
+     * Creates a new query from the active messages of the conversation - for every submission to the LLM.
+     * 
+     * Messages always pass through the conversation: the agent never builds the model context from its
+     * own copies, so tool results saved in the conversation are automatically part of the next query.
+     * 
+     * @param AiConversationInterface $conversation
+     * @return AiQuery
+     */
+    protected function createQuery(AiConversationInterface $conversation) : AiQuery
+    {
+        $query = new AiQuery($this->workbench, $conversation, $conversation->getMessagesActive());
+        if ($this->hasResponseJsonSchema()) {
+            $query->setResponseJsonSchema($this->getResponseJsonSchema());
+            if ($path = $this->getResponseAnswerPath()) {
+                $query->setResponseAnswerPath($path);
+            }
+        }
+        foreach ($this->getTools() as $tool) {
+            $query->addTool($tool);
+        }
+        return $query;
+    }
+
+    /**
+     * Coordinates committed batch/detail evidence around the shared invocation lifecycle.
+     * 
+     * @throws AiPromptError
+     * @param AiPromptInterface $prompt
+     * @param AiQueryInterface $performedQuery
+     * @param AiConversationInterface $conversation
+     * @return AiQueryInterface
+     */
     protected function handleToolCalls(AiPromptInterface $prompt, AiQueryInterface $performedQuery, AiConversationInterface $conversation) : AiQueryInterface
     {
         $numberOfCallResponses = 0;
-        $toolCallResponses = [];
-        // Check if the LLM has put some tool calls in its response
         while ($performedQuery->hasToolCalls()) {
             $numberOfCallResponses++;
-            $conversation->saveToolCallRequest($performedQuery);
-
-            if ($numberOfCallResponses > $this->maxNumberOfCalls) {
-                // Add an AiQueryError that will accept the $performedQuery too, so that we see the actual
-                // HTTP messages in the logs
-                throw new AiPromptError($this, $prompt, 'Too many recursive tool call responses from LLM: ' . $numberOfCallResponses . ' one after another!');
+            $aliases = [];
+            foreach ($this->getTools() as $tool) {
+                $aliases[$tool->getName()] = $tool->getAliasWithNamespace();
             }
-
+            $toolCallMessage = $performedQuery->getResponseMessage();
             $requestedCalls = $performedQuery->getToolCalls();
-            $existingCall = false;
-
-            foreach($requestedCalls as $call){
-                $resultOfTool = null;
-                $tool = $this->getTool($call->getToolName());
-                $args = array_values($call->getArguments());
-                if ($this->maxNumberOfCalls >= $numberOfCallResponses) {
-                    try {
-                        $this->getWorkbench()->eventManager()->dispatch(new OnBeforeAiToolCallEvent($tool));
-                    } catch (\Throwable $e) {
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    $toolStartedAt = microtime(true);
-                    try {
-                        $resultOfTool = $tool->invoke($this, $prompt, $args);
-                        $exceptions = $resultOfTool->getExceptions();
-                    } catch (\Throwable $e) {
-                        if (! $e instanceof AiToolCriticalError) {
-                            $e = new AiToolCriticalError($tool, $prompt, 'Unexpected error in AI tool. ' . $e->getMessage(), null, $e);
-                        }
-                        $e->setToolCall($call);
-                        $resultOfTool = new AiToolResultString($tool, $args, 'ERROR: Tool execution failed. ' . $e->getMessage(), null, [], [$e]);
-                        $exceptions = [$e];
-                    } finally {
-                        if ($resultOfTool !== null && method_exists($resultOfTool, 'setDurationMs')) {
-                            $resultOfTool->setDurationMs((microtime(true) - $toolStartedAt) * 1000);
-                        }
-                    }
-                    foreach ($exceptions as $e) {
-                        if ($e instanceof AiToolCriticalError) {
-                            $e->setToolCall($call);
-                        }
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    $conversation->saveExceptions($exceptions);
-                    
-                    // TODO why are we checking for a specific method here? Why is it not in the interface???
-                    $durationMs = method_exists($resultOfTool, 'getDurationMs')
-                        ? $resultOfTool->getDurationMs()
-                        : null;
-                    try {
-                        $this->getWorkbench()->eventManager()->dispatch(new OnAiToolCallEvent($resultOfTool, $durationMs));
-                    } catch (\Throwable $e) {
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    
-                } else {
-                    $resultOfTool = new AiToolResultString($tool, $args, "ERROR: Maximum number of tool calls ({$numberOfCallResponses}) have been reached.");
-                    // TODO is this actually an error? Should we log an exception here?
-                } 
-
-                //to prevent duplication on calls
-                $callId = $call->getCallId();
-
-                $toolCallResponses[$callId] = new AiToolCallResponse(
-                    $call->getToolName(),
-                    $callId,
-                    $call->getArguments(),
-                    $resultOfTool
-                );
-
-                $this->toolCalls[] = $toolCallResponses[$callId];
-                
-                // TODO move rendering tool result as string to the API adapters. 
-                // Having the result rendering logic in the tool result itself is not flexible enough! The adapter should
-                // decide, if the result should be represented as markdown, as JSON or maybe even as XML!
-                $performedQuery->appendToolMessages($existingCall, $resultOfTool->getValueWithMetadata(), $callId, $performedQuery->getResponseMessage());
-                $existingCall = true;
+            foreach ($requestedCalls as $call) {
+                $call->setToolAlias($aliases[$call->getToolName()] ?? null);
             }
-            $conversation->saveToolResponses($performedQuery, $toolCallResponses);
-            $toolCallResponses = [];
-            $performedQuery = $this->getConnection()->query($performedQuery);
+            $batchStarted = hrtime(true);
+            $messageId = $conversation->saveToolCalls($toolCallMessage, $performedQuery)->getUid();
+            $results = [];
+            $timing = [];
+
+            foreach ($requestedCalls as $call) {
+                $recordId = null;
+                $started = date('Y-m-d H:i:s');
+                try {
+                    $recordId = $conversation->saveToolCallStart($messageId, $call, ['started_on' => $started]);
+                } catch (\Throwable $error) {
+                    $conversation->reportOperationalError($error);
+                }
+                if ($numberOfCallResponses <= $this->maxNumberOfCalls) {
+                    $result = $this->callTool($prompt, $call);
+                    foreach ($this->getToolOperationalErrors() as $error) {
+                        $conversation->reportOperationalError($error);
+                    }
+                } else {
+                    $error = new \exface\Core\Exceptions\RuntimeException('Maximum number of tool rounds reached.');
+                    $error->setLogLevel(\exface\Core\Interfaces\Log\LoggerInterface::WARNING);
+                    $result = (new AiToolResultString($this->workbench, '', null, [], [$error]))->setFailed(true);
+                }
+                $finished = date('Y-m-d H:i:s');
+                $results[$call->getCallId()] = $result;
+                $timing[$call->getCallId()] = [
+                    'started_on' => $started, 'finished_on' => $finished,
+                    'duration_ms' => $result->getDurationMs(), 'execution_arguments' => $call->getExecutionArguments()
+                ];
+                if ($recordId !== null) {
+                    try {
+                        $conversation->saveToolCallEnd($recordId, $result, ['finished_on' => $finished]);
+                    } catch (\Throwable $error) {
+                        $conversation->reportOperationalError($error);
+                    }
+                }
+            }
+            try {
+                $conversation->saveToolResults($messageId, $results, ['call_timing' => $timing, 'duration_ms' => (hrtime(true) - $batchStarted) / 1000000]);
+            } catch (\Throwable $error) {
+                $conversation->reportOperationalError($error);
+            }
+            if ($numberOfCallResponses > $this->maxNumberOfCalls) {
+                throw new AiPromptError($this, $prompt, 'Too many recursive tool-call responses from the LLM.');
+            }
+            // The next query contains the results, because they were saved in the conversation
+            $nextQuery = $this->createQuery($conversation);
+            $performedQuery = $this->getConnection()->query($nextQuery);
             if (! $performedQuery instanceof AiQueryInterface) {
                 throw new AiPromptError($this, $prompt, 'AI connection returned an invalid query type: expecting instance of AiQueryInterface.');
             }
-            //$query->clearPreviousToolCalls();
         }
         return $performedQuery;
     }
@@ -323,6 +300,12 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     }
 
     
+    /**
+     * Configures reusable skills and resets derived concept tools.
+     * 
+     * @param UxonObject $skills
+     * @return AiAgentInterface
+     */
     protected function setSkills(UxonObject $skills) : AiAgentInterface
     {
         parent::setSkills($skills);
@@ -330,6 +313,11 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $this;
     }
 
+    /**
+     * Returns the configured concept definitions before rendering.
+     * 
+     * @return UxonObject|null
+     */
     public function getRawConcepts() : ?UxonObject
     {
         if ($this->conceptConfig instanceof UxonObject) {
@@ -342,6 +330,9 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     /**
      * 
      * @return \axenox\GenAI\Interfaces\AiConceptInterface[]
+     * 
+     * @param AiPromptInterface $prompt
+     * @param BracketHashStringTemplateRenderer|null $configRenderer
      */
     protected function initConcepts(
         AiPromptInterface $prompt,
@@ -372,7 +363,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * Returns the initialized concepts.
-     *
+     * 
      * @return AiConceptInterface[]
      */
     protected function getConcepts() : array
@@ -402,6 +393,15 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $this;
     }
     
+    /**
+     * Override the configured instructions with sample instructions for a test run.
+     * 
+     * @uxon-property sample_system_prompt
+     * @uxon-type string
+     * 
+     * @param string $text
+     * @return AiAgentInterface
+     */
     protected function setSampleSystemPrompt(string $text) : AiAgentInterface
     {
         $this->sampleSystemPrompt = $text;
@@ -457,6 +457,8 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * Builds the persisted system-prompt metadata, including rendered skill lengths.
+     * 
+     * @return array<array-key,mixed>
      */
     protected function createSystemPromptMessageData() : array
     {
@@ -483,13 +485,13 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
         return [
             'model' => $this->getConnection()->getModelName(),
-            'payload' => $payload
+            'payload' => $payload->toArray()
         ];
     }
 
     /**
      * Renders the instructions of all assigned skills as a system-prompt appendix.
-     *
+     * 
      * @return string
      */
     protected function renderSkills() : string
@@ -505,6 +507,12 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $appendix;
     }
 
+    /**
+     * Get App.
+     * 
+     * @param AiPromptInterface $prompt
+     * @return AppInterface|null
+     */
     protected function getApp(AiPromptInterface $prompt) : ?AppInterface
     {
         $app = null;
@@ -517,6 +525,9 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * Creates a renderer with placeholders from the current prompt context.
+     * 
+     * @param AiPromptInterface $prompt
+     * @return BracketHashStringTemplateRenderer
      */
     protected function createPromptRenderer(AiPromptInterface $prompt) : BracketHashStringTemplateRenderer
     {
@@ -534,7 +545,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     }
 
     /**
-     *
+     * 
      * {@inheritdoc}
      * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::getUxonSchemaClass()
      */
@@ -546,6 +557,8 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     /**
      * 
         * @return AiConnectorInterface
+     * 
+     * @throws AiConnectionNotFoundError
      */
     public function getConnection() : AiConnectorInterface
     {
@@ -559,6 +572,10 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     }
     
     /**
+     * Select the configured connection used to submit prompts to the LLM.
+     * 
+     * @uxon-property data_connection_alias
+     * @uxon-type metamodel:exface.Core.CONNECTION
      * 
      * @param string $selector
      * @return \axenox\GenAI\Interfaces\AiAgentInterface
@@ -574,6 +591,8 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
      * @param \axenox\GenAI\Interfaces\AiPromptInterface $prompt
     * @param \axenox\GenAI\Interfaces\AiQueryInterface $query
      * @return \axenox\GenAI\Common\AiResponse
+     * 
+     * @param string $conversationId
      */
     protected function parseDataQueryResponse(AiPromptInterface $prompt, AiQueryInterface $query, string $conversationId) : AiResponse
     {
@@ -582,7 +601,6 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         } else {
             $response = new AiResponse($prompt, $query->getAnswerMarkdown(), $conversationId);
         }
-        $response->setToolCalls($this->toolCalls);
         return $response;
     }
 
@@ -600,7 +618,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * 
-     * @return array|null
+     * @return array<array-key,mixed>|null
      */
     protected function getResponseJsonSchema() : ?array
     {
@@ -616,6 +634,17 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $this->getResponseJsonSchema() !== null;
     }
 
+    /**
+     * Exclude test and development conversations from production statistics.
+     * 
+     * Defaults to development mode for versions that are not enabled.
+     * 
+     * @uxon-property devmode
+     * @uxon-type boolean
+     * 
+     * @param bool $trueOrFalse
+     * @return AiAgentInterface
+     */
     public function setDevmode(bool $trueOrFalse): AiAgentInterface
     {
         $this->devMode = $trueOrFalse;
@@ -629,7 +658,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
     public function getDevmode() : bool
     {
         if($this->devMode === null){
-            $this->setDevmode(BooleanDataType::cast($this->getVersionRow()['ENABLED_FLAG']));
+            $this->setDevmode(!BooleanDataType::cast($this->getVersionRow()['ENABLED_FLAG']));
         }
         return $this->devMode;
         
@@ -704,7 +733,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
 
     /**
      * Adds tools contributed by configured skills and concepts.
-     *
+     * 
      * @param ToolBox $toolBox
      * @return \Throwable[]
      */
@@ -739,6 +768,8 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
      * 
      * @param UxonObject $alias
      * @return AIChat
+     * 
+     * @param UxonObject $suggestions
      */
     protected function setPromptSuggestions(UxonObject $suggestions) : GenericAssistant
     {
@@ -754,6 +785,11 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         return $this;
     }
 
+    /**
+     * Get Prompt Suggestions.
+     * 
+     * @return array<array-key,mixed>
+     */
     public function getPromptSuggestions(): array
     {
         return $this->promptSuggestions;

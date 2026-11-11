@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI conversation [axenox.GenAI.AI_CONVERSATION]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-09-08 09:45:55",
+            "MODIFIED_ON": "2026-11-10 18:12:28",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef91a72e443c7491a7025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -116,6 +116,14 @@
                             {
                                 "caption": "Conversation",
                                 "widgets": [
+                                    {
+                                        "attribute_alias": "TYPE",
+                                        "widget_type": "Display"
+                                    },
+                                    {
+                                        "attribute_alias": "TOPIC_ID",
+                                        "widget_type": "Display"
+                                    },
                                     {
                                         "attribute_alias": "TITLE"
                                     },
@@ -173,6 +181,12 @@
                                             },
                                             {
                                                 "attribute_alias": "ERROR_LOG_ID"
+                                            },
+                                            {
+                                                "attribute_alias": "STARTED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "FINISHED_ON"
                                             }
                                         ],
                                         "buttons": [
@@ -236,21 +250,30 @@
                                                 "caption": "Tool Call Text"
                                             },
                                             {
-                                                "attribute_alias": "FAILED"
+                                                "attribute_alias": "STATE"
                                             }
                                         ],
                                         "columns": [
                                             {
+                                                "attribute_alias": "STARTED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "FINISHED_ON"
+                                            },
+                                            {
                                                 "attribute_alias": "CREATED_ON"
                                             },
                                             {
-                                                "attribute_alias": "FAILED"
+                                                "attribute_alias": "STATE"
                                             },
                                             {
                                                 "attribute_alias": "RESULT_LENGTH_CHARS"
                                             },
                                             {
                                                 "attribute_alias": "EXECUTION_TIME_MS"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_MESSAGE"
                                             },
                                             {
                                                 "attribute_alias": "TOOL_ALIAS"
@@ -271,11 +294,16 @@
                                         ],
                                         "buttons": [
                                             {
+                                                "caption": "Refresh",
+                                                "action_alias": "exface.Core.RefreshWidget",
+                                                "icon": "refresh"
+                                            },
+                                            {
                                                 "caption": "Tool call details",
                                                 "bind_to_double_click": true,
                                                 "action": {
                                                     "alias": "exface.core.ShowObjectInfoDialog",
-                                                    "disable_buttons": true
+                                                    "disable_buttons": false
                                                 }
                                             }
                                         ]

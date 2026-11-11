@@ -28,6 +28,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class GetTimeTool extends AbstractAiTool
 {
@@ -38,7 +40,7 @@ class GetTimeTool extends AbstractAiTool
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
         $dateTime = DateTimeDataType::now();
-        return new AiToolResultString($this, $arguments, $dateTime, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $dateTime, $this->getReturnDataType());
     }
 
     /**

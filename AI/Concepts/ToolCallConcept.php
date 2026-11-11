@@ -16,6 +16,11 @@ use exface\Core\DataTypes\MarkdownDataType;
  * 1. Simply calling one of the tools of this agent: Just set the tool name as string value of the concept. The tool 
  * must be defined in the agent's tool collection with the same name as the concept's placeholder.
  * 2. Define an arbitrary tool inside the concept (the tool than cannot be called by the AI, just by this concept).
+ *
+ * ```json
+ * {"class": "\\axenox\\GenAI\\AI\\Concepts\\ToolCallConcept", "tool_name": "CurrentTime"}
+ *
+ * ```
  * 
  */
 class ToolCallConcept extends AbstractConcept
@@ -25,11 +30,15 @@ class ToolCallConcept extends AbstractConcept
     
     private array $arguments = [];
 
-    
+    /**
+     * {@inheritDoc}
+     * @see AbstractConcept::getOutput()
+     */
     protected function getOutput(): string
     {
         try{
-            $result = $this->getTool()->invoke($this->getAgent(), $this->getPrompt(), $this->arguments);
+            $tool = $this->getTool();
+            $result = $tool->invoke($this->getAgent(), $this->getPrompt(), $tool->normalizeArguments($this->arguments));
             try {
                 foreach ($result->getExceptions() as $exception) {
                     $this->getPrompt()->addWarning($exception);

@@ -136,6 +136,10 @@ Concept output is generated when the prompt is rendered and cached for that conc
 | `tool_definition` | Inline UXON definition for a temporary tool. Its function name defaults to the concept placeholder. |
 | `arguments` | Ordered values passed to the selected tool. |
 
+Arguments use the tool's shared binding and validation before invocation: omitted values receive
+configured defaults or optional `null` values, while missing required values and excess arguments
+are rejected. Explicit `null` is not replaced by a default.
+
 **How to use.** Set `tool_name` to call a tool already exposed by the agent, or provide an inline `tool_definition` for a tool that the model itself should not call. Pass positional values through `arguments`. Input placeholders such as `[#~input:FIELD#]` can derive configuration or arguments from the first prompt input row. Omitting both tool selectors is a configuration error.
 
 **Result and limits.** Tool front matter is converted to Markdown before insertion. Exceptions are added to prompt warnings when supported. Other failures are logged and produce empty concept output. Because the call runs before every model response, keep it inexpensive, narrowly filtered, and bounded.

@@ -33,6 +33,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * - `OBJECT_NAME`, `INSTANCE_NAME`, `ATTRIBUTE_NAME`, `APP__ALIAS`,
  *   `INSTANCE_ALIAS`, `OBJECT_TYPE`, `TABLE_NAME`.
  *
+ * ```json
+ * {"alias": "axenox.GenAI.ModelSearchTool"}
+ * 
+ * ```
+ * 
  * @author Brooklyn Fraenzschky
  */
 class ModelSearchTool extends AbstractAiTool
@@ -50,7 +55,7 @@ class ModelSearchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        list($query, $component, $limit, $offset) = array_pad($arguments, 4, null);
+        list($query, $component, $limit, $offset) = $arguments;
         
         if (! $query) {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: search_query');
@@ -74,9 +79,15 @@ class ModelSearchTool extends AbstractAiTool
         }
         $sheet->dataRead();
 
-        return new AiToolResultString($this, $arguments, $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $this->buildMarkdownSearchResult($sheet), $this->getReturnDataType());
     }
     
+    /**
+     * Build Markdown Search Result.
+     * 
+     * @param DataSheetInterface $resultSheet
+     * @return string
+     */
     protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet) : string
     {
         $rows = [];

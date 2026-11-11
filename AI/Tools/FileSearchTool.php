@@ -32,12 +32,12 @@ use Symfony\Component\Finder\Finder;
  * 
  * ## Example configuration in an assistant
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You search project files before reading details",
  *      "tools": {
  *          "search_files": {
- *              "alias": "axenox.GenAI.SearchFilesTool",
+ *              "alias": "axenox.GenAI.FileSearchTool",
  *              "description": "Search files by text or regex. DO NOT search over entire vendor folder! Always specify a path!",
  *              "allowed_paths": [
  *                  "axenox/**",
@@ -48,6 +48,8 @@ use Symfony\Component\Finder\Finder;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class FileSearchTool extends AbstractAiTool
 {
@@ -91,9 +93,9 @@ class FileSearchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $folderPattern = trim((string) ($arguments[0] ?? ''));
-        $namePattern = trim((string) ($arguments[1] ?? ''));
-        $query = trim((string) ($arguments[2] ?? ''));
+        $folderPattern = trim((string) $arguments[0]);
+        $namePattern = trim((string) $arguments[1]);
+        $query = trim((string) $arguments[2]);
         $basePath = $this->getBasePathAbsolute();
 
         if ($folderPattern === '') {
@@ -145,7 +147,7 @@ class FileSearchTool extends AbstractAiTool
 
         $searchDirs = $this->resolveSearchDirectories($globPattern, $basePath);
         if (empty($searchDirs)) {
-            return new AiToolResultString($this, $arguments, '- No matches found.', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), '- No matches found.', $this->getReturnDataType());
         }
 
         $finder = new Finder();
@@ -213,7 +215,7 @@ class FileSearchTool extends AbstractAiTool
         }
 
         if (empty($matchedFiles)) {
-            return new AiToolResultString($this, $arguments, '- No matches found.', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), '- No matches found.', $this->getReturnDataType());
         }
 
         usort($matchedFiles, function (array $a, array $b): int {
@@ -239,7 +241,7 @@ class FileSearchTool extends AbstractAiTool
         }
         $markdown .= "\n";
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**
@@ -253,14 +255,14 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Include matched lines as blockquote extracts in the markdown result.
-     *
+     * 
      * If enabled and a content query is provided, every matched file entry will contain
      * one blockquote line per matched file line.
-     *
+     * 
      * @uxon-property include_extract_line
      * @uxon-type boolean
      * @uxon-default true
-     *
+     * 
      * @param bool $value
      * @return FileSearchTool
      */
@@ -272,10 +274,12 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Validates that a relative pattern is safe (relative, no directory traversal) and allowed.
-     *
+     * 
      * @param string $relativePattern
     * @param TaskInterface $prompt
      * @return string
+     * 
+     * @throws AiToolRuntimeError
      */
     protected function validateRelativePattern(string $relativePattern, TaskInterface $prompt): string
     {
@@ -290,9 +294,9 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Returns TRUE if the given segment looks like a filename glob (has a wildcard and an extension).
-     *
+     * 
      * E.g. `*.php`, `Auto*.php` or `*.{js,ts}` return TRUE, while `Actions` or `.github` return FALSE.
-     *
+     * 
      * @param string $segment
      * @return bool
      */
@@ -303,10 +307,10 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Returns the static portion of a folder pattern before the first `**` segment.
-     *
+     * 
      * E.g. `exface/**` becomes `exface`, a pattern like `a/b/Actions/**` becomes `a/b/Actions`
      * and `**` becomes an empty string.
-     *
+     * 
      * @param string $pattern
      * @return string
      */
@@ -325,11 +329,11 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Resolves a (possibly wildcarded) relative folder pattern to a list of concrete, allowed directories.
-     *
+     * 
      * Uses PHP's `glob()` which natively handles single-segment wildcards like `*` and `?` across path
      * separators (e.g. `* / * /Actions`), keeping the file system walk limited to matching folders. An empty
      * pattern resolves to the base path itself.
-     *
+     * 
      * @param string $globPattern
      * @param string $basePath
      * @return string[]
@@ -367,7 +371,7 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Returns TRUE if the given path contains wildcard characters.
-     *
+     * 
      * @param string $path
      * @return bool
      */
@@ -378,7 +382,7 @@ class FileSearchTool extends AbstractAiTool
 
     /**
      * Returns all lines of the file that match the search pattern.
-     *
+     * 
      * @param string $absolutePath
      * @param string $searchPattern
      * @return string[]

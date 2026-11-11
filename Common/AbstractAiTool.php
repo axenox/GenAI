@@ -8,11 +8,27 @@ use axenox\GenAI\Uxon\AiToolUxonSchema;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\Interfaces\WorkbenchInterface;
 use Wingu\OctopusCore\Reflection\ReflectionClass;
 
 /**
- * Base class for AI tools
+ * Configure a named tool and refine the arguments advertised to an agent or MCP client.
+ * 
+ * Select a concrete tool prototype by alias, then describe its purpose and override
+ * argument templates only where the current use case needs different metadata.
+ * For example:
+ * 
+ * ```json
+ * {
+ *     "alias": "axenox.GenAI.GetTimeTool",
+ *     "name": "CurrentTime",
+ *     "description": "Read the current local time."
+ * }
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 abstract class AbstractAiTool implements AiToolInterface
 {
@@ -33,6 +49,13 @@ abstract class AbstractAiTool implements AiToolInterface
 
     private $securityFailureMessage = 'This is not allowed';
 
+    /**
+     * Imports tool configuration in the supplied Workbench.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @param UxonObject|null $uxon
+     * @return void
+     */
     public function __construct(WorkbenchInterface $workbench, UxonObject $uxon = null)
     {
         $this->workbench = $workbench;
@@ -63,11 +86,16 @@ abstract class AbstractAiTool implements AiToolInterface
             } else {
                 $argParam = new ServiceParameter($this, $uxon);
             }
-            $this->arguments[] = $argParam;
+            $argTemplates[$i] = $argParam;
         }
+        $this->arguments = array_values($argTemplates);
         return $this;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getArguments()
+     */
     public function getArguments(): array
     {
         if ($this->arguments === null) {
@@ -77,6 +105,39 @@ abstract class AbstractAiTool implements AiToolInterface
             }
         }
         return $this->arguments ?? [];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::normalizeArguments()
+     */
+    public function normalizeArguments(array $arguments) : array
+    {
+        $positional = array_is_list($arguments);
+        $normalized = [];
+        foreach ($this->getArguments() as $index => $parameter) {
+            $name = $parameter->getName();
+            $key = $positional ? $index : $name;
+            $value = array_key_exists($key, $arguments) ? $arguments[$key] : $parameter->getDefaultValue();
+            unset($arguments[$key]);
+            if ($value === null && $parameter->isRequired()) {
+                throw new UnexpectedValueException('Missing required argument "' . $name . '".');
+            }
+            if ($value instanceof UxonObject) {
+                $value = $value->toArray();
+            }
+            if (is_array($value) || $value instanceof \stdClass) {
+                // ServiceParameter::parseValue() only supports scalar values.
+                $value = json_decode(json_encode($value, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+            } elseif ($value !== null) {
+                $value = $parameter->parseValue($value);
+            }
+            $normalized[] = $value;
+        }
+        if ($arguments !== []) {
+            throw new UnexpectedValueException('Unknown arguments: ' . implode(', ', array_keys($arguments)));
+        }
+        return $normalized;
     }
 
     /**
@@ -94,11 +155,13 @@ abstract class AbstractAiTool implements AiToolInterface
      * This allows the designer of an assistant to only specify certain argument properties
      * while the rest will be taken from the templates.
      * 
+     * @param WorkbenchInterface $workbench
      * @return ServiceParameter[]
      */
     abstract protected static function getArgumentsTemplates(WorkbenchInterface $workbench) : array;
 
     /**
+     * Returns the function name advertised to the model.
      * 
      * @return string
      */
@@ -124,8 +187,9 @@ abstract class AbstractAiTool implements AiToolInterface
     }
 
     /**
+     * Returns the configured description or the concrete prototype's default description.
      * 
-     * @return string
+     * @return string|null
      */
     public function getDescription() : ?string
     {
@@ -148,7 +212,6 @@ abstract class AbstractAiTool implements AiToolInterface
      * 
      * @uxon-property description
      * @uxon-type string
-     * @uxon-required true
      * 
      * @param string $description
      * @return AiToolInterface
@@ -161,13 +224,9 @@ abstract class AbstractAiTool implements AiToolInterface
 
 
     /**
-     * If the KI is only allowed to query certain things, you can set up comparisons here. 
+     * Adds prototype-defined text comparisons without exposing a generic UXON property.
      * 
-     * @uxon-property checks
-     * @uxon-type array
-     * @uxon-required true
-     * 
-     * @param array $checks
+     * @param array<array-key,array{startsWith?:string,endsWith?:string,contains?:string,equals?:string}> $checks
      * @return AiToolInterface
      */
     protected function addSecurityCheck(array $checks): AiToolInterface
@@ -191,6 +250,12 @@ abstract class AbstractAiTool implements AiToolInterface
         return $this;
     }
 
+    /**
+     * Accepts a value matching any registered comparison, or any value if none exist.
+     * 
+     * @param string $value
+     * @return bool
+     */
     protected function checkSecurity(string $value): bool
     {
         if (count($this->securitychecks) <= 0) {
@@ -226,11 +291,13 @@ abstract class AbstractAiTool implements AiToolInterface
     }
 
     /**
-     * The response when the securityCheck goes wrong
+     * Customize the rejection text for tools using the built-in text comparisons.
      * 
-     * @uxon-property message
+     * This changes the message, not the tool's access permissions.
+     * 
+     * @uxon-property security_failure_message
      * @uxon-type string
-     * @uxon-required true
+     * @uxon-default This is not allowed
      * 
      * @param string $message
      * @return AiToolInterface
@@ -241,12 +308,18 @@ abstract class AbstractAiTool implements AiToolInterface
         return $this;
     }
 
+    /**
+     * Returns the configured rejection text for failed text comparisons.
+     * 
+     * @return string
+     */
     public function getSecurityFailurMessage() : string
     {
         return $this->securityFailureMessage;
     }
 
     /**
+     * Returns the Workbench owning this configured tool.
      * 
      * @return WorkbenchInterface
      */
@@ -256,7 +329,9 @@ abstract class AbstractAiTool implements AiToolInterface
     }
 
     /**
+     * Returns the original tool configuration, if one was supplied.
      * 
+     * @return UxonObject|null
      * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
      */
     public function exportUxonObject()
@@ -265,8 +340,9 @@ abstract class AbstractAiTool implements AiToolInterface
     }
 
     /**
-     * Returns the default UXON template fo this too (e.g. for autosuggest templates)
+     * Builds a configuration template from the concrete tool's default arguments.
      * 
+     * @param WorkbenchInterface $workbench
      * @return UxonObject
      */
     public static function exportUxonTemplate(WorkbenchInterface $workbench) : UxonObject
@@ -305,11 +381,21 @@ abstract class AbstractAiTool implements AiToolInterface
         return $this;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see AiToolInterface::getAliasWithNamespace()
+     */
     public function getAliasWithNamespace() : string
     {
         return $this->alias ?? AiFactory::findToolAlias(new AiToolSelector($this->getWorkbench(), get_class($this)));
     }
     
+    /**
+     * Builds the designer-facing configuration model for this concrete tool prototype.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @return array<string,mixed>
+     */
     public static function getTemplate(WorkbenchInterface $workbench) : array
     {
         $argsModels = [];

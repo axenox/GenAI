@@ -3,6 +3,17 @@ namespace axenox\GenAI\Factories;
 
 use axenox\GenAI\Common\AbstractAiTaskHandler;
 use axenox\GenAI\Common\AiConversation;
+use axenox\GenAI\Common\AiToolResultString;
+use axenox\GenAI\Common\Messages\DiagnosticMessage;
+use axenox\GenAI\Common\Messages\InputMessage;
+use axenox\GenAI\Common\Messages\InstructionsMessage;
+use axenox\GenAI\Common\Messages\OutputMessage;
+use axenox\GenAI\Common\Messages\ToolCallMessage;
+use axenox\GenAI\DataTypes\AiConversationTypeDataType;
+use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\Interfaces\AiMessageInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
 use axenox\GenAI\Common\Selectors\AiToolSelector;
 use axenox\GenAI\Common\Selectors\AiSkillSelector;
 use axenox\GenAI\Exceptions\AiAgentNotFoundError;
@@ -52,6 +63,10 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 {
     /**
      * Creates a new conversation or restores the conversation referenced by the prompt.
+     * 
+     * @param AiAgentInterface $agent
+     * @param AiPromptInterface $prompt
+     * @return AiConversationInterface
      */
     public static function createConversationFromPrompt(
         AiAgentInterface $agent,
@@ -59,7 +74,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     ) : AiConversationInterface 
     {
         $conversationId = $prompt->getConversationUid();
-        $conversation = static::createConversation($agent, $conversationId);
+        $conversation = static::createConversation($agent, $conversationId, [
+            'TYPE' => AiConversationTypeDataType::AGENT,
+            'DEVMODE' => $agent->getDevmode(),
+            'CONNECTION' => $agent->getConnection()->getId()
+        ]);
         if ($conversationId === null) {
             $prompt->setConversationUid($conversation->getConversationId());
         }
@@ -69,26 +88,112 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Creates a new conversation or continues the conversation with the supplied ID.
+     * 
+     * @param AiTaskHandlerInterface $handler
+     * @param string|null $conversationId
+     * @param array<string,mixed> $row An axenox.GenAI.AI_CONVERSATION row keyed by attribute alias.
+     * New rows require TYPE from AiConversationTypeDataType; omitted DEVMODE defaults to false. DATA is serialized JSON.
+     * On restoration only TYPE is used, to verify the caller's expected source.
+     * @return AiConversationInterface
      */
     public static function createConversation(
-        AiAgentInterface $agent,
-        ?string $conversationId = null
+        AiTaskHandlerInterface $handler,
+        ?string $conversationId = null,
+        array $row = []
     ) : AiConversationInterface 
     {
-        return new AiConversation($agent, $conversationId);
+        return new AiConversation($handler, $conversationId, $row);
     }
 
     /**
      * Restores an existing conversation for the current agent and user.
+     * 
+     * @param AiTaskHandlerInterface $agent
+     * @param string $conversationId
+     * @return AiConversationInterface
      */
     public static function createConversationFromUid(
-        AiAgentInterface $agent,
+        AiTaskHandlerInterface $agent,
         string $conversationId
     ) : AiConversationInterface 
     {
         return static::createConversation($agent, $conversationId);
     }
 
+    /**
+     * Restores only explicitly supported result classes, never a tool or arbitrary stored class.
+     * 
+     * @throws UxonParserError
+     * @param WorkbenchInterface $workbench
+     * @param UxonObject $uxon
+     * @return AiToolResultInterface
+     */
+    public static function createToolResult(WorkbenchInterface $workbench, UxonObject $uxon) : AiToolResultInterface
+    {
+        $class = ltrim((string) $uxon->getProperty('class'), '\\');
+        if ($class !== AiToolResultString::class) {
+            throw new UxonParserError($uxon, 'Unsupported stored AI tool result class: ' . $class);
+        }
+        $result = new AiToolResultString($workbench);
+        $result->importUxonObject($uxon, ['class']);
+        return $result;
+    }
+
+    /**
+     * Creates an unsaved conversation message from domain values
+     * 
+     * The message class is selected by the type and decides the context role of the message. Messages
+     * get their identity and sequence when the conversation saves them. Use `createToolCallMessage()`
+     * for tool calls.
+     * 
+     * @param string $type AiMessageTypeDataType value
+     * @param string $text What was said
+     * @param \exface\Core\Interfaces\Filesystem\FileInfoInterface[] $attachments
+     * @param array<string,array<array-key,mixed>> $adapterData Optional opaque data indexed by the key of its owning adapter
+     * @throws InvalidArgumentException for unknown types or tool call messages
+     * @return AiMessageInterface
+     */
+    public static function createMessage(string $type, string $text, array $attachments = [], array $adapterData = []) : AiMessageInterface
+    {
+        switch ($type) {
+            case AiMessageTypeDataType::SYSTEM:
+                if (! empty($attachments)) {
+                    throw new InvalidArgumentException('Instructions cannot have attachments!');
+                }
+                return new InstructionsMessage($text, $adapterData);
+            case AiMessageTypeDataType::USER:
+                return new InputMessage($text, $attachments, $adapterData);
+            case AiMessageTypeDataType::ASSISTANT:
+                return new OutputMessage($text, $attachments, $adapterData);
+            case AiMessageTypeDataType::WARNING:
+            case AiMessageTypeDataType::ERROR:
+                return new DiagnosticMessage($type, $text);
+            case AiMessageTypeDataType::TOOL:
+                throw new InvalidArgumentException('Use AiFactory::createToolCallMessage() to create tool call messages!');
+        }
+        throw new InvalidArgumentException('Unknown AI message type "' . $type . '"!');
+    }
+
+    /**
+     * Creates an unsaved tool call message - e.g. from the response of an LLM requesting tools
+     * 
+     * @param string $text What the LLM said together with the tool request (may be empty)
+     * @param \axenox\GenAI\Interfaces\AiToolCallInterface[] $calls In the order requested by the LLM
+     * @param array<string,array<array-key,mixed>> $adapterData Optional opaque data indexed by the key of its owning adapter
+     * @return AiToolCallMessageInterface
+     */
+    public static function createToolCallMessage(string $text, array $calls, array $adapterData = []) : AiToolCallMessageInterface
+    {
+        return new ToolCallMessage($text, $calls, [], $adapterData);
+    }
+
+    /**
+     * Creates the selected AI component using the standard selectable-component factory contract.
+     * 
+     * @param SelectorInterface $selector
+     * @param array<array-key,mixed>|null $constructorArguments
+     * @return mixed
+     */
     public static function createFromSelector(SelectorInterface $selector, array $constructorArguments = null)
     {
         switch (true) {
@@ -100,12 +205,14 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     }
 
     /**
-     *
+     * 
      * @param AiAgentInterface $agent
      * @param AiPromptInterface $prompt
      * @param string $placeholder
      * @param UxonObject $uxon
      * @return AiConceptInterface
+     * 
+     * @throws UxonParserError
      */
     // TODO Remove the prompt dependency from concept creation and pass it only when rendering a concept.
     public static function createConceptFromUxon(AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
@@ -124,6 +231,16 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         
     }
 
+    /**
+     * Creates the selected concept for the current agent prompt.
+     * 
+     * @param AiConceptSelectorInterface $selector
+     * @param AiAgentInterface $agent
+     * @param AiPromptInterface $prompt
+     * @param string $placeholder
+     * @param UxonObject $uxon
+     * @return AiConceptInterface
+     */
     public static function createConceptFromSelector(AiConceptSelectorInterface $selector, AiAgentInterface $agent, AiPromptInterface $prompt, string $placeholder, UxonObject $uxon) : AiConceptInterface
     {
         $class = static::findConceptClass($selector);
@@ -131,6 +248,13 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return $instance;
     }
     
+    /**
+     * Resolves the concept prototype class from its selector.
+     * 
+     * @throws AiConceptNotFoundError
+     * @param AiConceptSelectorInterface $selector
+     * @return string
+     */
     public static function findConceptClass(AiConceptSelectorInterface $selector) : string
     {
         switch (true) {
@@ -160,6 +284,13 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Creates a persisted skill referenced by an alias UXON model.
+     * 
+     * @throws UxonParserError
+     * @param AiTaskHandlerInterface $handler
+     * @param AiPromptInterface|null $prompt
+     * @param string $placeholder
+     * @param UxonObject $uxon
+     * @return AiSkillInterface
      */
     // TODO Remove the prompt dependency from skill creation and pass it only when rendering a skill.
     public static function createSkillFromUxon(
@@ -183,6 +314,13 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Loads a skill record and instantiates its configured prototype.
+     * 
+     * @throws AiSkillNotFoundError
+     * @param AiSkillSelectorInterface $selector
+     * @param AiTaskHandlerInterface $handler
+     * @param AiPromptInterface|null $prompt
+     * @param string $placeholder
+     * @return AiSkillInterface
      */
     public static function createSkillFromSelector(
         AiSkillSelectorInterface $selector,
@@ -250,6 +388,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Creates a chat-capable AI agent from its versioned selector.
+     * 
+     * @throws AiAgentNotFoundError
+     * @param WorkbenchInterface $workbench
+     * @param string $aliasWithVersion
+     * @return AiAgentInterface
      */
     public static function createAgentFromString(WorkbenchInterface $workbench, string $aliasWithVersion) : AiAgentInterface
     {
@@ -262,6 +405,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Creates a configured task handler from an alias and semantic version constraint.
+     * 
+     * @throws AiAgentNotFoundError
+     * @param WorkbenchInterface $workbench
+     * @param string $aliasWithVersion
+     * @return AiTaskHandlerInterface
      */
     public static function createTaskHandlerFromString(
         WorkbenchInterface $workbench,
@@ -358,10 +506,12 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Builds the transient skill map consumed by agent prototypes.
-     *
+     * 
      * @param WorkbenchInterface $workbench
      * @param string $agentVersionUid
      * @return UxonObject
+     * 
+     * @throws AiSkillNotFoundError
      */
     protected static function loadAgentVersionSkills(
         WorkbenchInterface $workbench,
@@ -406,6 +556,13 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return new UxonObject($skills);
     }
     
+    /**
+     * Resolves the configured agent connection using its exact version.
+     * 
+     * @param string $currentVersion
+     * @param DataSheetInterface $allVersions
+     * @return string|null
+     */
     protected static function findAgentConnection(string $currentVersion, DataSheetInterface $allVersions) : ?string
     {
         $versionCol = $allVersions->getColumns()->get('VERSION');
@@ -425,11 +582,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Instantiates an AI tool from a function name
-     *
+     * 
      * Examples:
-     *
+     * 
      * - `createToolFromUxon($this->getWorkbench(), 'GetDocs')`
-     *
+     * 
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param string $functionName
      * @param \exface\Core\CommonLogic\UxonObject $uxon
@@ -459,6 +616,14 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return $instance;
     }
 
+    /**
+     * Resolves the tool prototype class from its selector.
+     * 
+     * @throws AiToolNotFoundError
+     * @param AiToolSelectorInterface $selector
+     * @param string|null $functionName
+     * @return string
+     */
     public static function findToolClass(AiToolSelectorInterface $selector, ?string $functionName = null) : string
     {
         switch (true) {
@@ -498,6 +663,14 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         return $class;
     }
     
+    /**
+     * Finds a tool prototype matching the advertised function name.
+     * 
+     * @throws AiAgentNotFoundError
+     * @param WorkbenchInterface $workbench
+     * @param string $functionName
+     * @return string
+     */
     protected static function findToolClassForFunctionName(WorkbenchInterface $workbench, string $functionName) : string
     {
         $ds = DataSheetFactory::createFromObjectIdOrAlias($workbench, 'axenox.GenAI.AI_TOOL_PROTOTYPE');
@@ -520,11 +693,11 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
 
     /**
      * Instantiates an AI tool from a selector
-     *
+     * 
      * Examples:
-     *
+     * 
      * - `createToolFromSelector(new AiToolSelector($this->getWorkbench(), \axenox\GenAI\AI\Tools\GetDocsTool::class))`
-     *
+     * 
      * @param \exface\Core\Interfaces\WorkbenchInterface $workbench
      * @param \axenox\GenAI\Interfaces\Selectors\AiToolSelectorInterface $selector
      * @param \exface\Core\CommonLogic\UxonObject $uxon
@@ -568,6 +741,8 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
     /**
      * @param SelectorInterface $selector
      * @return string
+     * 
+     * @throws InvalidArgumentException
      */
     protected static function findAliasOfSelector(SelectorInterface $selector) : string
     {

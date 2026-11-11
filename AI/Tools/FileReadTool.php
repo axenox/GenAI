@@ -85,6 +85,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * Matching instructions are appended to the file contents as a separate `## Instructions` markdown chapter. If multiple
  * instruction files match, they are separated by a horizontal line.
+ * 
+ * @author GitHub Copilot
  */
 class FileReadTool extends AbstractAiTool
 {
@@ -104,7 +106,7 @@ class FileReadTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $task, array $arguments): AiToolResultInterface
     {
-        $relativePath = (string) ($arguments[0] ?? '');
+        $relativePath = (string) $arguments[0];
         $fileInfo = $this->getFileInfo($relativePath, $this->getBasePathAbsolute(), $task);
         
         if (! $fileInfo->isFile()) {
@@ -121,8 +123,8 @@ class FileReadTool extends AbstractAiTool
             throw new AiToolRuntimeError($this, $task, 'Failed to read file: ' . $relativePath);
         }
 
-        $startWithLine = $arguments[2] ?? 1;
-        $maxLines = $arguments[1] ?? null;
+        $startWithLine = $arguments[2];
+        $maxLines = $arguments[1];
         if ($startWithLine !== '') {
             $startWithLine = (int) $startWithLine;
         } else {
@@ -148,19 +150,19 @@ class FileReadTool extends AbstractAiTool
             $result .= $this->buildInstructionsChapter($fileInfo, $task, true);
         }
 
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**
      * Include applicable GitHub Copilot instructions in the tool result.
-     *
+     * 
      * If enabled, the tool looks for `.github/instructions/*.instructions.md` files in the installed packages
      * whose `applyTo` pattern matches the requested file and appends them as a `## Instructions` chapter.
-     *
+     * 
      * @uxon-property include_instructions_for_github_copilot
      * @uxon-type boolean
      * @uxon-default true
-     *
+     * 
      * @param bool $value
      * @return FileReadTool
      */
@@ -172,12 +174,14 @@ class FileReadTool extends AbstractAiTool
 
     /**
      * Builds the `## Instructions` markdown chapter from instruction files applicable to the given file.
-     *
+     * 
      * Returns an empty string if no applicable instructions were found.
-     *
+     * 
      * @param FileInfoInterface $fileInfo
     * @param TaskInterface $task
      * @return string
+     * 
+     * @param bool $onlyMetadata
      */
     protected function buildInstructionsChapter(FileInfoInterface $fileInfo, TaskInterface $task, bool $onlyMetadata = true) : string
     {
@@ -237,7 +241,7 @@ MD;
     
     /**
      * Returns a slice of the given content based on a 1-based start line and a maximum number of lines.
-     *
+     * 
      * @param string $content
      * @param int $startWithLine
      * @param int|null $maxLines
@@ -256,6 +260,12 @@ MD;
         return implode("\n", $slice);
     }
 
+    /**
+     * Get File Language.
+     * 
+     * @param FileInfoInterface $fileInfo
+     * @return string|null
+     */
     protected function getFileLanguage(FileInfoInterface $fileInfo) : ?string
     {
         $lang = null;
@@ -269,6 +279,12 @@ MD;
         return $lang;
     }
     
+    /**
+     * Builds front matter identifying the returned file content.
+     * 
+     * @param FileInfoInterface $fileInfo
+     * @return string
+     */
     protected function buildFrontmatter(FileInfoInterface $fileInfo) : string
     {
         return <<<FM

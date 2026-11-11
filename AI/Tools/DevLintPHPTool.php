@@ -37,6 +37,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class DevLintPHPTool extends AbstractAiTool
 {
@@ -50,7 +52,7 @@ class DevLintPHPTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $relativePath = trim((string) ($arguments[0] ?? ''));
+        $relativePath = trim((string) $arguments[0]);
         $fileInfo = $this->getFileInfo($relativePath, $this->getBasePathAbsolute(), $prompt);
 
         if (! $fileInfo->isFile()) {
@@ -80,8 +82,7 @@ class DevLintPHPTool extends AbstractAiTool
         }
 
         return new AiToolResultString(
-            $this,
-            $arguments,
+            $this->getWorkbench(),
             MarkdownDataType::escapeCodeBlock($output, 'text'),
             $this->getReturnDataType()
         );

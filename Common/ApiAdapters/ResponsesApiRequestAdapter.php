@@ -1,20 +1,73 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
+use axenox\GenAI\Interfaces\AiMessageInterface;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
 use exface\Core\DataTypes\JsonDataType;
-use exface\Core\DataTypes\MimeTypeDataType;
 use exface\Core\Interfaces\Actions\ServiceParameterInterface;
-use exface\Core\Interfaces\Filesystem\FileInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Builds OpenAI Responses API requests from generic conversation messages.
+ * 
+ * - Instructions become top-level `instructions`, input `user` messages, output `assistant` messages.
+ * - Tool call messages become `function_call` items followed by `function_call_output` items.
+ * - Image attachments of input messages are sent as images. PDFs, text and code files, Office and
+ * OpenDocument documents, presentations and spreadsheets are sent as files. Other attachments and attachments
+ * of output messages are replaced by short notes and a warning is added to the query.
+ * - Output items kept by `ResponsesApiResponseAdapter` as adapter data (incl. reasoning items) are
+ * replayed only if they were produced by the same model and still match the generic message.
+ * 
+ * @author Andrej Kabachnik
+ */
 class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpRequestToolTestInterface
 {
+    use ConversationApiAdapterTrait;
+
+    const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    
+    /**
+     * File types accepted as `input_file` - see https://developers.openai.com/api/docs/guides/file-inputs
+     * 
+     * PDFs are read as text and page images, spreadsheets get a special spreadsheet treatment, all other
+     * types are read as text only.
+     */
+    const SUPPORTED_FILE_TYPES = [
+        // PDF
+        'application/pdf',
+        // Text and code - e.g. .txt, .md, .html, .xml, .csv, source code
+        'text/*',
+        'application/json',
+        'application/xml',
+        'application/javascript',
+        'application/x-javascript',
+        'application/typescript',
+        'application/x-php',
+        'application/x-httpd-php',
+        'application/x-python',
+        'application/x-sh',
+        'application/sql',
+        'application/yaml',
+        'application/x-yaml',
+        // Rich documents - .doc, .docx, .rtf, .odt
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/rtf',
+        'application/vnd.oasis.opendocument.text',
+        // Presentations - .ppt, .pptx
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        // Spreadsheets - .xls, .xlsx (.csv is text/csv)
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
     private AiConnectorInterface $connector;
 
     /**
@@ -24,19 +77,30 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
      */
     protected $dryrunResponse = null;
 
+    /**
+     * Creates the connector-specific request adapter.
+     * 
+     * @param AiConnectorInterface $connector
+     * @return void
+     */
     public function __construct(AiConnectorInterface $connector)
     {
         $this->connector = $connector;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::buildBody()
+     */
     public function buildBody(AiQueryInterface $query): string
     {
+        [$instructions, $dialog] = $this->groupContextMessages($query);
         $json = [
             'model' => $this->connector->getModelName(),
-            'input' => $this->buildJsonInput($query),
+            'input' => $this->buildJsonInput($query, $dialog),
         ];
 
-        $instructions = $this->buildInstructions($query);
+        $instructions = $this->buildInstructions($instructions);
         if ($instructions !== null && $instructions !== '') {
             $json['instructions'] = $instructions;
         }
@@ -73,7 +137,7 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
 
     /**
      * @param AiToolInterface[] $aiTools
-     * @return array
+     * @return array<array-key,mixed>
      */
     protected function buildJsonTools(array $aiTools): array
     {
@@ -112,6 +176,12 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
         return $tools;
     }
 
+    /**
+     * Build Argument Schema.
+     * 
+     * @param ServiceParameterInterface $argument
+     * @return array<array-key,mixed>
+     */
     protected function buildArgumentSchema(ServiceParameterInterface $argument): array
     {
         $schema = null;
@@ -145,9 +215,9 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
 
     /**
      * Ensure nested object schemas satisfy OpenAI strict function schema rules.
-     *
-     * @param array $schema
-     * @return array
+     * 
+     * @param array<array-key,mixed> $schema
+     * @return array<array-key,mixed>
      */
     protected function normalizeStrictFunctionSchema(array $schema): array
     {
@@ -181,206 +251,200 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
     }
 
     /**
-     * Converts old Chat Completions style messages to Responses API input items.
-     *
-     * Supported mappings:
-     * - user/system/developer/assistant text messages
-     * - assistant tool_calls -> function_call items
-     * - tool messages -> function_call_output items
-     *
-     * @return array
+     * Builds ordered Responses input items from the dialog messages of the query.
+     * 
+     * @param AiQueryInterface $query
+     * @param AiMessageInterface[] $dialog Input and output messages selected by groupContextMessages()
+     * @return array<array-key,mixed>
      */
-   
-
-    protected function buildJsonInput(AiQueryInterface $query): array
+    protected function buildJsonInput(AiQueryInterface $query, array $dialog): array
     {
-        $messages = $query->getMessages(true);
-        $input = [];
-
-        foreach ($messages as $message) {
-            $role = $message['role'] ?? 'user';
-
-            if ($role === 'system' || $role === 'developer') {
+        $output = [];
+        $idState = [];
+        $appendixSeen = [];
+        foreach ($dialog as $message) {
+            if ($message->isInput()) {
+                $output[] = ['type' => 'message', 'role' => 'user', 'content' => $this->buildUserContent($query, $message)];
                 continue;
             }
-
-            if ($role === 'tool') {
-                $input[] = [
-                    'type' => 'function_call_output',
-                    'call_id' => $message['tool_call_id'] ?? $message['call_id'] ?? '',
-                    'output' => $this->normalizeMessageText($message['content'] ?? ''),
+            // Output messages
+            $calls = $this->getContextCalls($message);
+            $nativeItems = $this->getMatchingAdapterItems($message, $idState);
+            if ($nativeItems !== null) {
+                array_push($output, ...$nativeItems);
+            } else {
+                $text = $message->getText();
+                foreach ($message->getAttachments() as $file) {
+                    $query->addWarning('File "' . $file->getFilename() . '" generated by the model cannot be sent back to this API - replaced by a note.');
+                    $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+                }
+                if ($text !== '' || $calls === []) {
+                    $output[] = ['type' => 'message', 'role' => 'assistant', 'content' => [['type' => 'output_text', 'text' => $text]]];
+                }
+                foreach ($calls as $call) {
+                    $output[] = [
+                        'type' => 'function_call', 
+                        'call_id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                        'name' => $call->getToolName(), 
+                        'arguments' => $this->buildToolArgumentsJson($call)
+                    ];
+                }
+            }
+            if ($calls === []) {
+                continue;
+            }
+            /** @var AiToolCallMessageInterface $message */
+            $results = $message->getToolResults();
+            foreach ($calls as $call) {
+                $output[] = [
+                    'type' => 'function_call_output', 
+                    'call_id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                    'output' => $this->buildToolResultText($results[$call->getCallId()], $appendixSeen)
                 ];
-                continue;
             }
-
-            if ($role === 'assistant' && !empty($message['tool_calls']) && is_array($message['tool_calls'])) {
-                $assistantText = $this->normalizeMessageText($message['content'] ?? '');
-                if ($assistantText !== '') {
-                    $input[] = [
-                        'type' => 'message',
-                        'role' => 'assistant',
-                        'content' => [
-                            [
-                                'type' => 'output_text',
-                                'text' => $assistantText,
-                            ]
-                        ],
-                    ];
-                }
-
-                foreach ($message['tool_calls'] as $toolCall) {
-                    $input[] = [
-                        'type' => 'function_call',
-                        'call_id' => $toolCall['id'] ?? '',
-                        'name' => $toolCall['function']['name'] ?? '',
-                        'arguments' => $toolCall['function']['arguments'] ?? '{}',
-                    ];
-                }
-
-                continue;
-            }
-
-            $content = $this->normalizeContentBlocks($role, $message['content'] ?? '');
-
-            $input[] = [
-                'type' => 'message',
-                'role' => $role,
-                'content' => $content,
-            ];
         }
-
-        foreach ($query->getFiles() as $file) {
-            $input[] = [
-                'type' => 'message',
-                'role' => 'user',
-                'content' => [
-                    $this->makeInputFileBlock($file),
-                ],
-            ];
-        }
-
-        return $input;
-    }
-
-    protected function makeInputFileBlock(FileInterface $file): array
-    {
-        $fileInfo = $file->getFileInfo();
-
-        $filename = method_exists($fileInfo, 'getFilename')
-            ? $fileInfo->getFilename()
-            : 'upload.bin';
-
-        $mimeType = method_exists($fileInfo, 'getMimeType') && $fileInfo->getMimeType()
-            ? $fileInfo->getMimeType()
-            : $this->guessMimeTypeFromFilename($filename);
-
-        $base64 = base64_encode($file->read());
-        $dataUrl = 'data:' . $mimeType . ';base64,' . $base64;
-
-        if (str_starts_with($mimeType, 'image/')) {
-            return [
-                'type' => 'input_image',
-                'image_url' => $dataUrl,
-            ];
-        }
-
-        return [
-            'type' => 'input_file',
-            'filename' => $filename,
-            'file_data' => $dataUrl,
-        ];
-    }
-
-    protected function guessMimeTypeFromFilename(string $filename): string
-    {
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        return MimeTypeDataType::guessMimeTypeOfExtension(
-            $ext,
-            'application/octet-stream'
-        );
+        return $output;
     }
 
     /**
-     * Builds Responses API instructions from old system/developer messages.
+     * Builds top-level instructions from all instruction messages.
+     * 
+     * @param AiMessageInterface[] $instructions
+     * @return string|null
      */
-    protected function buildInstructions(AiQueryInterface $query): ?string
+    protected function buildInstructions(array $instructions): ?string
     {
-        $messages = $query->getMessages(true);
-        $instructions = [];
-
-        foreach ($messages as $message) {
-            $role = $message['role'] ?? null;
-            if ($role === 'system' || $role === 'developer') {
-                $text = $this->normalizeMessageText($message['content'] ?? '');
-                if ($text !== '') {
-                    $instructions[] = $text;
-                }
-            }
+        $parts = [];
+        foreach ($instructions as $message) {
+            $parts[] = $message->getText();
         }
+        return $parts === [] ? null : implode("\n\n", $parts);
+    }
 
-        if (empty($instructions)) {
+    /**
+     * Builds the content parts of a user message - attachments, that cannot be read, become notes
+     *
+     * @param AiQueryInterface $query
+     * @param AiMessageInterface $message
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildUserContent(AiQueryInterface $query, AiMessageInterface $message): array
+    {
+        $text = $message->getText();
+        $files = [];
+        foreach ($message->getAttachments() as $file) {
+            $contents = $this->readAttachment($query, $file, array_merge(self::SUPPORTED_IMAGE_TYPES, self::SUPPORTED_FILE_TYPES));
+            if ($contents === null) {
+                $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+                continue;
+            }
+            $mimeType = $this->getAttachmentMimeType($file);
+            $url = 'data:' . $mimeType . ';base64,' . base64_encode($contents);
+            $files[] = $this->isMimeTypeSupported($mimeType, self::SUPPORTED_IMAGE_TYPES)
+                ? ['type' => 'input_image', 'image_url' => $url]
+                : ['type' => 'input_file', 'filename' => $file->getFilename(), 'file_data' => $url];
+        }
+        return array_merge([['type' => 'input_text', 'text' => $text]], $files);
+    }
+
+    /**
+     * Returns the native output items kept by the response adapter if they can be replayed - NULL otherwise
+     * 
+     * The generic message is authoritative: the items are only used if they were produced by the current
+     * model and still match the text and the tool calls of the message. Call IDs are mapped the same way
+     * as for generic items.
+     * 
+     * @param AiMessageInterface $message
+     * @param array<string,mixed> $idState
+     * @return array<int,mixed>|null
+     */
+    private function getMatchingAdapterItems(AiMessageInterface $message, array &$idState): ?array
+    {
+        $data = $message->getAdapterData(ResponsesApiResponseAdapter::ADAPTER_DATA_KEY);
+        if ($data === null || ! is_array($data['output'] ?? null) || $message->getAttachments() !== []) {
             return null;
         }
-
-        return implode("\n\n", $instructions);
+        if (! $this->isCurrentModel($data['model'] ?? null)) {
+            return null;
+        }
+        $items = [];
+        foreach ($data['output'] as $item) {
+            if (! $item instanceof \stdClass && ! is_array($item)) {
+                return null;
+            }
+            $items[] = (object) $item;
+        }
+        if (ResponsesApiResponseAdapter::getText($items) !== $message->getText()) {
+            return null;
+        }
+        $calls = $this->getContextCalls($message);
+        $nativeCalls = [];
+        foreach ($items as $item) {
+            switch ($item->type ?? null) {
+                case 'function_call':
+                    $nativeCalls[] = $item;
+                    break;
+                case 'message':
+                case 'reasoning':
+                    break;
+                default:
+                    // Items, this adapter cannot replay safely
+                    return null;
+            }
+        }
+        if (count($nativeCalls) !== count($calls)) {
+            return null;
+        }
+        // A reasoning item must be followed by its output item - never replay a trailing reasoning item
+        if ($items === [] || (end($items)->type ?? null) === 'reasoning') {
+            return null;
+        }
+        foreach ($calls as $i => $call) {
+            $item = $nativeCalls[$i];
+            try {
+                $arguments = json_decode((string) ($item->arguments ?? ''), false, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                return null;
+            }
+            if (($item->call_id ?? null) !== $call->getCallId()
+                || ($item->name ?? null) !== $call->getToolName()
+                || json_encode($arguments) !== json_encode($this->buildToolArgumentsObject($call))) {
+                return null;
+            }
+        }
+        $replay = [];
+        foreach ($items as $item) {
+            $item = clone $item;
+            if (($item->type ?? null) === 'function_call') {
+                $item->call_id = $this->mapCallId($message, $item->call_id, $idState);
+            }
+            $replay[] = $item;
+        }
+        return $replay;
     }
 
     /**
-     * Normalizes content into Responses API content blocks.
+     * Returns TRUE if the given model name (as reported in a response) belongs to the model of the connector
+     * 
+     * Providers often report versioned names (e.g. `gpt-4o-2024-08-06` for `gpt-4o`).
+     * 
+     * @param mixed $model
+     * @return bool
      */
-    protected function normalizeContentBlocks(string $role, $content): array
+    private function isCurrentModel(mixed $model): bool
     {
-        if (is_array($content)) {
-            $blocks = [];
-
-            foreach ($content as $item) {
-                if (!is_array($item)) {
-                    $blocks[] = $this->makeTextBlock($role, (string) $item);
-                    continue;
-                }
-
-                $type = $item['type'] ?? 'text';
-
-                // Already in Responses format
-                if (in_array($type, ['input_text', 'output_text', 'input_image', 'input_file'], true)) {
-                    $blocks[] = $item;
-                    continue;
-                }
-
-                // Old Chat Completions text block
-                if ($type === 'text') {
-                    $blocks[] = $this->makeTextBlock($role, (string) ($item['text'] ?? ''));
-                    continue;
-                }
-
-                // Old Chat Completions image block
-                if ($type === 'image_url') {
-                    $imageUrl = $item['image_url']['url'] ?? null;
-                    if ($imageUrl !== null) {
-                        $blocks[] = [
-                            'type' => 'input_image',
-                            'image_url' => $imageUrl,
-                        ];
-                    }
-                    continue;
-                }
-
-                // Fallback: stringify unknown block
-                $blocks[] = $this->makeTextBlock(
-                    $role,
-                    json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                );
-            }
-
-            return !empty($blocks) ? $blocks : [$this->makeTextBlock($role, '')];
+        $current = $this->connector->getModelName();
+        if (! is_string($model) || $model === '') {
+            return false;
         }
-
-        return [$this->makeTextBlock($role, $this->normalizeMessageText($content))];
+        return $model === $current || str_starts_with($model, $current . '-');
     }
 
     /**
      * Extracts a plain text representation from message content.
+     * 
+     * @param mixed $content
+     * @return string
      */
     protected function normalizeMessageText($content): string
     {
@@ -433,14 +497,10 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
         return json_encode($content, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    protected function makeTextBlock(string $role, string $text): array
-    {
-        return [
-            'type' => $role === 'assistant' ? 'output_text' : 'input_text',
-            'text' => $text,
-        ];
-    }
-
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::getDryrunResponse()
+     */
     public function getDryrunResponse(array $requestJson, string $response): ResponseInterface
     {
         $debug = [

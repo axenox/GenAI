@@ -2,23 +2,63 @@
 namespace axenox\GenAI\Common\ApiAdapters;
 
 use axenox\GenAI\Common\AiToolCall;
-use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\DataTypes\AiFinishReasonDataType;
+use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Exceptions\AiInvalidRequestError;
 use axenox\GenAI\Exceptions\AiMaxTokensExceededError;
 use axenox\GenAI\Exceptions\AiModelRefusalError;
 use axenox\GenAI\Exceptions\AiOverloadError;
 use axenox\GenAI\Exceptions\AiProviderDataQueryError;
+use axenox\GenAI\Factories\AiFactory;
+use axenox\GenAI\Interfaces\AiMessageInterface;
+use axenox\GenAI\Interfaces\AiQueryInterface;
 use axenox\GenAI\Interfaces\HttpResponseAdapterInterface;
 use exface\Core\DataTypes\JsonDataType;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Derives a generic response message from an Anthropic Claude Messages API response
+ * 
+ * - Text blocks are joined into the answer text. Web citations are appended as a list of sources.
+ * - Outcomes of tools executed by Anthropic itself (e.g. web search) are already part of the answer text.
+ * - Unfinished answers (`max_tokens`, `pause_turn`) keep their text and report `AiFinishReasonDataType::TRUNCATED`.
+ * 
+ * If the response contains thinking blocks, all content blocks are kept as optional adapter data under
+ * `ADAPTER_DATA_KEY`. The request adapter replays them only when the same model continues and the blocks
+ * still match the generic message.
+ * 
+ * @author Andrej Kabachnik
+ */
 class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
 {
-    private array $json;
+    const ADAPTER_DATA_KEY = 'anthropic.messages';
 
+    private array $json;
+    private ?object $wire;
+    private ?AiMessageInterface $message = null;
+    private array $warnings = [];
+
+    /**
+     * Captures the wire payload without coercing JSON object/list distinctions.
+     * 
+     * @param ResponseInterface $response
+     * @return void
+     */
+    public function __construct(ResponseInterface $response)
+    {
+        $body = (string) $response->getBody();
+        $this->json = JsonDataType::decodeJson($body, true) ?? [];
+        $wire = json_decode($body, false);
+        $this->wire = $wire instanceof \stdClass ? $wire : null;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::enrichError()
+     */
     public function enrichError(AiQueryInterface $query, \Exception $e) : \Exception
     {
-        $model = isset($this->json['model']) ? (string) $this->json['model'] : null;
+        $model = $this->getModelName();
 
         if (($this->json['type'] ?? null) === 'error') {
             $errorType = (string) ($this->json['error']['type'] ?? 'unknown_error');
@@ -42,7 +82,7 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
             }
         }
 
-        if (($this->json['stop_reason'] ?? null) === 'refusal') {
+        if ($this->getNativeStopReason() === 'refusal') {
             $category = (string) ($this->json['stop_details']['category'] ?? 'unknown');
             return new AiModelRefusalError($query, '', $e, false, $model, 'claude', $category);
         }
@@ -50,156 +90,188 @@ class ClaudeMessagesApiResponseAdapter implements HttpResponseAdapterInterface
         return new AiProviderDataQueryError($query, 'Error in LLM response.', $e, null, $model);
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::isError()
+     */
     public function isError() : bool
     {
-        $finishReason = $this->getFinishReason();
-        if ($finishReason === 'refusal') {
-            return true;
+        return in_array($this->getNativeStopReason(), ['tool_use', 'end_turn', 'max_tokens', 'stop_sequence', 'pause_turn', 'model_context_window_exceeded'], true) === false;
+    }
+
+    /**
+     * Returns the native stop reason
+     * 
+     * @return string
+     */
+    protected function getNativeStopReason() : string
+    {
+        return (string) ($this->json['stop_reason'] ?? 'unknown');
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getFinishReason()
+     */
+    public function getFinishReason() : string
+    {
+        switch ($this->getNativeStopReason()) {
+            case 'end_turn':
+            case 'stop_sequence':
+                return AiFinishReasonDataType::COMPLETED;
+            case 'tool_use':
+                return AiFinishReasonDataType::TOOL_CALLS;
+            case 'max_tokens':
+            case 'pause_turn':
+            case 'model_context_window_exceeded':
+                return AiFinishReasonDataType::TRUNCATED;
+            case 'refusal':
+                return AiFinishReasonDataType::REFUSED;
         }
-
-        return in_array($finishReason, ['tool_calls', 'end_turn', 'max_tokens', 'stop_sequence', 'pause_turn'], true) === false;
+        return AiFinishReasonDataType::ERROR;
     }
 
-    public function __construct(ResponseInterface $response)
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getModelName()
+     */
+    public function getModelName() : ?string
     {
-        $this->json = JsonDataType::decodeJson($response->getBody()->__toString(), true);
+        return isset($this->json['model']) ? (string) $this->json['model'] : null;
     }
 
-    protected function getResponseData() : array
-    {
-        return $this->json;
-    }
-
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getUsage()
+     */
     public function getUsage() : array
     {
         return $this->json['usage'] ?? [];
     }
 
-    public function getAnswerRaw() : string
-    {
-        $parts = [];
-        foreach (($this->json['content'] ?? []) as $block) {
-            if (($block['type'] ?? null) === 'text') {
-                $parts[] = (string) ($block['text'] ?? '');
-            }
-        }
-
-        return implode("\n", $parts);
-    }
-
-    public function getAnswerJson() : ?array
-    {
-        return JsonDataType::decodeJson($this->getAnswerRaw());
-    }
-
-    public function isFinished() : bool
-    {
-        return $this->hasToolCalls() === false && ($this->getFinishReason() !== 'pause_turn');
-    }
-
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getTokensInPrompt()
+     */
     public function getTokensInPrompt() : int
     {
         return (int) ($this->json['usage']['input_tokens'] ?? 0);
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getTokensInAnswer()
+     */
     public function getTokensInAnswer() : int
     {
         return (int) ($this->json['usage']['output_tokens'] ?? 0);
     }
 
-    public function getFinishReason() : string
+    /**
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getWarnings()
+     */
+    public function getWarnings() : array
     {
-        if ($this->hasToolCalls()) {
-            return 'tool_calls';
-        }
-
-        return (string) ($this->json['stop_reason'] ?? 'unknown');
-    }
-
-    public function hasToolCalls() : bool
-    {
-        foreach (($this->json['content'] ?? []) as $block) {
-            if (($block['type'] ?? null) === 'tool_use') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function getResponseMessage() : array
-    {
-        $message = [
-            'role' => 'assistant',
-            'content' => $this->getAnswerRaw(),
-        ];
-
-        if ($this->hasToolCalls()) {
-            $toolCalls = [];
-            foreach (($this->json['content'] ?? []) as $block) {
-                if (($block['type'] ?? null) !== 'tool_use') {
-                    continue;
-                }
-
-                $toolCalls[] = [
-                    'id' => $block['id'] ?? '',
-                    'type' => 'function',
-                    'function' => [
-                        'name' => $block['name'] ?? '',
-                        'arguments' => json_encode(
-                            $this->normalizeToolCallInputObject($block['input'] ?? null),
-                            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-                        ),
-                    ],
-                ];
-            }
-
-            $message['tool_calls'] = $toolCalls;
-        }
-
-        return $message;
+        $this->getResponseMessage();
+        return $this->warnings;
     }
 
     /**
-     * @param mixed $input
-     * @return object
+     * {@inheritDoc}
+     * @see HttpResponseAdapterInterface::getResponseMessage()
      */
-    protected function normalizeToolCallInputObject($input): object
+    public function getResponseMessage() : AiMessageInterface
     {
-        if ($input instanceof \stdClass) {
-            return $input;
+        if ($this->message !== null) {
+            return $this->message;
         }
-
-        if (is_array($input)) {
-            if (empty($input)) {
-                return new \stdClass();
+        $blocks = is_array($this->wire->content ?? null) ? $this->wire->content : [];
+        $sources = [];
+        $calls = [];
+        $hasThinking = false;
+        foreach ($blocks as $block) {
+            switch ($block->type ?? null) {
+                case 'text':
+                    // Text is extracted by getText() to make sure the request adapter compares the same way
+                    $this->collectCitations($block->citations ?? [], $sources);
+                    break;
+                case 'tool_use':
+                    $arguments = $block->input ?? new \stdClass();
+                    if (! $arguments instanceof \stdClass) {
+                        $arguments = (object) (is_array($arguments) ? $arguments : []);
+                    }
+                    $calls[] = new AiToolCall((string) ($block->name ?? ''), (string) ($block->id ?? ''), $arguments);
+                    break;
+                case 'thinking':
+                case 'redacted_thinking':
+                    $hasThinking = true;
+                    break;
+                case 'server_tool_use':
+                case 'web_search_tool_result':
+                case 'web_fetch_tool_result':
+                case 'code_execution_tool_result':
+                    // Tools executed by Anthropic itself - their outcome is part of the answer text
+                    break;
+                default:
+                    $this->warnings[] = 'Dropped unsupported response content "' . ($block->type ?? 'unknown') . '".';
             }
-            return (object) $input;
         }
 
-        if (is_object($input)) {
-            return $input;
+        $text = static::getText($blocks);
+        if ($sources !== []) {
+            $text .= "\n\nSources:\n- " . implode("\n- ", array_unique($sources));
+        }
+        $adapterData = [];
+        if ($hasThinking) {
+            $adapterData[self::ADAPTER_DATA_KEY] = ['model' => $this->getModelName(), 'content' => $blocks];
         }
 
-        return new \stdClass();
+        if ($calls !== []) {
+            $this->message = AiFactory::createToolCallMessage($text, $calls, $adapterData);
+        } else {
+            $this->message = AiFactory::createMessage(AiMessageTypeDataType::ASSISTANT, $text, [], $adapterData);
+        }
+        return $this->message;
     }
 
-    public function getToolCalls() : array
+    /**
+     * Extracts the answer text from native content blocks
+     * 
+     * Claude splits answers with citations into many consecutive text blocks, so they are joined without
+     * separators. Used by the request adapter too, to check if stored adapter data still matches a
+     * generic message.
+     * 
+     * @param array<int,object> $blocks
+     * @return string
+     */
+    public static function getText(array $blocks) : string
     {
-        $result = [];
-
-        foreach (($this->json['content'] ?? []) as $block) {
-            if (($block['type'] ?? null) !== 'tool_use') {
-                continue;
+        $text = '';
+        foreach ($blocks as $block) {
+            $block = (object) $block;
+            if (($block->type ?? null) === 'text') {
+                $text .= (string) ($block->text ?? '');
             }
-
-            $result[] = new AiToolCall(
-                $block['name'] ?? '',
-                $block['id'] ?? '',
-                is_array($block['input'] ?? null) ? $block['input'] : []
-            );
         }
+        return $text;
+    }
 
-        return $result;
+    /**
+     * Collects web citations as markdown links and adds warnings for other citations
+     * 
+     * @param mixed $citations
+     * @param string[] $sources
+     * @return void
+     */
+    private function collectCitations(mixed $citations, array &$sources) : void
+    {
+        foreach (is_array($citations) ? $citations : [] as $citation) {
+            if (is_string($citation->url ?? null)) {
+                $sources[] = '[' . ($citation->title ?? $citation->url) . '](' . $citation->url . ')';
+            } else {
+                $this->warnings[] = 'Dropped unsupported citation "' . ($citation->type ?? 'unknown') . '".';
+            }
+        }
     }
 }

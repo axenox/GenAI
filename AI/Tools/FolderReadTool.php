@@ -23,12 +23,12 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * 
  * ## Example configuration in an assistant
  * 
- * ```
+ * ```json
  *  {
  *      "instructions": "You summarize project structure",
  *      "tools": {
  *          "read_folder": {
- *              "alias": "axenox.GenAI.ReadFolderTool",
+ *              "alias": "axenox.GenAI.FolderReadTool",
  *              "description": "List files in a folder as Markdown",
  *              "use_vendor_folder_as_base": true,
  *              "allowed_paths": [
@@ -46,6 +46,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class FolderReadTool extends AbstractAiTool
 {
@@ -65,14 +67,14 @@ class FolderReadTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $relativePath = (string) ($arguments[0] ?? '');
+        $relativePath = (string) $arguments[0];
         // Make sure the relative path for a folder ends with a slash
         $relativePath = rtrim($relativePath, '/') . '/';
         $basePath = $this->getBasePathAbsolute();
         $absolutePath = $this->getPathAbsolute($relativePath, $basePath, $prompt);
         
         if (! is_dir($absolutePath)) {
-            return new AiToolResultString($this, $arguments, 'Folder does not exist', $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), 'Folder does not exist', $this->getReturnDataType());
         }
 
         if (! is_readable($absolutePath)) {
@@ -81,7 +83,7 @@ class FolderReadTool extends AbstractAiTool
 
         $markdown = '- ' . rtrim(FilePathDataType::normalize($relativePath, '/'), '/') . '/';
         $markdown .= $this->buildMdTreeLevel($absolutePath, $basePath, 1);
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**
@@ -136,14 +138,14 @@ class FolderReadTool extends AbstractAiTool
 
     /**
      * Maximum recursive depth for folder listing.
-     *
+     * 
      * Depth `1` lists direct children only. Higher values include deeper levels. Depth `0` includes all children
      * recursively without limit.
-     *
+     * 
      * @uxon-property depth
      * @uxon-type integer
      * @uxon-default 0
-     *
+     * 
      * @param int $value
      * @return FolderReadTool
      */
@@ -153,6 +155,11 @@ class FolderReadTool extends AbstractAiTool
         return $this;
     }
 
+    /**
+     * Get Depth.
+     * 
+     * @return int
+     */
     protected function getDepth(): int
     {
         return $this->depth;
@@ -160,11 +167,11 @@ class FolderReadTool extends AbstractAiTool
 
     /**
      * Set to FALSE to list files and folders whose names start with a dot - e.g. `.git`.
-     *
+     * 
      * @uxon-property exclude_dot_paths
      * @uxon-type boolean
      * @uxon-default true
-     *
+     * 
      * @param bool $value
      * @return FolderReadTool
      */
@@ -176,7 +183,7 @@ class FolderReadTool extends AbstractAiTool
 
     /**
      * Appends folder entries as nested Markdown bullets.
-     *
+     * 
      * @param string $absoluteDir
      * @param string $basePath
      * @param int $level

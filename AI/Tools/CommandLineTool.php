@@ -49,6 +49,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class CommandLineTool extends AbstractAiTool
 {
@@ -73,8 +75,8 @@ class CommandLineTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $command = trim((string) ($arguments[0] ?? ''));
-        $folder = trim((string) ($arguments[1] ?? '.'));
+        $command = trim((string) $arguments[0]);
+        $folder = trim((string) $arguments[1]);
         if ($command === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid arguments: missing CLI command.');
         }
@@ -104,7 +106,7 @@ class CommandLineTool extends AbstractAiTool
         
         $markdown = MarkdownDataType::escapeCodeBlock($output, 'text');
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**
@@ -121,6 +123,7 @@ class CommandLineTool extends AbstractAiTool
                 ->setRequired(true),
             (new ServiceParameter($self))
                 ->setName(self::ARG_FOLDER)
+                ->setDefaultValue('.')
                 ->setDescription('Path to the folder, where the command ist to be executed - absolute or relative to the vendor folder'),
         ];
     }
@@ -136,11 +139,11 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Timeout in seconds for CLI command execution.
-     *
+     * 
      * @uxon-property command_timeout
      * @uxon-type number
      * @uxon-default 60
-     *
+     * 
      * @param float $value
      * @return CommandLineTool
      */
@@ -160,16 +163,16 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Allowed command patterns.
-     *
+     * 
      * Entries can be exact command strings (for example `php` or `php -v`) or regex patterns
      * enclosed in delimiters (for example `/^php\\s+-l\\s+.+$/`). If this list is empty, all
      * commands are allowed except blocked ones.
-     *
+     * 
      * @uxon-property allowed_commands
      * @uxon-type array
      * @uxon-default []
      * @uxon-template ["/^php\\s+-l\\s+.+$/", "php -v"]
-     *
+     * 
      * @param string[] $patterns
      * @return CommandLineTool
      */
@@ -189,15 +192,15 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Blocked command patterns.
-     *
+     * 
      * Entries can be exact command strings or regex patterns enclosed in delimiters.
      * This list has higher priority than `allowed_commands`.
-     *
+     * 
      * @uxon-property blocked_commands
      * @uxon-type array
      * @uxon-default []
      * @uxon-template ["/\\brm\\b/i", "/\\bdel\\b/i"]
-     *
+     * 
      * @param string[] $patterns
      * @return CommandLineTool
      */
@@ -209,10 +212,12 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Validates command against blocked/allowed patterns.
-     *
+     * 
      * @param string $command
     * @param TaskInterface $prompt
      * @return void
+     * 
+     * @throws AiToolRuntimeError
      */
     protected function checkCommandAllowed(string $command, TaskInterface $prompt): void
     {
@@ -229,9 +234,9 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Returns TRUE if command matches at least one configured pattern.
-     *
+     * 
      * For plain strings, both full command and executable name are matched.
-     *
+     * 
      * @param string $command
      * @param string[] $patterns
      * @return bool
@@ -263,8 +268,8 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Normalizes and validates configured command patterns.
-     *
-     * @param array $patterns
+     * 
+     * @param array<array-key,mixed> $patterns
      * @return string[]
      */
     protected function sanitizePatterns(array $patterns): array
@@ -287,7 +292,7 @@ class CommandLineTool extends AbstractAiTool
 
     /**
      * Returns the executable part of a CLI command string.
-     *
+     * 
      * @param string $command
      * @return string
      */

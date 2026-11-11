@@ -10,37 +10,36 @@ use axenox\GenAI\Interfaces\AiResponseInterface;
 use axenox\GenAI\Interfaces\AiTestCriterionInterface;
 use axenox\GenAI\Interfaces\AiTestMetricInterface;
 use axenox\GenAI\Interfaces\AiTestRatingInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Factories\DataSheetFactory;
 
 
-/*
- * Example:
+/**
+ * Check expected and forbidden tool usage within the current response turn.
  * 
+ * Configure expected argument values and call-count bounds to score whether the
+ * agent used the right tools, without including calls from earlier turns.
+ * 
+ * ```json
  * {
-  "type": "ToolCheck",
-  "tools": [
-    {
-{
-      "name": "search_user", // wird benötigt
-      "required" : true //standartmäßig auf true
-      "min_calls": 1, // optional
-      "max_calls": 2, // optional
-      "arguments": {
-          "name" : "John",
-      }, //wird benötigt
-      "allow_additional_arguments": false //standartmäßig auf false
-    }
-  ],
-  "forbidden_tools": ["delete_user"]
-}
-
+ *     "type": "ToolCheck",
+ *     "tools": [
+ *         {
+ *             "name": "search_records",
+ *             "required": true,
+ *             "min_calls": 1,
+ *             "max_calls": 2,
+ *             "arguments": {"query": "example"},
+ *             "allow_additional_arguments": false
+ *         }
+ *     ],
+ *     "forbidden_tools": ["delete_records"]
+ * }
  * 
+ * ```
  * 
- * 
- * 
- * 
- * 
+ * @author GitHub Copilot
  */
 class ToolCheckTestMetric extends AbstractTestMetric
 {
@@ -53,13 +52,28 @@ class ToolCheckTestMetric extends AbstractTestMetric
     private bool $toolCallForbidden = false;
 
 
+    /**
+     * Scores tool usage in the current response turn against configured expectations.
+     * 
+     * @param AiResponseInterface $response
+     * @param AiTestCriterionInterface|null $criterion
+     * @return AiTestRatingInterface
+     */
     public function evaluate(AiResponseInterface $response, ?AiTestCriterionInterface $criterion = null): AiTestRatingInterface
     {
         //TODO Improve this process
         //TODO Example when no argument is given or something like that
         //and split in Parts
 
-        $toolCalls = $response->getToolCallResponses();
+        $toolCalls = [];
+        foreach ($response->getMessages() as $message) {
+            if (! $message instanceof AiToolCallMessageInterface) {
+                continue;
+            }
+            foreach ($message->getCalls() as $call) {
+                $toolCalls[] = $call;
+            }
+        }
         
         //TODO cons, pros, Explanation
         if($this->toolCallForbidden){
@@ -127,7 +141,6 @@ class ToolCheckTestMetric extends AbstractTestMetric
             } else {
                 $callScores = [];
                 foreach ($toolCallsForName as $call) {
-                    /** @var AiToolCallResponse $call */
                     $args = $call->getArguments() ?? [];
                     $keys = \array_keys($args);
 
@@ -283,6 +296,11 @@ class ToolCheckTestMetric extends AbstractTestMetric
 
 
 
+    /**
+     * Returns tool names that must not occur in the response turn.
+     * 
+     * @return array<array-key,mixed>|null
+     */
     public function getForbiddenTools(): ?array
     {
         if(!$this->forbiddenTools) return [];
@@ -291,9 +309,12 @@ class ToolCheckTestMetric extends AbstractTestMetric
 
     /**
      * List of forbidden tools
-     *
+     * 
      * @uxon-property forbidden_tools
      * @uxon-type array
+     * 
+     * @param UxonObject $forbiddenTools
+     * @return ToolCheckTestMetric
      */
     public function setForbiddenTools(UxonObject $forbiddenTools): ToolCheckTestMetric
     {
@@ -305,10 +326,13 @@ class ToolCheckTestMetric extends AbstractTestMetric
     /**
      * AI agents will be evaluated later using these metrics.
      * For questions: AITestRunHelper
-     *
+     * 
      * @uxon-property tools
      * @uxon-type \axenox\GenAI\AI\Metrics\UxonConfigData\ToolCheckData[]
 
+     * 
+     * @param UxonObject $uxon
+     * @return ToolCheckTestMetric
      */
     protected function setTools(UxonObject $uxon) : ToolCheckTestMetric
     {
@@ -319,6 +343,11 @@ class ToolCheckTestMetric extends AbstractTestMetric
         return $this;
     }
 
+    /**
+     * Returns the configured tools for this component.
+     * 
+     * @return array<array-key,mixed>|null
+     */
     public function getTools(): ?array
     {
         return $this->tools;
@@ -327,9 +356,12 @@ class ToolCheckTestMetric extends AbstractTestMetric
     /**
      * If true, best rating (5) when no tool call is made and worst (1) if any occurs.
      * If false or unset, normal criteria evaluation applies.
-     *
+     * 
      * @uxon-property tool_call_forbidden
      * @uxon-type bool
+     * 
+     * @param bool $toolCallForbidden
+     * @return ToolCheckTestMetric
      */
     protected function setToolCallForbidden(bool $toolCallForbidden): ToolCheckTestMetric
     {
@@ -337,6 +369,11 @@ class ToolCheckTestMetric extends AbstractTestMetric
         return $this;
     }
 
+    /**
+     * Reports whether every tool call is forbidden for this metric.
+     * 
+     * @return bool
+     */
     public function isToolCallForbidden(): bool
     {
         return $this->toolCallForbidden;

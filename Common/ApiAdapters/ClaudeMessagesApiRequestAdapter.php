@@ -1,8 +1,10 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
+use axenox\GenAI\Interfaces\AiMessageInterface;
 use axenox\GenAI\DataConnectors\ClaudeConnector;
 use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
@@ -11,24 +13,52 @@ use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Builds Anthropic Claude Messages API requests from generic conversation messages.
+ * 
+ * - Instructions become the top-level `system` prompt, input `user` messages, output `assistant` messages.
+ * - Tool call messages become `tool_use` blocks followed by a `user` message with `tool_result` blocks.
+ * - Images, PDFs and plain text attachments of input messages are sent natively. Other attachments and
+ * attachments of output messages are replaced by short notes and a warning is added to the query.
+ * - Content blocks kept by `ClaudeMessagesApiResponseAdapter` as adapter data (incl. signed thinking blocks)
+ * are replayed only if they were produced by the same model and still match the generic message.
+ * 
+ * @author Andrej Kabachnik
+ */
 class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, HttpRequestToolTestInterface
 {
+    use ConversationApiAdapterTrait;
+
+    const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const SUPPORTED_DOCUMENT_TYPES = ['application/pdf', 'text/plain'];
+
     private ClaudeConnector $connector;
 
+    /**
+     * Creates the connector-specific request adapter.
+     * 
+     * @param ClaudeConnector $connector
+     * @return void
+     */
     public function __construct(ClaudeConnector $connector)
     {
         $this->connector = $connector;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::buildBody()
+     */
     public function buildBody(AiQueryInterface $query): string
     {
+        [$instructions, $dialog] = $this->groupContextMessages($query);
         $json = [
             'model' => $this->connector->getModelName(),
             'max_tokens' => $this->connector->getMaxTokens(),
-            'messages' => $this->buildMessages($query),
+            'messages' => $this->buildMessages($query, $dialog),
         ];
 
-        $system = $this->buildSystemPrompt($query);
+        $system = $this->buildSystemPrompt($instructions);
         if ($system !== null && $system !== '') {
             $json['system'] = $system;
         }
@@ -54,165 +84,125 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    protected function buildSystemPrompt(AiQueryInterface $query): ?string
+    /**
+     * Builds the top-level system prompt from all instruction messages.
+     * 
+     * @param AiMessageInterface[] $instructions
+     * @return string|null
+     */
+    protected function buildSystemPrompt(array $instructions): ?string
     {
-        $messages = $query->getMessages(true);
-        $instructions = [];
-
-        foreach ($messages as $message) {
-            $role = $message['role'] ?? null;
-            if ($role !== 'system' && $role !== 'developer') {
-                continue;
-            }
-
-            $text = $this->normalizeMessageText($message['content'] ?? '');
-            if ($text !== '') {
-                $instructions[] = $text;
-            }
+        $parts = [];
+        foreach ($instructions as $message) {
+            $parts[] = $message->getText();
         }
-
-        if (empty($instructions)) {
-            return null;
-        }
-
-        return implode("\n\n", $instructions);
-    }
-
-    protected function buildMessages(AiQueryInterface $query): array
-    {
-        $messages = [];
-
-        foreach ($query->getMessages(true) as $message) {
-            $role = $message['role'] ?? 'user';
-
-            if ($role === 'system' || $role === 'developer') {
-                continue;
-            }
-
-            if ($role === 'tool') {
-                $messages[] = [
-                    'role' => 'user',
-                    'content' => [
-                        [
-                            'type' => 'tool_result',
-                            'tool_use_id' => $message['tool_call_id'] ?? $message['call_id'] ?? '',
-                            'content' => $this->normalizeMessageText($message['content'] ?? ''),
-                        ],
-                    ],
-                ];
-                continue;
-            }
-
-            if ($role === 'assistant' && ! empty($message['tool_calls']) && is_array($message['tool_calls'])) {
-                $content = [];
-
-                $assistantText = $this->normalizeMessageText($message['content'] ?? '');
-                if ($assistantText !== '') {
-                    $content[] = [
-                        'type' => 'text',
-                        'text' => $assistantText,
-                    ];
-                }
-
-                foreach ($message['tool_calls'] as $toolCall) {
-                    $arguments = $toolCall['function']['arguments'] ?? '{}';
-                    $arguments = $this->normalizeToolUseInput($arguments);
-
-                    $content[] = [
-                        'type' => 'tool_use',
-                        'id' => $toolCall['id'] ?? '',
-                        'name' => $toolCall['function']['name'] ?? '',
-                        'input' => $arguments,
-                    ];
-                }
-
-                if (empty($content)) {
-                    $content[] = ['type' => 'text', 'text' => ''];
-                }
-
-                $messages[] = [
-                    'role' => 'assistant',
-                    'content' => $content,
-                ];
-                continue;
-            }
-
-            $messages[] = [
-                'role' => ($role === 'assistant' ? 'assistant' : 'user'),
-                'content' => $this->normalizeContentBlocks($message['content'] ?? ''),
-            ];
-        }
-
-        if ($query->hasFiles()) {
-            foreach ($query->getFiles() as $file) {
-                $fileInfo = $file->getFileInfo();
-                $filename = method_exists($fileInfo, 'getFilename') ? $fileInfo->getFilename() : 'upload.bin';
-                $mimeType = method_exists($fileInfo, 'getMimeType') && $fileInfo->getMimeType()
-                    ? $fileInfo->getMimeType()
-                    : 'application/octet-stream';
-
-                $messages[] = [
-                    'role' => 'user',
-                    'content' => [
-                        [
-                            'type' => 'document',
-                            'source' => [
-                                'type' => 'base64',
-                                'media_type' => $mimeType,
-                                'data' => base64_encode($file->read()),
-                            ],
-                            'title' => $filename,
-                        ],
-                    ],
-                ];
-            }
-        }
-
-        return $messages;
+        return $parts === [] ? null : implode("\n\n", $parts);
     }
 
     /**
-     * Anthropic expects tool_use.input to always be a JSON object.
-     * Empty or list-like payloads are converted to objects for compatibility.
-     *
-     * @param mixed $arguments
-     * @return array|object
+     * Builds native messages from the dialog messages of the query.
+     * 
+     * Claude rejects empty text blocks, so they are left out. Consecutive messages with the same role are
+     * allowed - Claude merges them.
+     * 
+     * @param AiQueryInterface $query
+     * @param AiMessageInterface[] $dialog Input and output messages selected by groupContextMessages()
+     * @return array<array-key,mixed>
      */
-    protected function normalizeToolUseInput($arguments)
+    protected function buildMessages(AiQueryInterface $query, array $dialog): array
     {
-        if (is_string($arguments)) {
-            $decoded = json_decode($arguments);
-            $arguments = $decoded ?? new \stdClass();
-        }
-
-        if ($arguments instanceof \stdClass) {
-            return $arguments;
-        }
-
-        if (is_array($arguments)) {
-            if (empty($arguments)) {
-                return new \stdClass();
+        $output = [];
+        $idState = [];
+        $appendixSeen = [];
+        foreach ($dialog as $message) {
+            if ($message->isInput()) {
+                $output[] = ['role' => 'user', 'content' => $this->buildUserContent($query, $message)];
+                continue;
             }
-
-            $keys = array_keys($arguments);
-            $isSequential = ($keys === range(0, count($arguments) - 1));
-            if ($isSequential) {
-                return (object) $arguments;
+            // Output messages
+            $calls = $this->getContextCalls($message);
+            $content = $this->getMatchingAdapterBlocks($message, $idState);
+            if ($content === null) {
+                $content = [];
+                $text = $message->getText();
+                foreach ($message->getAttachments() as $file) {
+                    $query->addWarning('File "' . $file->getFilename() . '" generated by the model cannot be sent back to this API - replaced by a note.');
+                    $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+                }
+                if ($text !== '') {
+                    $content[] = ['type' => 'text', 'text' => $text];
+                }
+                foreach ($calls as $call) {
+                    $content[] = [
+                        'type' => 'tool_use', 
+                        'id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                        'name' => $call->getToolName(), 
+                        'input' => $this->buildToolArgumentsObject($call)
+                    ];
+                }
             }
-
-            return $arguments;
+            if ($content === []) {
+                continue;
+            }
+            $output[] = ['role' => 'assistant', 'content' => $content];
+            if ($calls === []) {
+                continue;
+            }
+            /** @var AiToolCallMessageInterface $message */
+            $results = $message->getToolResults();
+            $blocks = [];
+            foreach ($calls as $call) {
+                $result = $results[$call->getCallId()];
+                $blocks[] = [
+                    'type' => 'tool_result', 
+                    'tool_use_id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                    'content' => $this->buildToolResultText($result, $appendixSeen),
+                    'is_error' => $result->isFailed()
+                ];
+            }
+            $output[] = ['role' => 'user', 'content' => $blocks];
         }
+        return $output;
+    }
 
-        if (is_object($arguments)) {
-            return $arguments;
+    /**
+     * Builds the content blocks of a user message - attachments, that cannot be sent, become notes
+     *
+     * @param AiQueryInterface $query
+     * @param AiMessageInterface $message
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildUserContent(AiQueryInterface $query, AiMessageInterface $message): array
+    {
+        $text = $message->getText();
+        $files = [];
+        foreach ($message->getAttachments() as $file) {
+            $contents = $this->readAttachment($query, $file, array_merge(self::SUPPORTED_IMAGE_TYPES, self::SUPPORTED_DOCUMENT_TYPES));
+            if ($contents === null) {
+                $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+                continue;
+            }
+            $mimeType = $this->getAttachmentMimeType($file);
+            switch (true) {
+                case in_array($mimeType, self::SUPPORTED_IMAGE_TYPES, true):
+                    $files[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mimeType, 'data' => base64_encode($contents)]];
+                    break;
+                case $mimeType === 'text/plain':
+                    $files[] = ['type' => 'document', 'source' => ['type' => 'text', 'media_type' => $mimeType, 'data' => $contents], 'title' => $file->getFilename()];
+                    break;
+                default:
+                    $files[] = ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => $mimeType, 'data' => base64_encode($contents)], 'title' => $file->getFilename()];
+            }
         }
-
-        return new \stdClass();
+        // Claude rejects empty text blocks
+        $content = $text === '' ? [] : [['type' => 'text', 'text' => $text]];
+        $content = array_merge($content, $files);
+        return $content === [] ? [['type' => 'text', 'text' => ' ']] : $content;
     }
 
     /**
      * @param AiToolInterface[] $aiTools
-     * @return array
+     * @return array<array-key,mixed>
      */
     protected function buildJsonTools(array $aiTools): array
     {
@@ -255,6 +245,12 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $tools;
     }
 
+    /**
+     * Builds a strict JSON schema for a configured tool argument.
+     * 
+     * @param ServiceParameterInterface $argument
+     * @return array<array-key,mixed>
+     */
     protected function buildArgumentSchema(ServiceParameterInterface $argument): array
     {
         $schema = null;
@@ -278,6 +274,12 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $this->normalizeStrictFunctionSchema($schema);
     }
 
+    /**
+     * Recursively closes object schemas for strict tool validation.
+     * 
+     * @param array<array-key,mixed> $schema
+     * @return array<array-key,mixed>
+     */
     protected function normalizeStrictFunctionSchema(array $schema): array
     {
         if (($schema['type'] ?? null) === 'object') {
@@ -313,101 +315,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $schema;
     }
 
-    protected function normalizeContentBlocks($content): array
-    {
-        if (! is_array($content)) {
-            return [
-                [
-                    'type' => 'text',
-                    'text' => $this->normalizeMessageText($content),
-                ],
-            ];
-        }
-
-        $blocks = [];
-        foreach ($content as $item) {
-            if (! is_array($item)) {
-                $blocks[] = [
-                    'type' => 'text',
-                    'text' => (string) $item,
-                ];
-                continue;
-            }
-
-            $type = $item['type'] ?? 'text';
-
-            if (in_array($type, ['text', 'input_text', 'output_text'], true)) {
-                $blocks[] = [
-                    'type' => 'text',
-                    'text' => (string) ($item['text'] ?? ''),
-                ];
-                continue;
-            }
-
-            if ($type === 'image_url') {
-                $url = $item['image_url']['url'] ?? null;
-                if ($url !== null) {
-                    $blocks[] = [
-                        'type' => 'image',
-                        'source' => [
-                            'type' => 'url',
-                            'url' => $url,
-                        ],
-                    ];
-                }
-                continue;
-            }
-
-            $blocks[] = [
-                'type' => 'text',
-                'text' => json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            ];
-        }
-
-        if (empty($blocks)) {
-            $blocks[] = ['type' => 'text', 'text' => ''];
-        }
-
-        return $blocks;
-    }
-
-    protected function normalizeMessageText($content): string
-    {
-        if ($content === null) {
-            return '';
-        }
-
-        if (is_string($content) || is_scalar($content)) {
-            return (string) $content;
-        }
-
-        if (! is_array($content)) {
-            return json_encode($content, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        $parts = [];
-        foreach ($content as $item) {
-            if (is_string($item) || is_scalar($item)) {
-                $parts[] = (string) $item;
-                continue;
-            }
-
-            if (! is_array($item)) {
-                continue;
-            }
-
-            $type = $item['type'] ?? 'text';
-            if (in_array($type, ['text', 'input_text', 'output_text'], true)) {
-                $parts[] = (string) ($item['text'] ?? '');
-                continue;
-            }
-
-            $parts[] = json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        return trim(implode("\n", array_filter($parts, static fn ($v) => $v !== null && $v !== '')));
-    }
-
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::getDryrunResponse()
+     */
     public function getDryrunResponse(array $requestJson, string $response) : ResponseInterface
     {
         $debug = [
@@ -437,6 +348,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::getUserPromptFromRequest()
+     */
     public function getUserPromptFromRequest(array $requestJson) : ?string
     {
         $prompt = null;
@@ -466,6 +381,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $prompt;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::getToolNamesFromRequest()
+     */
     public function getToolNamesFromRequest(array $requestJson) : array
     {
         $names = [];
@@ -477,6 +396,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $names;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::getToolArgumentNames()
+     */
     public function getToolArgumentNames(array $requestJson, string $toolName) : ?array
     {
         foreach (($requestJson['tools'] ?? []) as $tool) {
@@ -491,6 +414,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::hasToolCallResultsInRequest()
+     */
     public function hasToolCallResultsInRequest(array $requestJson) : bool
     {
         foreach (($requestJson['messages'] ?? []) as $message) {
@@ -512,6 +439,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::getToolCallResultsFromRequest()
+     */
     public function getToolCallResultsFromRequest(array $requestJson) : array
     {
         $results = [];
@@ -542,6 +473,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return $results;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::buildTextResponse()
+     */
     public function buildTextResponse(array $requestJson, string $text) : ResponseInterface
     {
         $json = [
@@ -569,6 +504,10 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestToolTestInterface::buildToolCallResponse()
+     */
     public function buildToolCallResponse(array $requestJson, array $toolCalls) : ResponseInterface
     {
         $content = [];
@@ -599,5 +538,100 @@ class ClaudeMessagesApiRequestAdapter implements HttpRequestAdapterInterface, Ht
         ];
 
         return new Response(200, [], json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+    /**
+     * Returns the native content blocks kept by the response adapter if they can be replayed - NULL otherwise
+     * 
+     * The generic message is authoritative: the blocks are only used if they were produced by the current
+     * model and still match the text and the tool calls of the message. Thinking blocks must have their
+     * signatures. Tool use IDs are mapped the same way as for generic blocks.
+     * 
+     * @param AiMessageInterface $message
+     * @param array<string,mixed> $idState
+     * @return array<int,mixed>|null
+     */
+    private function getMatchingAdapterBlocks(AiMessageInterface $message, array &$idState): ?array
+    {
+        $data = $message->getAdapterData(ClaudeMessagesApiResponseAdapter::ADAPTER_DATA_KEY);
+        if ($data === null || ! is_array($data['content'] ?? null) || $message->getAttachments() !== []) {
+            return null;
+        }
+        if (! $this->isCurrentModel($data['model'] ?? null)) {
+            return null;
+        }
+        $blocks = [];
+        foreach ($data['content'] as $block) {
+            if (! $block instanceof \stdClass && ! is_array($block)) {
+                return null;
+            }
+            $blocks[] = (object) $block;
+        }
+        if (ClaudeMessagesApiResponseAdapter::getText($blocks) !== $message->getText()) {
+            return null;
+        }
+        $calls = $this->getContextCalls($message);
+        $nativeCalls = [];
+        foreach ($blocks as $block) {
+            switch ($block->type ?? null) {
+                case 'tool_use':
+                    $nativeCalls[] = $block;
+                    break;
+                case 'thinking':
+                    if (empty($block->signature)) {
+                        return null;
+                    }
+                    break;
+                case 'text':
+                    if (($block->text ?? '') === '') {
+                        return null;
+                    }
+                    break;
+                case 'redacted_thinking':
+                    break;
+                default:
+                    // Blocks, this adapter cannot replay safely
+                    return null;
+            }
+        }
+        if (count($nativeCalls) !== count($calls)) {
+            return null;
+        }
+        foreach ($calls as $i => $call) {
+            $block = $nativeCalls[$i];
+            if (($block->id ?? null) !== $call->getCallId()
+                || ($block->name ?? null) !== $call->getToolName()
+                || ! ($block->input ?? null) instanceof \stdClass
+                || json_encode($block->input) !== json_encode($this->buildToolArgumentsObject($call))) {
+                return null;
+            }
+        }
+        $replay = [];
+        foreach ($blocks as $block) {
+            $block = clone $block;
+            if (($block->type ?? null) === 'tool_use') {
+                $block->id = $this->mapCallId($message, $block->id, $idState);
+            }
+            // Citations reference documents of the original request and cannot be replayed reliably
+            unset($block->citations);
+            $replay[] = $block;
+        }
+        return $replay;
+    }
+
+    /**
+     * Returns TRUE if the given model name (as reported in a response) belongs to the model of the connector
+     * 
+     * Providers often report versioned names (e.g. `claude-sonnet-4-5-20250929` for `claude-sonnet-4-5`).
+     * 
+     * @param mixed $model
+     * @return bool
+     */
+    private function isCurrentModel(mixed $model): bool
+    {
+        $current = $this->connector->getModelName();
+        if (! is_string($model) || $model === '') {
+            return false;
+        }
+        return $model === $current || str_starts_with($model, $current . '-');
     }
 }

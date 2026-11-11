@@ -7,3 +7,5 @@ The `axenox.GenAI` app provides the framework for configuring, running, testing,
 [Find all information about AI here.](AI/index.md)
 
 [Learn how to test GenAI.](Testing/index.md)
+
+[Development documentation](Development/index.md) - e.g. [how agents talk to an LLM](Development/Conversation_with_an_LLM.md).

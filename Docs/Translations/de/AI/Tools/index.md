@@ -6,6 +6,28 @@ Tools ermöglichen es einem Agenten, während der Verarbeitung einer Anfrage Inf
 
 Verwenden Sie ein Tool für Informationen, die zu detailliert, zu veränderlich oder zu aufwendig sind, um sie in jeden Prompt aufzunehmen. Ein gutes Tool besitzt genau eine klar definierte Aufgabe, eng begrenzte Berechtigungen und eine Beschreibung, aus der das Modell erkennt, welche Unsicherheit der Aufruf beseitigen kann. Diese Seite dokumentiert alle derzeit von `axenox.GenAI` bereitgestellten Tool-Prototypen und erläutert, wann und wie sie verwendet werden.
 
+## Ergebnisse, Fehler und Monitoring
+
+Agenten und MCP verwenden denselben Tool-Lebenszyklus des konfigurierten Handlers. Der Batch
+wird vor der Ausfuehrung gespeichert; Einzelaufrufe unmittelbar vor und nach jedem Aufruf.
+Fehler im Before-Event verhindern diesen Aufruf; Fehler im After-Event erhalten das Ergebnis.
+Protokollierungs- oder Auslieferungsfehler loesen keine automatischen Tool-Wiederholungen aus.
+
+Ergebnisse behalten vollstaendigen Text, Datentyp, Zusatzanweisungen und geordnete Fehler- und
+Warnmeldungen. Jede Diagnose ab `ERROR` macht das Ergebnis fehlgeschlagen; reine Warnungen
+gelten als erfolgreich. Abgewiesene Aufrufe gelten auch bei einer korrigierenden Warnung als
+fehlgeschlagen. Fehlgeschlagene Ergebnisse bleiben an LLM oder MCP-Client auslieferbar.
+
+Die kombinierte Nachricht dient der Rekonstruktion; Einzeldatensaetze dienen Detailansicht
+und Statistik. Fehlende Details ersetzen keine gespeicherten Ergebnisse. Das Monitoring darf
+begrenzte Vorschauen zeigen; die vollstaendige Ausgabe bleibt in den Nachrichtendaten.
+Eine automatische Loeschung oder Ablaufzeit wird nicht eingefuehrt.
+
+Tool-Implementierungen erzeugen `AiToolResultString` mit Workbench und Wert, nicht mit einem
+lebenden Tool oder Aufrufargumenten. Ergebnis-UXON enthaelt `class`, Datentyp `type`, `value`,
+`failed`, `appendix`, `errors` und `warnings`. Nur unterstuetzte Ergebnisklassen werden
+rekonstruiert. Gespeicherte Diagnosen benoetigen weder Exceptions noch die alte Tool-Konfiguration.
+
 ## Ein Tool auswählen
 
 | Anforderung | Empfohlenes Tool |
@@ -58,7 +80,53 @@ Eine Definition wählt ihren Prototyp über `alias` oder `class` aus und kann di
 
 Werden `arguments` weggelassen, kommen die integrierten Argumentvorlagen zum Einsatz. Überschreiben Sie diese nur, wenn der Agent eine spezifischere Terminologie, Beispiele oder ein eingeschränktes Schema benötigt. Die Tool-Anweisungen sollten außerdem angeben, wann ein Aufruf verpflichtend ist, zum Beispiel: „Lesen Sie die Objektdefinition, bevor Sie UXON vorschlagen, das auf dessen Attribute verweist.“
 
+### Gemeinsame Argumentbindung
+
+Jedes Tool stellt `normalizeArguments()` bereit, implementiert durch `AbstractAiTool`. Agenten-
+und MCP-Aufrufe verwenden die Methode ueber den gemeinsamen Task-Handler; Concepts und
+verschachtelte Tool-Aufrufe verwenden sie ebenfalls vor `invoke()`. Konkrete Tools erhalten
+eine vollstaendige positionale Liste und ergaenzen keine eigenen Standardwerte.
+Teilweise `arguments`-Anpassungen behalten die restlichen Prototyp-Parameter und deren Standardwerte.
+
+- Benannte Argumente werden in konfigurierter Parameterreihenfolge gebunden, Listen nach Position.
+- Nur ausgelassene Parameter erhalten ihren konfigurierten `default_value`, auch Pflichtparameter
+  mit Standardwert. Standardwerte und uebergebene skalare Werte werden durch den Serviceparameter geparst.
+- Ausgelassene optionale Parameter ohne Standardwert werden `null`. Explizites `null` bleibt bei
+  optionalen Parametern erhalten und wird bei Pflichtparametern auch mit Standardwert abgewiesen.
+- Fehlende Pflichtwerte, unbekannte Namen, ueberzaehlige Positionswerte und skalare Parsingfehler
+  verhindern die Ausfuehrung vor Tool-Events oder Seiteneffekten.
+- Strukturierte JSON-Objekte, Arrays und konfigurierte UXON-Standardwerte werden fuer UXON-verarbeitende Tools in verschachtelte
+  PHP-Arrays umgewandelt. Originalargumente bleiben unveraendert; normalisierte Ausfuehrungsargumente
+  werden separat gespeichert.
+
+Standardwerte gehoeren in die Parametervorlagen, nicht in `invoke()`. Insbesondere deklarieren
+`CommandLineTool` und `GitTool` den Wert `folder = "."`; `UxonAutosuggestTool` deklariert
+`path = []` und `text = ""`. Tool-spezifische Berechtigungs- und semantische Pruefungen
+verbleiben im konkreten Tool.
+
 An das Modell zurückgesendete Tool-Ergebnisse kennzeichnen angehängte Fehler und Warnungen ausdrücklich. Diagnosen enthalten ihren Schweregrad und ihre Meldung sowie, sofern vorhanden, den Lösungshinweis aus dem Message-Modell der Exception. Wenn Fehler ein Ergebnis verhindert haben, weist die Antwort deutlich darauf hin, dass wegen der Fehler kein Ergebnis erzeugt wurde. Konversationsnachrichten und Tool-Call-Datensätze speichern dieses angereicherte Ergebnis, damit dieselben Diagnosen in der Konversationsoberfläche sichtbar sind; der rohe Wert bleibt im Ergebnisobjekt separat verfügbar. Bei kritischen Fehlern wird das Modell zusätzlich angewiesen, denselben Aufruf nicht unverändert zu wiederholen.
+
+Tools mit eingebauten Textvergleichen koennen den Ablehnungstext ueber `security_failure_message`
+anpassen (Standard: `This is not allowed`). Das aendert die Meldung, nicht die Zugriffsrechte.
+Es gibt keine allgemeine konfigurierbare Eigenschaft `checks` oder `message`; verwenden Sie
+die dokumentierten Grenzen des konkreten Prototyps.
+
+## `CallActionTool`
+
+**Alias:** `axenox.GenAI.CallActionTool` | [UXON-Prototyp](api/docs/exface/Core/Docs/UXON/UXON_prototypes.md?selector=%5Caxenox%5CGenAI%5CAI%5CTools%5CCallActionTool)
+
+**Zweck.** Ruft eine vordefinierte ExFace-Aktion auf und liefert deren Daten oder Meldung.
+
+**Verwenden, wenn.** Eine bekannte Plattformaktion die benoetigte Operation implementiert.
+Konfigurieren Sie `action` mit deren UXON und optional `task` mit einem generischen Task-Modell.
+Benannte Task-Werte stehen unter `task.parameters`, nicht unter `task.arguments`. Benannte
+Tool-Argumente koennen als `[#argument_name#]`-Platzhalter in Aktions- und Task-Modellen
+eingesetzt werden. Ohne `task` wird ein leerer generischer Task erzeugt.
+
+**Ergebnis und Grenzen.** Datenergebnisse werden als JSON zurueckgegeben; andere Ergebnisse
+verwenden die Aktionsmeldung. Stellen Sie nur eng begrenzte, fuer den Agenten geeignete
+Aktionen bereit. Das Tool ist kein unbeschraenkter Aktionsselektor: Die Aktion wird in der
+Konfiguration gewaehlt, nicht durch ein Tool-Aufrufargument.
 
 ## Dateizugriff konfigurieren
 
@@ -746,7 +814,7 @@ replacement text
 | `request_response_pairs` | Geordnete Anfrage-Matcher und ihre Antworten; der erste Treffer gewinnt. |
 | `sample_response` | Ersatzantwort, wenn kein Paar übereinstimmt. |
 
-**Verwendung.** Konfigurieren Sie `sample_response` als deterministische Ersatzantwort und überschreiben Sie die Argumentdefinition so, dass sie dem getesteten Tool entspricht. `request_response_pairs` ist für die Auswahl von Antworten anhand der Anfrage vorgesehen, doch die aktuelle Annotation und Konvertierungsimplementierung sind unvollständig.
+**Verwendung.** Konfigurieren Sie `sample_response` als deterministische Ersatzantwort und überschreiben Sie die Argumentdefinition so, dass sie dem getesteten Tool entspricht. `request_response_pairs` ist im UXON-Editor auffindbar, doch die Konvertierungsimplementierung ist unvollständig.
 
 **Ergebnis und Grenzen.** Das Tool gibt Markdown aus der ausgewählten Mock-Antwort zurück. Bis die Verarbeitung von Anfrage-Antwort-Paaren korrigiert ist, sollten Sie sich für vorhersehbares Verhalten auf `sample_response` verlassen.
 

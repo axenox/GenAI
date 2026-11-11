@@ -75,6 +75,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  *  }
  * 
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class FilePatchTool extends AbstractAiTool
 {
@@ -96,8 +98,8 @@ class FilePatchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $relativePath = (string) ($arguments[0] ?? '');
-        $patch = (string) ($arguments[1] ?? '');
+        $relativePath = (string) $arguments[0];
+        $patch = (string) $arguments[1];
 
         $blocks = $this->parsePatch($patch, $prompt);
         if (empty($blocks)) {
@@ -127,12 +129,12 @@ class FilePatchTool extends AbstractAiTool
 
         $verb = $fileExists ? 'patched' : 'created';
         $message = 'File ' . $verb . ': ' . $relativePath . ' (' . count($blocks) . ' block(s) applied)';
-        return new AiToolResultString($this, $arguments, $message, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $message, $this->getReturnDataType());
     }
 
     /**
      * Parses a patch string into an array of [search, replace] block pairs.
-     *
+     * 
      * @param string $patch
     * @param TaskInterface $prompt
      * @throws AiToolRuntimeError
@@ -188,7 +190,7 @@ class FilePatchTool extends AbstractAiTool
 
     /**
      * Applies all SEARCH/REPLACE blocks to the given content and returns the result.
-     *
+     * 
      * @param string $content
      * @param array<int,array{0:string,1:string}> $blocks
      * @param string $relativePath
@@ -233,10 +235,10 @@ class FilePatchTool extends AbstractAiTool
 
     /**
      * Finds the byte position of the SEARCH text within the content.
-     *
+     * 
      * Tries an exact match first and falls back to an indentation-insensitive match per line, so the LLM does
      * not have to reproduce leading whitespace byte-for-byte.
-     *
+     * 
      * @param string $content
      * @param string $search
      * @return int|null
@@ -296,6 +298,11 @@ class FilePatchTool extends AbstractAiTool
         ];
     }
     
+    /**
+     * Returns runtime tool constraints to include in the model instructions.
+     * 
+     * @return string|null
+     */
     public function getRules(): ?string
     {
         $markerSearch = self::MARKER_SEARCH;

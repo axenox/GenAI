@@ -2,14 +2,15 @@
 namespace axenox\GenAI\Exceptions;
 
 use axenox\GenAI\Interfaces\AiQueryInterface;
-use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Widgets\DebugMessage;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 
 /**
  * Exception thrown when a query to an LLM model fails.
+ *
+ * Transport diagnostics are rendered by the query. An explicit HTTP request is attached
+ * to a query copy so it can be rendered together with any response already received.
  */
 class AiQueryError extends RuntimeException
 {
@@ -19,7 +20,7 @@ class AiQueryError extends RuntimeException
     public function __construct(AiQueryInterface $query, string $message, ?string $alias = null, ?\Throwable $previous = null, ?RequestInterface $httpRequest = null)
     {
         parent::__construct($message, $alias, $previous);
-        $this->query = $query;
+        $this->query = $httpRequest === null ? $query : $query->withRequest($httpRequest);
         $this->request = $httpRequest;
     }
     
@@ -33,23 +34,13 @@ class AiQueryError extends RuntimeException
         return $this->request;
     }
     
-    public function getHttpResponse() : ?ResponseInterface
-    {
-        return $this->query->hasResponse() ? $this->query->getResponseMessage() : null;
-    }
-
     /**
      *
      * {@inheritDoc}
-     * @see \exface\Core\CommonLogic\DataQueries\AbstractDataQuery::createDebugWidget()
+     * @see \exface\Core\Exceptions\RuntimeException::createDebugWidget()
      */
     public function createDebugWidget(DebugMessage $debug_widget)
     {
-        if (null !== $request = $this->getHttpRequest()) {
-            $renderer = new HttpMessageDebugger($request, $this->getHttpResponse(), 'LLM request', 'LLM response');
-            $debug_widget = $renderer->createDebugWidget($debug_widget);
-        }
-
-        return $debug_widget;
+        return $this->query->createDebugWidget($debug_widget);
     }
 }

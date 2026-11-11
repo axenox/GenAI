@@ -87,7 +87,7 @@
         {
             "_EXPORT_SUMMARY": "AI message [axenox.GenAI.AI_MESSAGE]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-08-05 10:01:52",
+            "MODIFIED_ON": "2026-11-10 16:58:39",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef950a2e445768950a025041000001",
@@ -141,7 +141,7 @@
                                     },
                                     {
                                         "widget_type": "WidgetGroup",
-                                        "caption": "Cost",
+                                        "caption": "LLM usage/cost (empty means unknown; MCP has none)",
                                         "widgets": [
                                             {
                                                 "attribute_alias": "TOKENS_PROMPT"
@@ -173,6 +173,63 @@
                                         "hide_caption": true,
                                         "height": "max",
                                         "width": "100%"
+                                    }
+                                ]
+                            },
+                            {
+                                "caption": "Individual tool calls",
+                                "widgets": [
+                                    {
+                                        "widget_type": "DataTable",
+                                        "object_alias": "axenox.GenAI.AI_TOOL_CALL",
+                                        "filters": [
+                                            {
+                                                "attribute_alias": "AI_MESSAGE",
+                                                "value": "=uid_field",
+                                                "hidden": true,
+                                                "required": true
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "CALL_INDEX"
+                                            },
+                                            {
+                                                "attribute_alias": "TOOL_NAME"
+                                            },
+                                            {
+                                                "attribute_alias": "STATE"
+                                            },
+                                            {
+                                                "attribute_alias": "STARTED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "FINISHED_ON"
+                                            },
+                                            {
+                                                "attribute_alias": "EXECUTION_TIME_MS"
+                                            },
+                                            {
+                                                "attribute_alias": "RESULT_LENGTH_CHARS"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "CALL_INDEX",
+                                                "direction": "asc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "caption": "Refresh",
+                                                "action_alias": "exface.Core.RefreshWidget"
+                                            },
+                                            {
+                                                "caption": "Call details",
+                                                "bind_to_double_click": true,
+                                                "action_alias": "exface.Core.ShowObjectInfoDialog"
+                                            }
+                                        ]
                                     }
                                 ]
                             },
@@ -213,6 +270,29 @@
                     {
                         "action_alias": "axenox.GenAI.AiMessageErrorMonitorDialog",
                         "close_dialog": false
+                    },
+                    {
+                        "caption": "Full message",
+                        "close_dialog": false,
+                        "action": {
+                            "alias": "exface.Core.ShowDialog",
+                            "dialog": {
+                                "widget_type": "Dialog",
+                                "object_alias": "axenox.GenAI.AI_MESSAGE",
+                                "widgets": [
+                                    {
+                                        "attribute_alias": "MESSAGE",
+                                        "widget_type": "InputText",
+                                        "readonly": true
+                                    },
+                                    {
+                                        "attribute_alias": "DATA",
+                                        "widget_type": "InputJson",
+                                        "readonly": true
+                                    }
+                                ]
+                            }
+                        }
                     }
                 ]
             },

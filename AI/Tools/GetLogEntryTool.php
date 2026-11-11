@@ -16,6 +16,13 @@ use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * This AI tool allows an LLM to fetch the JSON of a log details widget we see when clicking on a log entry in the log viewer.
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.GetLogEntryTool"}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class GetLogEntryTool extends AbstractAiTool
 {
@@ -30,7 +37,7 @@ class GetLogEntryTool extends AbstractAiTool
         $printer = new LogEntryMarkdownPrinter($this->getWorkbench(), $logId, $logFilePath);
         $markdown = $printer->getMarkdown();
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

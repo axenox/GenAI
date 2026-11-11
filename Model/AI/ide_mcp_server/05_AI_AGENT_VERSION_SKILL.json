@@ -45,13 +45,13 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "IDE MCP Server v1.0: Read metamodel",
+            "_EXPORT_SUMMARY": "IDE MCP Server v1: Read metamodel",
             "CREATED_ON": "2026-10-01 23:44:43",
             "MODIFIED_ON": "2026-10-01 23:44:43",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f19cce50230d1a9cce025041000001",
-            "LABEL": "IDE MCP Server v1.0: Read metamodel",
+            "LABEL": "IDE MCP Server v1: Read metamodel",
             "DESCRIPTION": null,
             "AI_AGENT_VERSION": "0x11f1966835bf1f409668025041000001",
             "AI_SKILL": "0x5a1d8e6c2f3b4a7d9e0c1f2a3b4c5d6e"

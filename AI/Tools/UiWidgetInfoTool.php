@@ -46,6 +46,13 @@ use GuzzleHttp\Psr7\Uri;
  * Example arguments:
  * - `["exface.core.administration"]`
  * - `["exface.core.objects.html?filter_ALIAS=", "my_widget_id"]`
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.UiWidgetInfoTool"}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class UiWidgetInfoTool extends AbstractAiTool
 {
@@ -58,8 +65,8 @@ class UiWidgetInfoTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $url = trim((string) ($arguments[0] ?? ''));
-        $widgetId = null !== ($arguments[1] ?? null) ? trim((string) $arguments[1]) : null;
+        $url = trim((string) $arguments[0]);
+        $widgetId = $arguments[1] !== null ? trim((string) $arguments[1]) : null;
         if ($url === '') {
             return $this->createErrorResult($prompt, $arguments, 'Missing required argument: url');
         }
@@ -119,7 +126,7 @@ class UiWidgetInfoTool extends AbstractAiTool
                 $facade->buildHtmlBody($widget);
             }
 
-            return new AiToolResultString($this, $arguments, $widgetMarkdown, $this->getReturnDataType());
+            return new AiToolResultString($this->getWorkbench(), $widgetMarkdown, $this->getReturnDataType());
         } catch (ExceptionInterface $e) {
             return $this->createInvalidPageResult(
                 $prompt,
@@ -133,9 +140,9 @@ class UiWidgetInfoTool extends AbstractAiTool
 
     /**
      * Logs the page error and returns it as an expected validation finding.
-     *
+     * 
     * @param TaskInterface $prompt
-     * @param array $arguments
+     * @param array<array-key,mixed> $arguments
      * @param string $url
      * @param ExceptionInterface $pageError
     * @param string|null $widgetMarkdown
@@ -171,8 +178,7 @@ MD;
         $warning->setLogLevel(LoggerInterface::WARNING);
 
         return new AiToolResultString(
-            $this,
-            $arguments,
+            $this->getWorkbench(),
             $resultMessage,
             $this->getReturnDataType(),
             [],
@@ -182,9 +188,9 @@ MD;
 
     /**
      * Creates and logs a failed tool result.
-     *
+     * 
     * @param TaskInterface $prompt
-     * @param array $arguments
+     * @param array<array-key,mixed> $arguments
      * @param string $message
      * @param \Throwable|null $previous
      * @return AiToolResultInterface
@@ -196,14 +202,13 @@ MD;
         ?\Throwable $previous = null
     ): AiToolResultInterface {
         $error = new AiToolRuntimeError($this, $prompt, $message, null, $previous);
-        $this->getWorkbench()->getLogger()->logException($error);
         $resultMessage = $message . ' See ' . $this->buildLogLink($error->getId()) . '.';
-        return new AiToolResultString($this, $arguments, $resultMessage, $this->getReturnDataType(), [], [$error]);
+        return new AiToolResultString($this->getWorkbench(), $resultMessage, $this->getReturnDataType(), [], [$error]);
     }
 
     /**
      * Builds a Markdown link to the debug log entry.
-     *
+     * 
      * @param string $logId
      * @return string
      */
@@ -214,7 +219,7 @@ MD;
 
     /**
     * Converts a relative page alias to the path format expected by the facade resolver.
-     *
+     * 
      * @param Uri $uri
      * @return Uri
      */

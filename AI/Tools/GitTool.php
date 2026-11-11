@@ -91,6 +91,7 @@ class GitTool extends CommandLineTool
                 ->setRequired(true),
             (new ServiceParameter($self))
                 ->setName(self::ARG_FOLDER)
+                ->setDefaultValue('.')
                 ->setDescription('Path to the Git repository, absolute or relative to the vendor folder.'),
         ];
     }
@@ -107,9 +108,13 @@ Place search patterns containing characters such as `|` or parentheses inside ma
 MD;
     }
 
+    /**
+     * {@inheritDoc}
+     * @see CommandLineTool::invoke()
+     */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $arguments[0] = $this->normalizeGitCommand((string) ($arguments[0] ?? ''));
+        $arguments[0] = $this->normalizeGitCommand((string) $arguments[0]);
         return parent::invoke($agent, $prompt, $arguments);
     }
     

@@ -30,11 +30,12 @@ use exface\Core\Interfaces\WorkbenchDependantInterface;
 interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInterface
 {
     /**
+     * Executes the tool with positional arguments returned by normalizeArguments().
      *
-    * @param AiTaskHandlerInterface $agent
-        * @param TaskInterface $task
-     * @param array $arguments
-    * @return AiToolResultInterface
+     * @param AiTaskHandlerInterface $agent
+     * @param TaskInterface $task
+     * @param list<mixed> $arguments
+     * @return AiToolResultInterface
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $task, array $arguments) : AiToolResultInterface;
 
@@ -43,6 +44,19 @@ interface AiToolInterface extends iCanBeConvertedToUxon, WorkbenchDependantInter
      * @return \exface\Core\Interfaces\Actions\ServiceParameterInterface[]
      */
     public function getArguments() : array;
+
+    /**
+     * Binds named arguments or a positional list to the configured parameters and parses values.
+     *
+     * Only omitted parameters receive defaults. Omitted optional parameters without a default
+     * become null. Required parameters without a value and unknown/excess arguments are rejected.
+     * Explicit null is preserved for optional parameters and rejected for required parameters.
+     * Structured UXON values become arrays without modifying the original arguments.
+     *
+     * @param array<array-key,mixed> $arguments
+     * @return list<mixed>
+     */
+    public function normalizeArguments(array $arguments) : array;
 
     /**
      * 

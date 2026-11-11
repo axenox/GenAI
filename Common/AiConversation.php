@@ -1,102 +1,215 @@
 <?php
 namespace axenox\GenAI\Common;
 
+use axenox\GenAI\Common\Messages\AbstractAiMessage;
+use axenox\GenAI\Common\Messages\AiMessageSerializer;
+use axenox\GenAI\Common\Messages\DiagnosticMessage;
+use axenox\GenAI\Common\Messages\InputMessage;
+use axenox\GenAI\Common\Messages\InstructionsMessage;
+use axenox\GenAI\Common\Messages\ToolCallMessage;
+use axenox\GenAI\Common\Messages\UnavailableAttachment;
+use axenox\GenAI\DataTypes\AiConversationTypeDataType;
 use axenox\GenAI\DataTypes\AiMessageTypeDataType;
+use axenox\GenAI\DataTypes\AiToolCallStateDataType;
 use axenox\GenAI\Exceptions\AiConversationAgentVersionMismatchError;
 use axenox\GenAI\Exceptions\AiConversationNotFoundError;
-use axenox\GenAI\Exceptions\AiPromptError;
-use axenox\GenAI\Interfaces\AiAgentInterface;
+use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiConversationInterface;
+use axenox\GenAI\Interfaces\AiMessageInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
-use axenox\GenAI\Interfaces\AiToolInterface;
-use exface\Core\CommonLogic\UxonObject;
+use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
+use axenox\GenAI\Interfaces\AiToolCallInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\CommonLogic\Filesystem\InMemoryFile;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\LogLevelDataType;
-use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\DataTypes\MimeTypeDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\DataTypes\UUIDDataType;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Factories\DataSheetFactory;
-use exface\Core\Factories\UiPageFactory;
-use exface\Core\Interfaces\DataSources\DataTransactionInterface;
+use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
+use exface\Core\Interfaces\Filesystem\FileInterface;
 use exface\Core\Interfaces\Log\LoggerInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
-use exface\Core\Widgets\Markdown;
 
 /**
- * Handles all persistence and message bookkeeping for an AI conversation.
- *
- * Creates a persisted conversation when no ID is supplied or continues the existing conversation
- * identified by the supplied ID. Mutable runtime state is loaded lazily.
+ * Owns the persisted AI history: the only component, that knows how messages are saved and loaded.
+ * 
+ * Messages are saved in `axenox.GenAI.AI_MESSAGE`, their attachments in `axenox.GenAI.AI_MESSAGE_FILE`
+ * and details of every tool call in `axenox.GenAI.AI_TOOL_CALL`. The `DATA` format of messages
+ * including all legacy formats is handled by `AiMessageSerializer`, which is used by the conversation only.
+ * 
+ * The `MESSAGE` column contains a designer-facing representation (`AiMessageInterface::toMarkdown()`),
+ * while the model context is restored from `DATA`. For responses, the `MESSAGE` column shows the answer
+ * the way the agent presents it (e.g. extracted via `response_answer_path`).
+ * 
+ * Usage, model and finish reason of LLM responses are saved from the query in separate columns. They are
+ * not part of the messages.
+ * 
+ * @author Andrej Kabachnik
  */
 class AiConversation implements AiConversationInterface
 {
-    private AiAgentInterface $agent;
-
+    private AiTaskHandlerInterface $handler;
     private WorkbenchInterface $workbench;
-
     private string $conversationId;
-
-    private ?array $conversationData = null;
-
-    private ?int $sequenceNumber = null;
-
-    /**
-     * Creates a new persisted conversation or prepares an existing conversation for continuation.
-     *
-     * @param AiAgentInterface $agent Owning agent instance.
-     * @param string|null $conversationId Existing conversation ID or null to create a conversation.
-     */
-    public function __construct(
-        AiAgentInterface $agent,
-        ?string $conversationId = null
-    )
-    {
-        $this->agent = $agent;
-        $this->workbench = $agent->getWorkbench();
-        $this->conversationId = $conversationId ?? $this->saveNewConversation();
-    }
+    private ?DataSheetInterface $conversationData = null;
+    private int $nextMessageSequence = 0;
+    /** @var AbstractAiMessage[] */
+    private array $liveMessages = [];
+    private array $generatedMessageIds = [];
+    /** @var AbstractAiMessage[]|null */
+    private ?array $history = null;
+    /** @var array<string,array<string,mixed>> persisted DATA of every known message indexed by UID */
+    private array $messageData = [];
+    private array $messageSystemRows = [];
+    private array $callSystemRows = [];
+    private ?AiMessageSerializer $serializer = null;
 
     /**
-     * Persists the initial conversation record and returns its generated ID.
+     * Creates a persisted conversation or authorizes an existing exact-version history.
+     * 
+     * @param AiTaskHandlerInterface $handler
+     * @param string|null $conversationId
+     * @param array<string,mixed> $row An axenox.GenAI.AI_CONVERSATION row keyed by attribute alias.
+     * New rows require TYPE from AiConversationTypeDataType; omitted DEVMODE defaults to false. DATA is serialized JSON.
+     * On restoration only TYPE is used, to verify the caller's expected source.
+     * @return void
      */
-    protected function saveNewConversation() : string
+    public function __construct(AiTaskHandlerInterface $handler, ?string $conversationId = null, array $row = [])
     {
-        $transaction = $this->workbench->data()->startTransaction();
-
-        try {
-            $conversation = DataSheetFactory::createFromObjectIdOrAlias(
-                $this->workbench,
-                'axenox.GenAI.AI_CONVERSATION'
-            );
-            $connectionId = null;
-            try {
-                $connectionId = $this->agent->getConnection()->getId();
-            } catch (\Throwable $e) {
-                $this->workbench->getLogger()->logException($e);
+        $this->handler = $handler;
+        $this->workbench = $handler->getWorkbench();
+        if ($conversationId !== null) {
+            $this->conversationId = $conversationId;
+            $this->conversationData = $this->getConversationData();
+            if (isset($row['TYPE']) && $this->conversationData->getCellValue('TYPE', 0) !== $row['TYPE']) {
+                throw new RuntimeException('Conversation source does not match the caller.');
             }
-
-            $conversation->addRow([
-                'AI_AGENT' => $this->agent->getUid(),
-                'AI_AGENT_VERSION_NO' => $this->agent->getVersion(),
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'TITLE' => '',
-                'DEVMODE' => $this->agent->getDevmode() ? 1 : 0,
-                'CONNECTION' => $connectionId
-            ]);
-            $conversation->dataCreate(false, $transaction);
-            $conversationId = $conversation->getUidColumn()->getValue(0);
-            $transaction->commit();
-
-            return $conversationId;
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            throw $e;
+        } else {
+            $this->conversationData = $this->saveNewConversation($row);
+            $this->conversationId = (string) $this->conversationData->getUidColumn()->getValue(0);
         }
     }
 
     /**
-     * Returns the persisted conversation ID.
+     * Persists a metamodel row without asking the owner for a connection or model.
+     * 
+     * @throws \InvalidArgumentException
+     * @param array<string,mixed> $row
+     * @return DataSheetInterface
+     */
+    protected function saveNewConversation(array $row) : DataSheetInterface
+    {
+        if (!in_array($row['TYPE'] ?? null, AiConversationTypeDataType::getValuesStatic(), true)) {
+            throw new \InvalidArgumentException('New conversations require TYPE to be agent or mcp.');
+        }
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $row += [
+            'TITLE' => '',
+            'TOPIC_ID' => null,
+            'CONNECTION' => null,
+            'MCP_GROUP_KEY' => null,
+            'DATA' => '{}',
+            'RATING' => null,
+            'RATING_FEEDBACK' => null
+        ];
+        $row = array_merge($row, [
+            'AI_AGENT' => $this->handler->getUid(),
+            'AI_AGENT_VERSION_NO' => $this->handler->getVersion(),
+            'USER' => $this->userId()
+        ]);
+        $sheet->addRow($row);
+        $transaction = $this->workbench->data()->startTransaction();
+        try {
+            $sheet->dataCreate(false, $transaction);
+            $transaction->commit();
+        } catch (\Throwable $error) {
+            $transaction->rollback();
+            throw $error;
+        }
+        $sheet->getFilters()->addConditionFromColumnValues($sheet->getUidColumn());
+        $sheet->getFilters()->addConditionFromString('USER', $this->userId(), ComparatorDataType::EQUALS);
+        return $sheet;
+    }
+
+    /**
+     * Returns the authenticated owner boundary.
+     * 
+     * @return string
+     */
+    private function userId() : string
+    {
+        return $this->workbench->getSecurity()->getAuthenticatedUser()->getUid();
+    }
+
+    /**
+     * Loads persisted identity, mutable metadata and system columns for authorized writes.
+     * 
+     * @throws AiConversationNotFoundError
+     * @throws AiConversationAgentVersionMismatchError
+     * @throws RuntimeException
+     * @return DataSheetInterface
+     */
+    protected function getConversationData() : DataSheetInterface
+    {
+        if ($this->conversationData !== null) {
+            return $this->conversationData;
+        }
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->getColumns()->addMultiple([
+            'UID', 'TITLE', 'AI_AGENT', 'AI_AGENT_VERSION_NO', 'AGENT_VERSION', 'TYPE', 'DEVMODE',
+            'AI_MESSAGE__SEQUENCE_NUMBER:MAX', 'AI_MESSAGE__UID:COUNT', 'RATING', 'RATING_FEEDBACK'
+        ]);
+        $sheet->getFilters()->addConditionFromString('UID', $this->conversationId, ComparatorDataType::EQUALS);
+        $sheet->getFilters()->addConditionFromString('USER', $this->userId(), ComparatorDataType::EQUALS);
+        $sheet->dataRead();
+        if ($sheet->countRows() !== 1) {
+            throw new AiConversationNotFoundError("AI conversation '{$this->conversationId}' not found.");
+        }
+        $row = $sheet->getRow(0);
+        if (strcasecmp((string) $row['AI_AGENT'], $this->handler->getUid()) !== 0
+            || (string) $row['AI_AGENT_VERSION_NO'] !== $this->handler->getVersion()
+            || empty($row['AGENT_VERSION'])) {
+            throw new AiConversationAgentVersionMismatchError(
+                $this->conversationId, (string) $row['AI_AGENT'], (string) $row['AI_AGENT_VERSION_NO'],
+                $this->handler->getUid(), $this->handler->getVersion(), $row['AGENT_VERSION'] ?: null
+            );
+        }
+        $maximumSequence = $sheet->getColumns()->getByExpression('AI_MESSAGE__SEQUENCE_NUMBER:MAX')->getValue(0);
+        // Reverse numeric aggregates return zero even when no messages exist.
+        $messageCount = $sheet->getColumns()->getByExpression('AI_MESSAGE__UID:COUNT')->getValue(0);
+        $this->nextMessageSequence = (int) $messageCount === 0 ? 0 : (int) $maximumSequence + 1;
+        $this->conversationData = $sheet;
+        return $sheet;
+    }
+    
+    /**
+     * Writes only changed fields and system columns, then retains behavior-generated values.
+     * 
+     * @param array<string,mixed> $values
+     * @return DataSheetInterface
+     */
+    protected function updateConversationData(array $values) : DataSheetInterface
+    {
+        $conversationData = $this->getConversationData();
+        $updateSheet = $conversationData->extractSystemColumns();
+        $updateSheet->setRowValues(0, $values, true, true);
+        if ($updateSheet->dataUpdate(false) !== 1) {
+            throw new AiConversationNotFoundError('Conversation no longer available.');
+        }
+        $conversationData->setRowValues(0, $updateSheet->getRow(0), true, true);
+        return $updateSheet;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::getConversationId()
      */
     public function getConversationId() : string
     {
@@ -104,867 +217,691 @@ class AiConversation implements AiConversationInterface
     }
 
     /**
-     * Returns the agent participating in this conversation.
+     * {@inheritDoc}
+     * @see AiConversationInterface::getTaskHandler()
      */
-    public function getAgent() : AiAgentInterface
+    public function getTaskHandler() : AiTaskHandlerInterface
     {
-        return $this->agent;
+        return $this->handler;
     }
 
     /**
-     * Returns the persisted conversation title.
+     * {@inheritDoc}
+     * @see AiConversationInterface::getTitle()
      */
     public function getTitle() : string
     {
-        return (string) ($this->getConversationData()['TITLE'] ?? '');
+        return (string) $this->getConversationData()->getCellValue('TITLE', 0);
     }
 
     /**
-     * Overwrites the persisted conversation title.
+     * {@inheritDoc}
+     * @see AiConversationInterface::setTitle()
      */
     public function setTitle(string $title) : AiConversationInterface
     {
-        $this->getConversationData();
-
-        $conversation = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-        $conversation->getFilters()->addConditionFromString('UID', $this->conversationId, ComparatorDataType::EQUALS);
-        $conversation->getFilters()->addConditionFromString(
-            'USER',
-            $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-            ComparatorDataType::EQUALS
-        );
-        $conversation->getColumns()->addMultiple(['TITLE']);
-        $conversation->dataRead();
-
-        if ($conversation->isEmpty()) {
-            throw new AiConversationNotFoundError("Ai Conversation '{$this->conversationId}' not found");
+        if ($title !== $this->getTitle()) {
+            $this->updateConversationData(['TITLE' => $title]);
         }
-
-        $conversation->setCellValue('TITLE', 0, $title);
-        $conversation->dataUpdate(false);
-        if ($this->conversationData !== null) {
-            $this->conversationData['TITLE'] = $title;
-        }
-
         return $this;
     }
 
     /**
-     * Returns the UID of the exact agent version assigned to this conversation.
+     * {@inheritDoc}
+     * @see AiConversationInterface::getMessages()
      */
-    protected function getAgentVersionUID() : string
+    public function getMessages(?string $type = null) : array
     {
-        return $this->getConversationData()['AGENT_VERSION'];
-    }
-
-    /**
-     * Loads and validates the persisted conversation data on first access.
-     */
-    protected function getConversationData() : array
-    {
-        if ($this->conversationData === null) {
-            $conversation = DataSheetFactory::createFromObjectIdOrAlias(
-                $this->workbench,
-                'axenox.GenAI.AI_CONVERSATION'
-            );
-            $conversation->getColumns()->addMultiple([
-                'TITLE',
-                'AI_AGENT',
-                'AI_AGENT_VERSION_NO',
-                'AGENT_VERSION'
-            ]);
-            $conversation->getFilters()->addConditionFromString('UID', $this->conversationId, ComparatorDataType::EQUALS);
-            $conversation->getFilters()->addConditionFromString(
-                'USER',
-                $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                ComparatorDataType::EQUALS
-            );
-            $conversation->setRowsLimit(1);
-            $conversation->dataRead();
-
-            if ($conversation->isEmpty()) {
-                throw new AiConversationNotFoundError("Ai Conversation '{$this->conversationId}' not found");
-            }
-
-            $row = $conversation->getRow(0);
-            $storedAgentUid = (string) $row['AI_AGENT'];
-            $storedVersion = (string) $row['AI_AGENT_VERSION_NO'];
-            $agentVersionUid = trim((string) $row['AGENT_VERSION']);
-            if (strcasecmp($storedAgentUid, $this->agent->getUid()) !== 0 || $storedVersion !== $this->agent->getVersion()) {
-                throw new AiConversationAgentVersionMismatchError(
-                    $this->conversationId,
-                    $storedAgentUid,
-                    $storedVersion,
-                    $this->agent->getUid(),
-                    $this->agent->getVersion(),
-                    $agentVersionUid !== '' ? $agentVersionUid : null
-                );
-            }
-            if ($agentVersionUid === '') {
-                throw new AiConversationAgentVersionMismatchError(
-                    $this->conversationId,
-                    $storedAgentUid,
-                    $storedVersion,
-                    $this->agent->getUid(),
-                    $this->agent->getVersion()
-                );
-            }
-
-            $row['AGENT_VERSION'] = $agentVersionUid;
-            $this->conversationData = $row;
+        $this->getConversationData();
+        if ($type !== null && !in_array($type, AiMessageTypeDataType::getValuesStatic(), true)) {
+            throw new \InvalidArgumentException('Unknown AI message type: ' . $type);
         }
-
-        return $this->conversationData;
-    }
-
-    /**
-     * Returns the next sequence number, loading it from persistence on first access.
-     */
-    protected function getSequenceNumber() : int
-    {
-        if ($this->sequenceNumber === null) {
-            $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-            $message->getColumns()->addFromExpression('SEQUENCE_NUMBER');
-            $message->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId);
-            $message->getSorters()->addFromString('SEQUENCE_NUMBER', 'DESC');
-            $message->setRowsLimit(1);
-            $message->dataRead();
-
-            $this->sequenceNumber = $message->isEmpty()
-                ? 0
-                : (int) $message->getColumns()->getByExpression('SEQUENCE_NUMBER')->getValue(0) + 1;
+        if ($this->history === null) {
+            $this->loadHistory();
         }
-
-        return $this->sequenceNumber;
-    }
-
-    /**
-     * Returns the current sequence number and advances the local counter.
-     */
-    protected function incrementSequenceNumber() : int
-    {
-        $sequenceNumber = $this->getSequenceNumber();
-        $this->sequenceNumber++;
-        return $sequenceNumber;
-    }
-
-    /**
-     * Saves the system prompt message.
-     *
-     * Ignores the request if a system prompt has already been saved for this conversation.
-     *
-    * @param string $systemPrompt Rendered system prompt text.
-    * @param array $data Normalized message metadata and payload.
-     *
-     * @return string Conversation ID used for the stored message.
-     */
-    public function saveSystemPrompt(string $systemPrompt, array $data = []) : string
-    {
-        // Return early if a system prompt already exists for this conversation
-        if ($this->hasSystemPrompt()) {
-            return $this->conversationId;
-        }
-
-        $transaction = $this->workbench->data()->startTransaction();
-        try {
-            $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-
-            $message->addRow([
-                'AI_CONVERSATION' => $this->getConversationId(),
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::SYSTEM,
-                'MESSAGE' => $systemPrompt,
-                'DATA' => $this->serializePayload($data),
-                'MODEL' => $data['model'] ?? $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber()
-            ]);
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $this->workbench->getLogger()->logException($e);
-            $transaction->rollback();
-            throw $e;
-        }
-
-        return $this->conversationId;
-    }
-
-    /**
-     * Checks whether a system prompt has already been saved for this conversation.
-     *
-     * @return bool True if at least one system message exists, false otherwise.
-     */
-    public function hasSystemPrompt() : bool
-    {
-        $systemPromptCount = count($this->getMessagesByType(AiMessageTypeDataType::SYSTEM));
-        if ($systemPromptCount > 1) {
-            throw new RuntimeException(
-                "AI Conversation '{$this->conversationId}' contains multiple system prompts"
-            );
-        }
-
-        return $systemPromptCount === 1;
-    }
-
-    /**
-     * Returns the conversation's single persisted system prompt.
-     */
-    public function getSystemPrompt() : string
-    {
-        $systemPrompts = $this->getMessagesByType(AiMessageTypeDataType::SYSTEM);
-        if (count($systemPrompts) !== 1) {
-            throw new RuntimeException(
-                "AI Conversation '{$this->conversationId}' must contain exactly one system prompt"
-            );
-        }
-
-        return $systemPrompts[0];
-    }
-
-    /**
-     * Saves the user prompt message.
-     *
-      * @param string $userPrompt User message text.
-      * @param array $files Files attached to the message.
-      * @param array $data Additional message information.
-     *
-     * @return string Conversation ID used for the stored message.
-     */
-     public function saveUserPrompt(string $userPrompt, array $files = [], array $data = []) : string
-    {
-        if ($this->getTitle() === '' && empty($this->getUserMessages())) {
-            $this->setTitle(StringDataType::truncate($userPrompt, 50, true, true, true));
-        }
-
-        $transaction = $this->workbench->data()->startTransaction();
-
-        try {
-            $messageSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-            $messageSheet->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::USER,
-                'MESSAGE' => $userPrompt,
-                'DATA' => $this->serializePayload($data),
-                'MODEL' => $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber()
-            ]);
-            $messageSheet->dataCreate(false, $transaction);
-            $msgUID = $messageSheet->getUidColumn()->getValue(0);
-            if (! empty($files)) {
-                $filesSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
-                $filesSheet->getFilters()->addConditionFromString('AI_MESSAGE', $msgUID);
-                foreach ($files as $file) {
-                    $filesSheet->addRow([
-                        'PATHNAME_RELATIVE' => "data/axenox/GenAI/Conversations/{$messageSheet->getUidColumn()->getValue(0)}/{$file->getFileInfo()->getFilename()}",
-                        'CONTENTS' => $file->read()
-                    ]);
-                }
-                $filesSheet->dataCreate(false, $transaction);
-            }
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-            throw $e;
-        }
-
-        return $this->conversationId;
-    }
-
-    /**
-     * Saves an assistant tool-call request message.
-     *
-     * @param AiQueryInterface $query Query containing tool calls and token/cost metadata.
-     */
-    public function saveToolCallRequest(AiQueryInterface $query) : void
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $toolCalls = $query->getToolCalls();
-        $markdown = '**' . count($toolCalls) . "** tool calls:\n\n";
-
-        foreach ($toolCalls as $i => $toolCall) {
-            $markdown .= ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
-        }
-
-        foreach ($toolCalls as $i => $toolCall) {
-            $no = $i + 1;
-            $markdown .= "\n## {$no}. " . $toolCall->getToolName() . "()";
-            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCall->__toString());
-        }
-
-        try {
-            $cost = $query->getCosts();
-            $this->saveWarnings($query->getWarnings());
-
-            $message->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::TOOLCALLING,
-                'MESSAGE' => $markdown,
-                'DATA' => UxonObject::fromArray($query->getResponseMessage())->toJson(true),
-                'MODEL' => $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber(),
-                'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
-                'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason()
-            ]);
-
-            $message->dataCreate(false, $transaction);
-            $messageUid = $message->getUidColumn()->getValue(0);
-            $transaction->commit();
-            $this->saveToolCallRecords($toolCalls, $messageUid);
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Saves the final assistant response message.
-     *
-        * @param AiQueryInterface $query Query containing completion metadata.
-        * @param string $answer Resolved assistant answer to display.
-        * @param array|null $fullJsonResponse Optional raw JSON response payload.
-     */
-        public function saveResponse(AiQueryInterface $query, string $answer, ?array $fullJsonResponse = null) : void
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-
-        try {
-            $cost = $query->getCosts();
-            $dataUxon = new UxonObject();
-
-            if ($fullJsonResponse !== null) {
-                $dataUxon->setProperty('fullJsonResponse', $fullJsonResponse);
-            }
-            $this->saveWarnings($query->getWarnings());
-
-            $message->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::ASSISTANT,
-                'MESSAGE' => $answer,
-                'MODEL' => $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber(),
-                'TOKENS_COMPLETION' => $query->getTokensInAnswer(),
-                'TOKENS_PROMPT' => $query->getTokensInPrompt(),
-                'COST' => $cost,
-                'FINISH_REASON' => $query->getFinishReason(),
-                'DATA' => $dataUxon->toJson(true)
-            ]);
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Saves the tool execution response batch.
-     *
-     * @param AiQueryInterface $query Query that triggered tool execution.
-     * @param AiToolCallResponse[] $responses
-     * @return AiToolCallResponse[]|null
-     */
-    public function saveToolResponses(AiQueryInterface $query, array $responses) : ?array
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $message = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $toolCalls = $query->getToolCalls();
-
-        $markdown = '> **' . count($toolCalls) . "** tool calls:\n";
-        foreach ($toolCalls as $i => $toolCall) {
-            $markdown .= '> ' . ($i + 1) . '. `' . StringDataType::truncate($toolCall->__toString(), 120, false, true, true, true) . "`\n";
-        }
-        $markdown .= "\n";
-
-        $no = 0;
-        foreach ($responses as $response) {
-            $no++;
-            $markdown .= "\n## {$no}. {$response->getToolName()}()";
-            $markdown .= "\n\n" . MarkdownDataType::escapeCodeBlock($toolCalls[$no - 1]?->__toString() ?? '< no response >');
-            $markdown .= MarkdownDataType::makeHorizontalLine();
-            $markdown .= "\n\n" . $response->getToolResult()->getValueAsMarkdown(true);
-        }
-
-        try {
-            $message->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::TOOL,
-                'DATA' => UxonObject::fromArray($responses)->toJson(true),
-                'MESSAGE' => $markdown,
-                'MODEL' => $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber()
-            ]);
-
-            $message->dataCreate(false, $transaction);
-            $transaction->commit();
-            $this->saveToolCallResults($responses);
-            return null;
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-            return $responses;
-        }
-    }
-
-    /**
-     * Serializes the public payload portion of normalized message data.
-     */
-    protected function serializePayload(array $data) : string
-    {
-        $payload = $data['payload'] ?? [];
-        $dataUxon = $payload instanceof UxonObject
-            ? $payload
-            : UxonObject::fromArray($payload);
-
-        return $dataUxon->toJson(true);
-    }
-
-    /**
-     * Saves individual tool-call request records without affecting message persistence.
-     *
-     * @param array $toolCalls
-     * @param string $messageUid
-     * @return void
-     */
-    protected function saveToolCallRecords(array $toolCalls, string $messageUid) : void
-    {
-        try {
-            $transaction = $this->workbench->data()->startTransaction();
-            $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
-            foreach ($toolCalls as $index => $toolCall) {
-                $toolCallSheet->addRow([
-                    'AI_CONVERSATION' => $this->conversationId,
-                    'AI_MESSAGE' => $messageUid,
-                    'CALL_INDEX' => $index + 1,
-                    'CALL_ID' => $toolCall->getCallId(),
-                    'TOOL_NAME' => $toolCall->getToolName(),
-                    'TOOL_ALIAS' => $this->agent->getTool($toolCall->getToolName())->getAliasWithNamespace(),
-                    'CALL_DISPLAY' => $toolCall->__toString(),
-                    'ARGUMENTS' => UxonObject::fromArray($toolCall->getArguments())->toJson(true)
-                ]);
-            }
-            $toolCallSheet->dataCreate(false, $transaction);
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            if (isset($transaction)) {
-                $transaction->rollback();
-            }
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Saves tool-call results without affecting message persistence.
-     *
-     * @param AiToolCallResponse[] $responses
-     * @return void
-     */
-    protected function saveToolCallResults(array $responses) : void
-    {
-        try {
-            $transaction = $this->workbench->data()->startTransaction();
-            foreach ($responses as $response) {
-                $toolCallSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
-                $toolCallSheet->getColumns()->addFromSystemAttributes();
-                $toolCallSheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId);
-                $toolCallSheet->getFilters()->addConditionFromString('CALL_ID', $response->getCallId());
-                $toolCallSheet->dataRead();
-
-                if ($toolCallSheet->countRows() === 1) {
-                    $toolCallSheet->getColumns()->addMultiple(['RESULT', 'RESULT_LENGTH_CHARS', 'EXECUTION_TIME_MS', 'FAILED']);
-                    $toolResult = $response->getToolResult();
-                    $result = $toolResult->getValueWithMetadata();
-                    $resultLengthChars = mb_strlen((string)$result, 'UTF-8');
-                    $executionTimeMs = method_exists($toolResult, 'getDurationMs')
-                        ? $toolResult->getDurationMs()
-                        : null;
-                    $toolCallSheet->setCellValue('RESULT', 0, $result);
-                    $toolCallSheet->setCellValue('RESULT_LENGTH_CHARS', 0, $resultLengthChars);
-                    $toolCallSheet->setCellValue('EXECUTION_TIME_MS', 0, $executionTimeMs);
-                    $toolCallSheet->setCellValue('FAILED', 0, $toolResult->isFailed() ? 1 : 0);
-                    $toolCallSheet->dataUpdate(false, $transaction);
-                }
-            }
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            if (isset($transaction)) {
-                $transaction->rollback();
-            }
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Splits tool exceptions by severity and saves them as warnings/errors.
-     *
-     * @param array $exceptions Exception payloads attached by tools.
-     */
-    public function saveExceptions(array $exceptions) : void
-    {
-        $errors = [];
-        $warnings = [];
-
-        foreach ($exceptions as $exception) {
-            if ($exception instanceof ExceptionInterface) {
-                if ($this->isWarningException($exception)) {
-                    $warnings[] = $exception;
-                } else {
-                    $errors[] = $exception;
-                }
-            }
-        }
-
-        $this->saveWarnings($warnings);
-        $this->saveErrorMessages($errors);
-    }
-
-    /**
-     * Saves a fatal conversation error as an ERROR message.
-     *
-     * @param \Throwable $error Original error.
-     * @param array $tools Tool metadata to include in payload.
-     * @param array|null $responseJsonSchema Optional JSON schema metadata.
-     * @return ExceptionInterface Normalized platform exception.
-     */
-    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface
-    {
-        $transaction = $this->workbench->data()->startTransaction();
-        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-
-        if (! $error instanceof ExceptionInterface) {
-            $error = new RuntimeException('AI prompt failed. ' . $error->getMessage(), null, $error);
-        }
-
-        $markdown = '';
-        $errorWidget = $error->createWidget(UiPageFactory::createEmpty($this->agent->getWorkbench()));
-        foreach ($errorWidget->getTab(0)->getWidgets() as $widget) {
-            if ($widget instanceof Markdown) {
-                $markdown .= "\n" . $widget->getMarkdown() . "\n";
-            }
-        }
-
-        $errorID = $error->getId();
-        $errorData = [
-            'class' => get_class($error),
-            'message' => $error->getMessage(),
-            'code' => $error->getCode(),
-            'file' => $error->getFile(),
-            'line' => $error->getLine(),
-            'ID' => $errorID
-        ];
-        if ($error instanceof AiPromptError) {
-            $errorData['User Prompt'] = $error->getPrompt()->getUserPrompt();
-        }
-        $dataUxon = UxonObject::fromArray($errorData);
-        $this->enrichUxonWithTools($dataUxon, $tools);
-        $this->enrichUxonWithJsonSchema($dataUxon, $responseJsonSchema);
-
-        try {
-            $this->saveErrorFeedback($this->conversationId, $error->getMessage(), $transaction);
-            $messageData->addRow([
-                'AI_CONVERSATION' => $this->conversationId,
-                'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                'ROLE' => AiMessageTypeDataType::ERROR,
-                'DATA' => $dataUxon->toJson(true),
-                'MESSAGE' => $markdown,
-                'MODEL' => $this->agent->getConnection()->getModelName(),
-                'SEQUENCE_NUMBER' => $this->incrementSequenceNumber(),
-                'ERROR_LOG_ID' => $errorID
-            ]);
-            $messageData->dataCreate(false, $transaction);
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-
-        return $error;
-    }
-
-    /**
-     * Saves warning payloads as WARNING messages.
-     *
-     * @param array $warnings Warning payloads from connector/tools.
-     */
-    public function saveWarnings(array $warnings) : void
-    {
-        if (empty($warnings)) {
-            return;
-        }
-
-        $transaction = $this->workbench->data()->startTransaction();
-        $messageData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $hasRows = false;
-
-        try {
-            foreach ($warnings as $warning) {
-                if ($warning instanceof ExceptionInterface) {
-                    $warningException = $warning;
-                } elseif ($warning instanceof \Throwable) {
-                    $warningException = new RuntimeException(
-                        'Unrecognized payload while saving warning: ' . $warning->getMessage(),
-                        null,
-                        $warning
-                    );
-                } else {
-                    $warningMessage = is_scalar($warning) || $warning === null
-                        ? trim((string) $warning)
-                        : trim(json_encode($warning, JSON_UNESCAPED_UNICODE) ?: '');
-                    $warningException = new RuntimeException(
-                        'Non-standard warning payload mapped during warning persistence: '
-                        . ($warningMessage !== '' ? $warningMessage : gettype($warning))
-                    );
-                    $this->workbench->getLogger()->logException($warningException);
-                }
-
-                $warningText = trim($warningException->getMessage());
-                if ($warningText === '') {
-                    continue;
-                }
-
-                $hasRows = true;
-                $row = [
-                    'AI_CONVERSATION' => $this->conversationId,
-                    'USER' => $this->workbench->getSecurity()->getAuthenticatedUser()->getUid(),
-                    'ROLE' => AiMessageTypeDataType::WARNING,
-                    'MESSAGE' => $warningText,
-                    'MODEL' => $this->agent->getConnection()->getModelName(),
-                    'SEQUENCE_NUMBER' => $this->incrementSequenceNumber()
-                ];
-                if ($warningException->getId() !== null && $warningException->getId() !== '') {
-                    $row['ERROR_LOG_ID'] = $warningException->getId();
-                }
-                $messageData->addRow($row);
-            }
-
-            if ($hasRows) {
-                $messageData->dataCreate(false, $transaction);
-            }
-            $transaction->commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback();
-            $this->workbench->getLogger()->logException($e);
-        }
-    }
-
-    /**
-     * Saves error payloads as ERROR messages.
-     *
-     * @param ExceptionInterface[] $errors
-     */
-    protected function saveErrorMessages(array $errors) : void
-    {
-        foreach ($errors as $error) {
-            $this->saveError($error);
-        }
-    }
-
-    /**
-     * Writes automatic feedback text for an error case.
-     *
-     * @param string $conversationId Target conversation ID.
-     * @param string $errorMessage Error text to include in feedback.
-     * @param DataTransactionInterface|null $transaction Optional transaction.
-     */
-    protected function saveErrorFeedback(string $conversationId, string $errorMessage, ?DataTransactionInterface $transaction = null) : void
-    {
-        $this->saveFeedback(
-            $conversationId,
-            "Error: " . StringDataType::truncate($errorMessage, 500, true, false, true),
-            1,
-            $transaction
-        );
-    }
-
-    /**
-     * Saves or appends feedback and optional default rating on a conversation.
-     *
-     * @param string $conversationId Target conversation ID.
-     * @param string $feedback Feedback text to append.
-     * @param int|null $defaultRating Optional default rating when missing.
-     * @param DataTransactionInterface|null $transaction Optional transaction.
-     */
-    protected function saveFeedback(string $conversationId, string $feedback, ?int $defaultRating = null, ?DataTransactionInterface $transaction = null) : void
-    {
-        $conversationData = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_CONVERSATION');
-        $conversationData->getFilters()->addConditionFromAttribute(
-            $conversationData->getMetaObject()->getUidAttribute(),
-            $conversationId,
-            ComparatorDataType::EQUALS
-        );
-        $conversationData->getColumns()->addFromAttributeGroup($conversationData->getMetaObject()->getAttributes());
-        $conversationData->dataRead();
-
-        if ($conversationData->isEmpty()) {
-            throw new AiConversationNotFoundError("Ai Conversation '$conversationId' not found");
-        }
-
-        $existingRating = $conversationData->getCellValue('RATING', 0);
-        $existingFeedback = $conversationData->getCellValue('RATING_FEEDBACK', 0);
-
-        if ($defaultRating !== null && ($existingRating === null || $existingRating === '')) {
-            $conversationData->setCellValue('RATING', 0, $defaultRating);
-        }
-
-        if ($existingFeedback === null || $existingFeedback === '') {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, $feedback);
-        } else {
-            $conversationData->setCellValue('RATING_FEEDBACK', 0, rtrim($existingFeedback) . "\n\n" . $feedback);
-        }
-
-        $conversationData->dataUpdate(false, $transaction);
-    }
-
-    /**
-     * Determines whether an exception should be handled as warning.
-     *
-     * @param ExceptionInterface $exception Exception to classify.
-     */
-    protected function isWarningException(ExceptionInterface $exception) : bool
-    {
-        try {
-            $levelCmp = LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::WARNING);
-            return $levelCmp <= 0;
-        } catch (\Throwable $e) {
-            return false;
-        }
-    }
-
-    /**
-     * Enriches a UXON payload with serialized tool definitions.
-     *
-     * @param AiToolInterface[] $tools
-     * @param UxonObject|null $uxon Existing payload object.
-     */
-    protected function enrichUxonWithTools(?UxonObject $uxon, array $tools) : UxonObject
-    {
-        if ($uxon === null) {
-            $dataUxon = new UxonObject([
-                'tools' => []
-            ]);
-        } else {
-            $dataUxon = $uxon;
-            $dataUxon->setProperty('tools', []);
-        }
-
-        foreach ($tools as $tool) {
-            $dataUxon->appendToProperty('tools', $tool->exportUxonObject());
-        }
-
-        return $dataUxon;
-    }
-
-    /**
-     * Enriches a UXON payload with response JSON schema metadata.
-     *
-     * @param UxonObject|null $uxon Existing payload object.
-     * @param array|null $responseJsonSchema Optional schema payload.
-     */
-    protected function enrichUxonWithJsonSchema(?UxonObject $uxon, ?array $responseJsonSchema) : UxonObject
-    {
-        if ($uxon === null) {
-            $dataUxon = new UxonObject();
-        } else {
-            $dataUxon = $uxon;
-        }
-
-        if ($responseJsonSchema !== null) {
-            $dataUxon->setProperty('responseJsonSchema', $responseJsonSchema);
-        }
-        return $dataUxon;
-    }
-
-    /**
-     * Retrieves messages of a specific type from the conversation.
-     *
-     * @param string $messageType The message type filter (e.g., SYSTEM, USER, ASSISTANT, etc.).
-     *
-     * @return array Array of message strings sorted by sequence number.
-     */
-    protected function getMessagesByType(string $messageType) : array
-    {
-        $messageSheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
-        $messageSheet->getColumns()->addFromExpression('MESSAGE');
-        $messageSheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->getConversationId());
-        $messageSheet->getFilters()->addConditionFromString('ROLE', $messageType);
-        $messageSheet->getSorters()->addFromString('SEQUENCE_NUMBER', 'ASC');
-        $messageSheet->dataRead();
-
         $messages = [];
-        foreach ($messageSheet->getRows() as $row) {
-            $messages[] = isset($row['MESSAGE']) ? (string) $row['MESSAGE'] : '';
+        foreach (array_replace($this->history, $this->liveMessages) as $id => $message) {
+            if ($type === null || $message->getType() === $type) {
+                $messages[$id] = $message;
+            }
         }
-
+        $messages = array_values($messages);
+        usort($messages, static fn(AiMessageInterface $a, AiMessageInterface $b) =>
+            ($a->getSequenceNumber() <=> $b->getSequenceNumber()) ?: strcasecmp($a->getUid(), $b->getUid()));
         return $messages;
     }
 
     /**
-     * Retrieves all user messages from the conversation.
-     *
-     * @return array Array of user message strings.
+     * {@inheritDoc}
+     * @see AiConversationInterface::getMessagesActive()
      */
-    public function getUserMessages() : array
+    public function getMessagesActive() : array
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::USER);
+        // No message type supersedes other messages yet. Future types like summaries will refine this.
+        return $this->getMessages();
     }
 
     /**
-     * Retrieves all assistant messages from the conversation.
-     *
-     * @return array Array of assistant message strings.
+     * Reads all messages of the conversation and restores them including their attachments
+     * 
+     * @return void
      */
-    public function getAssistantMessages() : array
+    private function loadHistory() : void
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::ASSISTANT);
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->getColumns()->addMultiple(['UID', 'AI_CONVERSATION', 'ROLE', 'MESSAGE', 'DATA', 'SEQUENCE_NUMBER', 'STARTED_ON', 'FINISHED_ON']);
+        $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId, ComparatorDataType::EQUALS);
+        $sheet->getSorters()->addFromString('SEQUENCE_NUMBER', 'ASC');
+        $sheet->getSorters()->addFromString('UID', 'ASC');
+        $sheet->dataRead();
+        $this->history = [];
+        $systemRows = $sheet->extractSystemColumns()->getRows();
+        $serializer = $this->getSerializer();
+        foreach ($sheet->getRows() as $index => $row) {
+            $data = $serializer->decode($row['DATA'] ?? null);
+            $message = $serializer->fromRow($row, $data, $this->loadAttachments($row, $data));
+            $this->history[$message->getUid()] = $message;
+            $this->messageData[$message->getUid()] = $data;
+            $this->messageSystemRows[$message->getUid()] = $systemRows[$index];
+        }
     }
 
     /**
-     * Retrieves all tool messages from the conversation.
-     *
-     * @return array Array of tool message strings.
+     * Returns the serializer, that knows the persisted DATA format of messages
+     * 
+     * @return AiMessageSerializer
      */
-    public function getToolMessages() : array
+    private function getSerializer() : AiMessageSerializer
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::TOOL);
+        if ($this->serializer === null) {
+            $this->serializer = new AiMessageSerializer($this->workbench);
+        }
+        return $this->serializer;
     }
 
     /**
-     * Retrieves all tool calling messages from the conversation.
-     *
-     * @return array Array of tool calling message strings.
+     * Returns only identities generated by this runtime turn, excluding concurrent turns.
+     * 
+     * @return AiMessageInterface[]
      */
-    public function getToolCallingMessages() : array
+    public function getGeneratedMessages() : array
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::TOOLCALLING);
+        return array_values(array_filter($this->getMessages(), fn(AiMessageInterface $message) => isset($this->generatedMessageIds[$message->getUid()])));
     }
 
     /**
-     * Retrieves all warning messages from the conversation.
-     *
-     * @return array Array of warning message strings.
+     * Commits a message with instance-local order; concurrent requests may share a sequence.
+     * 
+     * The message is kept in memory together with its DATA, so that later updates (e.g. tool results)
+     * do not lose conversation metadata.
+     * 
+     * @throws AiConversationNotFoundError
+     * @throws RuntimeException
+     * @param AbstractAiMessage $message
+     * @param array<string,mixed> $extraData Conversation metadata to save in DATA in addition to the message itself
+     * @param array<string,mixed> $fields Additional AI_MESSAGE columns
+     * @param string|null $display Designer-facing MESSAGE column - defaults to the markdown of the message
+     * @return AbstractAiMessage The saved message with identity and sequence
      */
-    public function getWarningMessages() : array
+    private function saveMessage(AbstractAiMessage $message, array $extraData = [], array $fields = [], ?string $display = null) : AbstractAiMessage
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::WARNING);
+        $this->getConversationData();
+        $data = array_replace($extraData, $this->getSerializer()->toData($message));
+        $row = $fields + [
+            'AI_CONVERSATION' => $this->conversationId, 'USER' => $this->userId(),
+            'ROLE' => $message->getType(), 'MESSAGE' => $display ?? $message->toMarkdown(),
+            'SEQUENCE_NUMBER' => $this->nextMessageSequence
+        ];
+        $row['DATA'] = $this->getSerializer()->encode($data);
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->addRow($row);
+        $transaction = $this->workbench->data()->startTransaction();
+        try {
+            $sheet->dataCreate(false, $transaction);
+            $id = (string) $sheet->getUidColumn()->getValue(0);
+            $transaction->commit();
+        } catch (\Throwable $error) {
+            $transaction->rollback();
+            throw $error;
+        }
+        $saved = $message->withIdentity($id, $this->conversationId, (int) $row['SEQUENCE_NUMBER']);
+        $this->nextMessageSequence++;
+        $this->generatedMessageIds[$id] = true;
+        $this->liveMessages[$id] = $saved;
+        $this->messageData[$id] = $data;
+        $this->messageSystemRows[$id] = $sheet->extractSystemColumns()->getRow(0);
+        return $saved;
     }
 
     /**
-     * Retrieves all error messages from the conversation.
-     *
-     * @return array Array of error message strings.
+     * Saves the attachments of a message first and then the message itself
+     * 
+     * Attachments are saved in AI_MESSAGE_FILE independently of the context role of the message - user
+     * attachments and files generated by the model are treated the same way. If saving the message fails,
+     * the already saved files are removed again.
+     * 
+     * @param AbstractAiMessage $message
+     * @param array<string,mixed> $extraData
+     * @param array<string,mixed> $fields
+     * @param string|null $display
+     * @return AbstractAiMessage
      */
-    public function getErrorMessages() : array
+    private function saveMessageWithAttachments(AbstractAiMessage $message, array $extraData = [], array $fields = [], ?string $display = null) : AbstractAiMessage
     {
-        return $this->getMessagesByType(AiMessageTypeDataType::ERROR);
+        $files = $message->getAttachments();
+        if ($files === []) {
+            return $this->saveMessage($message, $extraData, $fields, $display);
+        }
+        $messageId = UUIDDataType::generateSqlOptimizedUuid();
+        $paths = [];
+        $refs = [];
+        $attachments = [];
+        try {
+            foreach ($files as $file) {
+                if (! $file->exists()) {
+                    $this->saveWarnings(['Attachment "' . $file->getFilename() . '" could not be saved because it is not available.']);
+                    continue;
+                }
+                $contents = $file instanceof FileInterface ? $file->read() : $file->openFile()->read();
+                $filename = $file->getFilename();
+                $mimeType = $file->getMimetype() ?? 'application/octet-stream';
+                $identity = bin2hex(random_bytes(16));
+                $extension = $file->getExtension();
+                $path = "data/axenox/GenAI/Conversations/{$messageId}/{$identity}" . ($extension === '' ? '' : '.' . $extension);
+                $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
+                $sheet->getColumns()->addMultiple(['PATHNAME_RELATIVE', 'CONTENTS']);
+                $paths[] = $path;
+                $sheet->addRow([
+                    'AI_MESSAGE' => $messageId,
+                    'PATHNAME_RELATIVE' => $path,
+                    'CONTENTS' => $contents
+                ]);
+                $sheet->dataCreate(false);
+                $refs[] = [
+                    'uid' => $identity, 'path' => $path, 'filename' => $filename,
+                    'mime_type' => $mimeType, 'sha256' => hash('sha256', $contents)
+                ];
+                $attachments[] = new InMemoryFile($contents, $filename, $mimeType);
+            }
+            $extraData['attachments'] = $refs;
+            return $this->saveMessage($message->withAttachments($attachments), $extraData, ['UID' => $messageId] + $fields, $display);
+        } catch (\Throwable $error) {
+            foreach ($paths as $path) {
+                try {
+                    $cleanup = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
+                    $cleanup->getFilters()->addConditionFromString('PATHNAME_RELATIVE', $path, ComparatorDataType::EQUALS);
+                    $cleanup->dataDelete();
+                } catch (\Throwable $cleanupError) {
+                    $this->reportOperationalError($cleanupError);
+                }
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Converts messages of other implementations into own message classes, so they can be saved
+     * 
+     * Opaque adapter data of foreign implementations cannot be enumerated and is dropped - this is
+     * allowed because adapter data is never required.
+     * 
+     * @param AiMessageInterface $message
+     * @return AbstractAiMessage
+     */
+    private function toOwnMessage(AiMessageInterface $message) : AbstractAiMessage
+    {
+        if ($message instanceof AbstractAiMessage) {
+            return $message;
+        }
+        if ($message instanceof AiToolCallMessageInterface) {
+            return new ToolCallMessage($message->getText(), $message->getCalls(), $message->getToolResults());
+        }
+        return AiFactory::createMessage($message->getType(), $message->getText(), $message->getAttachments());
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::hasSystemPrompt()
+     */
+    public function hasSystemPrompt() : bool
+    {
+        return $this->getMessages(AiMessageTypeDataType::SYSTEM) !== [];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::getSystemPrompt()
+     */
+    public function getSystemPrompt() : string
+    {
+        $messages = $this->getMessages(AiMessageTypeDataType::SYSTEM);
+        if ($messages === []) {
+            throw new RuntimeException('No system prompt retained in conversation "' . $this->conversationId . '".');
+        }
+        // Legacy conversations may contain additional instructions (e.g. former `developer` messages).
+        // The first one is the system prompt of the agent.
+        return $messages[0]->getText();
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveSystemPrompt()
+     */
+    public function saveSystemPrompt(string $systemPrompt, array $data = []) : string
+    {
+        if (!$this->hasSystemPrompt()) {
+            $this->saveMessage(new InstructionsMessage($systemPrompt), $data);
+        }
+        return $this->conversationId;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveUserPrompt()
+     */
+    public function saveUserPrompt(string $userPrompt, array $files = [], array $data = []) : string
+    {
+        if ($this->getTitle() === '' && $this->getMessages(AiMessageTypeDataType::USER) === []) {
+            $this->setTitle(StringDataType::truncate($userPrompt, 50, true, true, true));
+        }
+        $attachments = [];
+        foreach ($files as $file) {
+            $attachments[] = $file instanceof FileInterface ? $file->getFileInfo() : $file;
+        }
+        $this->saveMessageWithAttachments(new InputMessage($userPrompt, $attachments), $data);
+        return $this->conversationId;
+    }
+
+    /**
+     * Loads the stored attachments of a message - unavailable files are kept as UnavailableAttachment
+     * 
+     * @param array<string,mixed> $row
+     * @param array<string,mixed> $data
+     * @return \exface\Core\Interfaces\Filesystem\FileInfoInterface[]
+     */
+    private function loadAttachments(array $row, array $data) : array
+    {
+        $serializer = $this->getSerializer();
+        $refs = $serializer->getAttachmentReferences($data);
+        // Very old user prompts did not reference their files - load all files of the message then
+        $loadAll = $serializer->getType($row) === AiMessageTypeDataType::USER && $serializer->isMissingAttachmentInfo($data);
+        if ($refs === [] && ! $loadAll) {
+            return [];
+        }
+        $contents = [];
+        try {
+            $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE_FILE');
+            $sheet->getColumns()->addMultiple(['PATHNAME_RELATIVE', 'CONTENTS']);
+            $sheet->getFilters()->addConditionFromString('AI_MESSAGE', $row['UID'], ComparatorDataType::EQUALS);
+            $sheet->dataRead();
+            foreach ($sheet->getRows() as $file) {
+                $contents[$file['PATHNAME_RELATIVE']] = (string) $file['CONTENTS'];
+            }
+        } catch (\Throwable $error) {
+            $this->logException($error);
+        }
+        if ($loadAll) {
+            foreach (array_keys($contents) as $path) {
+                $refs[] = ['path' => $path, 'filename' => basename($path), 'mime_type' => null, 'sha256' => null];
+            }
+        }
+        $attachments = [];
+        foreach ($refs as $ref) {
+            $mimeType = $ref['mime_type'] ?? MimeTypeDataType::guessMimeTypeOfExtension(pathinfo($ref['filename'], PATHINFO_EXTENSION));
+            switch (true) {
+                case ! array_key_exists($ref['path'], $contents):
+                    $attachments[] = new UnavailableAttachment($ref['filename'], $mimeType, 'file is missing or inaccessible');
+                    break;
+                case $ref['sha256'] !== null && ! hash_equals((string) $ref['sha256'], hash('sha256', $contents[$ref['path']])):
+                    $attachments[] = new UnavailableAttachment($ref['filename'], $mimeType, 'file content has changed');
+                    break;
+                default:
+                    $attachments[] = new InMemoryFile($contents[$ref['path']], $ref['filename'], $mimeType);
+            }
+        }
+        return $attachments;
+    }
+
+    /**
+     * Extracts generic usage facts of an LLM exchange
+     * 
+     * @param AiQueryInterface $query
+     * @return array<string,mixed>
+     */
+    private function getUsageData(AiQueryInterface $query) : array
+    {
+        return [
+            'model' => $query->getModelName(),
+            'tokens_prompt' => $query->getTokensInPrompt(),
+            'tokens_completion' => $query->getTokensInAnswer(),
+            'cost' => $query->getCosts(),
+            'finish_reason' => $query->getFinishReason()
+        ];
+    }
+
+    /**
+     * Converts generic usage facts into nullable database columns.
+     * 
+     * @param array<string,mixed> $usage
+     * @return array<string,mixed>
+     */
+    private function getUsageFields(array $usage) : array
+    {
+        $fields = [];
+        foreach (['tokens_prompt' => 'TOKENS_PROMPT', 'tokens_completion' => 'TOKENS_COMPLETION', 'cost' => 'COST', 'finish_reason' => 'FINISH_REASON', 'model' => 'MODEL'] as $key => $alias) {
+            if (array_key_exists($key, $usage)) {
+                $fields[$alias] = $usage[$key];
+            }
+        }
+        return $fields;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveToolCalls()
+     */
+    public function saveToolCalls(AiToolCallMessageInterface $message, ?AiQueryInterface $query = null, array $data = []) : AiToolCallMessageInterface
+    {
+        if ($message->getCalls() === []) {
+            throw new \InvalidArgumentException('A tool batch must contain calls.');
+        }
+        $ids = [];
+        foreach ($message->getCalls() as $call) {
+            if ($call->getCallId() === '' || isset($ids[$call->getCallId()])) {
+                throw new \InvalidArgumentException('Tool batches require unique non-empty call IDs.');
+            }
+            $ids[$call->getCallId()] = true;
+        }
+        $fields = [];
+        if ($query !== null) {
+            $this->saveWarnings($query->getWarnings());
+            $data['usage'] = $this->getUsageData($query);
+            $fields = $this->getUsageFields($data['usage']);
+        }
+        $data['started_on'] = $data['started_on'] ?? date('Y-m-d H:i:s');
+        $fields['STARTED_ON'] = $data['started_on'];
+        return $this->saveMessage($this->toOwnMessage($message), $data, $fields);
+    }
+
+    /**
+     * Loads an authorized existing batch by identity.
+     * 
+     * @throws RuntimeException
+     * @param string $id
+     * @return ToolCallMessage
+     */
+    private function getToolMessage(string $id) : ToolCallMessage
+    {
+        foreach ($this->getMessages(AiMessageTypeDataType::TOOL) as $message) {
+            if (strcasecmp($message->getUid(), $id) === 0 && $message instanceof ToolCallMessage) {
+                return $message;
+            }
+        }
+        throw new RuntimeException('Tool batch ' . $id . ' not found in this conversation.');
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveToolResults()
+     */
+    public function saveToolResults(string $messageId, array $results, array $data = []) : void
+    {
+        $message = $this->getToolMessage($messageId);
+        $messageId = $message->getUid();
+        $expected = array_map(static fn(AiToolCallInterface $call) => $call->getCallId(), $message->getCalls());
+        if (count($results) !== count($expected) || array_diff($expected, array_map('strval', array_keys($results))) !== []) {
+            throw new \InvalidArgumentException('Batch completion requires exactly one result per stored call ID.');
+        }
+        if (array_key_exists('calls', $data) || array_key_exists('results', $data)) {
+            throw new \InvalidArgumentException('Batch completion cannot replace retained call or result identities.');
+        }
+        foreach ($results as $result) {
+            if (!$result instanceof AiToolResultInterface) {
+                throw new \InvalidArgumentException('Batch completion accepts typed tool results only.');
+            }
+        }
+
+        // Keep the completed message in memory first, so a storage problem does not change the model context
+        $completed = $message->withToolResults($results);
+        $this->liveMessages[$messageId] = $completed;
+
+        $diagnostics = [];
+        foreach ($results as $callId => $result) {
+            $freshErrors = array_values(array_filter($result->getExceptions(), static fn(ExceptionInterface $error) =>
+                LogLevelDataType::compareLogLevels($error->getLogLevel(), LoggerInterface::ERROR) >= 0
+            ));
+            foreach (['error' => $result->getErrors(), 'warning' => $result->getWarnings()] as $severity => $messages) {
+                foreach ($messages as $index => $text) {
+                    $diagnostic = ['id' => $messageId . ':' . $callId . ':' . $severity . ':' . $index, 'source' => 'tool', 'severity' => $severity, 'call_id' => (string) $callId];
+                    if ($severity === 'error') {
+                        $error = $freshErrors[$index] ?? new RuntimeException($text);
+                        try {
+                            $this->logException($error);
+                            $diagnostic['error_message_uid'] = $this->saveMessage(
+                                new DiagnosticMessage(AiMessageTypeDataType::ERROR, $text),
+                                ['diagnostic_id' => $diagnostic['id']],
+                                ['ERROR_LOG_ID' => $error->getId()]
+                            )->getUid();
+                            $this->saveErrorFeedback($text);
+                        } catch (\Throwable $loggingError) {
+                            $this->reportOperationalError($loggingError);
+                        }
+                    } else {
+                        try {
+                            $diagnostic['warning_message_uid'] = $this->saveMessage(
+                                new DiagnosticMessage(AiMessageTypeDataType::WARNING, $text),
+                                ['diagnostic_id' => $diagnostic['id']]
+                            )->getUid();
+                        } catch (\Throwable $loggingError) {
+                            $this->reportOperationalError($loggingError);
+                        }
+                    }
+                    $diagnostics[] = $diagnostic;
+                }
+            }
+        }
+
+        $finishedOn = $data['finished_on'] ?? date('Y-m-d H:i:s');
+        $timing = $data['call_timing'] ?? [];
+        unset($data['call_timing']);
+        $stored = array_replace($this->messageData[$messageId] ?? [], $data, $this->getSerializer()->toData($completed));
+        foreach ($stored['calls'] as $index => $entry) {
+            $stored['calls'][$index] = array_replace($entry, (array) ($timing[$entry['call_id']] ?? []));
+        }
+        $stored['diagnostics'] = $diagnostics;
+        $stored['finished_on'] = $finishedOn;
+        $this->messageData[$messageId] = $stored;
+
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_MESSAGE');
+        $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId, ComparatorDataType::EQUALS);
+        $sheet->getFilters()->addConditionFromString('UID', $messageId, ComparatorDataType::EQUALS);
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->addRow(($this->messageSystemRows[$messageId] ?? []) + [
+            'DATA' => $this->getSerializer()->encode($stored), 
+            'MESSAGE' => $completed->toMarkdown(), 
+            'FINISHED_ON' => $finishedOn
+        ]);
+        $transaction = $this->workbench->data()->startTransaction();
+        try {
+            if ($sheet->dataUpdate(false, $transaction) !== 1) {
+                throw new RuntimeException('Tool message completion did not update its existing record.');
+            }
+            $transaction->commit();
+            $this->messageSystemRows[$messageId] = $sheet->extractSystemColumns()->getRow(0);
+        } catch (\Throwable $error) {
+            $transaction->rollback();
+            throw $error;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveToolCallStart()
+     */
+    public function saveToolCallStart(string $messageId, AiToolCallInterface $call, array $data = []) : string
+    {
+        $message = $this->getToolMessage($messageId);
+        $index = null;
+        foreach ($message->getCalls() as $i => $storedCall) {
+            if ($storedCall->getCallId() === $call->getCallId()) {
+                $index = $i + 1;
+                break;
+            }
+        }
+        if ($index === null) {
+            throw new \InvalidArgumentException('Detail call does not belong to the batch.');
+        }
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->addRow([
+            'AI_CONVERSATION' => $this->conversationId, 'AI_MESSAGE' => $message->getUid(),
+            'CALL_ID' => $call->getCallId(), 'CALL_INDEX' => $index,
+            'TOOL_NAME' => $call->getToolName(), 'TOOL_ALIAS' => $call->getToolAlias(),
+            'CALL_DISPLAY' => (string) $call,
+            'ARGUMENTS' => json_encode($call->getOriginalArguments(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'STATE' => AiToolCallStateDataType::IN_PROGRESS, 'STARTED_ON' => $data['started_on'] ?? date('Y-m-d H:i:s')
+        ]);
+        $transaction = $this->workbench->data()->startTransaction();
+        try {
+            $sheet->dataCreate(false, $transaction);
+            $transaction->commit();
+            $id = (string) $sheet->getUidColumn()->getValue(0);
+            $this->callSystemRows[$id] = $sheet->extractSystemColumns()->getRow(0);
+            return $id;
+        } catch (\Throwable $error) {
+            $transaction->rollback();
+            throw $error;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveToolCallEnd()
+     */
+    public function saveToolCallEnd(string $recordId, AiToolResultInterface $result, array $data = []) : void
+    {
+        $this->getConversationData();
+        $text = $result->getValueWithMetadata();
+        $sheet = DataSheetFactory::createFromObjectIdOrAlias($this->workbench, 'axenox.GenAI.AI_TOOL_CALL');
+        $sheet->getColumns()->addFromSystemAttributes();
+        $sheet->getFilters()->addConditionFromString('UID', $recordId, ComparatorDataType::EQUALS);
+        $sheet->getFilters()->addConditionFromString('AI_CONVERSATION', $this->conversationId, ComparatorDataType::EQUALS);
+        if (!isset($this->callSystemRows[$recordId])) {
+            throw new RuntimeException('Cannot complete a call without its initial system-column snapshot.');
+        }
+        $sheet->addRow($this->callSystemRows[$recordId] + [
+            'STATE' => $result->isFailed() ? AiToolCallStateDataType::FAILED : AiToolCallStateDataType::SUCCEEDED,
+            'FINISHED_ON' => $data['finished_on'] ?? date('Y-m-d H:i:s'),
+            'RESULT' => $text, 'RESULT_LENGTH_CHARS' => mb_strlen($text),
+            'EXECUTION_TIME_MS' => $result->getDurationMs()
+        ]);
+        $transaction = $this->workbench->data()->startTransaction();
+        try {
+            if ($sheet->dataUpdate(false, $transaction) !== 1) {
+                throw new RuntimeException('Tool detail completion did not update its existing record.');
+            }
+            $transaction->commit();
+            $this->callSystemRows[$recordId] = $sheet->extractSystemColumns()->getRow(0);
+        } catch (\Throwable $error) {
+            $transaction->rollback();
+            throw $error;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveResponse()
+     */
+    public function saveResponse(AiQueryInterface $query) : AiMessageInterface
+    {
+        $message = $query->getResponseMessage();
+        if ($message instanceof AiToolCallMessageInterface) {
+            return $this->saveToolCalls($message, $query);
+        }
+        $this->saveWarnings($query->getWarnings());
+        $usage = $this->getUsageData($query);
+        // Show designers the answer as the agent presents it - e.g. extracted via response_answer_path
+        try {
+            $display = $query->getAnswerMarkdown();
+        } catch (\Throwable $e) {
+            $display = null;
+        }
+        return $this->saveMessageWithAttachments($this->toOwnMessage($message), ['usage' => $usage], $this->getUsageFields($usage), $display);
+    }
+
+    /**
+     * Logs at the one reporting boundary; logger failure cannot hide conversation evidence.
+     * 
+     * @param \Throwable $error
+     * @return void
+     */
+    private function logException(\Throwable $error) : void
+    {
+        try {
+            $this->workbench->getLogger()->logException($error);
+        } catch (\Throwable $loggingError) {
+            error_log('AI platform logger failed: ' . $loggingError->getMessage() . '; original: ' . $error->getMessage());
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveError()
+     */
+    public function saveError(\Throwable $error, array $tools = [], ?array $responseJsonSchema = null) : ExceptionInterface
+    {
+        if (!$error instanceof ExceptionInterface) {
+            $error = new RuntimeException('AI interaction failed. ' . $error->getMessage(), null, $error);
+        }
+        $this->logException($error);
+        $this->saveMessage(new DiagnosticMessage(AiMessageTypeDataType::ERROR, $error->getMessage()), [], ['ERROR_LOG_ID' => $error->getId()]);
+        $this->saveErrorFeedback($error->getMessage());
+        return $error;
+    }
+
+    /**
+     * Preserves automatic feedback for real errors without overwriting an existing rating.
+     * 
+     * @throws AiConversationNotFoundError
+     * @param string $message
+     * @return void
+     */
+    private function saveErrorFeedback(string $message) : void
+    {
+        $sheet = $this->getConversationData();
+        $feedback = trim((string) $sheet->getCellValue('RATING_FEEDBACK', 0));
+        $feedback .= ($feedback === '' ? '' : "\n\n") . 'Error: ' . StringDataType::truncate($message, 500, true, false, true);
+        $values = ['RATING_FEEDBACK' => $feedback];
+        if ($sheet->getCellValue('RATING', 0) === null || $sheet->getCellValue('RATING', 0) === '') {
+            $values['RATING'] = 1;
+        }
+        $this->updateConversationData($values);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::reportOperationalError()
+     */
+    public function reportOperationalError(\Throwable $error) : void
+    {
+        try {
+            $this->saveError($error);
+        } catch (\Throwable $persistenceError) {
+            $this->logException($persistenceError);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiConversationInterface::saveWarnings()
+     */
+    public function saveWarnings(array $warnings) : void
+    {
+        foreach ($warnings as $warning) {
+            $text = $warning instanceof \Throwable ? $warning->getMessage() : (string) $warning;
+            $this->saveMessage(new DiagnosticMessage(AiMessageTypeDataType::WARNING, $text));
+        }
     }
 }

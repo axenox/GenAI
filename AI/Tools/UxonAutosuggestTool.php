@@ -35,6 +35,8 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * }
  *  
  * ```
+ * 
+ * @author GitHub Copilot
  */
 class UxonAutosuggestTool extends AbstractAiTool
 {
@@ -52,14 +54,14 @@ class UxonAutosuggestTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        [$uxon, $path, $input, $text, $object, $prototype, $schema] = array_pad($arguments, 7, null);
+        [$uxon, $path, $input, $text, $object, $prototype, $schema] = $arguments;
 
         try {
             $task = new GenericTask($this->getWorkbench());
             $task->setParameter('uxon', $this->encodeTaskJsonParameter($uxon));
-            $task->setParameter('path', $this->encodeTaskJsonParameter($path ?? []));
+            $task->setParameter('path', $this->encodeTaskJsonParameter($path));
             $task->setParameter(UxonAutosuggest::PARAM_TYPE, $input);
-            $task->setParameter(UxonAutosuggest::PARAM_TEXT, $text ?? '');
+            $task->setParameter(UxonAutosuggest::PARAM_TEXT, $text);
             $task->setParameter('object', $object);
             $task->setParameter('prototype', $prototype);
             $task->setParameter('schema', $schema);
@@ -71,8 +73,7 @@ class UxonAutosuggestTool extends AbstractAiTool
             }
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 $result->getContent(),
                 $this->getReturnDataType()
             );
@@ -84,11 +85,9 @@ class UxonAutosuggestTool extends AbstractAiTool
                 null,
                 $e
             );
-            $agent->getWorkbench()->getLogger()->logException($exception);
 
             return new AiToolResultString(
-                $this,
-                $arguments,
+                $this->getWorkbench(),
                 json_encode(['error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
                 $this->getReturnDataType(),
                 [],
@@ -99,7 +98,7 @@ class UxonAutosuggestTool extends AbstractAiTool
 
     /**
      * Normalize and encode a structured tool argument as a JSON task parameter.
-     *
+     * 
      * @param mixed $value
      * @return string
      */
@@ -130,6 +129,7 @@ class UxonAutosuggestTool extends AbstractAiTool
             (new ServiceParameter($self))
                 ->setDataType(new UxonObject(['alias' => 'exface.Core.Array']))
                 ->setName(self::ARG_PATH)
+                ->setDefaultValue([])
                 ->setDescription('Path from the UXON root to the node being edited, as an array of property names and array indexes.'),
             (new ServiceParameter($self))
                 ->setName(self::ARG_INPUT)
@@ -146,6 +146,7 @@ class UxonAutosuggestTool extends AbstractAiTool
                 ])),
             (new ServiceParameter($self))
                 ->setName(self::ARG_TEXT)
+                ->setDefaultValue('')
                 ->setDescription('Text typed so far, used to filter value and model-browser suggestions (optional).')
                 ->setRequired(false),
             (new ServiceParameter($self))

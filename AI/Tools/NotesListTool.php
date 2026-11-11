@@ -18,6 +18,13 @@ use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
  * Lists a limited number of note types and topics for the current agent and user without exposing note bodies.
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.NotesListTool"}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class NotesListTool extends AbstractAiTool
 {
@@ -33,7 +40,7 @@ class NotesListTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $maxResults = (int) ($arguments[self::ARG_MAX_RESULTS] ?? $arguments[0] ?? self::DEFAULT_MAX_RESULTS);
+        $maxResults = (int) $arguments[0];
         if ($maxResults < 1) {
             throw new AiToolRuntimeError($this, $prompt, 'Invalid max_results. Enter a positive integer.');
         }
@@ -65,7 +72,7 @@ class NotesListTool extends AbstractAiTool
             $markdown .= "\n\n" . MarkdownDataType::buildMarkdownTableFromArray($rows);
         }
 
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
 
     /**

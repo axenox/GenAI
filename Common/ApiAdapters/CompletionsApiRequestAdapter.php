@@ -1,8 +1,10 @@
 <?php
 namespace axenox\GenAI\Common\ApiAdapters;
 
+use axenox\GenAI\Interfaces\AiMessageInterface;
 use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiQueryInterface;
+use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\HttpRequestAdapterInterface;
 use axenox\GenAI\Interfaces\HttpRequestToolTestInterface;
@@ -11,25 +13,41 @@ use exface\Core\Interfaces\Actions\ServiceParameterInterface;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Builds OpenAI Chat Completions requests from generic conversation messages.
+ * 
+ * - Instructions become `system` messages, input `user` messages, output `assistant` messages.
+ * - Tool call messages become `assistant` messages with `tool_calls` followed by `tool` messages with results.
+ * - Image attachments of input messages are sent as images. Other attachments and attachments of
+ * output messages are replaced by short notes and a warning is added to the query.
+ * 
+ * @author Andrej Kabachnik
+ */
 class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpRequestToolTestInterface
 {
+    use ConversationApiAdapterTrait;
+
+    const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
     private AiConnectorInterface $connector;
     
+    /**
+     * Creates the connector-specific request adapter.
+     * 
+     * @param AiConnectorInterface $connector
+     * @return void
+     */
     public function __construct(AiConnectorInterface $connector)
     {
         $this->connector = $connector;    
     }
 
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::buildBody()
+     */
     public function buildBody(AiQueryInterface $query): string
     {
-        if ($query->hasFiles()) {
-            throw new \LogicException(
-                'Files are not supported by this Type of AI. Please use a newer version'
-            );
-        }
-        
-        //TODO Überlegen ob man Textdateien in die Message mit einbauen könnte. Das würde zumindest die Möglichkeit bieten, Dateien zu übergeben, auch wenn sie nicht direkt von der KI verarbeitet werden können. Oder man stellt im AiChat ein das Files nicht verwendet werden dürfen
-
         $json = [
             'model' => $this->connector->getModelName(),
             'messages' => $this->buildJsonMessages($query)
@@ -46,7 +64,10 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
             ];
         }
 
-        $json['tools'] = $this->buildJsonTools($query->getTools());
+        $tools = $this->buildJsonTools($query->getTools());
+        if ($tools !== []) {
+            $json['tools'] = $tools;
+        }
 
         if (null !== $val = $this->connector->getTemperature($query)) {
             $json['temperature'] = $val;
@@ -64,7 +85,7 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
 
     /**
      * @param AiToolInterface[] $aiTools
-     * @return array
+     * @return array<array-key,mixed>
      */
     protected function buildJsonTools(array $aiTools) : array
     {
@@ -105,6 +126,12 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
         return $tools;
     }
 
+    /**
+     * Builds a strict JSON schema for a configured tool argument.
+     * 
+     * @param ServiceParameterInterface $argument
+     * @return array<array-key,mixed>
+     */
     protected function buildArgumentSchema(ServiceParameterInterface $argument): array
     {
         $schema = null;
@@ -130,9 +157,9 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
 
     /**
      * Ensure nested object schemas satisfy OpenAI strict function schema rules.
-     *
-     * @param array $schema
-     * @return array
+     * 
+     * @param array<array-key,mixed> $schema
+     * @return array<array-key,mixed>
      */
     protected function normalizeStrictFunctionSchema(array $schema): array
     {
@@ -165,14 +192,91 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
         return $schema;
     }
     
+    /**
+     * Builds native messages from the generic messages of the query.
+     * 
+     * @param AiQueryInterface $query
+     * @return array<array-key,mixed>
+     */
     protected function buildJsonMessages(AiQueryInterface $query) : array
     {
-        // TODO add a AiMessageInterface abstraction for every individual message. Currently they are returned
-        // here is the completions format already. Other adapter will need to translate this format into theirs.
-        $messages = $query->getMessages(true);
-        return $messages;
+        [$instructions, $dialog] = $this->groupContextMessages($query);
+        $output = [];
+        foreach ($instructions as $message) {
+            $output[] = ['role' => 'system', 'content' => $message->getText()];
+        }
+        $idState = [];
+        $appendixSeen = [];
+        foreach ($dialog as $message) {
+            if ($message->isInput()) {
+                $output[] = ['role' => 'user', 'content' => $this->buildUserContent($query, $message)];
+                continue;
+            }
+            // Output messages
+            $text = $message->getText();
+            foreach ($message->getAttachments() as $file) {
+                $query->addWarning('File "' . $file->getFilename() . '" generated by the model cannot be sent back to this API - replaced by a note.');
+                $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+            }
+            $native = ['role' => 'assistant', 'content' => $text];
+            $calls = $this->getContextCalls($message);
+            if ($calls === []) {
+                $output[] = $native;
+                continue;
+            }
+            if ($text === '') {
+                $native['content'] = null;
+            }
+            foreach ($calls as $call) {
+                $native['tool_calls'][] = [
+                    'type' => 'function', 
+                    'id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                    'function' => [
+                        'name' => $call->getToolName(),
+                        'arguments' => $this->buildToolArgumentsJson($call)
+                    ]
+                ];
+            }
+            $output[] = $native;
+            /** @var AiToolCallMessageInterface $message */
+            $results = $message->getToolResults();
+            foreach ($calls as $call) {
+                $output[] = [
+                    'role' => 'tool', 
+                    'tool_call_id' => $this->mapCallId($message, $call->getCallId(), $idState),
+                    'content' => $this->buildToolResultText($results[$call->getCallId()], $appendixSeen)
+                ];
+            }
+        }
+        return $output;
     }
 
+    /**
+     * Builds the content blocks of a user message - attachments, that cannot be sent, become notes
+     *
+     * @param AiQueryInterface $query
+     * @param AiMessageInterface $message
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildUserContent(AiQueryInterface $query, AiMessageInterface $message) : array
+    {
+        $text = $message->getText();
+        $images = [];
+        foreach ($message->getAttachments() as $file) {
+            $contents = $this->readAttachment($query, $file, self::SUPPORTED_IMAGE_TYPES);
+            if ($contents === null) {
+                $text = $this->appendNote($text, $this->buildAttachmentNote($file));
+                continue;
+            }
+            $images[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $this->getAttachmentMimeType($file) . ';base64,' . base64_encode($contents)]];
+        }
+        return array_merge([['type' => 'text', 'text' => $text]], $images);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see HttpRequestAdapterInterface::getDryrunResponse()
+     */
     public function getDryrunResponse(array $requestJson, string $response) : ResponseInterface
     {
         $debug = [

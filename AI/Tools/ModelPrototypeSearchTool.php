@@ -26,6 +26,11 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * Configure `include_prototype_info_if_not_more_results_than` with a higher result threshold to include
  * details for broader searches, or set it to `0` to return only the search table.
  * 
+ * ```json
+ * {"alias": "axenox.GenAI.ModelPrototypeSearchTool"}
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 class ModelPrototypeSearchTool extends AbstractAiTool
@@ -59,12 +64,21 @@ class ModelPrototypeSearchTool extends AbstractAiTool
             && $resultSheet->countRows() <= $this->includePrototypeInfoIfNotMoreResultsThan
         ) {
             $selector = $resultSheet->getRows()[0]['Selector'];
-            $prototypeResult = (new ModelPrototypeInfoTool($this->getWorkbench()))->invoke($agent, $prompt, [$selector]);
+            $prototypeTool = new ModelPrototypeInfoTool($this->getWorkbench());
+            $prototypeResult = $prototypeTool->invoke($agent, $prompt, $prototypeTool->normalizeArguments([$selector]));
             $markdown .= "\n\n## Prototype details\n\n" . $prototypeResult->getValueAsMarkdown();
         }
-        return new AiToolResultString($this, $arguments, $markdown, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $markdown, $this->getReturnDataType());
     }
     
+    /**
+     * Build Markdown Search Result.
+     * 
+     * @param DataSheetInterface $resultSheet
+     * @param string $query
+     * @param string $component
+     * @return string
+     */
     protected function buildMarkdownSearchResult(DataSheetInterface $resultSheet, string $query, string $component) : string
     {
         $rows = [];

@@ -24,6 +24,13 @@ use exface\Core\Interfaces\WorkbenchInterface;
  * The `data_sheet` configuration defines the object to search, additional
  * filters and the attributes returned as a compact Markdown table. Its first
  * column is used as the search attribute.
+ * 
+ * ```json
+ * {"alias": "axenox.GenAI.ModelObjectSearchTool", "data_sheet": {"object_alias": "exface.Core.OBJECT", "columns": [{"attribute_alias": "ALIAS"}]}}
+ * 
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class ModelObjectSearchTool extends AbstractAiTool
 {
@@ -56,7 +63,7 @@ class ModelObjectSearchTool extends AbstractAiTool
      */
     public function invoke(AiTaskHandlerInterface $agent, TaskInterface $prompt, array $arguments): AiToolResultInterface
     {
-        $objectName = trim((string) ($arguments[0] ?? ''));
+        $objectName = trim((string) $arguments[0]);
         if ($objectName === '') {
             throw new AiToolRuntimeError($this, $prompt, 'Missing required argument: object_name');
         }
@@ -77,7 +84,7 @@ class ModelObjectSearchTool extends AbstractAiTool
         if (empty($rows)) {
             $msg = 'No objects found for object_name "' . $objectName . '".';
             $warning = new AiToolRuntimeWarning($this, $prompt, $msg);
-            return new AiToolResultString($this, $arguments, $msg, $this->getReturnDataType(), [], [$warning]);
+            return new AiToolResultString($this->getWorkbench(), $msg, $this->getReturnDataType(), [], [$warning]);
         }
 
         $resultColumns = [];
@@ -93,7 +100,7 @@ class ModelObjectSearchTool extends AbstractAiTool
 {$table}
 MD;
 
-        return new AiToolResultString($this, $arguments, $result, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $result, $this->getReturnDataType());
     }
 
     /**
@@ -119,15 +126,15 @@ MD;
 
     /**
      * DataSheet configuration used to search and render model objects.
-     *
+     * 
      * The configured object and columns are imported by the standard DataSheet
      * prototype. The first column is used as search attribute and reads are
      * limited to 100 rows.
-     *
+     * 
      * @uxon-property data_sheet
      * @uxon-type \exface\Core\CommonLogic\DataSheets\DataSheet
       * @uxon-template {"object_alias":"exface.Core.OBJECT","columns":[{"attribute_alias":"NAME"},{"attribute_alias":"UID"},{"attribute_alias":"ALIAS_WITH_NS"},{"attribute_alias":"APP"},{"attribute_alias":"DATA_SOURCE"}]}
-     *
+     * 
      * @param UxonObject $dataSheetUxon
      * @return ModelObjectSearchTool
      */
@@ -158,7 +165,7 @@ MD;
 
     /**
      * Creates the effective DataSheet used by the search and tool introduction.
-     *
+     * 
      * @return DataSheetInterface
      */
     private function createConfiguredDataSheet(): DataSheetInterface
@@ -173,9 +180,11 @@ MD;
 
     /**
      * Returns the expression of the first configured column used for filtering.
-     *
+     * 
      * @param DataSheetInterface|null $dataSheet
      * @return string
+     * 
+     * @throws \LogicException
      */
     protected function getSearchAttribute(?DataSheetInterface $dataSheet = null): string
     {

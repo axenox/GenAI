@@ -17,6 +17,14 @@ use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
 use exface\Core\Widgets\DebugMessage;
+use axenox\GenAI\Events\OnBeforeAiToolCallEvent;
+use axenox\GenAI\Events\OnAiToolCallEvent;
+use axenox\GenAI\Exceptions\AiToolCriticalError;
+use axenox\GenAI\Interfaces\AiToolCallInterface;
+use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Interfaces\Log\LoggerInterface;
+use exface\Core\Interfaces\Tasks\TaskInterface;
 
 /**
  * Base for configurable AI task handlers that expose tools.
@@ -25,6 +33,17 @@ use exface\Core\Widgets\DebugMessage;
  * configuration. Specialized handlers can contribute additional tools without inheriting prompt,
  * conversation or model-connection behavior.
  *
+ * Configure the tools exposed by a handler, for example:
+ * 
+ * ```json
+ * {
+ *     "tools": {
+ *         "GetTime": {"alias": "axenox.GenAI.GetTimeTool"}
+ *     }
+ * }
+ * 
+ * ```
+ * 
  * @author Andrej Kabachnik
  */
 abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
@@ -42,25 +61,103 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     private $versionRow = null;
 
-    /** @var AiToolInterface[]|null */
+    /**
+     * @var AiToolInterface[]|null
+     */
     protected ?array $tools = null;
 
-    /** @var \Throwable[] */
+    /**
+     * @var \Throwable[]
+     */
     protected array $toolWarnings = [];
 
-    /** @var UxonObject[]|null */
+    /**
+     * @var UxonObject[]|null
+     */
     private ?array $toolsUxon = null;
 
-    /** @var AiSkillInterface[]|null */
+    /**
+     * @var AiSkillInterface[]|null
+     */
     private ?array $skills = null;
 
     private ?AiPromptInterface $skillsPrompt = null;
 
     private UxonObject $skillsUxon;
+    private array $toolOperationalErrors = [];
+
+    /**
+     * {@inheritDoc}
+     * @see AiTaskHandlerInterface::callTool()
+     */
+    public function callTool(TaskInterface $task, AiToolCallInterface $call) : AiToolResultInterface
+    {
+        $this->toolOperationalErrors = [];
+        $started = hrtime(true);
+        $tool = null;
+        try {
+            foreach ($this->getTools() as $candidate) {
+                if ($candidate->getName() === $call->getToolName()) {
+                    $tool = $candidate;
+                    break;
+                }
+            }
+            if ($tool === null) {
+                $warning = new RuntimeException('Unknown configured tool "' . $call->getToolName() . '". Use an advertised tool name.');
+                $warning->setLogLevel(LoggerInterface::WARNING);
+                $result = (new AiToolResultString($this->workbench, '', null, [], [$warning]))
+                    ->setFailed(true)->setDurationMs((hrtime(true) - $started) / 1000000);
+                $this->toolOperationalErrors = $result->getOperationalErrors();
+                return $result;
+            }
+            try {
+                $arguments = $tool->normalizeArguments($call->getArguments());
+            } catch (\Throwable $error) {
+                $warning = new RuntimeException('Invalid arguments for "' . $call->getToolName() . '": ' . $error->getMessage(), null, $error);
+                $warning->setLogLevel(LoggerInterface::WARNING);
+                $result = (new AiToolResultString($this->workbench, '', null, [], [$warning]))
+                    ->setFailed(true)->setDurationMs((hrtime(true) - $started) / 1000000);
+                $this->toolOperationalErrors = $result->getOperationalErrors();
+                return $result;
+            }
+            $call->setExecutionArguments($arguments);
+            $this->workbench->eventManager()->dispatch(new OnBeforeAiToolCallEvent($tool));
+            $result = $tool->invoke($this, $task, $arguments);
+        } catch (\Throwable $error) {
+            if ($tool !== null && !$error instanceof AiToolCriticalError) {
+                $error = new AiToolCriticalError(
+                    $tool, $task, $error->getMessage(), null, $error
+                );
+            }
+            if ($error instanceof AiToolCriticalError) {
+                $error->setToolCall($call);
+            }
+            $result = (new AiToolResultString($this->workbench, '', null, [], [$error]))->setFailed(true);
+        }
+        $this->toolOperationalErrors = array_merge($this->toolOperationalErrors, $result->getOperationalErrors());
+        $result->setDurationMs((hrtime(true) - $started) / 1000000);
+        try {
+            $this->workbench->eventManager()->dispatch(new OnAiToolCallEvent($result, $result->getDurationMs()));
+        } catch (\Throwable $error) {
+            $this->toolOperationalErrors[] = $error;
+        }
+        return $result;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiTaskHandlerInterface::getToolOperationalErrors()
+     */
+    public function getToolOperationalErrors() : array
+    {
+        return $this->toolOperationalErrors;
+    }
 
     /**
      * @param AiAgentSelectorInterface $selector
      * @param UxonObject|null $uxon
+     * 
+     * @return void
      */
     public function __construct(AiAgentSelectorInterface $selector, UxonObject $uxon = null)
     {
@@ -74,11 +171,11 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Assigns reusable skills whose tools are exposed by this handler.
-     *
+     * 
      * @uxon-property skills
      * @uxon-type {string => metamodel:axenox.GenAI.AI_SKILL:ALIAS_WITH_NS}
      * @uxon-template {"": {"alias": ""}}
-     *
+     * 
      * @param UxonObject $skills
      * @return AiTaskHandlerInterface
      */
@@ -93,6 +190,9 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Initializes assigned skills for tool loading and optional prompt rendering.
+     * 
+     * @param AiPromptInterface|null $prompt
+     * @return void
      */
     protected function initSkills(?AiPromptInterface $prompt = null) : void
     {
@@ -110,7 +210,7 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Returns assigned skills, initializing them without prompt rendering when necessary.
-     *
+     * 
      * @return AiSkillInterface[]
      */
     protected function getSkills() : array
@@ -123,11 +223,11 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Configures tools exposed by this handler.
-     *
+     * 
      * @uxon-property tools
      * @uxon-type \axenox\GenAI\Common\AbstractAiTool[]
      * @uxon-template {"": {"alias": "", "description": ""}}
-     *
+     * 
      * @param UxonObject $objectWithToolDefs
     * @return AiTaskHandlerInterface
      */
@@ -142,7 +242,7 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Adds handler-specific tool sources before directly configured tools are applied.
-     *
+     * 
      * @param ToolBox $toolBox
      * @return \Throwable[]
      */
@@ -159,6 +259,8 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Initializes all configured tools once.
+     * 
+     * @return void
      */
     protected function initTools() : void
     {
@@ -213,7 +315,7 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Adds a tool programmatically.
-     *
+     * 
      * @param AiToolInterface $tool
     * @return AiTaskHandlerInterface
      */
@@ -225,7 +327,10 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Sets the local alias loaded from the model.
-     *
+     * 
+     * @uxon-property alias
+     * @uxon-type string
+     * 
      * @param string $alias
     * @return AiTaskHandlerInterface
      */
@@ -237,7 +342,7 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Returns the exact selector resolved by the factory.
-     *
+     * 
     * @return AiAgentSelectorInterface
      */
     public function getSelector() : AiAgentSelectorInterface
@@ -247,7 +352,12 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Accepts the model name during UXON import.
-     *
+     * 
+     * The persisted handler name remains authoritative.
+     * 
+     * @uxon-property name
+     * @uxon-type string
+     * 
      * @param string $name
     * @return AiTaskHandlerInterface
      */
@@ -258,8 +368,10 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Loads the persisted handler identity.
-     *
+     * 
      * @return DataSheetInterface
+     * 
+     * @throws AiAgentNotFoundError
      */
     protected function getModelData() : DataSheetInterface
     {
@@ -288,7 +400,7 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Loads persisted version data.
-     *
+     * 
      * @return DataSheetInterface
      */
     protected function getVersionModelData() : DataSheetInterface
@@ -304,8 +416,8 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Returns the persisted row for the selected exact version.
-     *
-     * @return array
+     * 
+     * @return array<array-key,mixed>
      */
     protected function getVersionRow() : array
     {
@@ -328,6 +440,8 @@ abstract class AbstractAiTaskHandler implements AiTaskHandlerInterface
 
     /**
      * Returns the persisted handler name.
+     * 
+     * @return string
      */
     public function getName() : string
     {

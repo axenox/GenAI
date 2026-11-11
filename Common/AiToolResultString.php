@@ -1,10 +1,10 @@
 <?php
 namespace axenox\GenAI\Common;
 
-use axenox\GenAI\Interfaces\AiToolInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
+use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\CodeDataType;
-use exface\Core\DataTypes\HtmlDataType;
 use exface\Core\DataTypes\LogLevelDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Exceptions\InternalError;
@@ -12,193 +12,227 @@ use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\Exceptions\ExceptionInterface;
 use exface\Core\Interfaces\Log\LoggerInterface;
-use exface\Core\Interfaces\WorkbenchDependantInterface;
+use exface\Core\Interfaces\WorkbenchInterface;
 
 /**
- * Generic string AI tool result - most tools will produce strings
+ * Retain a textual tool result with ordered diagnostics and optional supplementary instructions.
  * 
+ * Results can be restored without the original tool. For example:
+ *
+ * ```json
+ * {
+ *     "class": "\\axenox\\GenAI\\Common\\AiToolResultString",
+ *     "value": "Found three records",
+ *     "errors": [],
+ *     "warnings": []
+ * }
+ *  
+ * ```
+ * 
+ * @author GitHub Copilot
  */
 class AiToolResultString implements AiToolResultInterface
 {
-    private AiToolInterface $tool;
-    private array $arguments;
-    private mixed $value;
-    private ?DataTypeInterface $type;
-    private array $appendix;
-    /** @var ExceptionInterface[] */
-    private array $exceptions;
-    private bool $hasCriticalErrors = false;
+    use ICanBeConvertedToUxonTrait;
+
+    private WorkbenchInterface $workbench;
+    private string $value = '';
+    private ?DataTypeInterface $type = null;
+    private array $appendix = [];
+    private array $exceptions = [];
+    private array $errors = [];
+    private array $warnings = [];
+    private array $operationalErrors = [];
+    private bool $failed = false;
     private ?float $durationMs = null;
 
     /**
-     * @param AiToolInterface $tool
-     * @param $value
-     * @param DataTypeInterface $type
-     * @param array $appendix
+     * Creates a detached result; exceptions are classified only during fresh execution.
+     * 
+     * @param WorkbenchInterface $workbench
+     * @param mixed $value
+     * @param DataTypeInterface|null $type
+     * @param string[] $appendix
      * @param \Throwable[] $exceptions
+     * @return void
      */
-    public function __construct(AiToolInterface $tool, array $arguments, mixed $value, DataTypeInterface $type = null, array $appendix = [], array $exceptions = [])
+    public function __construct(WorkbenchInterface $workbench, mixed $value = '', ?DataTypeInterface $type = null, array $appendix = [], array $exceptions = [])
     {
-        $this->tool = $tool;
-        $this->arguments = $arguments;
-        $this->value = $value;
+        $this->workbench = $workbench;
+        $this->setValue($value);
         $this->type = $type;
         $this->appendix = $appendix;
-        $this->exceptions = [];
-
-        foreach ($exceptions as $e) {
-            $this->addException($e);
+        foreach ($exceptions as $exception) {
+            $this->addException($exception);
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getTool()
-     */
-    public function getTool(): AiToolInterface
-    {
-        return $this->tool;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getArguments()
-     */
-    public function getArguments(): array
-    {
-        return $this->arguments;
     }
 
     /**
      * {@inheritDoc}
      * @see AiToolResultInterface::getValue()
      */
-    public function getValue(): string
+    public function getValue() : string
     {
-        switch (true) {
-            case is_bool($this->value):
-                return $this->value ? 'true' : 'false';
-                
-        }
         return $this->value;
     }
 
     /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getValueWithMetadata()
+     * Retain the complete textual output, not a monitoring preview.
+     * 
+     * @uxon-property value
+     * @uxon-type string
+     * 
+     * @throws \InvalidArgumentException
+     * @param mixed $value
+     * @return void
      */
-    public function getValueWithMetadata(): string
+    protected function setValue(mixed $value) : void
     {
-        $value = $this->getValue();
-        $errors = [];
-        $warnings = [];
+        if (!is_scalar($value) && $value !== null) {
+            throw new \InvalidArgumentException('A string tool result requires a scalar value.');
+        }
+        $this->value = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
+    }
 
-        foreach ($this->getExceptions() as $exception) {
-            $logLevel = $exception->getLogLevel();
-            $diagnostic = strtoupper($logLevel) . ': ' . $exception->getMessage();
-            try {
-                $hint = $exception->getMessageModel($this->getWorkbench())->getHint();
-            } catch (\Throwable $e) {
-                $hint = null;
+    /**
+     * Select the data type used to display the retained output.
+     * 
+     * @uxon-property type
+     * @uxon-type \exface\Core\CommonLogic\DataTypes\AbstractDataType
+     * @uxon-template {"alias": "exface.Core.String"}
+     * 
+     * @param UxonObject $type
+     * @return void
+     */
+    protected function setType(UxonObject $type) : void
+    {
+        $this->type = DataTypeFactory::createFromUxon($this->workbench, $type);
+    }
+
+    /**
+     * Restore ordered supplementary instructions.
+     * 
+     * @uxon-property appendix
+     * @uxon-type string[]
+     * 
+     * @param UxonObject $appendix
+     * @return void
+     */
+    protected function setAppendix(UxonObject $appendix) : void
+    {
+        $this->appendix = $appendix->toArray();
+    }
+
+    /**
+     * Restore all retained error messages, including captured remediation.
+     * 
+     * @uxon-property errors
+     * @uxon-type string[]
+     * 
+     * @param UxonObject $errors
+     * @return void
+     */
+    protected function setErrors(UxonObject $errors) : void
+    {
+        $this->errors = $this->validateMessages($errors);
+    }
+
+    /**
+     * Restore all retained warning messages, including captured remediation.
+     * 
+     * @uxon-property warnings
+     * @uxon-type string[]
+     * 
+     * @param UxonObject $warnings
+     * @return void
+     */
+    protected function setWarnings(UxonObject $warnings) : void
+    {
+        $this->warnings = $this->validateMessages($warnings);
+    }
+
+    /**
+     * Validates durable diagnostic collections without manufacturing exceptions.
+     * 
+     * @throws \InvalidArgumentException
+     * @param UxonObject $messages
+     * @return string[]
+     */
+    private function validateMessages(UxonObject $messages) : array
+    {
+        $values = $messages->toArray();
+        foreach ($values as $message) {
+            if (!is_string($message)) {
+                throw new \InvalidArgumentException('Tool diagnostics must be message strings.');
             }
-            if ($hint !== null && trim($hint) !== '') {
-                $diagnostic .= "\nRemediation: " . trim($hint);
-            }
-            if (LogLevelDataType::compareLogLevels($logLevel, LoggerInterface::WARNING) <= 0) {
-                $warnings[] = $diagnostic;
-            } else {
-                $errors[] = $diagnostic;
-            }
         }
-
-        $metadata = [];
-        if ($errors !== []) {
-            $errorStatus = $value === ''
-                ? 'TOOL EXECUTION FAILED: No result was produced because errors occurred.'
-                : 'TOOL EXECUTION COMPLETED WITH ERRORS: The result may be incomplete or invalid.';
-            $metadata[] = $errorStatus . "\n\nErrors:\n" . implode("\n\n", $errors);
-        }
-        if ($this->isFailed()) {
-            $metadata[] = 'The tool failed critically. Do not repeat the same call unchanged.';
-        }
-        if ($warnings !== []) {
-            $metadata[] = "Tool warnings:\n" . implode("\n\n", $warnings);
-        }
-        if ($metadata === []) {
-            return $value;
-        }
-
-        $metadataText = implode("\n\n", $metadata);
-        return $value === '' ? $metadataText : $value . "\n\n" . $metadataText;
+        return array_values($values);
     }
 
     /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getValueAsMarkdown()
+     * Record rejection or execution failure independently of exception availability.
+     * 
+     * @uxon-property failed
+     * @uxon-type boolean
+     * 
+     * @param bool $failed
+     * @return AiToolResultInterface
      */
-    public function getValueAsMarkdown(bool $includeMetadata = false): string
+    public function setFailed(bool $failed) : AiToolResultInterface
     {
-        $type = $this->getValueDataType();
-        $value = $includeMetadata ? $this->getValueWithMetadata() : $this->getValue();
-        switch (true) {
-            case $type instanceof HtmlDataType:
-            case $type instanceof MarkdownDataType:
-                $markdown = $value;
-                break;
-            case $type instanceof CodeDataType:
-                $markdown = MarkdownDataType::escapeCodeBlock($value, $type->getLanguage());
-                break;
-            default:
-                $markdown = MarkdownDataType::escapeCodeBlock($value);
-        }
-        return $markdown;
+        $this->failed = $failed;
+        return $this;
     }
 
     /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getValueDataType()
+     * Retain elapsed execution time in milliseconds.
+     * 
+     * @uxon-property duration_ms
+     * @uxon-type number
+     * 
+     * @param float $milliseconds
+     * @return AiToolResultInterface
      */
-    public function getValueDataType(): DataTypeInterface
+    public function setDurationMs(float $milliseconds) : AiToolResultInterface
     {
-        if ($this->type === null) {
-            $this->type = DataTypeFactory::createBaseDataType($this->getWorkbench());
-        }
-        return $this->type;
+        $this->durationMs = max(0, $milliseconds);
+        return $this;
     }
 
     /**
      * {@inheritDoc}
-     * @see AiToolResultInterface::getAppendix()
+     * @see AiToolResultInterface::getDurationMs()
      */
-    public function getAppendix(): array
-    {
-        return $this->appendix;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see AiToolResultInterface::getExceptions()
-     */
-    public function getExceptions(): array
-    {
-        return $this->exceptions;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getDurationMs(): ?float
+    public function getDurationMs() : ?float
     {
         return $this->durationMs;
     }
 
     /**
      * {@inheritDoc}
+     * @see AiToolResultInterface::getErrors()
      */
-    public function setDurationMs(float $milliseconds): AiToolResultInterface
+    public function getErrors() : array
     {
-        $this->durationMs = max(0, $milliseconds);
-        return $this;
+        return $this->errors;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getWarnings()
+     */
+    public function getWarnings() : array
+    {
+        return $this->warnings;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getExceptions()
+     */
+    public function getExceptions() : array
+    {
+        return $this->exceptions;
     }
 
     /**
@@ -207,32 +241,85 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function addException(\Throwable $exception) : AiToolResultInterface
     {
-        if (! $exception instanceof ExceptionInterface) {
-            $exception = new InternalError("Error in AI tool `{$this->tool->getName()}`. {$exception->getMessage()}", null, $exception);
-        }
-        if (LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::CRITICAL) >= 0) {
-            $this->hasCriticalErrors = true;
+        if (!$exception instanceof ExceptionInterface) {
+            $exception = new InternalError('AI tool execution failed. ' . $exception->getMessage(), null, $exception);
         }
         $this->exceptions[] = $exception;
+        $message = $exception->getMessage();
+        if ($this->workbench->isStarted() && $exception->getAlias() !== null) {
+            try {
+                $hint = $exception->getMessageModel($this->workbench)->getHint();
+                if ($hint !== null && trim($hint) !== '') {
+                    $message .= "\nRemediation: " . trim($hint);
+                }
+            } catch (\Throwable $error) {
+                $this->operationalErrors[] = $error;
+            }
+        }
+        if (LogLevelDataType::compareLogLevels($exception->getLogLevel(), LoggerInterface::ERROR) >= 0) {
+            $this->errors[] = $message;
+            $this->failed = true;
+        } else {
+            $this->warnings[] = $message;
+        }
         return $this;
     }
 
     /**
      * {@inheritDoc}
-     * @see WorkbenchDependantInterface::getWorkbench()
+     * @see AiToolResultInterface::getOperationalErrors()
      */
-    public function getWorkbench()
+    public function getOperationalErrors() : array
     {
-        return $this->tool->getWorkbench();
+        return $this->operationalErrors;
     }
 
     /**
      * {@inheritDoc}
-     * @see \Stringable::__toString()
+     * @see AiToolResultInterface::getValueWithMetadata()
      */
-    public function __toString() : string
+    public function getValueWithMetadata() : string
     {
-        return $this->getValue();
+        $parts = [$this->value];
+        foreach ($this->errors as $error) {
+            $parts[] = 'ERROR: ' . $error;
+        }
+        foreach ($this->warnings as $warning) {
+            $parts[] = 'WARNING: ' . $warning;
+        }
+        if ($this->failed) {
+            $parts[] = 'Tool execution failed. Do not repeat the same call unchanged.';
+        }
+        return implode("\n\n", array_filter($parts, static fn(string $part) => $part !== ''));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getValueAsMarkdown()
+     */
+    public function getValueAsMarkdown(bool $includeMetadata = false) : string
+    {
+        $value = $includeMetadata ? $this->getValueWithMetadata() : $this->value;
+        $type = $this->getValueDataType();
+        return MarkdownDataType::escapeCodeBlock($value, $type instanceof CodeDataType ? $type->getLanguage() : '');
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getValueDataType()
+     */
+    public function getValueDataType() : DataTypeInterface
+    {
+        return $this->type ?? ($this->type = DataTypeFactory::createBaseDataType($this->workbench));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getAppendix()
+     */
+    public function getAppendix() : array
+    {
+        return $this->appendix;
     }
 
     /**
@@ -241,6 +328,47 @@ class AiToolResultString implements AiToolResultInterface
      */
     public function isFailed() : bool
     {
-        return $this->hasCriticalErrors;
+        return $this->failed || $this->errors !== [];
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see AiToolResultInterface::getWorkbench()
+     */
+    public function getWorkbench()
+    {
+        return $this->workbench;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \Stringable::__toString()
+     */
+    public function __toString() : string
+    {
+        return $this->value;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
+     */
+    public function exportUxonObject()
+    {
+        $type = $this->getValueDataType()->exportUxonObject()->toArray();
+        $type['alias'] = '\\' . get_class($this->getValueDataType());
+        $data = [
+            'class' => '\\' . static::class,
+            'type' => $type,
+            'value' => $this->value,
+            'failed' => $this->isFailed(),
+            'appendix' => $this->appendix,
+            'errors' => $this->errors,
+            'warnings' => $this->warnings
+        ];
+        if ($this->durationMs !== null) {
+            $data['duration_ms'] = $this->durationMs;
+        }
+        return new UxonObject($data);
     }
 }

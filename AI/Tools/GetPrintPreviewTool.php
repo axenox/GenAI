@@ -32,7 +32,7 @@ use Psr\SimpleCache\CacheInterface;
  * 
  * ## Basic configuration
  * 
- * ```
+ * ```json
  *  {
  *     "tools": {
  *          "get_report": {
@@ -56,7 +56,7 @@ use Psr\SimpleCache\CacheInterface;
  * NOTE: if you use the tool inside a `ToolCallConcept`, use `[#~input:#]` placeholders instead of argument
  * placeholders because there are no arguments actually being passed from outside in this case.
  * 
- * ```
+ * ```json
  *  {
  *     "tools": {
  *          "GetReports": {
@@ -80,7 +80,7 @@ use Psr\SimpleCache\CacheInterface;
  *          }
  *      }
  *  }
- *
+ * 
  * ```
  * 
  * ## Caching
@@ -93,7 +93,7 @@ use Psr\SimpleCache\CacheInterface;
  * The cache will only be used as long as the row of the print data does not change. In fact, if your object has
  * a `TimeStampingBehavior`, any change will automatically invalidate the cache even without a custom print data!
  * 
- * ```
+ * ```json
  *  {
  *     "tools": {
  *          "GetReports": {
@@ -120,7 +120,7 @@ use Psr\SimpleCache\CacheInterface;
  *  }
  * 
  * ```
- *
+ * 
  * @author Andrej Kabachnik
  */
 class GetPrintPreviewTool extends AbstractAiTool
@@ -160,7 +160,7 @@ class GetPrintPreviewTool extends AbstractAiTool
         }
         
         $concatenated = $this->concatenate($results);
-        return new AiToolResultString($this, $arguments, $concatenated, $this->getReturnDataType());
+        return new AiToolResultString($this->getWorkbench(), $concatenated, $this->getReturnDataType());
     }
 
     /**
@@ -174,7 +174,7 @@ class GetPrintPreviewTool extends AbstractAiTool
      * 
      * Example:
      * 
-     * ```
+     * ```json
      * {
      *      "arguments": [
      *          {"name": "DocumentId"}
@@ -184,7 +184,7 @@ class GetPrintPreviewTool extends AbstractAiTool
      *          "filters": {
      *              "operator": "AND",
      *              "conditions": [
-     *                  {"expression": "UID", "comparator": "==", "value": "[#~argument:0#]"}
+     *                  {"expression": "UID", "comparator": "==", "value": "[#~argument:0#]"},
      *                  {"expression": "STATUS", "comparator": ">=", "value": 10}
      *              ]
      *          }
@@ -206,6 +206,13 @@ class GetPrintPreviewTool extends AbstractAiTool
         return $this;
     }
     
+    /**
+     * Builds the authorized data used to render the print preview.
+     * 
+     * @throws AiToolConfigurationError
+     * @param array<array-key,mixed> $args
+     * @return DataSheetInterface
+     */
     protected function getPrintData(array $args) : DataSheetInterface
     {
         $action = $this->getPrintAction();
@@ -261,7 +268,7 @@ class GetPrintPreviewTool extends AbstractAiTool
     }
 
     /**
-     * @param array $previews
+     * @param array<array-key,mixed> $previews
      * @return string
      */
     protected function concatenate(array $previews) : string
@@ -286,6 +293,8 @@ class GetPrintPreviewTool extends AbstractAiTool
 
     /**
      * @return iRenderTemplate|null
+     * 
+     * @throws AiToolConfigurationError
      */
     public function getPrintAction() : ?iRenderTemplate
     {
@@ -316,6 +325,8 @@ class GetPrintPreviewTool extends AbstractAiTool
     /**
      * @param string $uid
      * @return string
+     * 
+     * @param array<array-key,mixed> $dataRow
      */
     protected function getCacheKey(array $dataRow) : string
     {
