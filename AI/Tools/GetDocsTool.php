@@ -119,13 +119,6 @@ class GetDocsTool extends AbstractAiTool
         try{
             $md = $docsFacade->getDocsMarkdown($url);
             $result = new AiToolResultString($this->getWorkbench(), $md, $this->getReturnDataType());
-
-            // Some docs responses may return an error/warning page as markdown instead of throwing.
-            if (preg_match('/\b(error|warning)\b/i', $md) === 1) {
-                $warning = AiToolRuntimeWarning($this, $prompt, 'Docs markdown contains error/warning content for URL "' . $url . '"');
-                $result->addException($warning);
-            }
-
             return $result;
         }
         catch(\Throwable $e){
