@@ -32,6 +32,14 @@ interface AiQueryInterface extends DataQueryInterface
     public function getMessages() : array;
 
     /**
+     * Returns a copy with the selected model context, preserving all other query settings.
+     *
+     * @param AiMessageInterface[] $messages
+     * @return AiQueryInterface
+     */
+    public function withMessages(array $messages) : AiQueryInterface;
+
+    /**
      * Returns the conversation, this query belongs to
      * 
      * @throws \LogicException if the query is not bound to a conversation

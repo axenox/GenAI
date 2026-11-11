@@ -84,6 +84,17 @@ class AiQuery extends AbstractDataQuery implements AiQueryInterface
 
     /**
      * {@inheritDoc}
+     * @see AiQueryInterface::withMessages()
+     */
+    public function withMessages(array $messages) : AiQuery
+    {
+        $clone = clone $this;
+        $clone->messages = $messages;
+        return $clone;
+    }
+
+    /**
+     * {@inheritDoc}
      * @see AiQueryInterface::getConversation()
      */
     public function getConversation() : AiConversationInterface

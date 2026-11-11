@@ -36,6 +36,7 @@ use Symfony\Component\ExpressionLanguage\Token;
  * Arguments can be passed positionally - in the order the tool defines them - or as named arguments using a colon
  * (`argument: value`). Strings must be quoted with single or double quotes, numbers, `true`, `false` and `null` are
  * recognized automatically. Several tool calls can be tested at once by writing them one after another.
+ * Each new user prompt starts a new test; only results belonging to that prompt are returned.
  * 
  * Example user prompts:
  * 
@@ -74,7 +75,19 @@ class OpenAiToolTester extends AbstractDataConnector implements AiConnectorInter
             throw new DataConnectionConfigurationError($this, 'The API type "' . $this->getApiType() . '" does not support tool testing in connection ' . $this->getAliasWithNamespace());
         }
         
-        $requestJson = json_decode($requestAdapter->buildBody($query), true);
+        // Historical tool results must not prevent a new user prompt from being tested.
+        // We remove all messages before the last user prompt from the query so we can test if there are tool calls
+        // AFTER the last user prompt.
+        $messages = array_values($query->getMessages());
+        $turnStart = 0;
+        foreach ($messages as $index => $message) {
+            if ($message->isInput()) {
+                $turnStart = $index;
+            }
+        }
+        $turnQuery = $query->withMessages(array_slice($messages, $turnStart));
+        $requestJson = json_decode($requestAdapter->buildBody($turnQuery), true);
+        $turnWarnings = array_slice($turnQuery->getWarnings(), count($query->getWarnings()));
         
         // If the request already contains results of previous tool calls, the tools to test have
         // already been called. Return a final text answer to stop the agent from calling them again.
@@ -90,7 +103,7 @@ class OpenAiToolTester extends AbstractDataConnector implements AiConnectorInter
             }
             $response = $requestAdapter->buildTextResponse($requestJson, $text);
             $responseAdapter = $this->getResponseAdapter($response);
-            $warnings = [];
+            $warnings = $turnWarnings;
             return $query
                 ->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, $warnings))
                 ->withWarnings($warnings);
@@ -129,7 +142,7 @@ class OpenAiToolTester extends AbstractDataConnector implements AiConnectorInter
         $responseAdapter = $this->getResponseAdapter($response);
         
         // Return a copy of the DataQuery with the faked response in it
-        $warnings = [];
+        $warnings = $turnWarnings;
         return $query
             ->withResponse($response, $responseAdapter, $this->getCosts($responseAdapter, $warnings))
             ->withWarnings($warnings);
