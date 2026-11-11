@@ -14,6 +14,10 @@ use exface\Core\CommonLogic\Filesystem\InMemoryFile;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\CommonLogic\Workbench;
 use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\DataTypes\CodeDataType;
+use exface\Core\DataTypes\HtmlDataType;
+use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\Factories\DataTypeFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -96,7 +100,7 @@ class AiMessageTest extends TestCase
     }
 
     /**
-     * The designer markdown is bounded and fences cannot be closed by tool results - the text remains full.
+     * Rich previews stay bounded and close truncated code blocks without changing retained results.
      * 
      * @return void
      */
@@ -114,10 +118,88 @@ class AiMessageTest extends TestCase
         $markdown = $message->toMarkdown();
         self::assertLessThanOrEqual(ToolCallMessage::MAX_MARKDOWN_LENGTH, mb_strlen($markdown));
         self::assertStringContainsString('Preview truncated', $markdown);
-        self::assertStringStartsWith("````\n", $markdown);
+        self::assertStringStartsWith("> **2** tool calls:\n", $markdown);
+        self::assertStringContainsString("\n## 1. first()\n", $markdown);
+        self::assertStringContainsString("\n````\nbefore\n```\n", $markdown);
+        self::assertStringContainsString("\n````\n\nPreview truncated", $markdown);
         self::assertSame($value, $message->getToolResults()['first']->getValue());
         // Markdown is not model context
         self::assertSame('', $message->getText());
+    }
+
+    /**
+     * Designers see a call overview, argument blocks and rendered tables, even for partial batches.
+     * 
+     * @return void
+     */
+    public function testToolMarkdownRendersSummaryAndTypedResults() : void
+    {
+        $workbench = new Workbench();
+        $table = "| Component | Name |\n| --- | --- |\n| object | Example |";
+        $result = new AiToolResultString($workbench, $table, DataTypeFactory::createFromPrototype($workbench, MarkdownDataType::class));
+        $message = new ToolCallMessage('Checking the model.', [
+            new AiToolCall('Search', 'first', (object) ['query' => 'example']),
+            new AiToolCall('Pending', 'second', new \stdClass())
+        ], ['first' => $result]);
+
+        $html = MarkdownDataType::convertMarkdownToHtml($message->toMarkdown());
+        self::assertStringContainsString('Results of some calls were not recorded.', $html);
+        self::assertStringContainsString('Checking the model.', $html);
+        self::assertStringContainsString('<strong>2</strong> tool calls:', $html);
+        self::assertStringContainsString('<li><code>Search(example)</code>', $html);
+        self::assertStringContainsString('<h2>1. Search()</h2>', $html);
+        self::assertStringContainsString('<pre><code>Search(example)', $html);
+        self::assertStringContainsString('<hr', $html);
+        self::assertStringContainsString('<table>', $html);
+        self::assertStringContainsString('<td>Example</td>', $html);
+        self::assertStringContainsString('<h2>2. Pending()</h2>', $html);
+        self::assertSame($table, $result->getValue());
+        self::assertSame('Checking the model.', $message->getText());
+    }
+
+    /**
+     * Plain text and code stay literal, including embedded fences; HTML retains its presentation.
+     * 
+     * @return void
+     */
+    public function testToolResultRenderingRespectsDataTypes() : void
+    {
+        $workbench = new Workbench();
+        $value = "before\n```\n<script>literal</script>\n~~~\nafter";
+        $plain = new AiToolResultString($workbench, $value);
+        $html = MarkdownDataType::convertMarkdownToHtml($plain->getValueAsMarkdown());
+        self::assertStringContainsString('&lt;script&gt;literal&lt;/script&gt;', $html);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringContainsString("~~~\nafter", $html);
+
+        $codeType = DataTypeFactory::createFromPrototype($workbench, CodeDataType::class);
+        $codeType->importUxonObject(new UxonObject(['language' => 'sql']));
+        $code = new AiToolResultString($workbench, 'SELECT 1', $codeType);
+        self::assertStringStartsWith("```sql\n", $code->getValueAsMarkdown());
+
+        $markup = new AiToolResultString($workbench, '<p>Formatted</p>', DataTypeFactory::createFromPrototype($workbench, HtmlDataType::class));
+        self::assertSame('<p>Formatted</p>', $markup->getValueAsMarkdown());
+    }
+
+    /**
+     * A long Markdown result keeps its rich formatting and a visible notice without altering diagnostics.
+     * 
+     * @return void
+     */
+    public function testLongMarkdownToolResultIsTruncatedOnlyForDesigners() : void
+    {
+        $workbench = new Workbench();
+        $value = "### Result\n\n" . str_repeat("\u{00FC}", 17000);
+        $result = new AiToolResultString($workbench, $value, DataTypeFactory::createFromPrototype($workbench, MarkdownDataType::class));
+        $result->setFailed(true);
+        $message = new ToolCallMessage('', [new AiToolCall('LongResult', 'call', new \stdClass())], ['call' => $result]);
+        $markdown = $message->toMarkdown();
+
+        self::assertLessThanOrEqual(ToolCallMessage::MAX_MARKDOWN_LENGTH, mb_strlen($markdown));
+        self::assertStringEndsWith('Preview truncated; full results are available in the message data.', $markdown);
+        self::assertStringContainsString('<h3>Result</h3>', MarkdownDataType::convertMarkdownToHtml($markdown));
+        self::assertSame($value, $result->getValue());
+        self::assertStringContainsString('Tool execution failed.', $result->getValueWithMetadata());
     }
 
     /**

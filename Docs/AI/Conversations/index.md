@@ -43,6 +43,13 @@ Every persisted message conceptually consists of a content string and structured
 
 `saveSystemPrompt()` ignores further save attempts once a system prompt exists. Every subsequent message receives the next sequence number.
 
+Tool-call messages show a numbered summary, a heading and argument block for each call, and
+its result separated by a horizontal line. Markdown and HTML results keep their formatting
+(including tables); plain text and code appear in code blocks. Designer previews are limited
+to 16,000 characters with an explicit truncation notice. Full results remain in message data
+and in the model context. This formatting applies to newly saved messages; existing log
+entries are not rewritten.
+
 The next sequence number belongs to conversation state. Its internal value starts as `null`. On first access, `getSequenceNumber()` loads the highest persisted `SEQUENCE_NUMBER` and returns its successor; later access uses the cached value. While saving, `incrementSequenceNumber()` returns the current number and then advances the local counter. The factory therefore neither loads nor passes sequence state to the constructor.
 
 ## Multi-agent workflows

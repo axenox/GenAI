@@ -5,6 +5,8 @@ use axenox\GenAI\DataTypes\AiMessageTypeDataType;
 use axenox\GenAI\Interfaces\AiToolCallInterface;
 use axenox\GenAI\Interfaces\AiToolCallMessageInterface;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
+use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\DataTypes\StringDataType;
 
 /**
  * Tool calls requested by the LLM together with their results - an output message
@@ -115,7 +117,7 @@ class ToolCallMessage extends OutputMessage implements AiToolCallMessageInterfac
     }
 
     /**
-     * Renders the text, every call and its result as a bounded code block for designers
+     * Renders a bounded designer preview with a call summary and typed results
      * 
      * {@inheritDoc}
      * @see OutputMessage::toMarkdown()
@@ -126,26 +128,40 @@ class ToolCallMessage extends OutputMessage implements AiToolCallMessageInterfac
         if ($this->getText() !== '') {
             $text .= $this->getText() . "\n\n";
         }
+        $text .= '> **' . count($this->calls) . "** tool calls:\n";
         foreach ($this->calls as $index => $call) {
-            $text .= '## ' . ($index + 1) . '. ' . $call->getToolName() . "()\n\n";
-            $text .= (string) $call . "\n\n";
+            $summary = StringDataType::truncate((string) $call, 120, false, true, true, true);
+            $text .= '> ' . ($index + 1) . '. ' . MarkdownDataType::escapeCodeInline($summary) . "\n";
+        }
+        $text .= "\n";
+        foreach ($this->calls as $index => $call) {
+            $text .= '## ' . ($index + 1) . '. ' . MarkdownDataType::escapeString($call->getToolName()) . "()\n\n";
+            $text .= StringDataType::indent((string) $call, '    ') . "\n\n";
             if (isset($this->results[$call->getCallId()])) {
-                $text .= $this->results[$call->getCallId()]->getValueWithMetadata() . "\n\n";
+                $text .= MarkdownDataType::makeHorizontalLine();
+                $text .= $this->results[$call->getCallId()]->getValueAsMarkdown(true) . "\n\n";
             }
         }
+        if (mb_strlen($text) <= self::MAX_MARKDOWN_LENGTH) {
+            return $text;
+        }
         $notice = "\n\nPreview truncated; full results are available in the message data.";
-        $limit = self::MAX_MARKDOWN_LENGTH;
-        $truncated = mb_strlen($text) > $limit - 20;
-        $text = mb_substr($text, 0, $truncated ? $limit - 20 - mb_strlen($notice) : $limit - 20);
+        $text = mb_substr($text, 0, self::MAX_MARKDOWN_LENGTH - mb_strlen($notice));
         do {
-            preg_match_all('/`+/', $text, $matches);
-            $longest = $matches[0] === [] ? 0 : max(array_map('strlen', $matches[0]));
-            $fence = str_repeat('`', max(3, $longest + 1));
-            $rendered = $fence . "\n" . $text . "\n" . $fence . ($truncated ? $notice : '');
-            $excess = mb_strlen($rendered) - $limit;
+            // Close a fenced result if the preview ends inside it, keeping the notice visible.
+            $fence = '';
+            preg_match_all('/^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/m', $text, $matches, PREG_SET_ORDER);
+            foreach ($matches as $match) {
+                if ($fence === '') {
+                    $fence = $match[1];
+                } elseif ($match[1][0] === $fence[0] && strlen($match[1]) >= strlen($fence) && trim($match[2]) === '') {
+                    $fence = '';
+                }
+            }
+            $rendered = $text . ($fence !== '' ? "\n" . $fence : '') . $notice;
+            $excess = mb_strlen($rendered) - self::MAX_MARKDOWN_LENGTH;
             if ($excess > 0) {
-                $truncated = true;
-                $text = mb_substr($text, 0, max(0, mb_strlen($text) - $excess - mb_strlen($notice)));
+                $text = mb_substr($text, 0, max(0, mb_strlen($text) - $excess));
             }
         } while ($excess > 0);
         return $rendered;

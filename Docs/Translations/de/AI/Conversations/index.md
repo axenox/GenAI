@@ -43,6 +43,14 @@ Jede gespeicherte Nachricht besteht fachlich aus einem Content-String und strukt
 
 `saveSystemPrompt()` ignoriert weitere Speicherversuche, sobald ein System-Prompt vorhanden ist. Alle weiteren Nachrichten erhalten eine fortlaufende Sequenznummer.
 
+Tool-Nachrichten zeigen eine nummerierte Zusammenfassung, eine Ueberschrift und einen
+Argumentblock pro Aufruf sowie das durch eine horizontale Linie getrennte Ergebnis.
+Markdown- und HTML-Ergebnisse behalten ihre Formatierung (einschliesslich Tabellen);
+Klartext und Code erscheinen in Codebloecken. Die Designer-Vorschau ist auf 16.000 Zeichen
+mit einem ausdruecklichen Kuerzungshinweis begrenzt. Vollstaendige Ergebnisse bleiben in
+den Nachrichtendaten und im Modellkontext erhalten. Die Formatierung gilt fuer neu
+gespeicherte Nachrichten; vorhandene Log-Eintraege werden nicht umgeschrieben.
+
 Die nächste Sequenznummer gehört zum Zustand der Conversation. Ihr interner Wert beginnt mit `null`. `getSequenceNumber()` lädt beim ersten Zugriff die höchste persistierte `SEQUENCE_NUMBER` und liefert deren Nachfolger; spätere Zugriffe verwenden den gecachten Wert. Beim Speichern liefert `incrementSequenceNumber()` die aktuelle Nummer und erhöht anschließend den lokalen Zähler. Die Factory muss die Sequenz daher weder laden noch an den Konstruktor übergeben.
 
 ## Multi-Agent-Abläufe

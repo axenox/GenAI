@@ -30,6 +30,21 @@ vendor/bin/phpunit -c vendor/axenox/genai/phpunit.xml.dist --testsuite unit
 
 Konventionen und Ablageorte beschreibt der [Leitfaden für Unit-Tests](../../../../Tests/Unit/Readme.md).
 
+## Tools ohne LLM testen
+
+Mit einer Verbindung auf Basis von `OpenAiToolTester` lassen sich die konfigurierten Tools
+eines Agenten direkt ausfuehren. Geben Sie den konfigurierten Toolnamen und Argumente in
+Anfuehrungszeichen ein, zum Beispiel:
+
+```text
+FileReadTool('axenox/genai/Common/DataQueries/AiQuery.php')
+```
+
+Jede Benutzernachricht startet einen neuen Test, auch innerhalb einer bestehenden Konversation.
+Die abschliessende Antwort enthaelt nur die Toolergebnisse dieser Nachricht; fruehere Ergebnisse
+und Fehler werden nicht erneut ausgegeben. Dateipfade sind relativ zum konfigurierten Basispfad
+des Tools (standardmaessig das Vendor-Verzeichnis).
+
 ## Integrationstests
 
 Integrationstests verwenden eine echte Workbench, statt den Container und seinen Service-Graphen

@@ -28,6 +28,19 @@ vendor/bin/phpunit -c vendor/axenox/genai/phpunit.xml.dist --testsuite unit
 
 See the [unit test contributor guide](../../Tests/Unit/Readme.md) for test placement and conventions.
 
+## Testing tools without an LLM
+
+Use a connection based on `OpenAiToolTester` to execute an agent's configured tools directly.
+Enter the configured tool name and quoted arguments, for example:
+
+```text
+FileReadTool('axenox/genai/Common/DataQueries/AiQuery.php')
+```
+
+Each user prompt starts a new test, even within an existing conversation. The final answer
+contains only that prompt's tool results; earlier results and errors are not replayed.
+File paths are relative to the tool's configured base (the vendor directory by default).
+
 ## Integration tests
 
 Integration tests should use a real Workbench instead of mocking the container and its service

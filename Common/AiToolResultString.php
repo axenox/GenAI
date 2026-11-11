@@ -5,6 +5,7 @@ use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Traits\ICanBeConvertedToUxonTrait;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\CodeDataType;
+use exface\Core\DataTypes\HtmlDataType;
 use exface\Core\DataTypes\LogLevelDataType;
 use exface\Core\DataTypes\MarkdownDataType;
 use exface\Core\Exceptions\InternalError;
@@ -301,7 +302,14 @@ class AiToolResultString implements AiToolResultInterface
     {
         $value = $includeMetadata ? $this->getValueWithMetadata() : $this->value;
         $type = $this->getValueDataType();
-        return MarkdownDataType::escapeCodeBlock($value, $type instanceof CodeDataType ? $type->getLanguage() : '');
+        if ($type instanceof MarkdownDataType || $type instanceof HtmlDataType) {
+            return $value;
+        }
+        preg_match_all('/`+/', $value, $matches);
+        $longest = $matches[0] === [] ? 0 : max(array_map('strlen', $matches[0]));
+        $fence = str_repeat('`', max(3, $longest + 1));
+        $language = $type instanceof CodeDataType ? $type->getLanguage() : '';
+        return $fence . $language . "\n" . $value . "\n" . $fence;
     }
 
     /**
