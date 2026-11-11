@@ -59,7 +59,7 @@
         {
             "_EXPORT_SUMMARY": "Read metamodel",
             "CREATED_ON": "2026-09-10 00:00:00",
-            "MODIFIED_ON": "2026-09-30 10:19:05",
+            "MODIFIED_ON": "2026-11-11 17:24:10",
             "CREATED_BY_USER": "0x11e8fe1c902c8ebea23ee4b318306b9a",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x5a1d8e6c2f3b4a7d9e0c1f2a3b4c5d6e",
@@ -69,9 +69,9 @@
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "# MODEL READ",
+                "# Reading the metamodel",
                 "",
-                "Tools: `SearchModelComponents`, `DescribeModelComponent`, `FindModelObject`, `GetDatabaseSchema`, `GetUxonPrototype`, `SearchUxonPrototypes`, `ValidateUxon`.",
+                "Tools: `SearchModelComponents`, `DescribeModelComponent`, `FindMetaObject`, `GetDatabaseSchema`, `GetUxonPrototype`, `SearchUxonPrototypes`, `ValidateUxon`.",
                 "",
                 "Use these tools to find and read model components, objects, database schemas, UXON prototypes, validation results, and stored rows. If the target is unknown, search first; request only required columns and filtered rows; validate UXON before a configured write step."
             ],
@@ -85,7 +85,7 @@
                         "alias": "axenox.GenAI.ModelComponentInfoTool",
                         "description": "Describe a known model component."
                     },
-                    "FindModelObject": {
+                    "FindMetaObject": {
                         "alias": "axenox.GenAI.ModelObjectInfoTool",
                         "description": "Find an object and its attributes and relations."
                     },
