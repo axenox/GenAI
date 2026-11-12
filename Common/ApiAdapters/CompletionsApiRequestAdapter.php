@@ -152,6 +152,10 @@ class CompletionsApiRequestAdapter implements HttpRequestAdapterInterface, HttpR
             $schema['description'] = $description;
         }
 
+        if (! $argument->isRequired()) {
+            $schema = ['anyOf' => [$schema, ['type' => 'null']]];
+        }
+
         return $this->normalizeStrictFunctionSchema($schema);
     }
 

@@ -210,6 +210,10 @@ class ResponsesApiRequestAdapter implements HttpRequestAdapterInterface, HttpReq
             $schema['description'] = trim(($schema['description'] ?? '') . "\n\n" . $defaultInstruction);
         }*/
 
+        if (! $argument->isRequired()) {
+            $schema = ['anyOf' => [$schema, ['type' => 'null']]];
+        }
+
         return $this->normalizeStrictFunctionSchema($schema);
     }
 
