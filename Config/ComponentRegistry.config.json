@@ -1,0 +1,215 @@
+{
+  "ai_agent": {
+    "name": "AI agent",
+    "description": "Versioned AI agents that assemble instructions and tools and process prompts through a configured model connection.",
+    "uxon_properties": ["agent_alias"],
+    "selector": {
+      "class": "\\axenox\\GenAI\\Common\\Selectors\\AiAgentSelector",
+      "factory": "\\axenox\\GenAI\\Factories\\AiFactory::createFromSelector"
+    },
+    "prototypes": {
+      "app_subfolder": "AI/Agents"
+    },
+    "documentation": {
+      "app_docs": "https://github.com/axenox/GenAI/blob/master/Docs/AI/Agents/index.md",
+      "markdown_printer_class": "\\exface\\Core\\Facades\\DocsFacade\\MarkdownPrinters\\GenericUxonComponentMarkdownPrinter"
+    },
+    "search_selector_data": {
+      "object_alias": "axenox.GenAI.AI_AGENT",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "ALIAS_WITH_NS", "comparator": "=", "value": "[#~query#]"},
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "ALIAS_WITH_NS", "name": "Selector"}
+      ]
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_AGENT_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_skill": {
+    "name": "AI skill",
+    "description": "Persisted, reusable bundles of instructions, concepts and tools. Skills are instantiated in the context of an AI task handler.",
+    "uxon_properties": ["skills"],
+    "prototypes": {
+      "app_subfolder": "AI/Skills"
+    },
+    "documentation": {
+      "app_docs": "https://github.com/axenox/GenAI/blob/master/Docs/AI/Skills/index.md"
+    },
+    "search_selector_data": {
+      "object_alias": "axenox.GenAI.AI_SKILL",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "ALIAS_WITH_NS", "comparator": "=", "value": "[#~query#]"},
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "ALIAS_WITH_NS", "name": "Selector"}
+      ]
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_SKILL_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_tool": {
+    "name": "AI tool",
+    "description": "Configurable operations exposed to an AI agent for on-demand invocation with validated arguments.",
+    "uxon_properties": ["tools"],
+    "prototypes": {
+      "app_subfolder": "AI/Tools"
+    },
+    "documentation": {
+      "app_docs": "https://github.com/axenox/GenAI/blob/master/Docs/AI/Tools/index.md"
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_TOOL_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_concept": {
+    "name": "AI concept",
+    "description": "Configurable instruction placeholders rendered automatically for an agent and its current prompt.",
+    "uxon_properties": ["concepts"],
+    "prototypes": {
+      "app_subfolder": "AI/Concepts"
+    },
+    "documentation": {
+      "app_docs": "https://github.com/axenox/GenAI/blob/master/Docs/AI/Concepts/index.md"
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_CONCEPT_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_test_criterion": {
+    "name": "AI test criterion",
+    "description": "Configurable criteria defining which part of an AI response is evaluated by test metrics.",
+    "uxon_properties": [],
+    "prototypes": {
+      "app_subfolder": "AI/TestCriteria"
+    },
+    "search_selector_data": {
+      "object_alias": "axenox.GenAI.AI_TEST_CRITERION",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "UID", "name": "Selector"}
+      ]
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_TEST_CRITERION_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_test_metric": {
+    "name": "AI test metric",
+    "description": "Configurable measures that evaluate an AI response against a test criterion.",
+    "uxon_properties": ["metrics"],
+    "selector": {
+      "class": "\\axenox\\GenAI\\Common\\Selectors\\AiMetricSelector",
+      "factory": "\\axenox\\GenAI\\Factories\\AiTestingFactory::createMetricFromSelector"
+    },
+    "prototypes": {
+      "app_subfolder": "AI/Metrics",
+      "class_suffix": "TestMetric"
+    },
+    "documentation": {
+      "markdown_printer_class": "\\exface\\Core\\Facades\\DocsFacade\\MarkdownPrinters\\GenericUxonComponentMarkdownPrinter"
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_TEST_METRIC_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  },
+  "ai_rater": {
+    "name": "AI rater",
+    "description": "Configurable rating prototypes for comparing AI responses with reference values.",
+    "uxon_properties": [],
+    "prototypes": {
+      "app_subfolder": "AI/Rating"
+    },
+    "search_prototype_data": {
+      "object_alias": "axenox.GenAI.AI_RATER_PROTOTYPE",
+      "filters": {
+        "operator": "OR",
+        "conditions": [
+          {"expression": "NAME", "comparator": "=", "value": "[#~query#]"}
+        ]
+      },
+      "columns": [
+        {"attribute_alias": "NAME"},
+        {"attribute_alias": "PATHNAME_RELATIVE", "name": "Selector"}
+      ]
+    }
+  }
+}
