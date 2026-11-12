@@ -33,7 +33,7 @@ SELECT
     av.oid AS oid,
     N'exf_ai_agent_version' AS table_name,
     a.app_oid AS app_oid,
-    N'ai_agent_version' AS component
+    N'ai_agent' AS component
 FROM exf_ai_agent_version AS av
 INNER JOIN exf_ai_agent AS a ON a.oid = av.ai_agent_oid
 LEFT JOIN exf_app app ON app.oid = a.app_oid
@@ -58,7 +58,7 @@ SELECT
     av.oid AS oid,
     N'exf_ai_agent_version' AS table_name,
     a.app_oid AS app_oid,
-    N'ai_agent_version' AS component
+    N'ai_agent' AS component
 FROM exf_ai_agent_version AS av
 INNER JOIN exf_ai_agent AS a ON a.oid = av.ai_agent_oid
 LEFT JOIN exf_app app ON app.oid = a.app_oid
