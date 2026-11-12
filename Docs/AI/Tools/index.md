@@ -94,6 +94,9 @@ Partial `arguments` overrides retain the remaining prototype parameters and thei
   for optional parameters and is rejected for required parameters, even if a default exists.
 - Missing required values, unknown names, excess positional values and scalar parsing failures
   reject execution before tool events or side effects.
+- Strict LLM schemas require every argument key, but optional arguments also accept JSON `null`.
+  Required arguments retain their configured schema. Parsed booleans and numbers retain their
+  native types instead of being converted to strings.
 - Structured JSON objects, arrays and configured UXON defaults become nested PHP arrays for UXON-consuming tools. Original
   call arguments remain unchanged; normalized execution arguments are retained separately.
 
@@ -620,7 +623,7 @@ replacement text
 | Argument | Required | Description |
 | --- | --- | --- |
 | `search_query` | Yes | Search term for the model search. |
-| `component` | No | Exact component type filter, such as `object`, `attribute`, `page`, or `action`. Allowed values are generated from the Component Registry, as in `ModelComponentInfoTool`. |
+| `component` | No | Exact component type filter, such as `object`, `attribute`, `page`, or `action`. Uses Core's `ModelComponentDataType` enum, with all installed Component Registry keys, as in `ModelComponentInfoTool`. |
 | `rows_limit` | No | Optional maximum row count. Defaults to `50`. |
 | `rows_offset` | No | Optional pagination offset. Defaults to `0`. |
 
@@ -642,7 +645,7 @@ replacement text
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `component` | Yes | Component type, such as `action`, `object`, or `page`. |
+| `component` | Yes | Component type, such as `action`, `object`, or `page`. Uses Core's `ModelComponentDataType` enum, including component keys contributed by installed apps. |
 | `selector` | Yes | Alias or selector of the component. |
 
 **How to use.** The model passes the registry component type and its selector. Use canonical aliases where possible.

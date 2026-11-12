@@ -95,6 +95,9 @@ Teilweise `arguments`-Anpassungen behalten die restlichen Prototyp-Parameter und
   optionalen Parametern erhalten und wird bei Pflichtparametern auch mit Standardwert abgewiesen.
 - Fehlende Pflichtwerte, unbekannte Namen, ueberzaehlige Positionswerte und skalare Parsingfehler
   verhindern die Ausfuehrung vor Tool-Events oder Seiteneffekten.
+- Strikte LLM-Schemas verlangen jeden Argumentschluessel; optionale Argumente akzeptieren jedoch
+  auch JSON `null`. Pflichtargumente behalten ihr konfiguriertes Schema. Geparste boolesche Werte
+  und Zahlen behalten ihren nativen Typ, statt in Zeichenketten umgewandelt zu werden.
 - Strukturierte JSON-Objekte, Arrays und konfigurierte UXON-Standardwerte werden fuer UXON-verarbeitende Tools in verschachtelte
   PHP-Arrays umgewandelt. Originalargumente bleiben unveraendert; normalisierte Ausfuehrungsargumente
   werden separat gespeichert.
@@ -625,7 +628,7 @@ replacement text
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
 | `search_query` | Ja | Suchbegriff für die Modellsuche. |
-| `component` | Nein | Exakter Komponententypfilter, beispielsweise `object`, `attribute`, `page` oder `action`. Die erlaubten Werte werden wie bei `ModelComponentInfoTool` aus der Component Registry erzeugt. |
+| `component` | Nein | Exakter Komponententypfilter, beispielsweise `object`, `attribute`, `page` oder `action`. Verwendet wie `ModelComponentInfoTool` den Core-Enum `ModelComponentDataType` mit allen installierten Schlüsseln der Component Registry. |
 | `rows_limit` | Nein | Optionale maximale Zeilenanzahl. Standard ist `50`. |
 | `rows_offset` | Nein | Optionaler Pagination-Offset. Standard ist `0`. |
 
@@ -647,7 +650,7 @@ replacement text
 
 | Argument | Erforderlich | Beschreibung |
 | --- | --- | --- |
-| `component` | Ja | Komponententyp, beispielsweise `action`, `object` oder `page`. |
+| `component` | Ja | Komponententyp, beispielsweise `action`, `object` oder `page`. Verwendet den Core-Enum `ModelComponentDataType`, einschließlich der Komponentenschlüssel installierter Apps. |
 | `selector` | Ja | Alias oder Selektor der Komponente. |
 
 **Verwendung.** Das Modell übergibt den Registry-Komponententyp und seinen Selektor. Verwenden Sie nach Möglichkeit kanonische Aliasse.
