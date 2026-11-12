@@ -11,6 +11,7 @@ use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\ComparatorDataType;
 use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\DataTypes\ModelComponentDataType;
 use exface\Core\Factories\DataSheetFactory;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
@@ -110,7 +111,6 @@ class ModelSearchTool extends AbstractAiTool
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
-        $allComponents = $workbench->getComponentRegistry()->getComponentKeys();
 
         return [
             (new ServiceParameter($self))
@@ -126,8 +126,7 @@ class ModelSearchTool extends AbstractAiTool
                 ->setName(self::ARG_COMPONENT)
                 ->setDescription('Optional component type filter (for example `object`, `attribute`, `page`, `action`), using the same component types as ModelComponentInfoTool')
                 ->setDataType(new UxonObject([
-                    'alias' => 'exface.Core.GenericStringEnum',
-                    'values' => array_combine($allComponents, $allComponents)
+                    'alias' => ModelComponentDataType::class
                 ]))
                 ->setRequired(false),
             (new ServiceParameter($self))

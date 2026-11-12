@@ -10,6 +10,7 @@ use axenox\GenAI\Interfaces\AiToolResultInterface;
 use exface\Core\CommonLogic\Actions\ServiceParameter;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\DataTypes\MarkdownDataType;
+use exface\Core\DataTypes\ModelComponentDataType;
 use exface\Core\Factories\DataTypeFactory;
 use exface\Core\Interfaces\DataTypes\DataTypeInterface;
 use exface\Core\Interfaces\WorkbenchInterface;
@@ -65,14 +66,12 @@ class ModelComponentInfoTool extends AbstractAiTool
     protected static function getArgumentsTemplates(WorkbenchInterface $workbench): array
     {
         $self = new self($workbench);
-        $allComponents = $workbench->getComponentRegistry()->getComponentKeys();
         return [
             (new ServiceParameter($self))
                 ->setName(self::ARG_COMPONENT)
                 ->setDescription('Component type (e.g. `action`) or the corresponding')
                 ->setDataType(new UxonObject([
-                    'alias' => 'exface.Core.GenericStringEnum',
-                    'values' => array_combine($allComponents, $allComponents)
+                    'alias' => ModelComponentDataType::class
                 ])),
             (new ServiceParameter($self))
                 ->setName(self::ARG_SELECTOR)
