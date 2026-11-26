@@ -31,6 +31,7 @@ use exface\Core\Templates\Placeholders\AppPlaceholders;
 use exface\Core\Templates\Placeholders\ConfigPlaceholders;
 use exface\Core\Templates\Placeholders\DataRowPlaceholders;
 use exface\Core\Templates\Placeholders\FormulaPlaceholders;
+use exface\Core\Templates\Placeholders\TaskParamsPlaceholders;
 
 /**
  * Generic chat assistant with configurable system prompt
@@ -378,6 +379,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
      * 
      * - `[#~app:#]` - get properties of the app, where the assistant is called from: e.g. `[#~app:alias#]`
      * - `[#~input:#]` - access the first row of the input data (e.g. data sent by the AIChat widget)
+     * - `[#~prompt:#]` - any parameter sent with the pompt/task
      * - `[#~config:#]`
      * 
      * @uxon-property instructions
@@ -534,6 +536,7 @@ class GenericAssistant extends AbstractAiTaskHandler implements AiAgentInterface
         $renderer = new BracketHashStringTemplateRenderer($this->workbench);
         $renderer->addPlaceholder(new FormulaPlaceholders($this->workbench, null, null, '='));
         $renderer->addPlaceholder(new ConfigPlaceholders($this->workbench, '~config:'));
+        $renderer->addPlaceholder(new TaskParamsPlaceholders($prompt), '~prompt:');
         if (null !== $app = $this->getApp($prompt)) {
             $renderer->addPlaceholder(new AppPlaceholders($app, '~app:'));
         }
