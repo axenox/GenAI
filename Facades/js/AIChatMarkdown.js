@@ -118,7 +118,11 @@ function installRenderer() {
                         renderers: oRenderers
                     });
                     // Let the active facade style Markdown without exposing the rest of the chat.
-                    domViewerHost.querySelector('.markian-document')?.part.add('markdown-body');
+                    const domDocument = domViewerHost.querySelector('.markian-document');
+                    domDocument?.part.add('markdown-body');
+                    if (this.closest('.ai-message-text:not(.user-message-text, .error-message-text)')) {
+                        domDocument?.part.add('markdown-reply');
+                    }
                     domViewerHost.querySelectorAll('.markian-document thead th').forEach((domHeading) => {
                         domHeading.part.add('markdown-table-heading');
                     });
