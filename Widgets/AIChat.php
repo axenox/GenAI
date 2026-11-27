@@ -62,7 +62,7 @@ class AIChat extends InputCustom implements iFillEntireContainer
     {
         $this->setHideCaption(true);
         
-        $this->setIncludeJsModules(['vendor/npm-asset/deep-chat/dist/deepChat.bundle.js']);
+        $this->setIncludeJsModules(['vendor/axenox/genai/Facades/js/AIChatMarkdown.js']);
         $this->setCssClass('exf-aichat');
         
         $this->setScriptToResize(<<<JS
@@ -112,6 +112,9 @@ CSS;
         return $this->getId() . '_deepchat';
     }
 
+    /**
+     * Builds the chat element and opts its text messages into Markian rendering.
+     */
     protected function buildHtmlDeepChat() : string
     {
         $top = $this->getButtonsHTML('top');
@@ -185,6 +188,7 @@ JS;
                 }'
 
                 introMessage='{$this->getIntroMessage()}'
+                remarkable='{"exfMarkian": true}'
                 chatStyle='{"background": "transparent", "border": "none"}'
                 messageStyles='{
                     "default": {
@@ -214,6 +218,9 @@ JS;
     HTML;
     }
 
+    /**
+     * Initializes the chat history, reset control and code copy buttons.
+     */
     protected function buildJsDeepChatInit() : string
     {
         $suggestions = '';
@@ -278,7 +285,8 @@ JS;
                 }
             
                 root.querySelectorAll('pre').forEach((pre) => {
-                    if (pre.dataset.copyButtonInitialized === 'true') {
+                    // Markian may still replace the source block with highlighted code or a diagram.
+                    if (pre.dataset.copyButtonInitialized === 'true' || pre.closest('exf-ai-markdown[data-rendering]')) {
                         return;
                     }
                     pre.dataset.copyButtonInitialized = 'true';
@@ -381,7 +389,9 @@ JS;
             
                     observer.observe(root, {
                         childList: true,
-                        subtree: true
+                        subtree: true,
+                        attributes: true,
+                        attributeFilter: ['data-rendering']
                     });
             
                     chatEl.copyObserverInitDone = true;

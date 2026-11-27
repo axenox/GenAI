@@ -10,9 +10,11 @@
         "issues": "https://github.com/axenox/GenAI/issues"
     },
     "require": {
+        "axenox/markian": "^1.0",
         "exface/core": "^1.0",
         "mcp/sdk": "~0.8",
         "npm-asset/deep-chat": "^2",
+        "npm-asset/pele": "^1.13",
         "symfony/expression-language": "^5.3||^6"
     },
     "require-dev": {
