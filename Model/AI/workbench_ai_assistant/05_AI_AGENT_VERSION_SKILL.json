@@ -1,0 +1,121 @@
+{
+    "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+    "columns": [
+        {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "CREATED_ON",
+            "attribute_alias": "CREATED_ON"
+        },
+        {
+            "name": "MODIFIED_ON",
+            "attribute_alias": "MODIFIED_ON"
+        },
+        {
+            "name": "CREATED_BY_USER",
+            "attribute_alias": "CREATED_BY_USER"
+        },
+        {
+            "name": "MODIFIED_BY_USER",
+            "attribute_alias": "MODIFIED_BY_USER"
+        },
+        {
+            "name": "UID",
+            "attribute_alias": "UID"
+        },
+        {
+            "name": "LABEL",
+            "attribute_alias": "LABEL"
+        },
+        {
+            "name": "DESCRIPTION",
+            "attribute_alias": "DESCRIPTION"
+        },
+        {
+            "name": "AI_AGENT_VERSION",
+            "attribute_alias": "AI_AGENT_VERSION"
+        },
+        {
+            "name": "AI_SKILL",
+            "attribute_alias": "AI_SKILL"
+        }
+    ],
+    "rows": [
+        {
+            "_EXPORT_SUMMARY": "Admin AI Assistant v2.0: Read logs",
+            "CREATED_ON": "2026-11-27 15:09:35",
+            "MODIFIED_ON": "2026-11-27 15:09:35",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1aebd2d2b373aaebd025041000001",
+            "LABEL": "Admin AI Assistant v2.0: Read logs",
+            "DESCRIPTION": null,
+            "AI_AGENT_VERSION": "0x11f09c3c3860f7dc9c3c025041000001",
+            "AI_SKILL": "0x11f1830f39c2a7ca830f025041000001"
+        },
+        {
+            "_EXPORT_SUMMARY": "Admin AI Assistant v2.0: Read vendor folder",
+            "CREATED_ON": "2026-11-27 15:10:01",
+            "MODIFIED_ON": "2026-11-27 15:10:01",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f18d5a3c6245b88d5a025041000001",
+            "LABEL": "Admin AI Assistant v2.0: Read vendor folder",
+            "DESCRIPTION": null,
+            "AI_AGENT_VERSION": "0x11f09c3c3860f7dc9c3c025041000001",
+            "AI_SKILL": "0x11f193839b1ab1ec9383025041000001"
+        },
+        {
+            "_EXPORT_SUMMARY": "Admin AI Assistant v2.0: Read metamodel",
+            "CREATED_ON": "2026-11-27 15:10:33",
+            "MODIFIED_ON": "2026-11-27 15:10:33",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f1b2684f2df278b268025041000001",
+            "LABEL": "Admin AI Assistant v2.0: Read metamodel",
+            "DESCRIPTION": null,
+            "AI_AGENT_VERSION": "0x11f09c3c3860f7dc9c3c025041000001",
+            "AI_SKILL": "0x5a1d8e6c2f3b4a7d9e0c1f2a3b4c5d6e"
+        },
+        {
+            "_EXPORT_SUMMARY": "Admin AI Assistant v2.0: Long-term memory (notes)",
+            "CREATED_ON": "2026-11-27 15:11:06",
+            "MODIFIED_ON": "2026-11-27 15:11:06",
+            "CREATED_BY_USER": "0x31000000000000000000000000000000",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
+            "UID": "0x11f19bf9634b9f809bf9025041000001",
+            "LABEL": "Admin AI Assistant v2.0: Long-term memory (notes)",
+            "DESCRIPTION": null,
+            "AI_AGENT_VERSION": "0x11f09c3c3860f7dc9c3c025041000001",
+            "AI_SKILL": "0x11f186473c855c8e8647025041000001"
+        }
+    ],
+    "totals_rows": [],
+    "filters": {
+        "operator": "AND",
+        "base_object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL",
+        "conditions": [
+            {
+                "expression": "AI_AGENT_VERSION__AI_AGENT__APP",
+                "comparator": "=",
+                "value": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
+                "object_alias": "axenox.GenAI.AI_AGENT_VERSION_SKILL"
+            }
+        ]
+    },
+    "rows_limit": null,
+    "rows_offset": 0,
+    "sorters": [
+        {
+            "attribute_alias": "CREATED_ON",
+            "direction": "ASC"
+        },
+        {
+            "attribute_alias": "UID",
+            "direction": "ASC"
+        }
+    ]
+}

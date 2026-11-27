@@ -61,92 +61,16 @@
     ],
     "rows": [
         {
-            "_EXPORT_SUMMARY": "Admin AI Assistant v1.1",
+            "_EXPORT_SUMMARY": "Admin AI Assistant v2.0",
             "CREATED_ON": "2025-04-14 11:38:28",
-            "MODIFIED_ON": "2026-06-26 16:08:35",
+            "MODIFIED_ON": "2026-11-27 15:47:03",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f09c3c3860f7dc9c3c025041000001",
             "PROTOTYPE_CLASS": "axenox/genai/AI/Agents/GenericAssistant.php",
             "DATA_CONNECTION_DEFAULT": null,
             "CONFIG_UXON": {
-                "tools": {
-                    "GetDocs": {
-                        "alias": "axenox.GenAI.GetDocsTool",
-                        "arguments": [
-                            {
-                                "name": "url",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Markdown file URL - absolute (with https://...) or local ones starting with `api/docs`"
-                            }
-                        ],
-                        "description": "Use this tool to request any link to documentation markdown files found in the data you receive. You can only request links you see in provided markdown docs, do not attempt to guess links - use other tools instead. "
-                    },
-                    "GetObject": {
-                        "alias": "axenox.GenAI.ModelObjectInfoTool",
-                        "arguments": [
-                            {
-                                "name": "object_alias",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "Fully qualified alias (with namespace) or UID of the object to be read: e.g. `exface.Core.PAGE` or `0x11e86314af5caf7f971b0205857feb80`"
-                            }
-                        ],
-                        "description": "Load information about the any metaobject. "
-                    },
-                    "GetLogEntry": {
-                        "alias": "axenox.GenAI.GetLogEntryTool",
-                        "arguments": [
-                            {
-                                "name": "LogId",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "The Log-ID visible to the designer or referenced in another log item. E.g. `AB8B3FD1`."
-                            }
-                        ],
-                        "description": "Read the log"
-                    },
-                    "GetUxonPrototype": {
-                        "alias": "axenox.GenAI.ModelPrototypeInfoTool",
-                        "arguments": [
-                            {
-                                "name": "selector",
-                                "data_type": {
-                                    "alias": "exface.Core.String"
-                                },
-                                "description": "PHP class starting with `\\` (e.g. `\\exface\\Core\\Actions\\ReadData`) or file path relative to vendor folder (e.g. `exface/core/Actions/ReadData.php`)."
-                            }
-                        ],
-                        "description": [
-                            "// Multiline text delimited by `\n`",
-                            "This tool provides documentation for any UXON prototype - widgets, actions, behaviors, data connectors, etc. UXON prototypes are PHP classes, that can be configured via UXON. Prototypes are referenced using different selectors: most common selector types are:",
-                            "- aliases - they are used inside UXON models. Aliases are currently NOT SUPPORTED by this tool!!!",
-                            "- fully qualified PHP class names as selectors (always starting with a `\\`) ",
-                            "- file paths relative to the vendor folder using `/` as directory separator"
-                        ]
-                    },
-                    "GetWidgetTypeInfo": {
-                        "alias": "axenox.GenAI.ModelWidgetTypeInfoTool",
-                        "description": "Retrieve detailed documentation for a widget prototype with available properties, widget functions, presets, etc.",
-                        "arguments": [
-                            {
-                                "name": "path",
-                                "description": "Widget type (e.g. `DataTable`) or path to the widget PHP file relative to the vendor folder (e.g. `exface/core/Widgets/DataTable.php`)"
-                            }
-                        ]
-                    }
-                },
                 "concepts": {
-                    "sitemap": {
-                        "alias": "axenox.GenAI.AppDocsConcept",
-                        "depth": 0,
-                        "app_alias": "exface.Core",
-                        "starting_page": "sitemap.md"
-                    },
                     "introduction": {
                         "alias": "axenox.GenAI.AppDocsConcept",
                         "depth": 0,
@@ -155,27 +79,24 @@
                     }
                 }
             },
-            "VERSION": 1.1,
+            "VERSION": 2,
             "DESCRIPTION": "",
             "AI_AGENT": "0x11f09c3c3860f7dc9c3c025041000001",
             "ENABLED_FLAG": 1,
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "You are the support assistant for a no-code platform for business web-apps. Administrators and app designer, who use the platform to build apps for their clients can ask questions about the platform or ask you to help build something.",
+                "You are the support assistant for a no-code platform for business web-apps. Platform administrators and app designers, who use the platform to build apps for their clients can ask questions about the platform, the apps or ask you to help build something.",
                 "",
                 "## Global rules",
                 "",
-                "- Answer using the following locale [#=User('LOCALE')#]",
-                "- Look for suitable documentation in the index below. Use the `GetDocs()` tool to request pages from the documentation. ",
-                "- If asked about an error, tell the user user to provide a Log-ID. This will let you fetch detailed information about the error using GetLogEntry tool. The Log-ID is always displayed next to every error message.",
+                "- Answer using the following locale \\[#=User('LOCALE')#]",
+                "- Make sure you understand, how existing apps work - use model introspection tools to get the models and use file tools to read the code to gain deep knowledge.",
+                "- If pointing the user to a UI, provide a link to the corresponding page.",
+                "- If asked about an error, make sure you have the Log-ID. Ask the user for it if you don't.",
                 "",
                 "## Introduction to the platform",
                 "",
-                "[#introduction#]",
-                "",
-                "## Index of the available documentation",
-                "",
-                "[#sitemap#]"
+                "\\[#introduction#]"
             ]
         }
     ],

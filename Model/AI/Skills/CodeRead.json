@@ -59,17 +59,17 @@
         {
             "_EXPORT_SUMMARY": "Read vendor folder",
             "CREATED_ON": "2026-11-19 18:21:07",
-            "MODIFIED_ON": "2026-11-19 18:27:11",
+            "MODIFIED_ON": "2026-11-27 15:17:37",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f193839b1ab1ec9383025041000001",
             "NAME": "Read vendor folder",
-            "ALIAS": "VendorFilesRead",
-            "DESCRIPTION": "Search and read any file in the vendor folder",
+            "ALIAS": "CodeRead",
+            "DESCRIPTION": "Search and read any file in the vendor folder (PHP and JS code)",
             "APP": "0x11efbd2d8f0ae0babd2dc84bd653ed63",
             "INSTRUCTIONS": [
                 "// Multiline text delimited by `\n`",
-                "# Reading the `vendor` folder",
+                "# Reading code in `vendor` folder",
                 "",
                 "Use `ReadVendorFile` and `SearchVendorFolder` for read-only access to files in the vendor folder. The vendors `exface` and  `axenox`  supply most of our infrastructure packages. Payload apps normally have their own verndors."
             ],
