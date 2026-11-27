@@ -12,8 +12,19 @@ use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Widgets\parts\MessageRoles;
 
 /**
- * Chat with AI assistants
+ * Chat with an AI agent inside a page or dialog.
  * 
+ * Set `agent_alias` to choose the agent. Place the chat in a split panel to
+ * show it alongside other widgets; the chat follows the width of its pane.
+ *
+ * ```json
+ * {
+ *     "widget_type": "axenox.GenAI.AIChat",
+ *     "object_alias": "exface.Core.DUMMY",
+ *     "agent_alias": "axenox.GenAI.workbench_ai_assistant"
+ * }
+ *
+ * ```
  * 
  * @author Andrej Kabachnik
  *
@@ -43,6 +54,10 @@ class AIChat extends InputCustom implements iFillEntireContainer
     private array $allowedFileExtensions = [];
 
 
+    /**
+     * {@inheritDoc}
+     * @see \exface\Core\Widgets\InputCustom::init()
+     */
     protected function init()
     {
         $this->setHideCaption(true);
@@ -50,24 +65,13 @@ class AIChat extends InputCustom implements iFillEntireContainer
         $this->setIncludeJsModules(['vendor/npm-asset/deep-chat/dist/deepChat.bundle.js']);
         $this->setCssClass('exf-aichat');
         
-        // TODO why was this necessary although we used chatStyles below (they did not work in UI5)
-        $this->setCss(<<<CSS
-deep-chat {border: none !important;}
-CSS
-
-        );
-        
         $this->setScriptToResize(<<<JS
         
             setTimeout(function(jqSelf){
                 var jqParent = jqSelf.parent();
                 var iHeightP = jqParent.innerHeight();
-                var iWidthP = jqParent.innerWidth();
                 if (iHeightP > 0 && iHeightP > (jqSelf.height() + 4)) {
                     jqSelf.height(iHeightP);
-                }
-                if (iWidthP > 0 && iWidthP > (jqSelf.width() + 4)) {
-                    jqSelf.width(iWidthP);
                 }
             }, 100, $('#{$this->getIdOfDeepChat()}'));
 JS);
@@ -80,7 +84,29 @@ JS);
         $this->setScriptToDisable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton()})($('#{$this->getIdOfDeepChat()}')[0]);");
         $this->setScriptToEnable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton(false)})($('#{$this->getIdOfDeepChat()}')[0]);");
     }
-    
+
+    /**
+     * Include responsive chat styles even when the widget defines custom CSS.
+     *
+     * {@inheritDoc}
+     * @see \exface\Core\Widgets\InputCustom::getCss()
+     */
+    public function getCss() : ?string
+    {
+        $customCss = parent::getCss();
+
+        return <<<CSS
+.deep-chat-wrapper > deep-chat {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    border: none !important;
+}
+
+{$customCss}
+CSS;
+    }
+
     protected function getIdOfDeepChat() : string
     {
         return $this->getId() . '_deepchat';
