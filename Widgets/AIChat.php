@@ -10,12 +10,14 @@ use exface\Core\Interfaces\Widgets\iFillEntireContainer;
 use axenox\GenAI\Factories\AiFactory;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Widgets\parts\MessageRoles;
+use exface\Core\Interfaces\Actions\ActionInterface;
 
 /**
  * Chat with an AI agent inside a page or dialog.
  * 
  * Set `agent_alias` to choose the agent. Place the chat in a split panel to
  * show it alongside other widgets; the chat follows the width of its pane.
+ * The toolbar offers New conversation and Rate by default.
  *
  * ```json
  * {
@@ -39,11 +41,13 @@ class AIChat extends InputCustom implements iFillEntireContainer
 
     private ?AiAgentInterface $agent = null;
 
-    private $buttons = [];
+    private const RATE_ACTION = 'axenox.GenAI.AiConversationRateDialog';
 
-    private ?UxonObject $resetButton = null;
+    private bool $allowToStartNewConversation = true;
 
-    private ?UxonObject $feedbackButton = null;
+    private bool $allowToRateConversation = true;
+
+    private bool $chatButtonsInitialized = false;
 
     private string $introMessage = '';
 
@@ -60,8 +64,6 @@ class AIChat extends InputCustom implements iFillEntireContainer
      */
     protected function init()
     {
-        $this->setHideCaption(true);
-        
         $this->setIncludeJsModules(['vendor/axenox/genai/Facades/js/AIChatMarkdown.js']);
         $this->setCssClass('exf-aichat');
         
@@ -81,8 +83,21 @@ JS);
         $this->setScriptToGetValue("$('#{$this->getIdOfDeepChat()}').data('exf-value')");
 
         // Disable/enable
-        $this->setScriptToDisable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton()})($('#{$this->getIdOfDeepChat()}')[0]);");
-        $this->setScriptToEnable("(function(domEl){ if (domEl && domEl.disableSubmitButton !== undefined) domEl.disableSubmitButton(false)})($('#{$this->getIdOfDeepChat()}')[0]);");
+        $this->setScriptToDisable($this->buildJsSetSubmitDisabled(true));
+        $this->setScriptToEnable($this->buildJsSetSubmitDisabled(false));
+    }
+
+    private function buildJsSetSubmitDisabled(bool $disabled) : string
+    {
+        $chatId = json_encode($this->getIdOfDeepChat());
+        $disabledJs = json_encode($disabled);
+        return <<<JS
+(function (chat) {
+    if (!chat) return;
+    chat.exfSubmitDisabled = {$disabledJs};
+    chat.disableSubmitButton?.(chat.exfSubmitDisabled);
+})(document.getElementById({$chatId}));
+JS;
     }
 
     /**
@@ -113,33 +128,69 @@ CSS;
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function hasToolbars() : bool
+    {
+        if (! $this->chatButtonsInitialized) {
+            $this->chatButtonsInitialized = true;
+            $allowNew = $this->allowToStartNewConversation;
+            $allowRate = $this->allowToRateConversation;
+            if ($allowNew || $allowRate) {
+                $toolbar = $this->getToolbarMain();
+                if ($allowNew) {
+                    $toolbar->addButton($toolbar->createButton(new UxonObject([
+                        'caption' => 'New conversation',
+                        'icon' => 'plus',
+                        'action' => [
+                            'alias' => 'exface.Core.CustomFacadeScript',
+                            'script' => "document.getElementById(" . json_encode($this->getIdOfDeepChat()) . ")?.startNewConversation?.();"
+                        ]
+                    ])));
+                }
+                if ($allowRate) {
+                    $button = $toolbar->createButton(new UxonObject([
+                        'object_alias' => 'axenox.GenAI.AI_CONVERSATION',
+                        'action' => [
+                            'alias' => self::RATE_ACTION,
+                            'prefill_data_refresh' => 'always'
+                        ]
+                    ]));
+                    $button->setInputWidget($this);
+                    $toolbar->addButton($button);
+                }
+            }
+        }
+        return parent::hasToolbars();
+    }
+
+    /**
+     * Supply only the live conversation UID to the rating dialog. Other actions get the regular input data.
+     */
+    public function getScriptToGetData(?ActionInterface $action) : ?string
+    {
+        if ($action === null || strcasecmp($action->getAliasWithNamespace(), self::RATE_ACTION) !== 0) {
+            return $action === null ? null : parent::getScriptToGetData($action);
+        }
+        $chatId = json_encode($this->getIdOfDeepChat());
+        $objectId = json_encode($action->getMetaObject()->getId());
+        return <<<JS
+(function () {
+    const uid = document.getElementById({$chatId})?.conversationId;
+    return {oId: {$objectId}, rows: uid ? [{UID: uid}] : []};
+})()
+JS;
+    }
+
+    /**
      * Builds the chat element and opts its text messages into Markian rendering.
      */
     protected function buildHtmlDeepChat() : string
     {
-        $top = $this->getButtonsHTML('top');
-        $botton = $this->getButtonsHTML('botton');
-
-        $requestDataJs = '';
-        if ($this->isBoundToAttribute()) {
-            $requestDataJs = <<<JS
-                requestDetails.body.data = {
-                    oId: "{$this->getMetaObject()->getId()}", 
-                    rows: [
-                        { {$this->getAttributeAlias()}: $("#{$this->getIdOfDeepChat()}").data("exf-value") }
-                    ]
-                }
-JS;
-        }
-        
+        $introMessage = htmlspecialchars($this->getIntroMessage(), ENT_QUOTES, 'UTF-8');
         return <<<HTML
 
         <div class="deep-chat-wrapper" style="height: 100%">
-            <div
-            class='exf-aichat-top'
-            style="display:flex; flex-direction:row; gap:8px; align-items:center;">
-                {$top}
-            </div>
             <deep-chat 
                 mixedFiles='{$this->getMixedFilesAttributeValue()}'
                 id='{$this->getIdOfDeepChat()}'
@@ -153,31 +204,6 @@ JS;
                         "widget": "{$this->getId()}"
                     }
                 }'
-                responseInterceptor  = 'function (message) {
-                    var domEl = document.getElementById("{$this->getIdOfDeepChat()}");
-
-                    if (message.errorMessage && !message.error) {
-                        message.error = message.errorMessage;
-                    }else{
-                        domEl.conversationId = message.conversation;
-                    }
-                    
-                    
-                    const messages = [message];
-
-                    if (Array.isArray(message.additionalMessages)) {
-                        messages.push(...message.additionalMessages);
-                    }
-                
-                    return messages;   
-                }'
-                requestInterceptor = 'function (requestDetails) {
-                    var domEl = document.getElementById("{$this->getIdOfDeepChat()}");
-                    requestDetails.body.conversation = domEl.conversationId;
-                    {$requestDataJs};
-                    return requestDetails;
-                }'
-
                 errorMessages='{
                     "displayServiceErrorMessages": true,
                     "overrides": {
@@ -187,7 +213,7 @@ JS;
                     }
                 }'
 
-                introMessage='{$this->getIntroMessage()}'
+                introMessage='{$introMessage}'
                 remarkable='{"exfMarkian": true}'
                 chatStyle='{"background": "transparent", "border": "none"}'
                 messageStyles='{
@@ -207,13 +233,6 @@ JS;
                   }'
             ></deep-chat>
 
-            <div
-            class='exf-aichat-top'
-            style="display:flex; flex-direction:row; gap:8px; align-items:center;">
-                {$botton}
-            </div>
-
-            
         </div>
     HTML;
     }
@@ -227,57 +246,64 @@ JS;
         foreach ($this->getPromptSuggestions() as $s){
             $suggestions .= ($suggestions ? ', ' : '') . "{ html: `<button class=\"deep-chat-button deep-chat-suggestion-button\" style=\"border-style: dashed\">{$s}</button>`, role: 'ai' }";
         }
-        $introMessage = $this->getIntroMessage();
+        $chatId = json_encode($this->getIdOfDeepChat());
+        $requestDataJs = '';
+        if ($this->isBoundToAttribute()) {
+            $objectId = json_encode($this->getMetaObject()->getId());
+            $attribute = json_encode($this->getAttributeAlias());
+            $requestDataJs = <<<JS
+                requestDetails.body.data = {
+                    oId: {$objectId},
+                    rows: [{ [{$attribute}]: $(chat).data('exf-value') }]
+                };
+JS;
+        }
 
         return <<<JS
 
         (function () { 
-            window.resetDeepChat = resetDeepChat;
-            const chat = document.getElementById('{$this->getIdOfDeepChat()}');                
+            const chat = document.getElementById({$chatId});
             if (!chat) {
               console.error("AIChat element not found in DOM");
               return;
             }
             
-            chat.historyInitDone = false;
-            chat.addEventListener('render', () => {
-                if (chat.historyInitDone) return;
-                chat.historyInitDone = true;
-        
-                chat.history = [
-                    {$suggestions}
-                ];
-
+            function initChat(chat) {
+                if (chat.startNewConversation) return;
+                const applySubmitState = () => {
+                    if (chat.exfSubmitDisabled !== undefined) {
+                        chat.disableSubmitButton(chat.exfSubmitDisabled);
+                    }
+                };
+                chat.addEventListener('render', applySubmitState, {once: true});
+                applySubmitState();
+                chat.history = [{$suggestions}];
+                chat.requestInterceptor = (requestDetails) => {
+                    requestDetails.body.conversation = chat.conversationId ?? null;
+                    {$requestDataJs}
+                    return requestDetails;
+                };
+                chat.responseInterceptor = (message) => {
+                    if (message.errorMessage && !message.error) {
+                        message.error = message.errorMessage;
+                    }
+                    if (!message.error && message.conversation) {
+                        chat.conversationId = message.conversation;
+                    }
+                    return [message, ...(Array.isArray(message.additionalMessages) ? message.additionalMessages : [])];
+                };
+                chat.startNewConversation = () => {
+                    // A late reply stays attached to the old Deep Chat instance.
+                    const replacement = chat.cloneNode(false);
+                    replacement.exfSubmitDisabled = chat.exfSubmitDisabled;
+                    $(replacement).data('exf-value', $(chat).data('exf-value'));
+                    chat.copyObserver?.disconnect();
+                    initChat(replacement);
+                    chat.replaceWith(replacement);
+                    {$this->getScriptToResize()}
+                };
                 initPreCopyObserver(chat);
-            });
-            
-            function resetDeepChat(chatId) {
-                const domEl = document.getElementById(chatId);
-                if (domEl) {
-                    domEl.conversationId = null;
-                    domEl.messages = [];
-                    domEl.history = [
-                        {$suggestions}
-                    ];
-                    domEl.setAttribute('introMessage', '$introMessage');
-                }
             }
-        
-            const input = document.getElementById("ratingInput");
-            const stars = document.querySelectorAll("#stars span");
-        
-            function setRating(rating) {
-                input.value = rating;
-                stars.forEach((star, i) => {
-                    star.textContent = i < rating ? "★" : "☆";
-                    star.style.color = i < rating ? "gold" : "#bbb";
-                });
-                console.log('Send Rating');
-            }
-        
-            stars.forEach((star, i) => {
-                star.addEventListener("click", () => setRating(i + 1));
-            });
             
             function addCopyButtonsToPre(root) {
                 if (!root || !root.querySelectorAll) {
@@ -407,63 +433,21 @@ JS;
                     if (tryAttachObserver()) {
                         return;
                     }
-                    setTimeout(waitForShadowRoot, 100);
+                    if (chatEl.isConnected) setTimeout(waitForShadowRoot, 100);
                 };
             
                 waitForShadowRoot();
             }
             
-            initPreCopyObserver(chat);
+            customElements.whenDefined('deep-chat').then(() => {
+                if (chat.isConnected) initChat(chat);
+            });
         
         })();        
 
 
-        /*
-
-        Idea for how to send the Feedback
-        
-        
-        function sendRating(chatId) {
-            const el = document.getElementById(chatId);
-            const rating = Number(document.getElementById("ratingInput").value || 0);
-
-            const connect = {
-                url: "{$this->getAiChatFacade()->buildUrlToFacade()}/{$this->getAgentAlias()}/rateChat",
-                method: "POST",
-                additionalBodyProps: {
-                    object: "{$this->getMetaObject()->getAliasWithNamespace()}",
-                    page: "{$this->getPage()->getAliasWithNamespace()}",
-                    widget: chatId,
-                    conversation: el?.conversationId ?? null,
-                    rating
-                }
-            };
-
-            fetch(connect.url, {
-                method: connect.method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(connect.additionalBodyProps)
-            })
-            .then(r => r.json())
-            .then(data => {
-                console.log("Antwort von rateChat:", data);
-            })
-            .catch(err => console.error("Fehler:", err));
-        }
-        
-        
-        */
 JS;
 
-    }
-
-    protected function getButtonsHTML(string $position) : string 
-    {
-        $buttons = [];
-        foreach($this->buttons as $btn){
-            $buttons [] = $btn($position);
-        }
-        return implode("\n", $buttons);
     }
 
     /**
@@ -536,109 +520,37 @@ JS;
     }
 
 
-    /*
-    * Checks two standard properties of the given object ("position" and "enabled")
-    * and returns true only if the object's position matches the given position
-    * and it is marked as enabled (allowed to be used).
-    */
-    protected function canUseButton(UxonObject $var, string $position) : bool
-    {
-        $properties = $var->getPropertiesAll();
-        $propPosition = strtolower($properties['position'] ?? '');
-        $enabled = $properties['enabled'] ?? true;
-        return $propPosition === strtolower($position) && $enabled;
-    }
-
     /**
-     * defines examples of suggestions for the Prompt
+     * Show the New conversation button to let users start a separate chat with the same agent.
      * 
-     * @uxon-property reset_button
-     * @uxon-type UxonObject
-     * @uxon-required true
-     * @uxon-template {"enabled": true,"position": "top"}
-     * 
-     * @param UxonObject $alias
-     * @return AIChat
+     * @uxon-property allow_to_start_new_conversation
+     * @uxon-type boolean
+     * @uxon-default true
      */
-    protected function setResetButton(UxonObject $var) : AIChat
+    protected function setAllowToStartNewConversation(bool $value) : AIChat
     {
-        $this->resetButton = $var;
-        $this->buttons[] = [$this,'getResetButtonHTML'];
+        $this->allowToStartNewConversation = $value;
         return $this;
     }
 
-    protected function getResetButtonHTML(string $position) : string
-    {
-        $properties = $this->resetButton->getPropertiesAll();
-
-        $order = ($properties['order'] ?? '1');
-
-        if ($this->canUseButton($this->resetButton, $position)) {
-            return <<<HTML
-                    <button style="order : {$order}" type="button" onclick="resetDeepChat('{$this->getIdOfDeepChat()}')">Reset</button>
-                    HTML;
-                        }
-
-        return '';
-    }
-
-
     /**
-     * defines examples of suggestions for the Prompt
+     * Show the Rate button to let users add or edit a rating for the current conversation.
      * 
-     * @uxon-property feedback_window
-     * @uxon-type UxonObject
-     * @uxon-required true
-     * @uxon-template {"enabled": true,"position": "top"}
-     * 
-     * @param UxonObject $alias
-     * @return AIChat
+     * @uxon-property allow_to_rate_conversation
+     * @uxon-type boolean
+     * @uxon-default true
      */
-    protected function setFeedbackWindow(UxonObject $var) : AIChat
+    protected function setAllowToRateConversation(bool $value) : AIChat
     {
-        $this->feedbackButton = $var;
-        $this->buttons[] = [$this,'getFeedbackWindow'];
-
+        $this->allowToRateConversation = $value;
         return $this;
     }
 
-    protected function getFeedbackWindow(string $position) : string
-    {
-
-        $properties = $this->feedbackButton->getPropertiesAll();
-        $order = ($properties['order'] ?? '2');
-
-
-        if($this->canUseButton($this->feedbackButton, $position)){
-            return <<<HTML
-                    <div style="order:{$order}; display:flex; align-items:center; gap:12px;">
-                        <input id="feedbackInput" type="text" placeholder="Dein Feedback..."
-                            style="flex:1; padding:8px; font-size:16px; border:1px solid #ccc; border-radius:6px;" />
-
-                        <div id="stars" style="font-size:30px; cursor:pointer; white-space:nowrap;">
-                            <span id="s1" style="color:#bbb;">☆</span>
-                            <span id="s2" style="color:#bbb;">☆</span>
-                            <span id="s3" style="color:#bbb;">☆</span>
-                            <span id="s4" style="color:#bbb;">☆</span>
-                            <span id="s5" style="color:#bbb;">☆</span>
-                        </div>
-                    </div>
-
-                    HTML;
-        }
-        return '';
-    }
-
     /**
-     * defines examples of suggestions for the Prompt
+     * Show an introductory Markdown note at the start of each new conversation.
      * 
      * @uxon-property intro_message
      * @uxon-type string
-     * @uxon-required true
-     * 
-     * 
-     * @param string $alias
-     * @return AIChat
      */
     protected function setIntroMessage(string $var) : AIChat
     {
@@ -740,7 +652,12 @@ JS;
 
     protected function getIntroMessage() : string
     {
-        return '{"text": ' . json_encode($this->introMessage, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '}';
+        $text = $this->introMessage;
+        if (trim($text) !== '') {
+            $lines = preg_split('/\r\n|\r|\n/', $text);
+            $text = "> [!NOTE]\n>\n> " . implode("\n> ", $lines);
+        }
+        return json_encode(['text' => $text], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /**
