@@ -87,9 +87,9 @@
         {
             "_EXPORT_SUMMARY": "AI agent [axenox.GenAI.AI_AGENT]",
             "CREATED_ON": "2024-09-17 13:08:34",
-            "MODIFIED_ON": "2026-09-09 13:28:46",
+            "MODIFIED_ON": "2026-11-27 14:06:45",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
-            "MODIFIED_BY_USER": "0x11eea89602c1c3dca896005056be9fa0",
+            "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11ef8ec22e439a628ec2025041000001",
             "READABLE_FLAG": 1,
             "WRITABLE_FLAG": 1,
@@ -140,86 +140,80 @@
                                         ]
                                     },
                                     {
-                                        "widget_type": "WidgetGroup",
+                                        "widget_type": "DataTable",
                                         "caption": "Available versions of this agent",
-                                        "width": "max",
+                                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                        "nowrap": false,
                                         "height": "max",
-                                        "widgets": [
+                                        "filters": [
                                             {
-                                                "widget_type": "DataTable",
-                                                "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
-                                                "nowrap": false,
-                                                "filters": [
-                                                    {
-                                                        "attribute_alias": "AI_AGENT",
-                                                        "comparator": "==",
-                                                        "required": true,
-                                                        "hidden": true
-                                                    }
-                                                ],
-                                                "columns": [
-                                                    {
-                                                        "attribute_alias": "ENABLED_FLAG",
-                                                        "caption": "On"
-                                                    },
-                                                    {
-                                                        "attribute_alias": "VERSION",
-                                                        "caption": "V."
-                                                    },
-                                                    {
-                                                        "attribute_alias": "PROTOTYPE_CLASS__LABEL"
-                                                    },
-                                                    {
-                                                        "attribute_alias": "DATA_CONNECTION__LABEL"
-                                                    },
-                                                    {
-                                                        "attribute_alias": "AI_AGENT_VERSION_SKILL__AI_SKILL__ALIAS:LIST_DISTINCT",
-                                                        "caption": "Skills"
-                                                    },
-                                                    {
-                                                        "attribute_alias": "DESCRIPTION"
-                                                    }
-                                                ],
-                                                "sorters": [
-                                                    {
-                                                        "attribute_alias": "VERSION",
-                                                        "direction": "desc"
-                                                    }
-                                                ],
-                                                "buttons": [
-                                                    {
-                                                        "action_alias": "exface.Core.ShowObjectCreateDialog",
-                                                        "disabled_if": {
-                                                            "operator": "AND",
-                                                            "conditions": [
-                                                                {
-                                                                    "value_left": "=uid_field",
-                                                                    "comparator": "==",
-                                                                    "value_right": ""
-                                                                }
-                                                            ]
+                                                "attribute_alias": "AI_AGENT",
+                                                "comparator": "==",
+                                                "required": true,
+                                                "hidden": true
+                                            }
+                                        ],
+                                        "columns": [
+                                            {
+                                                "attribute_alias": "ENABLED_FLAG",
+                                                "caption": "On"
+                                            },
+                                            {
+                                                "attribute_alias": "VERSION",
+                                                "caption": "V."
+                                            },
+                                            {
+                                                "attribute_alias": "PROTOTYPE_CLASS__LABEL"
+                                            },
+                                            {
+                                                "attribute_alias": "DATA_CONNECTION__LABEL"
+                                            },
+                                            {
+                                                "attribute_alias": "AI_AGENT_VERSION_SKILL__AI_SKILL__ALIAS:LIST_DISTINCT",
+                                                "caption": "Skills"
+                                            },
+                                            {
+                                                "attribute_alias": "DESCRIPTION"
+                                            }
+                                        ],
+                                        "sorters": [
+                                            {
+                                                "attribute_alias": "VERSION",
+                                                "direction": "desc"
+                                            }
+                                        ],
+                                        "buttons": [
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCreateDialog",
+                                                "disabled_if": {
+                                                    "operator": "AND",
+                                                    "conditions": [
+                                                        {
+                                                            "value_left": "=uid_field",
+                                                            "comparator": "==",
+                                                            "value_right": ""
                                                         }
-                                                    },
-                                                    {
-                                                        "action_alias": "exface.Core.ShowObjectEditDialog",
-                                                        "bind_to_double_click": true
-                                                    },
-                                                    {
-                                                        "action_alias": "exface.Core.ShowObjectCopyDialog"
-                                                    },
-                                                    {
-                                                        "action_alias": "axenox.GenAI.ToggleAiAgentVersion"
-                                                    },
-                                                    {
-                                                        "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog"
-                                                    },
-                                                    {
-                                                        "action_alias": "axenox.GenAI.AiAgentVersionRestoreDefaults"
-                                                    },
-                                                    {
-                                                        "action_alias": "exface.Core.DeleteObject"
-                                                    }
-                                                ]
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectEditDialog",
+                                                "bind_to_double_click": true
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.ToggleAiAgentVersion"
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog"
+                                            },
+                                            {
+                                                "action_alias": "axenox.GenAI.AiAgentVersionRestoreDefaults"
+                                            },
+                                            {
+                                                "action_alias": "exface.Core.DeleteObject"
                                             }
                                         ]
                                     }
