@@ -67,7 +67,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version: Change connection [AiAgentVersionChangeConnectionDialog]",
             "CREATED_ON": "2024-09-17 13:31:42",
-            "MODIFIED_ON": "2025-09-04 15:45:00",
+            "MODIFIED_ON": "2026-11-27 13:32:45",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11efac9c69a150b0ac9c025041000001",
@@ -78,7 +78,6 @@
             "SHORT_DESCRIPTION": "Change the connection for this agent locally (only on this installation)",
             "CONFIG_UXON": {
                 "input_rows_min": 1,
-                "input_rows_max": 1,
                 "input_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
                 "prefill_with_input_data": true,
                 "dialog": {
@@ -88,7 +87,9 @@
                     "widgets": [
                         {
                             "attribute_alias": "UID",
-                            "widget_type": "InputHidden"
+                            "widget_type": "InputHidden",
+                            "multiple_values_allowed": true,
+                            "aggregator": "LIST_DISTINCT"
                         },
                         {
                             "attribute_alias": "DATA_CONNECTION",
@@ -106,20 +107,20 @@
                                 "input_mapper": {
                                     "column_to_column_mappings": [
                                         {
-                                            "from": "'exf_ai_agent_version'",
-                                            "to": "TABLE_NAME"
-                                        },
-                                        {
-                                            "from": "'data_connection_oid'",
-                                            "to": "COLUMN_NAME"
-                                        },
-                                        {
                                             "from": "UID",
                                             "to": "ROW_UID"
                                         },
                                         {
                                             "from": "DATA_CONNECTION",
                                             "to": "VALUE"
+                                        },
+                                        {
+                                            "from": "'exf_ai_agent_version'",
+                                            "to": "TABLE_NAME"
+                                        },
+                                        {
+                                            "from": "'data_connection_oid'",
+                                            "to": "COLUMN_NAME"
                                         }
                                     ]
                                 }
@@ -146,7 +147,7 @@
                                         {
                                             "from": "UID",
                                             "to": "ROW_UID",
-                                            "comparator": "=="
+                                            "comparator": "["
                                         }
                                     ]
                                 }
@@ -212,7 +213,7 @@
         {
             "_EXPORT_SUMMARY": "AI agent version: Enable / disable [ToggleAiAgentVersion]",
             "CREATED_ON": "2026-09-14 00:00:00",
-            "MODIFIED_ON": "2026-09-14 00:00:00",
+            "MODIFIED_ON": "2026-11-27 13:34:17",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
             "MODIFIED_BY_USER": "0x31000000000000000000000000000000",
             "UID": "0x11f1e9bf85c4a720b4e3025041000001",
@@ -224,7 +225,7 @@
             "CONFIG_UXON": {
                 "input_rows_min": 1,
                 "input_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
-                "icon": "random",
+                "icon": "toggle-off",
                 "input_mapper": {
                     "inherit_columns": "own_system_attributes",
                     "column_to_column_mappings": [

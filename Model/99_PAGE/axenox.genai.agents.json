@@ -11,55 +11,62 @@
     "created_by_user_selector": "0x31000000000000000000000000000000",
     "created_on": "2024-09-17 13:26:38",
     "modified_by_user_selector": "0x31000000000000000000000000000000",
-    "modified_on": "2026-09-09 21:12:53",
+    "modified_on": "2026-11-27 13:34:57",
     "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><title>robot-outline</title><path d=\"M17.5 15.5C17.5 16.61 16.61 17.5 15.5 17.5S13.5 16.61 13.5 15.5 14.4 13.5 15.5 13.5 17.5 14.4 17.5 15.5M8.5 13.5C7.4 13.5 6.5 14.4 6.5 15.5S7.4 17.5 8.5 17.5 10.5 16.61 10.5 15.5 9.61 13.5 8.5 13.5M23 15V18C23 18.55 22.55 19 22 19H21V20C21 21.11 20.11 22 19 22H5C3.9 22 3 21.11 3 20V19H2C1.45 19 1 18.55 1 18V15C1 14.45 1.45 14 2 14H3C3 10.13 6.13 7 10 7H11V5.73C10.4 5.39 10 4.74 10 4C10 2.9 10.9 2 12 2S14 2.9 14 4C14 4.74 13.6 5.39 13 5.73V7H14C17.87 7 21 10.13 21 14H22C22.55 14 23 14.45 23 15M21 16H19V14C19 11.24 16.76 9 14 9H10C7.24 9 5 11.24 5 14V16H3V17H5V20H19V17H21V16Z\" /></svg>",
     "icon_set": "svg",
     "contents": {
         "widget_type": "SplitHorizontal",
-        "object_alias": "axenox.GenAI.AI_AGENT",
+        "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
         "panels": [
             {
-                "width": "50%",
+                "width": "70%",
                 "widgets": [
                     {
                         "widget_type": "DataTable",
-                        "object_alias": "axenox.GenAI.AI_AGENT",
+                        "object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                        "multi_select": true,
+                        "row_grouper": {
+                            "group_by_attribute_alias": "AI_AGENT__LABEL",
+                            "show_counter": true
+                        },
                         "filters": [
                             {
-                                "attribute_alias": "NAME"
+                                "attribute_alias": "AI_AGENT__NAME"
                             },
                             {
-                                "attribute_alias": "APP"
+                                "attribute_alias": "AI_AGENT__APP"
                             },
                             {
-                                "attribute_alias": "ALIAS"
+                                "attribute_alias": "AI_AGENT__ALIAS"
                             },
                             {
-                                "attribute_alias": "AI_AGENT_VERSION__CONFIG_UXON"
+                                "attribute_alias": "CONFIG_UXON"
                             }
                         ],
                         "columns": [
                             {
-                                "attribute_alias": "NAME"
+                                "attribute_alias": "ENABLED_FLAG",
+                                "caption": "On"
                             },
                             {
-                                "attribute_alias": "APP__ALIAS"
+                                "attribute_alias": "AI_AGENT__NAME"
                             },
                             {
-                                "attribute_alias": "ALIAS"
+                                "attribute_alias": "AI_AGENT__APP__ALIAS"
                             },
                             {
-                                "attribute_alias": "AI_AGENT_VERSION__UID:COUNT",
-                                "caption": "Vers.",
-                                "hint": "Number of versions"
+                                "attribute_alias": "AI_AGENT__ALIAS"
                             },
                             {
-                                "attribute_alias": "AI_NOTE__TYPE:COUNT_IF(!== suggestion)",
+                                "attribute_alias": "VERSION"
+                            },
+                            {
+                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(!== suggestion)",
                                 "caption": "N.",
                                 "hint": "Number of memory notes"
                             },
                             {
-                                "attribute_alias": "AI_NOTE__TYPE:COUNT_IF(== suggestion)",
+                                "attribute_alias": "AI_AGENT__AI_NOTE__TYPE:COUNT_IF(== suggestion)",
                                 "caption": "S.",
                                 "hint": "Number of suggestions",
                                 "cell_widget": {
@@ -72,7 +79,7 @@
                                 }
                             },
                             {
-                                "attribute_alias": "AI_AGENT_VERSION__DATA_CONNECTION__LABEL:LIST_DISTINCT",
+                                "attribute_alias": "DATA_CONNECTION__LABEL",
                                 "caption": "Connection(s)"
                             },
                             {
@@ -81,23 +88,67 @@
                         ],
                         "sorters": [
                             {
-                                "attribute_alias": "NAME",
+                                "attribute_alias": "AI_AGENT__NAME",
                                 "direction": "asc"
+                            },
+                            {
+                                "attribute_alias": "VERSION",
+                                "direction": "desc"
                             }
                         ],
                         "buttons": [
                             {
-                                "action_alias": "exface.Core.ShowObjectCreateDialog"
+                                "caption": "Create agent",
+                                "action": {
+                                    "alias": "exface.Core.ShowObjectCreateDialog",
+                                    "object_alias": "axenox.GenAI.AI_AGENT",
+                                    "input_mapper": {
+                                        "from_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                        "to_object_alias": "axenox.GenAI.AI_AGENT",
+                                        "column_to_column_mappings": [
+                                            {
+                                                "from": "AI_AGENT",
+                                                "to": "UID"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "caption": "Edit agent",
+                                "action": {
+                                    "alias": "exface.Core.ShowObjectEditDialog",
+                                    "object_alias": "axenox.GenAI.AI_AGENT",
+                                    "input_mapper": {
+                                        "from_object_alias": "axenox.GenAI.AI_AGENT_VERSION",
+                                        "to_object_alias": "axenox.GenAI.AI_AGENT",
+                                        "column_to_column_mappings": [
+                                            {
+                                                "from": "AI_AGENT",
+                                                "to": "UID"
+                                            }
+                                        ]
+                                    }
+                                }
                             },
                             {
                                 "action_alias": "exface.Core.ShowObjectEditDialog",
+                                "caption": "Edit version",
                                 "bind_to_double_click": true
                             },
                             {
-                                "action_alias": "exface.Core.ShowObjectCopyDialog"
+                                "action_alias": "exface.Core.ShowObjectCopyDialog",
+                                "caption": "Copy version"
+                            },
+                            {
+                                "action_alias": "axenox.GenAI.AiAgentVersionChangeConnectionDialog"
+                            },
+                            {
+                                "action_alias": "axenox.GenAI.ToggleAiAgentVersion"
                             },
                             {
                                 "action_alias": "exface.Core.DeleteObject",
+                                "caption": "Delete version",
                                 "visibility": "optional"
                             }
                         ]
@@ -106,7 +157,6 @@
             },
             {
                 "caption": "Agent Designer",
-                "width": "50%",
                 "widgets": [
                     {
                         "widget_type": "axenox.GenAI.AIChat",
