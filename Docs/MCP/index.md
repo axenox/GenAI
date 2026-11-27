@@ -8,7 +8,7 @@ on that endpoint or contributed by its assigned skills.
 
 ## Prerequisites
 
-- PHP 8.1 or newer must be available as `php`.
+- PHP 8.2 or newer must be available as `php`. GenAI uses `mcp/sdk` 0.10.x.
 - Installed releases expose `vendor/bin/mcp` through Composer. When developing directly in this
   package, use `vendor/axenox/genai/bin/mcp` or run `bin/mcp` from the package root.
 - All application and diagnostic output must go to `STDERR`. Every non-empty `STDOUT` line is an
@@ -108,8 +108,8 @@ retaining custom schemas while allowing `null` for optional parameters. Unknown 
 missing required values and parameter parsing failures prevent invocation.
 
 Original SDK-visible named arguments and separately parsed positional execution arguments are
-retained. The official SDK decodes JSON associatively, so nested `{}` and `[]` distinctions may
-already be lost before GenAI sees a request. Re-encoded SDK arguments are not original raw JSON.
+retained. SDK 0.10 preserves nested JSON objects as `stdClass` and JSON arrays as PHP lists for
+schema validation, so `{}` and `[]` are distinct. Re-encoded SDK arguments are not original raw JSON.
 GenAI neither forks SDK framing nor claims original-wire fidelity for this input.
 
 SDK events open an authenticated receipt scope, persist the request, and close that Workbench.

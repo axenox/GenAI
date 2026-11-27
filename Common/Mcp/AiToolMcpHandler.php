@@ -7,7 +7,7 @@ use axenox\GenAI\DataTypes\AiConversationTypeDataType;
 use axenox\GenAI\Factories\AiFactory;
 use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Exceptions\AuthorizationExceptionInterface;
-use Mcp\Exception\ToolCallException;
+use Mcp\Server\Exception\ToolCallException;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ToolHandlerInterface;
 

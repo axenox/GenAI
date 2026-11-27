@@ -8,19 +8,19 @@ use axenox\GenAI\Common\Mcp\McpConversationResolver;
 use axenox\GenAI\Common\Mcp\McpConversationEvents;
 use axenox\GenAI\Common\Mcp\McpRequestBridge;
 use axenox\GenAI\Interfaces\AiToolResultInterface;
-use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\ReferenceHandler;
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\ResponseEvent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
-use Mcp\Server;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\Registry\ReferenceHandler;
 use Mcp\Server\ClientGateway;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\ToolHandlerInterface;
+use Mcp\Server\Server;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use PHPUnit\Framework\TestCase;
@@ -139,6 +139,7 @@ class McpConversationContractTest extends TestCase
         $result->method('isFailed')->willReturn(true);
         $response = AiToolMcpAdapter::convertResult($result);
         $this->assertTrue($response->isError);
+        $this->assertArrayNotHasKey('structuredContent', $response->jsonSerialize());
         $this->assertSame("retained output\n\ninstructions", $response->content[0]->text);
         $this->assertSame([
             ['level' => 'error', 'message' => 'error one'],

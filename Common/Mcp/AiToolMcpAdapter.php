@@ -85,8 +85,7 @@ class AiToolMcpAdapter
         return new CallToolResult(
             [new TextContent($text)],
             $result->isFailed(),
-            null,
-            $meta !== [] ? $meta : null
+            meta: $meta !== [] ? $meta : null
         );
     }
 

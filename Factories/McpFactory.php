@@ -7,10 +7,10 @@ use axenox\GenAI\Common\Mcp\McpCallToolHandler;
 use axenox\GenAI\Common\Mcp\McpConversationEvents;
 use axenox\GenAI\Common\Mcp\McpRequestBridge;
 use axenox\GenAI\Common\Mcp\McpWorkbenchScope;
-use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\Registry\ReferenceHandler;
 use Mcp\Server\Handler\Request\CallToolHandler;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Symfony\Component\Uid\Uuid;
 
 /**

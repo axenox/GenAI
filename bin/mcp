@@ -3,6 +3,11 @@
 
 use axenox\GenAI\Facades\AiMcpCliServerFacade;
 
+if (PHP_VERSION_ID < 80200) {
+    fwrite(STDERR, "The ExFace MCP server requires PHP 8.2 or newer.\n");
+    exit(1);
+}
+
 require __DIR__ . '/../../../autoload.php';
 
 // Keep a source checkout runnable before Composer regenerates its package autoload metadata.
@@ -30,11 +35,6 @@ if ($endpointSelector === null || in_array($endpointSelector, ['-h', '--help'], 
     fwrite(STDOUT, "Usage: vendor/bin/mcp <endpoint-selector>\n");
     fwrite(STDOUT, "Example: vendor/bin/mcp axenox.GenAI.ide_mcp_server\n");
     exit($endpointSelector === null ? 1 : 0);
-}
-
-if (PHP_VERSION_ID < 80100) {
-    fwrite(STDERR, "The ExFace MCP server requires PHP 8.1 or newer.\n");
-    exit(1);
 }
 
 try {

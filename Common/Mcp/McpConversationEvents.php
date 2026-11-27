@@ -5,10 +5,10 @@ use axenox\GenAI\AI\Agents\McpServer;
 use axenox\GenAI\Common\AiToolCall;
 use axenox\GenAI\DataTypes\AiConversationTypeDataType;
 use axenox\GenAI\Factories\AiFactory;
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\RequestEvent;
-use Mcp\Event\ResponseEvent;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
