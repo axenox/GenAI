@@ -20,6 +20,7 @@ use axenox\GenAI\Exceptions\AiAgentNotFoundError;
 use axenox\GenAI\Exceptions\AiConceptNotFoundError;
 use axenox\GenAI\Exceptions\AiSkillNotFoundError;
 use axenox\GenAI\Exceptions\AiToolNotFoundError;
+use axenox\GenAI\Interfaces\AiConnectorInterface;
 use axenox\GenAI\Interfaces\AiPromptInterface;
 use axenox\GenAI\Interfaces\AiConversationInterface;
 use axenox\GenAI\Interfaces\AiTaskHandlerInterface;
@@ -39,11 +40,16 @@ use exface\Core\DataTypes\PhpFilePathDataType;
 use exface\Core\DataTypes\SemanticVersionDataType;
 use exface\Core\DataTypes\SortingDirectionsDataType;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Exceptions\DataSources\DataConnectionNotFoundError;
+use exface\Core\Exceptions\DataTypes\DataTypeCastingError;
 use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\Exceptions\RangeException;
+use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\Exceptions\UxonParserError;
 use axenox\GenAI\Interfaces\AiAgentInterface;
 use axenox\GenAI\Interfaces\AiConceptInterface;
 use exface\Core\Factories\AbstractSelectableComponentFactory;
+use exface\Core\Factories\DataConnectionFactory;
 use exface\Core\Factories\DataSheetFactory;
 use axenox\GenAI\Interfaces\Selectors\AiAgentSelectorInterface;
 use exface\Core\Interfaces\DataSheets\DataSheetInterface;
@@ -408,6 +414,7 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
      * Creates a configured task handler from an alias and semantic version constraint.
      * 
      * @throws AiAgentNotFoundError
+     * @throws UnexpectedValueException If the configured default LLM connection is invalid.
      * @param WorkbenchInterface $workbench
      * @param string $aliasWithVersion
      * @return AiTaskHandlerInterface
@@ -472,9 +479,9 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         }
         
         if ($requiresConnection) {
-            // Make sure, there is an LLM connection. If there is one defined, use it regularly. If not,
-            // see if the previous version had one and inherit it.
-            if (null !== $val = $agentRow['DATA_CONNECTION']) {
+            $val = $agentRow['DATA_CONNECTION'];
+            $uxonConnectionKey = $uxon->findPropertyKey('data_connection_alias') ?: 'data_connection_alias';
+            if ($val !== null && $val !== '') {
                 $uxon->setProperty('data_connection_alias', $val);
             } else {
                 $val = self::findAgentConnection($bestFitVersion, $ds);
@@ -490,10 +497,12 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
                     ]);
                     $uxon->setProperty('data_connection_alias', $val);
                     $customizingDs->dataCreate(false);
-                } else {
-                    // If we did not find a previously used connection either, leave it blank - the agent will
-                    // be instantiated, but will probably not be usable. Still, this will allow to render
-                    // chats and will only issue an error if they are really used.
+                } elseif (! $uxon->getProperty($uxonConnectionKey)) {
+                    // The app default is not persisted so changes to it apply to unconfigured agents.
+                    $default = self::findDefaultLlmConnection($workbench);
+                    if ($default !== null) {
+                        $uxon->setProperty($uxonConnectionKey, $default);
+                    }
                 }
             }
         }
@@ -570,15 +579,48 @@ abstract class AiFactory extends AbstractSelectableComponentFactory
         $connectionCol = $allVersions->getColumns()->get('DATA_CONNECTION');
         $versionsLeft = $versionCol->getValues();
         $nextVersion = $currentVersion;
-        while (count($versionsLeft) > 0) {
+        while ($nextVersion !== null) {
             $connectionUid = $connectionCol->getValue($versionCol->findRowByValue($nextVersion));
-            if ($connectionUid !== null) {
+            if ($connectionUid !== null && $connectionUid !== '') {
                 return $connectionUid;
             }
             unset ($versionsLeft[array_search($nextVersion, $versionsLeft)]);
             $nextVersion = SemanticVersionDataType::findVersionBest('*', $versionsLeft);
         }
         return null;
+    }
+
+    /**
+     * Returns the app-wide LLM connection selector, or null if no default was set.
+     *
+     * @param WorkbenchInterface $workbench
+     * @return string|null
+     * @throws UnexpectedValueException If the option does not select a configured LLM connection.
+     */
+    private static function findDefaultLlmConnection(WorkbenchInterface $workbench) : ?string
+    {
+        $option = 'DEFAULT_LLM_CONNECTION';
+        $config = $workbench->getApp('axenox.GenAI')->getConfig();
+        $selector = $config->hasOption($option) ? $config->getOption($option) : null;
+        if ($selector === null || (is_string($selector) && trim($selector) === '')) {
+            return null;
+        }
+
+        $error = "Invalid $option in axenox.GenAI.config.json";
+        if (! is_string($selector)) {
+            throw new UnexpectedValueException($error . ': expected a connection alias or UID.');
+        }
+
+        $selector = trim($selector);
+        try {
+            $connection = DataConnectionFactory::createFromModel($workbench, $selector);
+        } catch (DataConnectionNotFoundError | DataTypeCastingError | RangeException $exception) {
+            throw new UnexpectedValueException($error . ': cannot resolve the connection selector.', null, $exception);
+        }
+        if (! $connection instanceof AiConnectorInterface) {
+            throw new UnexpectedValueException($error . ': the selected connection is not an LLM connection.');
+        }
+        return $selector;
     }
 
     /**

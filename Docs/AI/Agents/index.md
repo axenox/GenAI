@@ -160,6 +160,14 @@ An agent version defines how the agent is created at runtime:
 
 The prototype implements the behavior in PHP. The UXON model provides the specific configuration for a version. This allows the same prototype to be reused for multiple agents or versions.
 
+### Default LLM connection
+
+Set `DEFAULT_LLM_CONNECTION` in `axenox.GenAI.config.json` to the alias or UID of a configured LLM connection.
+The factory uses it only if the agent has no configured connection and cannot inherit one from another version.
+The default is not saved on the agent version. An unset or blank default leaves the agent without a connection
+and lets its chat render; attempting to use the connection then reports that it is missing. An invalid default
+reports a configuration error when the agent is loaded. Task handlers that do not require an LLM ignore this setting.
+
 ## Role of `CONFIG_UXON`
 
 `CONFIG_UXON` is not a second prompt. It is the machine-readable configuration of the agent prototype. When a version is loaded, the UXON is read from `AI_AGENT_VERSION.CONFIG_UXON`. The version's name, alias, and `INSTRUCTIONS` are then added to this UXON, which is used to instantiate the configured prototype.
